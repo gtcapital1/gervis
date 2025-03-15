@@ -3,12 +3,13 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
+import { setupAuth } from "./auth";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
-  // For demo purposes, we're not implementing real auth yet
-  // Assume admin user (id: 1) is logged in
-  req.user = { id: 1 };
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
   next();
 }
 
@@ -23,6 +24,8 @@ const contactFormSchema = z.object({
 });
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Setup authentication
+  setupAuth(app);
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {

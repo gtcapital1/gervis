@@ -4,8 +4,13 @@ import {
   assets, type Asset, type InsertAsset,
   recommendations, type Recommendation, type InsertRecommendation
 } from "@shared/schema";
+import session from "express-session";
+import createMemoryStore from "memorystore";
+
+const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
+  sessionStore: session.Store;
   // User Methods
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -41,8 +46,12 @@ export class MemStorage implements IStorage {
   private clientCurrentId: number;
   private assetCurrentId: number;
   private recommendationCurrentId: number;
+  public sessionStore: session.Store;
 
   constructor() {
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000, // Clear expired sessions every day
+    });
     this.users = new Map();
     this.clients = new Map();
     this.assets = new Map();
@@ -52,11 +61,12 @@ export class MemStorage implements IStorage {
     this.assetCurrentId = 1;
     this.recommendationCurrentId = 1;
     
-    // Add a default admin user
+    // Add a default admin user with hashed password
+    // The password is "password" hashed with scrypt and salt
     this.users.set(this.userCurrentId++, {
       id: 1,
       username: "admin",
-      password: "password",
+      password: "c6e19da1cbbfe0c96d33bc7972f0f9ab755fc78d592b874c3cc9c28146d7e94c78e28724a0d53cb8f5b5ed51552bf5bf24aa7adac5d7ca8a32df3761c3645acd.6c76704d14bc8241d1a89ebcab6d7371",
       name: "Admin User",
       email: "admin@watson.com",
       role: "advisor"
