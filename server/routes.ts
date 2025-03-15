@@ -94,6 +94,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to check PRO status' });
     }
   });
+  
+  // Update user password
+  app.post('/api/users/:userId/password', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Ensure the user is only updating their own password
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to update this account' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Password schema
+      const passwordSchema = z.object({
+        currentPassword: z.string().min(6, "Current password must be at least 6 characters"),
+        newPassword: z.string().min(8, "New password must be at least 8 characters")
+      });
+      
+      const validatedData = passwordSchema.parse(req.body);
+      
+      // Import the comparePasswords and hashPassword functions
+      const { comparePasswords, hashPassword } = await import('./auth');
+      
+      // Verify current password
+      const isPasswordValid = await comparePasswords(
+        validatedData.currentPassword,
+        user.password
+      );
+      
+      if (!isPasswordValid) {
+        return res.status(400).json({ 
+          message: 'Current password is incorrect' 
+        });
+      }
+      
+      // Hash the new password
+      const hashedPassword = await hashPassword(validatedData.newPassword);
+      
+      // Update the user's password
+      await storage.updateUser(userId, {
+        password: hashedPassword
+      });
+      
+      res.json({ 
+        success: true,
+        message: 'Password updated successfully'
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        console.error('Error updating user password:', error);
+        res.status(500).json({ message: 'Failed to update password' });
+      }
+    }
+  });
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {

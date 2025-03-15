@@ -9,6 +9,7 @@ import ClientDetail from "@/pages/ClientDetail";
 import OnboardingForm from "@/pages/OnboardingForm";
 import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import AuthPage from "@/pages/auth-page";
+import Settings from "@/pages/Settings";
 import { Layout } from "@/components/advisor/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -41,6 +42,10 @@ function Router() {
             <ClientDetail />
           </Layout>
         )} 
+      />
+      <ProtectedRoute 
+        path="/settings" 
+        component={Settings}
       />
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route path="/onboarding/:token" component={OnboardingForm} />

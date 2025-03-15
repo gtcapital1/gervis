@@ -48,10 +48,10 @@ export function Layout({ children }: LayoutProps) {
     },
     {
       name: "Settings",
-      href: "#",
+      href: "/settings",
       icon: Settings,
       current: location === "/settings",
-      disabled: true,
+      disabled: false,
     },
   ];
 
