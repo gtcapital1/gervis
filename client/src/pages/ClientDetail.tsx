@@ -878,6 +878,15 @@ Cordiali saluti,`
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* PRO feature upgrade dialog */}
+      {user && (
+        <UpgradeDialog
+          open={isUpgradeOpen}
+          onOpenChange={setIsUpgradeOpen}
+          userId={user.id}
+        />
+      )}
     </>
   );
 }
