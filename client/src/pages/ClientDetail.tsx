@@ -724,97 +724,136 @@ Cordiali saluti,`
       
       {/* Edit Client Information Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Client Information</DialogTitle>
+            <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
             <DialogDescription>
-              Make changes to the client's information here.
+              Make changes to {client?.name}'s information
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  {...form.register("name")}
-                  placeholder="Enter client name"
-                />
-                {form.formState.errors.name && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.name.message}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  {...form.register("email")}
-                  placeholder="Enter client email"
-                />
-                {form.formState.errors.email && (
-                  <p className="text-sm text-red-500">
-                    {form.formState.errors.email.message}
-                  </p>
-                )}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone (optional)</Label>
-                <Input
-                  id="phone"
-                  {...form.register("phone")}
-                  placeholder="Enter client phone"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="address">Address (optional)</Label>
-                <Input
-                  id="address"
-                  {...form.register("address")}
-                  placeholder="Enter client address"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="taxCode">Tax Code (optional)</Label>
-                <Input
-                  id="taxCode"
-                  {...form.register("taxCode")}
-                  placeholder="Enter tax code"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="riskProfile">Risk Profile</Label>
-                <Select
-                  onValueChange={(value) => form.setValue("riskProfile", value as any)}
-                  value={form.watch("riskProfile") || undefined}
-                >
-                  <SelectTrigger id="riskProfile">
-                    <SelectValue placeholder="Select risk profile" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RISK_PROFILES.map((profile) => (
-                      <SelectItem key={profile} value={profile} className="capitalize">
-                        {profile}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Personal Information</CardTitle>
+                <CardDescription>
+                  Contact and identification details
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="font-medium">Full Name</Label>
+                    <Input
+                      id="name"
+                      className="w-full"
+                      {...form.register("name")}
+                      placeholder="Enter client name"
+                    />
+                    {form.formState.errors.name && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.name.message}
+                      </p>
+                    )}
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="font-medium">Email Address</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      className="w-full"
+                      {...form.register("email")}
+                      placeholder="client@example.com"
+                    />
+                    {form.formState.errors.email && (
+                      <p className="text-sm text-red-500">
+                        {form.formState.errors.email.message}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="font-medium">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      className="w-full"
+                      {...form.register("phone")}
+                      placeholder="+1 (555) 123-4567"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="taxCode" className="font-medium">Tax Identification</Label>
+                    <Input
+                      id="taxCode"
+                      className="w-full"
+                      {...form.register("taxCode")}
+                      placeholder="Tax identification number"
+                    />
+                    <p className="text-xs text-muted-foreground">Used for tax reporting purposes only</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="address" className="font-medium">Home Address</Label>
+                  <Input
+                    id="address"
+                    className="w-full"
+                    {...form.register("address")}
+                    placeholder="123 Main St, City, Country"
+                  />
+                </div>
+              </CardContent>
+            </Card>
             
-            <DialogFooter>
+            <Card>
+              <CardHeader>
+                <CardTitle>Investment Profile</CardTitle>
+                <CardDescription>
+                  Client's risk tolerance and investment preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="riskProfile" className="font-medium">Risk Profile</Label>
+                  <Select
+                    onValueChange={(value) => form.setValue("riskProfile", value as any)}
+                    value={form.watch("riskProfile") || undefined}
+                  >
+                    <SelectTrigger id="riskProfile" className="w-full">
+                      <SelectValue placeholder="Select risk profile" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {RISK_PROFILES.map((profile) => (
+                        <SelectItem key={profile} value={profile} className="capitalize">
+                          {profile}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    This determines the investment strategy recommended for this client
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">
               <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateClientMutation.isPending}>
-                {updateClientMutation.isPending ? "Saving..." : "Save Changes"}
+              <Button type="submit" disabled={updateClientMutation.isPending} className="gap-2">
+                {updateClientMutation.isPending ? (
+                  <>Saving Changes...</>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4" />
+                    Save Changes
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </form>
