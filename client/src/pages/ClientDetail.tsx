@@ -42,6 +42,10 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select";
+import {
+  RadioGroup,
+  RadioGroupItem
+} from "@/components/ui/radio-group";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -769,6 +773,52 @@ export default function ClientDetail() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+      {/* Email language dialog */}
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Select Email Language</DialogTitle>
+            <DialogDescription>
+              Choose the language for the onboarding email that will be sent to {client?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <RadioGroup 
+              value={emailLanguage} 
+              onValueChange={(value) => setEmailLanguage(value as 'english' | 'italian')}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="english" id="english" />
+                <Label htmlFor="english">English</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="italian" id="italian" />
+                <Label htmlFor="italian">Italian (Italiano)</Label>
+              </div>
+            </RadioGroup>
+            
+            <div className="border rounded-md p-3 bg-muted/50">
+              <p className="text-sm text-muted-foreground leading-normal">
+                {emailLanguage === 'english' 
+                  ? "An email will be sent to the client with instructions on how to complete the onboarding process."
+                  : "Un'email sarà inviata al cliente con le istruzioni su come completare il processo di onboarding."}
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSendEmail}
+              disabled={sendOnboardingMutation.isPending}
+            >
+              {sendOnboardingMutation.isPending ? "Sending..." : "Send Email"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
