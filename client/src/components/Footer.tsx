@@ -32,32 +32,32 @@ export default function Footer() {
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.product.title')}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.sections.product.title')}</h3>
             <ul className="mt-4 space-y-2">
-              <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">{t('footer.product.features')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.product.pricing')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.product.useCases')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.product.integrations')}</a></li>
+              <li><a href="#features" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.product.features')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.product.pricing')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.product.use_cases')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.product.integrations')}</a></li>
             </ul>
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.company.title')}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.sections.company.title')}</h3>
             <ul className="mt-4 space-y-2">
-              <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">{t('footer.company.about')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.company.careers')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.company.blog')}</a></li>
-              <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">{t('footer.company.contact')}</a></li>
+              <li><a href="#about" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.company.about')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.company.careers')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.company.blog')}</a></li>
+              <li><a href="#contact" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.company.contact')}</a></li>
             </ul>
           </div>
           
           <div>
-            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.resources.title')}</h3>
+            <h3 className="text-sm font-semibold uppercase tracking-wider">{t('footer.sections.resources.title')}</h3>
             <ul className="mt-4 space-y-2">
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.resources.help')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.resources.documentation')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.resources.api')}</a></li>
-              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.resources.privacy')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.resources.help')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.resources.documentation')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.resources.api')}</a></li>
+              <li><a href="#" className="text-gray-400 hover:text-white transition-colors">{t('footer.sections.resources.privacy')}</a></li>
             </ul>
           </div>
         </div>
