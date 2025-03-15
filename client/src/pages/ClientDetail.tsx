@@ -85,7 +85,8 @@ export default function ClientDetail() {
   // Fetch client assets
   const { 
     data: assets = [], 
-    isLoading: isLoadingAssets 
+    isLoading: isLoadingAssets,
+    refetch: refetchAssets
   } = useQuery<Array<{id: number, clientId: number, category: string, value: number, description: string, createdAt: string}>>({
     queryKey: [`/api/clients/${clientId}/assets`],
     enabled: !isNaN(clientId) && !!client?.isOnboarded,
@@ -536,6 +537,10 @@ Cordiali saluti,`
           open={isEditDialogOpen}
           onOpenChange={setIsEditDialogOpen}
           clientId={clientId}
+          onAssetsUpdated={() => {
+            // Make sure to refetch assets after update
+            refetchAssets();
+          }}
         />
       )}
       

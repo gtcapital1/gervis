@@ -91,9 +91,10 @@ interface ClientEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: number;
+  onAssetsUpdated?: () => void;
 }
 
-export function ClientEditDialog({ client, assets, open, onOpenChange, clientId }: ClientEditDialogProps) {
+export function ClientEditDialog({ client, assets, open, onOpenChange, clientId, onAssetsUpdated }: ClientEditDialogProps) {
   const { toast } = useToast();
   
   // Convert enums to select options
@@ -189,6 +190,11 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId 
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/assets`] });
       // Also invalidate the general clients list
       queryClient.invalidateQueries({ queryKey: [`/api/clients`] });
+      
+      // Call onAssetsUpdated callback if provided
+      if (onAssetsUpdated) {
+        onAssetsUpdated();
+      }
       
       // Close the dialog after successful update
       onOpenChange(false);
