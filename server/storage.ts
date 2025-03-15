@@ -37,16 +37,19 @@ export interface IStorage {
   deleteRecommendation(id: number): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private clients: Map<number, Client>;
-  private assets: Map<number, Asset>;
-  private recommendations: Map<number, Recommendation>;
-  private userCurrentId: number;
-  private clientCurrentId: number;
-  private assetCurrentId: number;
-  private recommendationCurrentId: number;
+import { drizzle } from 'drizzle-orm/node-postgres';
+import { Pool } from 'pg';
+
+export class PostgresStorage implements IStorage {
+  private pool: Pool;
+  private db: any;
   public sessionStore: session.Store;
+  
+  constructor() {
+    this.pool = new Pool({
+      connectionString: process.env.DATABASE_URL
+    });
+    this.db = drizzle(this.pool);
 
   constructor() {
     this.sessionStore = new MemoryStore({
