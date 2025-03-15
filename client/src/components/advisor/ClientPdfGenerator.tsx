@@ -30,16 +30,17 @@ interface Asset {
 
 interface Client {
   id: number;
-  firstName: string;
-  lastName: string;
+  name: string;
   email: string;
   phone?: string;
   address?: string;
   isOnboarded: boolean;
   riskProfile?: string;
   investmentGoal?: string;
+  investmentGoals?: string[];
   investmentHorizon?: string;
   experienceLevel?: string;
+  investmentExperience?: string;
   advisorId: number;
   advisorName?: string;
   createdAt?: string;
@@ -71,7 +72,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // Set PDF document properties
     doc.setProperties({
-      title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
+      title: `${t('pdf.title')} - ${client.name}`,
       subject: t('pdf.subject'),
       creator: 'Watson Financial Platform',
       author: client.advisorName || 'Financial Advisor'
@@ -108,7 +109,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     // Client details
     doc.setFontSize(11);
     const clientInfo = [
-      [`${t('pdf.name')}:`, `${client.firstName} ${client.lastName}`],
+      [`${t('pdf.name')}:`, client.name],
       [`${t('pdf.email')}:`, client.email],
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
@@ -236,7 +237,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     }
     
     // Save the PDF
-    doc.save(`${client.firstName}_${client.lastName}_Financial_Summary.pdf`);
+    doc.save(`${client.name.replace(/\s+/g, '_')}_Financial_Summary.pdf`);
   };
   
   return (
