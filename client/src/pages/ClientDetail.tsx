@@ -473,8 +473,20 @@ Cordiali saluti,`
                     <div>
                       <span className="text-sm text-muted-foreground block mb-2">Risk Profile:</span>
                       {client.riskProfile ? (
-                        <Badge className="capitalize">
-                          {client.riskProfile.replace('_', ' ')}
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              client.riskProfile === "conservative" ? "#10b981" : // Green
+                              client.riskProfile === "moderate" ? "#f59e0b" : // Amber
+                              client.riskProfile === "balanced" ? "#fbbf24" : // Yellow
+                              client.riskProfile === "growth" ? "#f97316" : // Orange
+                              client.riskProfile === "aggressive" ? "#ef4444" : // Red
+                              "#6b7280", // Gray default
+                            color: "#ffffff"
+                          }}
+                        >
+                          {client.riskProfile.replace(/_/g, ' ')}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
@@ -486,8 +498,20 @@ Cordiali saluti,`
                     <div>
                       <span className="text-sm text-muted-foreground block mb-2">Investment Experience:</span>
                       {client.investmentExperience ? (
-                        <Badge className="capitalize">
-                          {client.investmentExperience.replace('_', ' ')}
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              client.investmentExperience === "none" ? "#94a3b8" : // Gray
+                              client.investmentExperience === "beginner" ? "#3b82f6" : // Blue
+                              client.investmentExperience === "intermediate" ? "#8b5cf6" : // Purple
+                              client.investmentExperience === "advanced" ? "#ec4899" : // Pink
+                              client.investmentExperience === "expert" ? "#f97316" : // Orange
+                              "#6b7280", // Gray default
+                            color: "#ffffff"
+                          }}
+                        >
+                          {client.investmentExperience.replace(/_/g, ' ')}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
@@ -499,8 +523,18 @@ Cordiali saluti,`
                     <div>
                       <span className="text-sm text-muted-foreground block mb-2">Investment Horizon:</span>
                       {client.investmentHorizon ? (
-                        <Badge className="capitalize">
-                          {client.investmentHorizon.replace('_', ' ')}
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              client.investmentHorizon === "short_term" ? "#38bdf8" : // Light blue
+                              client.investmentHorizon === "medium_term" ? "#0ea5e9" : // Medium blue
+                              client.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
+                              "#6b7280", // Gray default
+                            color: "#ffffff"
+                          }}
+                        >
+                          {client.investmentHorizon.replace(/_/g, ' ')}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
@@ -514,8 +548,21 @@ Cordiali saluti,`
                       {client.investmentGoals && client.investmentGoals.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {client.investmentGoals.map(goal => (
-                            <Badge key={goal} className="capitalize">
-                              {goal.replace('_', ' ')}
+                            <Badge 
+                              key={goal} 
+                              className="capitalize"
+                              style={{
+                                backgroundColor: 
+                                  goal === "retirement" ? "#8b5cf6" : // Purple
+                                  goal === "wealth_growth" ? "#f97316" : // Orange 
+                                  goal === "income_generation" ? "#10b981" : // Green
+                                  goal === "capital_preservation" ? "#3b82f6" : // Blue
+                                  goal === "estate_planning" ? "#6366f1" : // Indigo
+                                  "#6b7280", // Gray default
+                                color: "#ffffff"
+                              }}
+                            >
+                              {goal.replace(/_/g, ' ')}
                             </Badge>
                           ))}
                         </div>
@@ -598,7 +645,7 @@ Cordiali saluti,`
                           {/* Right side: Pie chart */}
                           <div>
                             <h3 className="text-lg font-medium mb-3">Asset Split</h3>
-                            <div className="h-[300px] flex items-center justify-center">
+                            <div className="h-[220px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
                                   equity: "#2563eb", // Blue
@@ -636,7 +683,7 @@ Cordiali saluti,`
                                         cx="50%"
                                         cy="50%"
                                         labelLine={false}
-                                        outerRadius={100}
+                                        outerRadius={80}
                                         fill="#8884d8"
                                         dataKey="value"
                                         nameKey="name"
