@@ -573,10 +573,14 @@ Cordiali saluti,`
                                     <div className="w-2 h-2 rounded-full mr-2" 
                                       style={{
                                         backgroundColor: 
-                                          asset.category === "equity" ? "#4f46e5" : 
-                                          asset.category === "real_estate" ? "#16a34a" : 
-                                          asset.category === "bonds" ? "#d97706" : 
-                                          asset.category === "cash" ? "#2563eb" : "#6b7280"
+                                          asset.category === "equity" ? "#2563eb" : 
+                                          asset.category === "real_estate" ? "#0ea5e9" : 
+                                          asset.category === "bonds" ? "#94a3b8" : 
+                                          asset.category === "cash" ? "#60a5fa" : 
+                                          asset.category === "private_equity" ? "#1e40af" :
+                                          asset.category === "venture_capital" ? "#3b82f6" :
+                                          asset.category === "cryptocurrencies" ? "#38bdf8" :
+                                          "#64748b"
                                       }}
                                     />
                                     <span className="font-medium capitalize">{asset.category.replace('_', ' ')}</span>
@@ -584,62 +588,27 @@ Cordiali saluti,`
                                   <div className="font-semibold">${asset.value.toLocaleString()}</div>
                                 </div>
                               ))}
-                            </div>
-
-                            {/* Asset Categories with Progress Bars */}
-                            <div className="space-y-3 mt-6">
-                              <h3 className="text-lg font-medium">Percentage Distribution</h3>
-                              {(() => {
-                                // Group assets by category
-                                const assetsByCategory: Record<string, number> = {};
-                                assets.forEach(asset => {
-                                  if (assetsByCategory[asset.category]) {
-                                    assetsByCategory[asset.category] += asset.value;
-                                  } else {
-                                    assetsByCategory[asset.category] = asset.value;
-                                  }
-                                });
-                                
-                                return Object.entries(assetsByCategory).map(([category, value]) => {
-                                  const percentage = (value / totalValue) * 100;
-                                  
-                                  return (
-                                    <div key={category} className="space-y-1">
-                                      <div className="flex justify-between text-sm">
-                                        <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
-                                        <span>{percentage.toFixed(1)}%</span>
-                                      </div>
-                                      <div className="w-full bg-secondary rounded-full h-2">
-                                        <div 
-                                          className="h-2 rounded-full" 
-                                          style={{ 
-                                            width: `${percentage}%`,
-                                            backgroundColor: 
-                                              category === "equity" ? "#4f46e5" : 
-                                              category === "real_estate" ? "#16a34a" : 
-                                              category === "bonds" ? "#d97706" : 
-                                              category === "cash" ? "#2563eb" : "#6b7280"
-                                          }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  );
-                                });
-                              })()}
+                              <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
+                                <div className="font-semibold">Total</div>
+                                <div className="font-bold">${totalValue.toLocaleString()}</div>
+                              </div>
                             </div>
                           </div>
                           
                           {/* Right side: Pie chart */}
                           <div>
-                            <h3 className="text-lg font-medium mb-3">Asset Visualization</h3>
+                            <h3 className="text-lg font-medium mb-3">Asset Split</h3>
                             <div className="h-[300px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
-                                  equity: "#4f46e5",
-                                  real_estate: "#16a34a",
-                                  bonds: "#d97706",
-                                  cash: "#2563eb",
-                                  other: "#6b7280"
+                                  equity: "#2563eb", // Blue
+                                  real_estate: "#0ea5e9", // Light blue
+                                  bonds: "#94a3b8", // Grey
+                                  cash: "#60a5fa", // Medium blue
+                                  private_equity: "#1e40af", // Dark blue
+                                  venture_capital: "#3b82f6", // Royal blue
+                                  cryptocurrencies: "#38bdf8", // Sky blue
+                                  other: "#64748b" // Slate grey
                                 };
                                 
                                 // Group assets by category
@@ -667,7 +636,7 @@ Cordiali saluti,`
                                         cx="50%"
                                         cy="50%"
                                         labelLine={false}
-                                        outerRadius={80}
+                                        outerRadius={100}
                                         fill="#8884d8"
                                         dataKey="value"
                                         nameKey="name"
@@ -683,7 +652,6 @@ Cordiali saluti,`
                                       <Tooltip 
                                         formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
                                       />
-                                      <Legend />
                                     </RechartsPieChart>
                                   </ResponsiveContainer>
                                 );

@@ -39,7 +39,7 @@ export const INVESTMENT_HORIZONS = ["short_term", "medium_term", "long_term"] as
 export type InvestmentHorizon = typeof INVESTMENT_HORIZONS[number];
 
 // Asset Categories
-export const ASSET_CATEGORIES = ["real_estate", "equity", "bonds", "cash", "other"] as const;
+export const ASSET_CATEGORIES = ["real_estate", "equity", "bonds", "cash", "private_equity", "venture_capital", "cryptocurrencies", "other"] as const;
 export type AssetCategory = typeof ASSET_CATEGORIES[number];
 
 // Client Schema
