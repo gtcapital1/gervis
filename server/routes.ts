@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
-import { setupAuth } from "./auth";
+import { setupAuth, comparePasswords, hashPassword } from "./auth";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -118,8 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const validatedData = passwordSchema.parse(req.body);
       
-      // Import the comparePasswords and hashPassword functions
-      const { comparePasswords, hashPassword } = await import('./auth');
+      // We already imported comparePasswords and hashPassword at the top of the file
       
       // Verify current password
       const isPasswordValid = await comparePasswords(

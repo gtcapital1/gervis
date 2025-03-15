@@ -30,8 +30,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Client, RISK_PROFILES } from "@shared/schema";
+import { UpgradeDialog } from "@/components/pro/UpgradeDialog";
 import { 
   Dialog,
   DialogContent,
@@ -75,7 +77,9 @@ export default function ClientDetail() {
   const [, setLocation] = useLocation();
   const clientId = parseInt(id || "0");
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   
   // Fetch client details
   const { 
@@ -728,11 +732,44 @@ Cordiali saluti,`
                     </TabsContent>
                     
                     <TabsContent value="recommendations" className="space-y-4">
-                      <p>Recommendations and financial advice will appear here.</p>
-                      <Button variant="outline" size="sm">
-                        <PlusCircle className="mr-2 h-4 w-4" />
-                        Add Recommendation
-                      </Button>
+                      {user?.isPro ? (
+                        <>
+                          <p>Recommendations and financial advice will appear here.</p>
+                          <Button variant="outline" size="sm">
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            Add Recommendation
+                          </Button>
+                        </>
+                      ) : (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>Upgrade to PRO</CardTitle>
+                            <CardDescription>
+                              Unlock premium features including advanced financial recommendations
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              <div className="space-y-2">
+                                <p>With a PRO account, you gain access to:</p>
+                                <ul className="ml-6 list-disc space-y-1">
+                                  <li>Advanced portfolio analysis and optimization</li>
+                                  <li>Personalized investment recommendations</li>
+                                  <li>Risk assessment and mitigation strategies</li>
+                                  <li>Tax optimization suggestions</li>
+                                  <li>AI-powered financial planning tools</li>
+                                </ul>
+                              </div>
+                              <Button 
+                                onClick={() => setIsUpgradeOpen(true)} 
+                                className="bg-accent hover:bg-accent/90"
+                              >
+                                Upgrade to PRO
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </TabsContent>
                     
                     <TabsContent value="settings" className="space-y-4">
