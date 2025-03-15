@@ -155,12 +155,18 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId 
       });
     },
     onSuccess: () => {
+      // Invalidate both client details and assets
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}/assets`] });
+      // Also invalidate the general clients list
+      queryClient.invalidateQueries({ queryKey: [`/api/clients`] });
+      
+      // Close the dialog after successful update
       onOpenChange(false);
+      
       toast({
         title: "Client updated",
-        description: "Client information has been updated successfully.",
+        description: "Client information and assets have been updated successfully.",
       });
     },
     onError: () => {
@@ -545,7 +551,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId 
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
-                {form.getValues("assets")?.map((_, index) => (
+                {form.watch("assets")?.map((_, index) => (
                   <div key={index} className="p-4 border rounded-md bg-muted/30">
                     <div className="flex justify-between items-center mb-4">
                       <h4 className="text-sm font-medium">Asset {index + 1}</h4>
