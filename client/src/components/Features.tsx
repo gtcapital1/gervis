@@ -9,12 +9,12 @@ interface FeatureCardProps {
 
 function FeatureCard({ icon, title, description, learnMoreColor }: FeatureCardProps) {
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-8 card-hover border border-gray-100 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl">
-      <div className="w-14 h-14 rounded-full bg-secondary/10 flex items-center justify-center mb-6">
+    <div className="bg-black rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl">
+      <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
         {icon}
       </div>
-      <h3 className="text-xl font-bold mb-3">{title}</h3>
-      <p className="text-gray-600 mb-6">
+      <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
+      <p className="text-gray-400 mb-6">
         {description}
       </p>
       <a href="#" className={`inline-flex items-center ${learnMoreColor} font-medium hover:opacity-80 transition-colors`}>
@@ -48,13 +48,13 @@ export default function Features() {
   ];
 
   return (
-    <section id="features" className="py-20 bg-gray-50">
+    <section id="features" className="py-20 bg-black">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-black">
+          <h2 className="text-3xl sm:text-4xl font-bold text-white">
             Powerful Features for Financial Excellence
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-4 text-lg text-gray-400">
             Watson provides cutting-edge tools that transform how financial consultants work.
           </p>
         </div>
