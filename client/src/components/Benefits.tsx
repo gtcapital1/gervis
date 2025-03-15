@@ -72,7 +72,7 @@ export default function Benefits() {
             Transform Your Financial Practice
           </h2>
           <p className="mt-4 text-lg text-gray-300">
-            Join consultants who are saving time, reducing errors, and growing their business with Robin.
+            Join consultants who are saving time, reducing errors, and growing their business with Watson.
           </p>
         </div>
         

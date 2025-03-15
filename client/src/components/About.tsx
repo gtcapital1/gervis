@@ -22,7 +22,7 @@ export default function About() {
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold mb-6 text-black">Who We Are</h2>
             <p className="text-gray-600 text-lg mb-6">
-              Robin was founded by a team of financial experts and AI engineers who recognized the challenges facing modern financial consultants.
+              Watson was founded by a team of financial experts and AI engineers who recognized the challenges facing modern financial consultants.
             </p>
             <p className="text-gray-600 text-lg mb-6">
               Our mission is to empower financial consultants with cutting-edge technology that simplifies complex tasks, automates documentation, and provides deeper insights into client portfolios.

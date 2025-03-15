@@ -38,7 +38,7 @@ export default function Navbar() {
             <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
               <svg className="w-7 h-7 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
-                <circle cx="18" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m7-11a7 7 0 00-7-7m0 0a7 7 0 00-7 7m7-7v4"></path>
               </svg>
               Watson
             </a>
