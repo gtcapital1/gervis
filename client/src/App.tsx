@@ -19,6 +19,14 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute 
+        path="/dashboard" 
+        component={() => (
+          <Layout>
+            <Dashboard />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
         path="/app" 
         component={() => (
           <Layout>

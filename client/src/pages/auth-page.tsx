@@ -105,7 +105,7 @@ export default function AuthPage() {
           title: "Login successful",
           description: "Welcome back!",
         });
-        navigate("/");
+        navigate("/dashboard");
       },
       onError: (error) => {
         toast({
@@ -125,7 +125,7 @@ export default function AuthPage() {
           title: "Registration successful",
           description: "Your account has been created.",
         });
-        navigate("/");
+        navigate("/dashboard");
       },
       onError: (error) => {
         toast({
