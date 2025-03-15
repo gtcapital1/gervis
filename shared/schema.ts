@@ -39,6 +39,7 @@ export const clients = pgTable("clients", {
   address: text("address"),
   taxCode: text("tax_code"),
   isOnboarded: boolean("is_onboarded").default(false),
+  isArchived: boolean("is_archived").default(false),
   riskProfile: text("risk_profile"),
   onboardingToken: text("onboarding_token"),
   tokenExpiry: timestamp("token_expiry"),
@@ -53,6 +54,7 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   address: true,
   taxCode: true,
   isOnboarded: true,
+  isArchived: true,
   riskProfile: true,
   advisorId: true,
 });

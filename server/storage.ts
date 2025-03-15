@@ -61,6 +61,106 @@ export class MemStorage implements IStorage {
       email: "admin@watson.com",
       role: "advisor"
     });
+    
+    // Add demo clients for testing
+    // Demo client 1 (Regular client)
+    this.clients.set(this.clientCurrentId++, {
+      id: 1,
+      name: "John Smith",
+      email: "john.smith@example.com",
+      phone: "+1 (555) 123-4567",
+      address: "123 Main St, New York, NY 10001",
+      taxCode: "123-45-6789",
+      isOnboarded: true,
+      isArchived: false,
+      riskProfile: "balanced",
+      onboardingToken: null,
+      tokenExpiry: null,
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+      advisorId: 1
+    });
+    
+    // Demo client 2 (Not onboarded yet)
+    this.clients.set(this.clientCurrentId++, {
+      id: 2,
+      name: "Sarah Johnson",
+      email: "sarah.johnson@example.com",
+      phone: "+1 (555) 987-6543",
+      address: null,
+      taxCode: null,
+      isOnboarded: false,
+      isArchived: false,
+      riskProfile: null,
+      onboardingToken: null,
+      tokenExpiry: null,
+      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
+      advisorId: 1
+    });
+    
+    // Demo client 3 (Archived client)
+    this.clients.set(this.clientCurrentId++, {
+      id: 3,
+      name: "Robert Davis",
+      email: "robert.davis@example.com",
+      phone: "+1 (555) 456-7890",
+      address: "789 Oak Ave, Chicago, IL 60007",
+      taxCode: "987-65-4321",
+      isOnboarded: true,
+      isArchived: true,
+      riskProfile: "conservative",
+      onboardingToken: null,
+      tokenExpiry: null,
+      createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
+      advisorId: 1
+    });
+    
+    // Add some assets for the demo clients
+    // Assets for John Smith (Client 1)
+    this.assets.set(this.assetCurrentId++, {
+      id: 1,
+      clientId: 1,
+      category: "real_estate",
+      value: 450000,
+      description: "Primary residence",
+      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
+    });
+    
+    this.assets.set(this.assetCurrentId++, {
+      id: 2,
+      clientId: 1,
+      category: "equity",
+      value: 150000,
+      description: "Stock portfolio",
+      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
+    });
+    
+    this.assets.set(this.assetCurrentId++, {
+      id: 3,
+      clientId: 1,
+      category: "cash",
+      value: 50000,
+      description: "Savings account",
+      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
+    });
+    
+    // Assets for Robert Davis (Client 3)
+    this.assets.set(this.assetCurrentId++, {
+      id: 4,
+      clientId: 3,
+      category: "bonds",
+      value: 200000,
+      description: "Government bonds",
+      createdAt: new Date(Date.now() - 85 * 24 * 60 * 60 * 1000)
+    });
+    
+    this.assets.set(this.assetCurrentId++, {
+      id: 5,
+      clientId: 3,
+      category: "cash",
+      value: 75000,
+      description: "Emergency fund",
+      createdAt: new Date(Date.now() - 85 * 24 * 60 * 60 * 1000)
+    });
   }
 
   // User Methods

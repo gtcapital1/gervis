@@ -115,11 +115,16 @@ export default function ClientDetail() {
           Back
         </Button>
         <h1 className="ml-4 text-3xl font-bold tracking-tight">{client.name}</h1>
-        {client.isOnboarded ? (
-          <Badge className="ml-4 bg-green-600">Onboarded</Badge>
-        ) : (
-          <Badge className="ml-4" variant="outline">Not Onboarded</Badge>
-        )}
+        <div className="ml-4 flex gap-2">
+          {client.isArchived && (
+            <Badge className="bg-amber-600">Archived</Badge>
+          )}
+          {client.isOnboarded ? (
+            <Badge className="bg-green-600">Onboarded</Badge>
+          ) : (
+            <Badge variant="outline">Not Onboarded</Badge>
+          )}
+        </div>
       </div>
       
       <Separator />
