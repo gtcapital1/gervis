@@ -120,7 +120,7 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64 bg-black">
+        <div className="flex flex-col w-64 bg-black text-accent">
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
               <Link href="/">
