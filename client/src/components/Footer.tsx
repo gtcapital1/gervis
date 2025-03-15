@@ -6,8 +6,12 @@ export default function Footer() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1 md:col-span-1">
-            <a href="#" className="text-2xl font-bold tracking-tight">
-              Robin<span className="text-accent">.</span>
+            <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
+              <svg className="w-7 h-7 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11a7 7 0 00-7 7m7-7v4"></path>
+                <circle cx="12" cy="11" r="2" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              </svg>
+              Watson
             </a>
             <p className="mt-4 text-gray-400">
               The ultimate tool for financial consultants, powered by advanced AI.
@@ -57,7 +61,7 @@ export default function Footer() {
         
         <div className="mt-12 pt-8 border-t border-gray-800">
           <p className="text-gray-400 text-sm text-center">
-            &copy; {new Date().getFullYear()} Robin Financial Technologies, Inc. All rights reserved.
+            &copy; {new Date().getFullYear()} Watson Financial Technologies, Inc. All rights reserved.
           </p>
         </div>
       </div>
