@@ -86,33 +86,36 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     doc.setFontSize(10);
     doc.text(`${t('pdf.generatedOn')}: ${dateStr}`, 15, 50);
     
-    // Client information
+    // SECTION 1: Personal Information
     doc.setFontSize(14);
-    doc.text(t('pdf.clientInformation'), 15, 65);
+    doc.text(t('pdf.personalInformation'), 15, 65);
     doc.setDrawColor(41, 98, 255);
     doc.line(15, 68, 195, 68);
     
-    // Client details
+    // Client personal details
     doc.setFontSize(11);
-    const clientInfo = [
-      [`${t('pdf.name')}:`, client.name],
+    
+    // Gather all available personal information from client
+    const personalInfo = [
+      [`${t('pdf.name')}:`, `${client.firstName} ${client.lastName}`],
       [`${t('pdf.email')}:`, client.email],
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
-      [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
-      [`${t('pdf.investmentGoal')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
-      [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
-      [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
+      [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
+      [`${t('onboarding.income')}:`, client.annualIncome ? formatCurrency(client.annualIncome) : t('pdf.notProvided')],
+      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? formatCurrency(client.monthlyExpenses) : t('pdf.notProvided')],
+      [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
+      [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
     ];
     
     autoTable(doc, {
       startY: 75,
       head: [],
-      body: clientInfo,
+      body: personalInfo,
       theme: 'plain',
       columnStyles: {
-        0: { cellWidth: 50, fontStyle: 'bold' },
-        1: { cellWidth: 130 }
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100 }
       },
       styles: {
         fontSize: 11,
@@ -120,12 +123,61 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       },
     });
     
-    // Asset information
-    const lastY = (doc as any).lastAutoTable.finalY || 75;
+    // SECTION 2: Investment Profile
+    const section2Y = (doc as any).lastAutoTable.finalY + 20;
+    
     doc.setFontSize(14);
-    doc.text(t('pdf.assetsInformation'), 15, lastY + 15);
+    doc.text(t('pdf.investmentProfile'), 15, section2Y);
     doc.setDrawColor(41, 98, 255);
-    doc.line(15, lastY + 18, 195, lastY + 18);
+    doc.line(15, section2Y + 3, 195, section2Y + 3);
+    
+    // Investment profile details
+    const investmentProfile = [
+      [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
+      [`${t('pdf.investmentGoal')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
+      [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
+      [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
+    ];
+    
+    autoTable(doc, {
+      startY: section2Y + 10,
+      head: [],
+      body: investmentProfile,
+      theme: 'plain',
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100 }
+      },
+      styles: {
+        fontSize: 11,
+        cellPadding: 3,
+      },
+    });
+    
+    // SECTION 3: Asset Allocation - Start a new page for this section
+    doc.addPage();
+    
+    // Add letterhead on page 2
+    doc.setFillColor(41, 98, 255);
+    doc.rect(0, 0, 210, 25, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.text("Watson Financial", 15, 15);
+    
+    // Reset page for header on page 2
+    doc.setTextColor(41, 98, 255);
+    doc.setFontSize(18);
+    doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`${t('pdf.generatedOn')}: ${dateStr}`, 15, 50);
+    
+    // Asset allocation section
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text(t('pdf.assetAllocation'), 15, 65);
+    doc.setDrawColor(41, 98, 255);
+    doc.line(15, 68, 195, 68);
     
     // Assets table
     if (assets && assets.length > 0) {
@@ -134,7 +186,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       
       // Crea la tabella degli asset con la percentuale
       autoTable(doc, {
-        startY: lastY + 25,
+        startY: 75,
         head: [[
           t('pdf.category'),
           t('pdf.value'),
@@ -176,11 +228,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       });
     } else {
       doc.setFontSize(11);
-      doc.text(t('pdf.noAssetsFound'), 15, lastY + 30);
+      doc.text(t('pdf.noAssetsFound'), 15, 75);
     }
     
     // Add client declaration
-    const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : lastY + 40;
+    const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : 120;
     
     doc.setFontSize(12);
     doc.text(t('pdf.clientDeclaration'), 15, declarationY);
