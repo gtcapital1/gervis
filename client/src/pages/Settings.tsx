@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -82,7 +82,7 @@ export default function Settings() {
   });
   
   // Update signature form when user data changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (user) {
       signatureForm.reset({
         signature: user.signature || "",
@@ -147,9 +147,41 @@ export default function Settings() {
     },
   });
 
-  // Form submission handler
+  // Signature update mutation
+  const signatureMutation = useMutation({
+    mutationFn: (data: SignatureFormValues) => {
+      return apiRequest(`/api/users/${user?.id}/signature`, {
+        method: "POST",
+        body: JSON.stringify({
+          signature: data.signature,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Signature updated",
+        description: "Your signature has been successfully updated",
+      });
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update signature",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Password form submission handler
   function onSubmit(data: PasswordFormValues) {
     passwordMutation.mutate(data);
+  }
+  
+  // Signature form submission handler
+  function onSignatureSubmit(data: SignatureFormValues) {
+    signatureMutation.mutate(data);
   }
 
   return (
@@ -284,6 +316,49 @@ export default function Settings() {
             </CardContent>
           </Card>
           
+          {/* Email Signature Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Email Signature</CardTitle>
+              <CardDescription>
+                Customize your signature for client communications
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...signatureForm}>
+                <form onSubmit={signatureForm.handleSubmit(onSignatureSubmit)} className="space-y-4">
+                  <FormField
+                    control={signatureForm.control}
+                    name="signature"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Your Signature</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Enter your professional signature"
+                            {...field}
+                            className="min-h-[100px]"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          This signature will appear at the end of all your client communications
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={signatureMutation.isPending}
+                    className="mt-4"
+                  >
+                    {signatureMutation.isPending ? "Saving..." : "Save Signature"}
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+
           {/* Security Section */}
           <Card>
             <CardHeader>
