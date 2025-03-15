@@ -16,7 +16,7 @@ function BenefitCard({ icon, title, description, iconColor }: BenefitCardProps) 
       <div className={`mb-4 ${iconColor}`}>
         {icon}
       </div>
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
+      <h3 className="text-xl font-semibold mb-2 text-white">{title}</h3>
       <p className="text-gray-400">
         {description}
       </p>
