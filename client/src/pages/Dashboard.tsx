@@ -1,12 +1,25 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Plus, Search, Filter, MoreHorizontal, ChevronRight } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreHorizontal, 
+  ChevronRight, 
+  Archive, 
+  Clock, 
+  Phone,
+  Mail,
+  UserX,
+  AlertTriangle
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { 
@@ -26,14 +39,26 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ClientDialog } from "../components/advisor/ClientDialog";
 import { Client } from "@shared/schema";
 import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function Dashboard() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
+  const [clientToArchive, setClientToArchive] = useState<Client | null>(null);
+  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -43,10 +68,45 @@ export default function Dashboard() {
     retry: 1,
   });
 
-  const filteredClients = clients.filter((client: Client) => 
-    client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Archive client mutation
+  const archiveClientMutation = useMutation({
+    mutationFn: (clientId: number) => {
+      return apiRequest(`/api/clients/${clientId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ isArchived: true }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "Client archived",
+        description: "The client has been successfully archived.",
+      });
+      setIsArchiveDialogOpen(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to archive client. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Filter clients based on search query and archived status
+  const filteredClients = clients.filter((client: Client) => {
+    // First filter by search query
+    const matchesSearch = 
+      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      client.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Then filter by archive status
+    const matchesArchiveFilter = showArchived ? 
+      client.isArchived === true : 
+      client.isArchived !== true;
+    
+    return matchesSearch && matchesArchiveFilter;
+  });
 
   function formatDate(date: Date | string | null) {
     if (!date) return "N/A";
@@ -55,6 +115,17 @@ export default function Dashboard() {
 
   function handleViewClient(id: number) {
     setLocation(`/clients/${id}`);
+  }
+  
+  function handleArchiveClient(client: Client) {
+    setClientToArchive(client);
+    setIsArchiveDialogOpen(true);
+  }
+  
+  function confirmArchiveClient() {
+    if (clientToArchive) {
+      archiveClientMutation.mutate(clientToArchive.id);
+    }
   }
 
   return (
@@ -87,16 +158,36 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="flex justify-between items-center mb-4">
-              <div className="relative w-64">
-                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search clients..."
-                  className="pl-8"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
+              <div className="flex items-center gap-4">
+                <div className="relative w-64">
+                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search clients..."
+                    className="pl-8"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button 
+                  variant={showArchived ? "default" : "outline"} 
+                  size="sm"
+                  onClick={() => setShowArchived(!showArchived)}
+                  className={showArchived ? "bg-amber-600" : ""}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  {showArchived ? "Showing Archived" : "Show Archived"}
+                </Button>
               </div>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  toast({
+                    title: "Filter option",
+                    description: "Advanced filtering will be available soon."
+                  });
+                }}
+              >
                 <Filter className="mr-2 h-4 w-4" />
                 Filter
               </Button>
@@ -170,16 +261,25 @@ export default function Dashboard() {
                               >
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => {
-                                  toast({
-                                    title: "Feature coming soon",
-                                    description: "This feature will be available soon."
-                                  })
-                                }}
-                              >
-                                Archive
-                              </DropdownMenuItem>
+                              {client.isArchived ? (
+                                <DropdownMenuItem 
+                                  onClick={() => {
+                                    toast({
+                                      title: "Restore feature coming soon",
+                                      description: "Restoring archived clients will be available soon."
+                                    });
+                                  }}
+                                >
+                                  Restore
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem 
+                                  onClick={() => handleArchiveClient(client)}
+                                  className="text-red-600"
+                                >
+                                  Archive
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -197,6 +297,43 @@ export default function Dashboard() {
         open={isClientDialogOpen}
         onOpenChange={setIsClientDialogOpen}
       />
+      
+      {/* Archive Client Confirmation Dialog */}
+      <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive Client</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to archive {clientToArchive?.name}? Archived clients will be moved to 
+              the archive section and won't appear in the main client list.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
+            <AlertTriangle className="h-10 w-10 text-amber-500" />
+            <div>
+              <h4 className="font-medium">This action can be reversed later</h4>
+              <p className="text-sm text-muted-foreground">
+                You can restore archived clients from the archived clients view.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsArchiveDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmArchiveClient}
+              disabled={archiveClientMutation.isPending}
+            >
+              {archiveClientMutation.isPending ? "Archiving..." : "Archive Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
