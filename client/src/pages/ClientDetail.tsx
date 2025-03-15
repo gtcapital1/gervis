@@ -38,8 +38,8 @@ export default function ClientDetail() {
     isLoading, 
     isError 
   } = useQuery({
-    queryKey: ['/api/clients', clientId],
-    queryFn: () => apiRequest(`/api/clients/${clientId}`)
+    queryKey: [`/api/clients/${clientId}`],
+    enabled: !isNaN(clientId)
   });
   
   // Fetch client assets
@@ -47,9 +47,8 @@ export default function ClientDetail() {
     data: assets = [], 
     isLoading: isLoadingAssets 
   } = useQuery({
-    queryKey: ['/api/clients', clientId, 'assets'],
-    queryFn: () => apiRequest(`/api/clients/${clientId}/assets`),
-    enabled: !!client?.isOnboarded,
+    queryKey: [`/api/clients/${clientId}/assets`],
+    enabled: !isNaN(clientId) && !!client?.isOnboarded,
   });
 
   // For sending onboarding form
@@ -63,7 +62,7 @@ export default function ClientDetail() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients', clientId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       toast({
         title: "Onboarding form sent",
         description: "The client has been successfully onboarded for demo purposes.",
