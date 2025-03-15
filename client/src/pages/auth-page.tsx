@@ -4,8 +4,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
-import { useLocation } from "wouter";
+import { Loader2, ChevronLeft } from "lucide-react";
+import { useLocation, Link } from "wouter";
 
 // Components
 import {
@@ -136,7 +136,17 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen flex-col">
+      {/* Back button */}
+      <div className="p-4">
+        <Link href="/">
+          <Button variant="ghost" className="flex items-center gap-1">
+            <ChevronLeft className="h-4 w-4" />
+            Back to Home
+          </Button>
+        </Link>
+      </div>
+      
       {/* Form Section */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">

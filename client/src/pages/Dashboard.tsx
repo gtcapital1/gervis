@@ -59,6 +59,8 @@ export default function Dashboard() {
   const [showArchived, setShowArchived] = useState(false);
   const [clientToArchive, setClientToArchive] = useState<Client | null>(null);
   const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
+  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
 
@@ -76,18 +78,27 @@ export default function Dashboard() {
         body: JSON.stringify({ isArchived: true }),
       });
     },
+  });
+  
+  // Delete client mutation
+  const deleteClientMutation = useMutation({
+    mutationFn: (clientId: number) => {
+      return apiRequest(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
-        title: "Client archived",
-        description: "The client has been successfully archived.",
+        title: "Client deleted",
+        description: "The client has been permanently deleted.",
       });
-      setIsArchiveDialogOpen(false);
+      setIsDeleteDialogOpen(false);
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to archive client. Please try again.",
+        description: "Failed to delete client. Please try again.",
         variant: "destructive",
       });
     },
@@ -127,13 +138,24 @@ export default function Dashboard() {
       archiveClientMutation.mutate(clientToArchive.id);
     }
   }
+  
+  function handleDeleteClient(client: Client) {
+    setClientToDelete(client);
+    setIsDeleteDialogOpen(true);
+  }
+  
+  function confirmDeleteClient() {
+    if (clientToDelete) {
+      deleteClientMutation.mutate(clientToDelete.id);
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-6">
+      <div className="flex items-center justify-between p-6 bg-black text-white">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Clients</h1>
+          <p className="text-gray-300">
             Manage your client portfolio
           </p>
         </div>
@@ -273,12 +295,23 @@ export default function Dashboard() {
                                   Restore
                                 </DropdownMenuItem>
                               ) : (
-                                <DropdownMenuItem 
-                                  onClick={() => handleArchiveClient(client)}
-                                  className="text-red-600"
-                                >
-                                  Archive
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleArchiveClient(client)}
+                                    className="text-amber-600"
+                                  >
+                                    <Archive className="mr-2 h-4 w-4" />
+                                    Archive
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleDeleteClient(client)}
+                                    className="text-red-600"
+                                  >
+                                    <UserX className="mr-2 h-4 w-4" />
+                                    Delete Permanently
+                                  </DropdownMenuItem>
+                                </>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -330,6 +363,42 @@ export default function Dashboard() {
               disabled={archiveClientMutation.isPending}
             >
               {archiveClientMutation.isPending ? "Archiving..." : "Archive Client"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Client Confirmation Dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Client Permanently</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to permanently delete {clientToDelete?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
+            <AlertTriangle className="h-10 w-10 text-red-500" />
+            <div>
+              <h4 className="font-medium text-red-600">This action is permanent</h4>
+              <p className="text-sm text-muted-foreground">
+                All client data including profile, assets, and recommendations will be permanently deleted from our system.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={confirmDeleteClient}
+              disabled={deleteClientMutation.isPending}
+            >
+              {deleteClientMutation.isPending ? "Deleting..." : "Delete Permanently"}
             </Button>
           </DialogFooter>
         </DialogContent>
