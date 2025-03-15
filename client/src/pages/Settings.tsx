@@ -27,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { UpgradeDialog } from "@/components/pro/UpgradeDialog";
 
 // Password form schema with validation
@@ -47,7 +48,15 @@ const passwordFormSchema = z
     path: ["confirmPassword"],
   });
 
+// Signature form schema
+const signatureFormSchema = z.object({
+  signature: z.string().max(100, {
+    message: "Signature should be less than 100 characters",
+  }),
+});
+
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
+type SignatureFormValues = z.infer<typeof signatureFormSchema>;
 
 export default function Settings() {
   const { toast } = useToast();
@@ -63,6 +72,23 @@ export default function Settings() {
       confirmPassword: "",
     },
   });
+  
+  // Signature form setup
+  const signatureForm = useForm<SignatureFormValues>({
+    resolver: zodResolver(signatureFormSchema),
+    defaultValues: {
+      signature: user?.signature || "",
+    },
+  });
+  
+  // Update signature form when user data changes
+  React.useEffect(() => {
+    if (user) {
+      signatureForm.reset({
+        signature: user.signature || "",
+      });
+    }
+  }, [user, signatureForm]);
 
   // Downgrade to Base plan mutation
   const downgradeMutation = useMutation({

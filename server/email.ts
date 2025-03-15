@@ -64,16 +64,11 @@ export async function sendOnboardingEmail(
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-      ${customMessage ? '' : `<h2 style="color: #0066cc;">${content.title}</h2>`}
-      ${customMessage ? 
-        `<p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>` : 
-        `<p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>`
-      }
-      ${messageContent}
-      ${customMessage ? 
-        `<p style="margin-top: 20px;">${content.callToAction}</p>` : 
-        `<p>${content.callToAction}</p>`
-      }
+      ${customMessage ? '' : `<h2 style="color: #0066cc;">${content.title}</h2>
+      <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
+      <p>${content.invitation}</p>`}
+      ${customMessage ? messageContent : ''}
+      <p style="margin-top: 20px;">${content.callToAction}</p>
       <div style="margin: 30px 0;">
         <a href="${onboardingLink}" 
            style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
@@ -82,10 +77,6 @@ export async function sendOnboardingEmail(
       </div>
       <p style="font-size: 14px; color: #666;">${content.expiry}</p>
       <p>${content.questions}</p>
-      <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-        ${advisorName ? `<p>${advisorName}</p>` : ''}
-        <p style="color: #666; font-size: 14px;">Financial Advisor</p>
-      </div>
     </div>
   `;
 
