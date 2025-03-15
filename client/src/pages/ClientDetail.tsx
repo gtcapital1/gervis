@@ -265,12 +265,12 @@ Cordiali saluti,`
   return (
     <>
       <div className="flex flex-col h-full">
-        <div className="flex items-center p-6 bg-white text-black border-b">
-          <Button variant="ghost" className="text-black hover:bg-gray-100" onClick={() => setLocation("/app")}>
+        <div className="flex items-center p-6 border-b">
+          <Button variant="ghost" onClick={() => setLocation("/app")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="ml-4 text-3xl font-bold tracking-tight text-black">{client.name}</h1>
+          <h1 className="ml-4 text-3xl font-bold tracking-tight">{client.name}</h1>
           <div className="ml-4 flex gap-2">
             {client.isArchived && (
               <Badge className="bg-amber-600">Archived</Badge>
@@ -501,7 +501,7 @@ Cordiali saluti,`
                                           <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
                                           <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
                                         </div>
-                                        <Progress value={percentage} className="h-2" />
+                                        <Progress value={Math.min(percentage, 100)} className="h-2" />
                                       </div>
                                     );
                                   });

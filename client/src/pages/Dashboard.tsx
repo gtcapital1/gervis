@@ -197,10 +197,10 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-6 bg-black text-white">
+      <div className="flex items-center justify-between p-6 border-b">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Clients</h1>
-          <p className="text-gray-300">
+          <h1 className="text-3xl font-bold tracking-tight">Clients</h1>
+          <p className="text-muted-foreground">
             Manage your client portfolio
           </p>
         </div>
