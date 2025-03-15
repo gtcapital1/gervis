@@ -129,7 +129,7 @@ export default function Settings() {
     <Layout>
       <div className="container mx-auto py-6 max-w-7xl">
         <div className="flex flex-col gap-4">
-          <div className="grid grid-cols-1 gap-6">
+          <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto w-full">
             <div className="flex flex-col p-6 border-b">
               <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
               <p className="text-muted-foreground mt-2">
@@ -165,7 +165,7 @@ export default function Settings() {
                         <h3 className="font-medium">Account Type</h3>
                         <p className="text-muted-foreground">
                           {user?.isPro ? (
-                            <span className="text-accent font-semibold">PRO</span>
+                            <span className="text-accent font-semibold">Watson PRO</span>
                           ) : (
                             "Standard"
                           )}
@@ -268,7 +268,7 @@ export default function Settings() {
                       <div className="flex items-center justify-between mt-2 p-4 border rounded-lg">
                         <div>
                           <p className="font-medium">
-                            {user?.isPro ? "PRO Plan" : "Standard Plan"}
+                            {user?.isPro ? "Watson PRO Plan" : "Standard Plan"}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {user?.isPro
@@ -281,7 +281,7 @@ export default function Settings() {
                             onClick={() => setIsUpgradeOpen(true)}
                             className="bg-accent hover:bg-accent/90"
                           >
-                            Upgrade to PRO
+                            Upgrade to Watson PRO
                           </Button>
                         )}
                       </div>

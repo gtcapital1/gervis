@@ -29,7 +29,7 @@ export function UpgradeDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Upgrade to PRO mutation
+  // Upgrade to Watson PRO mutation
   const upgradeMutation = useMutation({
     mutationFn: () => {
       return apiRequest(`/api/users/${userId}/upgrade`, {
@@ -64,7 +64,7 @@ export function UpgradeDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl">
             <Star className="mr-2 h-5 w-5 text-yellow-500" />
-            Upgrade to WealthGuard PRO
+            Upgrade to Watson PRO
           </DialogTitle>
           <DialogDescription>
             Unlock premium features and enhance your financial advisory capabilities
@@ -81,7 +81,7 @@ export function UpgradeDialog({
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="font-medium">PRO features include:</h3>
+            <h3 className="font-medium">Watson PRO features include:</h3>
             <ul className="space-y-3">
               <li className="flex items-start">
                 <div className="mr-3 mt-0.5">
