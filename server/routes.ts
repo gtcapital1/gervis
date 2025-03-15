@@ -318,18 +318,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Success page endpoint - store token in session
+  // Success page endpoint - verify session onboarding completion flag
   app.get('/api/onboarding/success', async (req, res) => {
     try {
-      // If there's a token in the session, client completed onboarding
-      const hasCompletedOnboarding = req.session && req.session.onboardingComplete;
+      // If there's an onboarding complete flag in the session, client completed onboarding
+      const hasCompletedOnboarding = req.session && req.session.onboardingComplete === true;
       
       if (!hasCompletedOnboarding) {
         return res.status(404).json({ message: 'Invalid or expired token' });
       }
       
-      // Clear the session flag
-      req.session.onboardingComplete = false;
+      // Keep the flag in session to allow refreshing the success page
+      // The flag will naturally expire with the session
       
       res.json({ success: true });
     } catch (error) {
