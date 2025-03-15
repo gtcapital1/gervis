@@ -644,6 +644,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
+  
+  // Upgrade user to PRO status
+  app.post('/api/users/:id/upgrade', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Only allow users to upgrade themselves
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to upgrade this user' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Update user to PRO status
+      const updatedUser = await storage.updateUser(userId, { 
+        isPro: true,
+        proSince: new Date()
+      });
+      
+      res.json({
+        success: true,
+        message: 'Successfully upgraded to PRO',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Error upgrading user:', error);
+      res.status(500).json({ message: 'Failed to upgrade user to PRO' });
+    }
+  });
 
   const httpServer = createServer(app);
 
