@@ -43,7 +43,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
   
   const changeLanguage = (lang: string) => {
     setLanguage(lang);
+    // Cambia immediatamente la lingua per il PDF
     i18n.changeLanguage(lang === "english" ? "en" : "it");
+    console.log("Language changed to:", lang, "i18n language:", i18n.language);
   };
   
   const generatePdf = () => {
@@ -97,10 +99,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       [`${t('pdf.email')}:`, client.email],
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
-      [`${t('pdf.riskProfile')}:`, t(`riskProfiles.${client.riskProfile}`) || t('pdf.notProvided')],
-      [`${t('pdf.investmentGoals')}:`, client.investmentGoals?.map(goal => t(`investmentGoals.${goal}`)).join(', ') || t('pdf.notProvided')],
-      [`${t('pdf.investmentHorizon')}:`, t(`investmentHorizons.${client.investmentHorizon}`) || t('pdf.notProvided')],
-      [`${t('pdf.experienceLevel')}:`, t(`experienceLevels.${client.investmentExperience}`) || t('pdf.notProvided')],
+      [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
+      [`${t('pdf.investmentGoals')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
+      [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
+      [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
     ];
     
     autoTable(doc, {
@@ -135,7 +137,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
           t('pdf.value')
         ]],
         body: assets.map(asset => [
-          t(`assetCategories.${asset.category}`),
+          t(`asset_categories.${asset.category}`),
           asset.description,
           formatCurrency(asset.value)
         ]),
