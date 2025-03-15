@@ -12,7 +12,9 @@ import {
   Mail,
   UserX,
   AlertTriangle,
-  RefreshCcw
+  RefreshCcw,
+  Star,
+  Zap
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,12 +52,15 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { ClientDialog } from "../components/advisor/ClientDialog";
+import { UpgradeDialog } from "../components/pro/UpgradeDialog";
 import { Client } from "@shared/schema";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Dashboard() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const [clientToArchive, setClientToArchive] = useState<Client | null>(null);
@@ -64,6 +69,7 @@ export default function Dashboard() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
 
   // Fetch clients
   const { data: clients = [], isLoading, isError } = useQuery<Client[]>({
@@ -204,13 +210,25 @@ export default function Dashboard() {
             Manage your client portfolio
           </p>
         </div>
-        <Button 
-          className="bg-accent hover:bg-accent/90" 
-          onClick={() => setIsClientDialogOpen(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Client
-        </Button>
+        <div className="flex gap-3">
+          {!user?.isPro && (
+            <Button
+              variant="outline"
+              className="border-amber-500 text-amber-600 hover:bg-amber-50"
+              onClick={() => setIsUpgradeDialogOpen(true)}
+            >
+              <Star className="mr-2 h-4 w-4 text-amber-500" />
+              Upgrade to PRO
+            </Button>
+          )}
+          <Button 
+            className="bg-accent hover:bg-accent/90" 
+            onClick={() => setIsClientDialogOpen(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Client
+          </Button>
+        </div>
       </div>
       
       <Separator />
@@ -447,6 +465,15 @@ export default function Dashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Upgrade to PRO Dialog */}
+      {user && (
+        <UpgradeDialog
+          open={isUpgradeDialogOpen}
+          onOpenChange={setIsUpgradeDialogOpen}
+          userId={user.id}
+        />
+      )}
     </div>
   );
 }
