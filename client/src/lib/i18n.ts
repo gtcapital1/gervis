@@ -16,7 +16,20 @@ const resourcesEn = {
       title_2: "Financial Consultants",
       description: "Watson empowers financial consultants with AI-driven tools to optimize client portfolios, automate documentation, and deliver exceptional financial advice.",
       get_started: "Get Started",
-      learn_more: "Learn More"
+      learn_more: "Learn More",
+      title: "Watson Financial Advisor Platform",
+      feature1: {
+        title: "Portfolio Analysis",
+        description: "Analyze client portfolios with sophisticated algorithms to identify opportunities and risks."
+      },
+      feature2: {
+        title: "AI-Powered Insights",
+        description: "Leverage artificial intelligence to generate personalized financial recommendations."
+      },
+      feature3: {
+        title: "Secure & Compliant",
+        description: "Built with security and regulatory compliance in mind, including Italian financial regulations."
+      }
     },
     auth: {
       login: "Login",
@@ -24,13 +37,17 @@ const resourcesEn = {
       username: "Username",
       password: "Password",
       confirm_password: "Confirm Password",
+      confirm_password_placeholder: "Confirm your password",
       submit: "Submit",
       no_account: "Don't have an account?",
       have_account: "Already have an account?",
       login_error: "Login failed! Please check your credentials.",
       register_error: "Registration failed! Please try again.",
       welcome: "Welcome to Watson, your financial advisor platform",
-      description: "The intelligent platform that helps financial advisors provide personalized wealth management and intuitive financial guidance."
+      welcome_back: "Welcome Back",
+      description: "The intelligent platform that helps financial advisors provide personalized wealth management and intuitive financial guidance.",
+      login_description: "Log in to access your advisor dashboard.",
+      creating_account: "Creating account..."
     },
     dashboard: {
       clients: "Clients",
@@ -153,7 +170,20 @@ const resourcesIt = {
       title_2: "Consulenti Finanziari",
       description: "Watson supporta i consulenti finanziari con strumenti basati sull'intelligenza artificiale per ottimizzare i portafogli dei clienti, automatizzare la documentazione e fornire consulenza finanziaria eccezionale.",
       get_started: "Inizia",
-      learn_more: "Scopri di Più"
+      learn_more: "Scopri di Più",
+      title: "Piattaforma di Consulenza Finanziaria Watson",
+      feature1: {
+        title: "Analisi del Portafoglio",
+        description: "Analizza i portafogli dei clienti con algoritmi sofisticati per identificare opportunità e rischi."
+      },
+      feature2: {
+        title: "Approfondimenti Basati su IA",
+        description: "Utilizza l'intelligenza artificiale per generare raccomandazioni finanziarie personalizzate."
+      },
+      feature3: {
+        title: "Sicuro e Conforme",
+        description: "Costruito con la sicurezza e la conformità normativa in mente, incluse le normative finanziarie italiane."
+      }
     },
     auth: {
       login: "Accedi",
@@ -161,13 +191,17 @@ const resourcesIt = {
       username: "Nome utente",
       password: "Password",
       confirm_password: "Conferma Password",
+      confirm_password_placeholder: "Conferma la tua password",
       submit: "Invia",
       no_account: "Non hai un account?",
       have_account: "Hai già un account?",
       login_error: "Accesso fallito! Controlla le tue credenziali.",
       register_error: "Registrazione fallita! Riprova.",
       welcome: "Benvenuto su Watson, la tua piattaforma di consulenza finanziaria",
-      description: "La piattaforma intelligente che aiuta i consulenti finanziari a fornire una gestione patrimoniale personalizzata e una guida finanziaria intuitiva."
+      welcome_back: "Bentornato",
+      description: "La piattaforma intelligente che aiuta i consulenti finanziari a fornire una gestione patrimoniale personalizzata e una guida finanziaria intuitiva.",
+      login_description: "Accedi per entrare nella dashboard del consulente.",
+      creating_account: "Creazione account in corso..."
     },
     dashboard: {
       clients: "Clienti",
