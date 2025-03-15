@@ -272,7 +272,7 @@ const resourcesIt = {
     hero: {
       title_1: "L'assistente imprescindibile per",
       title_2: "Consulenti Finanziari",
-      description: "Watson rivoluziona il lavoro dei consulenti finanziari grazie a strumenti avanzati di intelligenza artificiale per garantire al cliente un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione della clientela e sfrutta il potenziale dell'IA con Watson.",
+      description: "Watson rivoluziona il lavoro dei consulenti finanziari grazie a strumenti avanzati di intelligenza artificiale per garantire al cliente un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione della clientela e sfrutta al massimo l'IA con Watson.",
       get_started: "Inizia",
       learn_more: "Scopri di Più",
       title: "Piattaforma di Consulenza Finanziaria Watson",
