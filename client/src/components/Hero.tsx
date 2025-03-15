@@ -15,7 +15,7 @@ export default function Hero() {
               <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent"> Financial Consultants</span>
             </h1>
             <p className="mt-6 text-lg text-gray-300 max-w-xl">
-              Robin empowers financial consultants with AI-driven tools to optimize client portfolios, 
+              Watson empowers financial consultants with AI-driven tools to optimize client portfolios, 
               automate documentation, and deliver exceptional financial advice.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">

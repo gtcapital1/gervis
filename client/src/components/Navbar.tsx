@@ -35,8 +35,12 @@ export default function Navbar() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
-            <a href="#" className="text-2xl font-bold tracking-tight">
-              Robin<span className="text-accent">.</span>
+            <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
+              <svg className="w-7 h-7 mr-2 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path>
+                <circle cx="18" cy="8" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
+              </svg>
+              Watson
             </a>
           </div>
           

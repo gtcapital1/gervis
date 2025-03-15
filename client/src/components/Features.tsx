@@ -40,10 +40,10 @@ export default function Features() {
       learnMoreColor: "text-accent",
     },
     {
-      icon: <MessageCircle className="h-7 w-7 text-secondary" />,
+      icon: <MessageCircle className="h-7 w-7 text-accent" />,
       title: "Intelligent Assistant",
       description: "Automatically track client conversations and generate compliance-ready documentation with AI.",
-      learnMoreColor: "text-secondary",
+      learnMoreColor: "text-accent",
     },
   ];
 
@@ -55,7 +55,7 @@ export default function Features() {
             Powerful Features for Financial Excellence
           </h2>
           <p className="mt-4 text-lg text-gray-600">
-            Robin provides cutting-edge tools that transform how financial consultants work.
+            Watson provides cutting-edge tools that transform how financial consultants work.
           </p>
         </div>
         
