@@ -180,10 +180,10 @@ Cordiali saluti,`
   }
   
   const sendOnboardingMutation = useMutation({
-    mutationFn: (language: 'english' | 'italian' = 'english') => {
+    mutationFn: (params: { language: 'english' | 'italian', customMessage: string }) => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
-        body: JSON.stringify({ language }),
+        body: JSON.stringify(params),
       });
     },
     onSuccess: (data: { token: string, link: string, language: 'english' | 'italian' }) => {
@@ -225,7 +225,10 @@ Cordiali saluti,`
   }
   
   function handleSendEmail() {
-    sendOnboardingMutation.mutate(emailLanguage);
+    sendOnboardingMutation.mutate({
+      language: emailLanguage,
+      customMessage: emailMessage
+    });
   }
   
   function formatDate(date: Date | string | null) {
