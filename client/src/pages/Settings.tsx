@@ -64,19 +64,30 @@ export default function Settings() {
   });
 
   // Downgrade to Base plan mutation
+  const { refetch: refetchUser } = useQuery({
+    queryKey: ['/api/user'],
+    enabled: false // Manual refetching only
+  });
+  
   const downgradeMutation = useMutation({
     mutationFn: () => {
       return apiRequest(`/api/users/${user?.id}/downgrade`, {
         method: "POST",
       });
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       toast({
         title: "Account downgraded",
         description: "Your account has been downgraded to Base successfully.",
       });
-      // Refresh user data
-      window.location.reload();
+      
+      // Refresh user data before redirecting
+      await refetchUser();
+      
+      // Force a page reload to ensure all UI elements update properly
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -124,12 +135,12 @@ export default function Settings() {
       <div className="container mx-auto py-6 max-w-7xl">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-6">
-            <div className="flex items-center justify-between p-6 border-b text-black">
+            <div className="flex flex-col p-6 border-b">
               <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
+              <p className="text-muted-foreground mt-2">
+                Manage your account settings and preferences
+              </p>
             </div>
-            <p className="text-muted-foreground px-2">
-              Manage your account settings and preferences
-            </p>
             
             <div className="space-y-6">
               {/* Account Section */}

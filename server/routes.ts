@@ -735,6 +735,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: 'Failed to upgrade user to PRO' });
     }
   });
+  
+  // Downgrade user from PRO to Base status
+  app.post('/api/users/:id/downgrade', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      
+      // Only allow users to downgrade themselves
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to downgrade this user' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Update user to Base status
+      const updatedUser = await storage.updateUser(userId, { 
+        isPro: false,
+        proSince: null
+      });
+      
+      res.json({
+        success: true,
+        message: 'Successfully downgraded to Base',
+        user: updatedUser
+      });
+    } catch (error) {
+      console.error('Error downgrading user:', error);
+      res.status(500).json({ message: 'Failed to downgrade user to Base' });
+    }
+  });
 
   const httpServer = createServer(app);
 
