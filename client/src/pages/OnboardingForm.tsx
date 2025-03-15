@@ -637,7 +637,7 @@ export default function OnboardingForm() {
                             <SelectContent>
                               {categoryOptions.map(category => (
                                 <SelectItem key={category} value={category}>
-                                  <span className="capitalize">{category.replace('_', ' ')}</span>
+                                  <span className="capitalize">{category.replace(/_/g, ' ')}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>

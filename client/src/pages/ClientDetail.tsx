@@ -583,7 +583,7 @@ Cordiali saluti,`
                                           "#64748b"
                                       }}
                                     />
-                                    <span className="font-medium capitalize">{asset.category.replace('_', ' ')}</span>
+                                    <span className="font-medium capitalize">{asset.category.replace(/_/g, ' ')}</span>
                                   </div>
                                   <div className="font-semibold">${asset.value.toLocaleString()}</div>
                                 </div>
@@ -623,7 +623,7 @@ Cordiali saluti,`
                                 
                                 // Convert to data format needed for pie chart
                                 const data = Object.entries(assetsByCategory).map(([category, value]) => ({
-                                  name: category.replace('_', ' '),
+                                  name: category.replace(/_/g, ' '),
                                   value,
                                   category
                                 }));
