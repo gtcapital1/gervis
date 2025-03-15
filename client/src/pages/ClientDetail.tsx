@@ -24,6 +24,7 @@ import {
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { ClientSettings } from "@/components/settings/ClientSettings";
+import { ClientPdfGenerator } from "@/components/advisor/ClientPdfGenerator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -310,6 +311,13 @@ ${user?.name || ""}`
             </div>
           </div>
           <div className="flex gap-4">
+            {client.isOnboarded && (
+              <ClientPdfGenerator 
+                client={client}
+                assets={assets}
+                advisorSignature={user?.signature || null}
+              />
+            )}
             <Button 
               className="bg-accent hover:bg-accent/90 flex items-center"
               onClick={() => setIsEditDialogOpen(true)}
