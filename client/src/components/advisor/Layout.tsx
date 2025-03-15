@@ -8,6 +8,7 @@ import {
   Menu,
   X,
   User,
+  ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,6 +17,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/hooks/use-auth";
 
 interface LayoutProps {
   children: ReactNode;
@@ -24,6 +26,12 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
+  const { user, logoutMutation } = useAuth();
+  
+  // Handle logout
+  function handleLogout() {
+    logoutMutation.mutate();
+  }
 
   const navigation = [
     {
@@ -86,14 +94,21 @@ export function Layout({ children }: LayoutProps) {
               <User className="h-4 w-4 text-gray-300" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-white">Admin User</p>
-              <p className="text-xs text-gray-400">admin@watson.com</p>
+              <p className="text-sm font-medium text-white">{user?.name || "Advisor"}</p>
+              <p className="text-xs text-gray-400">{user?.email || user?.username}</p>
             </div>
           </div>
         </div>
+        <div 
+          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer"
+          onClick={handleLogout}
+        >
+          <LogOut className="mr-3 h-5 w-5" />
+          Logout
+        </div>
         <Link href="/">
           <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
-            <LogOut className="mr-3 h-5 w-5" />
+            <ArrowLeft className="mr-3 h-5 w-5" />
             Return to Home
           </div>
         </Link>

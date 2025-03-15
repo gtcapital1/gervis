@@ -7,10 +7,8 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(
-  url: string,
-  options?: RequestInit
-): Promise<any> {
+// Simple function to perform API requests
+export async function apiRequest(url: string, options?: RequestInit): Promise<any> {
   const res = await fetch(url, {
     headers: options?.body ? { "Content-Type": "application/json" } : {},
     credentials: "include",
@@ -22,6 +20,25 @@ export async function apiRequest(
     return null; // No content
   }
   return await res.json();
+}
+
+// Helper function to perform HTTP requests with method and data
+export async function httpRequest(
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+  url: string,
+  data?: any
+): Promise<any> {
+  const options: RequestInit = {
+    method,
+    headers: data ? { "Content-Type": "application/json" } : {},
+    credentials: "include",
+  };
+
+  if (data) {
+    options.body = JSON.stringify(data);
+  }
+
+  return apiRequest(url, options);
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

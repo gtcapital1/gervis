@@ -8,26 +8,32 @@ import Dashboard from "@/pages/Dashboard";
 import ClientDetail from "@/pages/ClientDetail";
 import OnboardingForm from "@/pages/OnboardingForm";
 import OnboardingSuccess from "@/pages/OnboardingSuccess";
+import AuthPage from "@/pages/auth-page";
 import { Layout } from "@/components/advisor/Layout";
+import { AuthProvider } from "@/hooks/use-auth";
+import { ProtectedRoute } from "@/lib/protected-route";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
-      <Route path="/app">
-        {() => (
+      <Route path="/auth" component={AuthPage} />
+      <ProtectedRoute 
+        path="/app" 
+        component={() => (
           <Layout>
             <Dashboard />
           </Layout>
-        )}
-      </Route>
-      <Route path="/clients/:id">
-        {(params) => (
+        )} 
+      />
+      <ProtectedRoute 
+        path="/clients/:id" 
+        component={() => (
           <Layout>
             <ClientDetail />
           </Layout>
-        )}
-      </Route>
+        )} 
+      />
       <Route path="/onboarding/:token" component={OnboardingForm} />
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route component={NotFound} />
@@ -38,8 +44,10 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
+      <AuthProvider>
+        <Router />
+        <Toaster />
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
