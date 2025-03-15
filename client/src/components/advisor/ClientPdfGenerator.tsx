@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/utils";
+import { Client as ClientSchema } from "@shared/schema";
 
 // Define types for Asset and Client
 interface Asset {
@@ -28,30 +29,10 @@ interface Asset {
   createdAt: string;
 }
 
-// Utilizziamo un'interfaccia Client compatibile con i dati che riceviamo dalla pagina di dettaglio
-interface Client {
-  id: number;
-  name: string;
-  email: string;
-  phone?: string | null;
-  address?: string | null;
-  taxCode?: string | null;
-  isOnboarded: boolean | null;
-  riskProfile?: string | null;
-  investmentExperience?: string | null;
-  investmentGoals?: string[] | null;
-  investmentHorizon?: string | null;
-  advisorId: number | null;
-  createdAt?: Date | string | null;
-  firstName?: string;
-  lastName?: string;
-  advisorName?: string;
-  experienceLevel?: string | null;
-}
 import { Label } from "@/components/ui/label";
 
 interface ClientPdfGeneratorProps {
-  client: Client;
+  client: ClientSchema;
   assets: Asset[];
   advisorSignature?: string | null;
 }
@@ -78,7 +59,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       title: `${t('pdf.title')} - ${client.name}`,
       subject: t('pdf.subject'),
       creator: 'Watson Financial Platform',
-      author: client.advisorName || 'Financial Advisor'
+      author: 'Financial Advisor'
     });
     
     // Add letterhead
