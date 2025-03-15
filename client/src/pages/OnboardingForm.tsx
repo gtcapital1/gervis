@@ -17,12 +17,19 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { RISK_PROFILES, ASSET_CATEGORIES } from "@shared/schema";
+import { 
+  RISK_PROFILES, 
+  ASSET_CATEGORIES, 
+  EXPERIENCE_LEVELS,
+  INVESTMENT_GOALS,
+  INVESTMENT_HORIZONS
+} from "@shared/schema";
 
 // Define the form schema
 const assetSchema = z.object({
@@ -34,12 +41,32 @@ const assetSchema = z.object({
 });
 
 const onboardingFormSchema = z.object({
+  // Personal Information
   address: z.string().min(5, "Address must be at least 5 characters"),
   phone: z.string().min(5, "Phone number must be at least 5 characters"),
   taxCode: z.string().min(3, "Tax code must be at least 3 characters"),
+  employmentStatus: z.string().min(1, "Employment status is required"),
+  annualIncome: z.coerce.number().min(0, "Annual income must be 0 or greater"),
+  monthlyExpenses: z.coerce.number().min(0, "Monthly expenses must be 0 or greater"),
+  netWorth: z.coerce.number().min(0, "Net worth must be 0 or greater"),
+  dependents: z.coerce.number().min(0, "Number of dependents must be 0 or greater"),
+  
+  // Investment Profile
   riskProfile: z.string().refine(val => RISK_PROFILES.includes(val as any), {
     message: "Please select a valid risk profile"
   }),
+  investmentExperience: z.string().refine(val => EXPERIENCE_LEVELS.includes(val as any), {
+    message: "Please select a valid experience level"
+  }),
+  investmentGoals: z.array(z.string()).refine(
+    val => val.length > 0 && val.every(goal => INVESTMENT_GOALS.includes(goal as any)), {
+    message: "Please select at least one valid investment goal"
+  }),
+  investmentHorizon: z.string().refine(val => INVESTMENT_HORIZONS.includes(val as any), {
+    message: "Please select a valid investment horizon"
+  }),
+
+  // Assets
   assets: z.array(assetSchema).min(1, "Please add at least one asset")
 });
 
@@ -52,9 +79,20 @@ export default function OnboardingForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
   
-  // Convert risk profile and asset category arrays to select options
+  // Convert enums to select options
   const riskProfileOptions = RISK_PROFILES as unknown as [string, ...string[]];
   const categoryOptions = ASSET_CATEGORIES as unknown as [string, ...string[]];
+  const experienceLevelOptions = EXPERIENCE_LEVELS as unknown as [string, ...string[]];
+  const investmentHorizonOptions = INVESTMENT_HORIZONS as unknown as [string, ...string[]];
+  const investmentGoalOptions = INVESTMENT_GOALS as unknown as [string, ...string[]];
+
+  // Define the client response type
+  type ClientResponse = {
+    id: number;
+    name: string;
+    email: string;
+    isOnboarded: boolean;
+  };
 
   // Fetch client data using token
   const { 
@@ -62,7 +100,7 @@ export default function OnboardingForm() {
     isLoading, 
     isError, 
     error 
-  } = useQuery({
+  } = useQuery<ClientResponse>({
     queryKey: [`/api/onboarding/${token}`],
     enabled: !!token,
   });
@@ -71,10 +109,23 @@ export default function OnboardingForm() {
   const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingFormSchema),
     defaultValues: {
+      // Personal Information
       address: "",
       phone: "",
       taxCode: "",
+      employmentStatus: "",
+      annualIncome: 0,
+      monthlyExpenses: 0,
+      netWorth: 0,
+      dependents: 0,
+      
+      // Investment Profile
       riskProfile: "balanced", // Default to balanced risk
+      investmentExperience: "none", // Default to no experience
+      investmentGoals: [], // No default goals
+      investmentHorizon: "medium_term", // Default to medium term
+      
+      // Assets
       assets: [
         // Start with one empty asset
         { value: 0, category: "cash", description: "" }
@@ -299,10 +350,112 @@ export default function OnboardingForm() {
               
               <FormField
                 control={form.control}
+                name="employmentStatus"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Employment Status</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g., Employed, Self-Employed, Retired" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="annualIncome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Annual Income (€)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="50000"
+                          {...field}
+                          onChange={e => field.onChange(e.target.valueAsNumber)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="monthlyExpenses"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Expenses (€)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="2000"
+                          {...field}
+                          onChange={e => field.onChange(e.target.valueAsNumber)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="netWorth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total Net Worth (€)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="250000"
+                          {...field}
+                          onChange={e => field.onChange(e.target.valueAsNumber)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="dependents"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Number of Dependents</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          placeholder="0"
+                          {...field}
+                          onChange={e => field.onChange(e.target.valueAsNumber)}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Investment Profile</CardTitle>
+              <CardDescription>
+                Help us understand your investment preferences and experience
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
                 name="riskProfile"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Investment Risk Profile</FormLabel>
+                    <FormLabel>Risk Tolerance</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
@@ -323,6 +476,105 @@ export default function OnboardingForm() {
                     <FormDescription>
                       This helps us determine the best investment strategy for you.
                     </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="investmentExperience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Investment Experience</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your experience level" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {experienceLevelOptions.map(level => (
+                          <SelectItem key={level} value={level}>
+                            <span className="capitalize">{level}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Your experience with different types of investments.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="investmentHorizon"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Investment Time Horizon</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your investment horizon" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {investmentHorizonOptions.map(horizon => (
+                          <SelectItem key={horizon} value={horizon}>
+                            <span className="capitalize">{horizon.replace('_', ' ')}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      How long you plan to keep your investments.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="investmentGoals"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Investment Goals</FormLabel>
+                    <FormDescription>
+                      Select all that apply to your financial objectives.
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                      {investmentGoalOptions.map(goal => (
+                        <div key={goal} className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={field.value?.includes(goal)}
+                            onCheckedChange={(checked) => {
+                              const updatedGoals = checked
+                                ? [...(field.value || []), goal]
+                                : (field.value || []).filter((value) => value !== goal);
+                              field.onChange(updatedGoals);
+                            }}
+                          />
+                          <label 
+                            htmlFor={goal}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {goal.replace('_', ' ').split('_').map(word => 
+                              word.charAt(0).toUpperCase() + word.slice(1)
+                            ).join(' ')}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

@@ -10,6 +10,7 @@ import connectPgSimple from "connect-pg-simple";
 import { randomBytes } from 'crypto';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
+import { sendOnboardingEmail } from './email';
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -235,6 +236,24 @@ export class PostgresStorage implements IStorage {
       onboardingToken: token,
       tokenExpiry: expiry
     });
+
+    // Generate onboarding link
+    const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+    const onboardingLink = `${baseUrl}/onboarding/${token}`;
+
+    // Send onboarding email
+    try {
+      await sendOnboardingEmail(
+        client.email,
+        client.firstName,
+        client.lastName,
+        onboardingLink
+      );
+      console.log(`Onboarding email sent to ${client.email}`);
+    } catch (error) {
+      console.error('Failed to send onboarding email:', error);
+      // Don't throw error, still return the token
+    }
     
     return token;
   }
