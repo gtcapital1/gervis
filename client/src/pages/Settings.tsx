@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Layout } from "@/components/advisor/Layout";
@@ -64,25 +64,20 @@ export default function Settings() {
   });
 
   // Downgrade to Base plan mutation
-  const { refetch: refetchUser } = useQuery({
-    queryKey: ['/api/user'],
-    enabled: false // Manual refetching only
-  });
-  
   const downgradeMutation = useMutation({
     mutationFn: () => {
       return apiRequest(`/api/users/${user?.id}/downgrade`, {
         method: "POST",
       });
     },
-    onSuccess: async () => {
+    onSuccess: () => {
       toast({
         title: "Account downgraded",
         description: "Your account has been downgraded to Base successfully.",
       });
       
-      // Refresh user data before redirecting
-      await refetchUser();
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
       
       // Force a page reload to ensure all UI elements update properly
       setTimeout(() => {
