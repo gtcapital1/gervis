@@ -7,10 +7,11 @@ import {
 import session from "express-session";
 import { eq, and, gt } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
-import { randomBytes } from 'crypto';
+import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
 import { db } from './db';
 import { sendOnboardingEmail } from './email';
+import { promisify } from 'util';
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -21,6 +22,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<User>): Promise<User>;
   
   // Client Methods
   getClient(id: number): Promise<Client | undefined>;
@@ -32,6 +34,8 @@ export interface IStorage {
   generateOnboardingToken(clientId: number, language?: 'english' | 'italian', customMessage?: string): Promise<string>;
   archiveClient(id: number): Promise<Client>;
   restoreClient(id: number): Promise<Client>;
+  updateClientPassword(clientId: number, password: string): Promise<boolean>;
+  verifyClientPassword(clientId: number, password: string): Promise<boolean>;
   
   // Asset Methods
   getAssetsByClient(clientId: number): Promise<Asset[]>;
@@ -95,6 +99,19 @@ export class PostgresStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+  
+  async updateUser(id: number, userData: Partial<User>): Promise<User> {
+    const result = await db.update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error(`User with id ${id} not found`);
+    }
+    
     return result[0];
   }
   
@@ -309,6 +326,68 @@ export class PostgresStorage implements IStorage {
   async deleteRecommendation(id: number): Promise<boolean> {
     const result = await db.delete(recommendations).where(eq(recommendations.id, id)).returning();
     return result.length > 0;
+  }
+  
+  // Client password management methods
+  async updateClientPassword(clientId: number, password: string): Promise<boolean> {
+    // First, get the client to ensure it exists
+    const client = await this.getClient(clientId);
+    if (!client) {
+      throw new Error(`Client with id ${clientId} not found`);
+    }
+    
+    // Generate a salt
+    const salt = randomBytes(16).toString('hex');
+    
+    // Hash the password with the salt
+    const scryptAsync = promisify(scrypt);
+    const passwordHash = await scryptAsync(password, salt, 64) as Buffer;
+    
+    // Store the hashed password with salt in format: hash:salt
+    const passwordField = `${passwordHash.toString('hex')}:${salt}`;
+    
+    // Update the client record
+    const result = await db.update(clients)
+      .set({ 
+        password: passwordField,
+        hasPortalAccess: true 
+      })
+      .where(eq(clients.id, clientId))
+      .returning();
+    
+    return result.length > 0;
+  }
+  
+  async verifyClientPassword(clientId: number, password: string): Promise<boolean> {
+    // First, get the client with the stored password
+    const client = await this.getClient(clientId);
+    if (!client || !client.password) {
+      return false;
+    }
+    
+    // Split the stored password field into hash and salt
+    const [storedHash, salt] = client.password.split(':');
+    
+    if (!storedHash || !salt) {
+      return false;
+    }
+    
+    // Hash the provided password with the same salt
+    const scryptAsync = promisify(scrypt);
+    const passwordHash = await scryptAsync(password, salt, 64) as Buffer;
+    
+    // Compare the hashes
+    const providedHash = passwordHash.toString('hex');
+    
+    // Use timingSafeEqual to prevent timing attacks
+    try {
+      const bufferedStored = Buffer.from(storedHash, 'hex');
+      const bufferedProvided = Buffer.from(providedHash, 'hex');
+      return timingSafeEqual(bufferedStored, bufferedProvided);
+    } catch (err) {
+      console.error('Error verifying password:', err);
+      return false;
+    }
   }
 }
 

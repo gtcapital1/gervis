@@ -26,6 +26,74 @@ const contactFormSchema = z.object({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication
   setupAuth(app);
+  
+  // ===== PRO User Management Routes =====
+  
+  // Upgrade user to PRO
+  app.post('/api/users/:userId/upgrade', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Ensure the user is only upgrading their own account
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to upgrade this account' });
+      }
+      
+      // In a real implementation, this would include payment processing
+      // For now, we'll just update the user's status
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Update the user to PRO status
+      const updatedUser = await storage.updateUser(userId, {
+        isPro: true,
+        proSince: new Date()
+      });
+      
+      res.json({
+        success: true,
+        message: 'Account upgraded to PRO successfully',
+        user: {
+          id: updatedUser.id,
+          username: updatedUser.username,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          isPro: updatedUser.isPro
+        }
+      });
+    } catch (error) {
+      console.error('Error upgrading to PRO:', error);
+      res.status(500).json({ message: 'Failed to upgrade account' });
+    }
+  });
+  
+  // Get PRO status
+  app.get('/api/users/:userId/pro-status', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Ensure the user is only checking their own account
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to check this account' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      res.json({
+        isPro: user.isPro,
+        proSince: user.proSince
+      });
+    } catch (error) {
+      console.error('Error checking PRO status:', error);
+      res.status(500).json({ message: 'Failed to check PRO status' });
+    }
+  });
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {
@@ -234,6 +302,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error restoring client:', error);
       res.status(500).json({ message: 'Failed to restore client' });
+    }
+  });
+  
+  // Client password management
+  app.post('/api/clients/:clientId/password', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to manage this client' });
+      }
+      
+      // Password schema
+      const passwordSchema = z.object({
+        currentPassword: z.string().optional(), // Optional for first-time setup
+        newPassword: z.string().min(8, "Password must be at least 8 characters")
+      });
+      
+      const validatedData = passwordSchema.parse(req.body);
+      
+      // If client already has a password, verify the current password
+      if (client.password && validatedData.currentPassword) {
+        const isPasswordValid = await storage.verifyClientPassword(
+          clientId, 
+          validatedData.currentPassword
+        );
+        
+        if (!isPasswordValid) {
+          return res.status(400).json({ 
+            message: 'Current password is incorrect' 
+          });
+        }
+      }
+      
+      // Update the client's password and enable portal access
+      await storage.updateClientPassword(
+        clientId, 
+        validatedData.newPassword
+      );
+      
+      await storage.updateClient(clientId, {
+        hasPortalAccess: true
+      });
+      
+      res.json({ 
+        success: true,
+        message: 'Password updated successfully'
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        console.error('Error updating client password:', error);
+        res.status(500).json({ message: 'Failed to update password' });
+      }
     }
   });
   
