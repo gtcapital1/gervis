@@ -263,8 +263,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const clientId = parseInt(req.params.clientId);
       const client = await storage.getClient(clientId);
       
-      // Get the email language from the request body, default to English
-      const { language = 'english' } = req.body as { language?: 'english' | 'italian' };
+      // Get the email language and custom message from the request body
+      const { language = 'english', customMessage } = req.body as { 
+        language?: 'english' | 'italian',
+        customMessage?: string 
+      };
       
       if (!client) {
         return res.status(404).json({ message: 'Client not found' });
@@ -275,7 +278,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Not authorized to generate token for this client' });
       }
       
-      const token = await storage.generateOnboardingToken(clientId, language);
+      const token = await storage.generateOnboardingToken(clientId, language, customMessage);
       
       // Return the token and a link that can be sent to the client
       const onboardingLink = `${req.protocol}://${req.get('host')}/onboarding/${token}`;
