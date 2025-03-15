@@ -121,7 +121,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Not authorized to update this client' });
       }
       
-      const updatedClient = await storage.updateClient(clientId, req.body);
+      // Extract assets from request body to handle separately
+      const { assets, ...clientData } = req.body;
+      
+      // Update client data
+      const updatedClient = await storage.updateClient(clientId, clientData);
+      
+      // Handle assets if they're included in the request
+      if (assets && Array.isArray(assets)) {
+        // Get current assets for this client
+        const currentAssets = await storage.getAssetsByClient(clientId);
+        
+        // Process each asset in the request
+        for (const asset of assets) {
+          if (asset.id) {
+            // This is an existing asset - update it
+            await storage.updateAsset(asset.id, {
+              category: asset.category,
+              value: asset.value,
+              description: asset.description
+            });
+          } else {
+            // This is a new asset - create it
+            await storage.createAsset({
+              clientId,
+              category: asset.category,
+              value: asset.value,
+              description: asset.description
+            });
+          }
+        }
+        
+        // Handle deleted assets (assets in DB but not in request)
+        const requestAssetIds = assets.filter(a => a.id).map(a => a.id);
+        const assetsToDelete = currentAssets.filter(a => !requestAssetIds.includes(a.id));
+        
+        for (const assetToDelete of assetsToDelete) {
+          await storage.deleteAsset(assetToDelete.id);
+        }
+      }
+      
       res.json(updatedClient);
     } catch (error) {
       console.error('Error updating client:', error);
