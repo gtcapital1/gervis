@@ -161,9 +161,9 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Welcome Back</CardTitle>
+                    <CardTitle>{t('auth.welcome')}</CardTitle>
                     <CardDescription>
-                      Enter your credentials to access your account.
+                      {t('auth.description')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -177,10 +177,10 @@ export default function AuthPage() {
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Username</FormLabel>
+                              <FormLabel>{t('auth.username')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Enter your username"
+                                  placeholder={`${t('auth.username')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -193,11 +193,11 @@ export default function AuthPage() {
                           name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Password</FormLabel>
+                              <FormLabel>{t('auth.password')}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="password"
-                                  placeholder="Enter your password"
+                                  placeholder={`${t('auth.password')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -213,10 +213,10 @@ export default function AuthPage() {
                           {loginMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Logging in...
+                              {t('auth.login')}...
                             </>
                           ) : (
-                            "Login"
+                            t('auth.login')
                           )}
                         </Button>
                       </form>
@@ -224,13 +224,13 @@ export default function AuthPage() {
                   </CardContent>
                   <CardFooter className="flex flex-col items-center">
                     <div className="text-sm text-muted-foreground mt-2">
-                      Don't have an account?{" "}
+                      {t('auth.no_account')}{" "}
                       <Button
                         variant="link"
                         className="p-0"
                         onClick={() => setActiveTab("register")}
                       >
-                        Register
+                        {t('auth.register')}
                       </Button>
                     </div>
                   </CardFooter>
@@ -239,9 +239,9 @@ export default function AuthPage() {
               <TabsContent value="register">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Create an Account</CardTitle>
+                    <CardTitle>{t('auth.welcome')}</CardTitle>
                     <CardDescription>
-                      Register as a financial advisor to get started.
+                      {t('auth.description')}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -255,10 +255,10 @@ export default function AuthPage() {
                           name="username"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Username</FormLabel>
+                              <FormLabel>{t('auth.username')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Choose a username"
+                                  placeholder={`${t('auth.username')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -275,7 +275,7 @@ export default function AuthPage() {
                               <FormControl>
                                 <Input
                                   type="email"
-                                  placeholder="Enter your email"
+                                  placeholder="Email..."
                                   {...field}
                                 />
                               </FormControl>
@@ -288,11 +288,11 @@ export default function AuthPage() {
                           name="password"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Password</FormLabel>
+                              <FormLabel>{t('auth.password')}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="password"
-                                  placeholder="Create a password"
+                                  placeholder={`${t('auth.password')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -336,13 +336,13 @@ export default function AuthPage() {
                   </CardContent>
                   <CardFooter className="flex flex-col items-center">
                     <div className="text-sm text-muted-foreground mt-2">
-                      Already have an account?{" "}
+                      {t('auth.have_account')}{" "}
                       <Button
                         variant="link"
                         className="p-0"
                         onClick={() => setActiveTab("login")}
                       >
-                        Login
+                        {t('auth.login')}
                       </Button>
                     </div>
                   </CardFooter>
