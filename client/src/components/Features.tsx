@@ -1,4 +1,5 @@
 import { ArrowRight, LineChart, LayoutDashboard, MessageCircle } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface FeatureCardProps {
   icon: React.ReactNode;
@@ -8,6 +9,7 @@ interface FeatureCardProps {
 }
 
 function FeatureCard({ icon, title, description, learnMoreColor }: FeatureCardProps) {
+  const { t } = useTranslation();
   return (
     <div className="bg-black rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl">
       <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
@@ -18,7 +20,7 @@ function FeatureCard({ icon, title, description, learnMoreColor }: FeatureCardPr
         {description}
       </p>
       <a href="#" className={`inline-flex items-center ${learnMoreColor} font-medium hover:opacity-80 transition-colors`}>
-        Learn more
+        {t('features.learn_more')}
         <ArrowRight className="h-5 w-5 ml-1" />
       </a>
     </div>

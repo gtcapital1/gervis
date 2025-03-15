@@ -11,6 +11,13 @@ const resourcesEn = {
       contact: "Contact",
       launch: "Launch App"
     },
+    hero: {
+      title_1: "The Ultimate Tool for",
+      title_2: "Financial Consultants",
+      description: "Watson empowers financial consultants with AI-driven tools to optimize client portfolios, automate documentation, and deliver exceptional financial advice.",
+      get_started: "Get Started",
+      learn_more: "Learn More"
+    },
     auth: {
       login: "Login",
       register: "Register",
@@ -123,6 +130,13 @@ const resourcesIt = {
       about: "Chi Siamo",
       contact: "Contatti",
       launch: "Avvia App"
+    },
+    hero: {
+      title_1: "Lo Strumento Definitivo per",
+      title_2: "Consulenti Finanziari",
+      description: "Watson supporta i consulenti finanziari con strumenti basati sull'intelligenza artificiale per ottimizzare i portafogli dei clienti, automatizzare la documentazione e fornire consulenza finanziaria eccezionale.",
+      get_started: "Inizia",
+      learn_more: "Scopri di Più"
     },
     auth: {
       login: "Accedi",

@@ -1,8 +1,10 @@
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 
 export default function Hero() {
+  const { t } = useTranslation();
   const [, setLocation] = useLocation();
 
   return (
@@ -11,20 +13,19 @@ export default function Hero() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="max-w-2xl">
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
-              The Ultimate Tool for
-              <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent"> Financial Consultants</span>
+              {t('hero.title_1')}
+              <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent"> {t('hero.title_2')}</span>
             </h1>
             <p className="mt-6 text-lg text-gray-300 max-w-xl">
-              Watson empowers financial consultants with AI-driven tools to optimize client portfolios, 
-              automate documentation, and deliver exceptional financial advice.
+              {t('hero.description')}
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4">
               <Button 
-                onClick={() => setLocation("/app")}
+                onClick={() => setLocation("/auth")}
                 className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white px-8 py-6"
                 size="lg"
               >
-                Get Started
+                {t('hero.get_started')}
                 <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
@@ -41,7 +42,7 @@ export default function Hero() {
                 className="border-gray-700 text-white hover:bg-gray-800 px-8 py-6"
                 size="lg"
               >
-                Learn More
+                {t('hero.learn_more')}
               </Button>
             </div>
           </div>
