@@ -318,6 +318,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Success page endpoint - store token in session
+  app.get('/api/onboarding/success', async (req, res) => {
+    try {
+      // If there's a token in the session, client completed onboarding
+      const hasCompletedOnboarding = req.session && req.session.onboardingComplete;
+      
+      if (!hasCompletedOnboarding) {
+        return res.status(404).json({ message: 'Invalid or expired token' });
+      }
+      
+      // Clear the session flag
+      req.session.onboardingComplete = false;
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error displaying success page:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Update client information using onboarding token (no auth required)
   app.post('/api/onboarding/:token', async (req, res) => {
     try {
@@ -378,6 +398,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId: client.id
           });
         }
+      }
+      
+      // Set a flag in the session to indicate onboarding is complete
+      if (req.session) {
+        req.session.onboardingComplete = true;
       }
       
       res.json({ 
