@@ -23,11 +23,11 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
 }
 
 // Helper function to perform HTTP requests with method and data
-export async function httpRequest(
+export async function httpRequest<T = any>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
   data?: any
-): Promise<any> {
+): Promise<T> {
   const options: RequestInit = {
     method,
     headers: data ? { "Content-Type": "application/json" } : {},
@@ -38,7 +38,7 @@ export async function httpRequest(
     options.body = JSON.stringify(data);
   }
 
-  return apiRequest(url, options);
+  return apiRequest(url, options) as Promise<T>;
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

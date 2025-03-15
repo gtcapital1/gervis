@@ -34,8 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginData) => 
-      httpRequest<{ success: boolean; user: SelectUser }>("POST", "/api/login", credentials),
-    onSuccess: (data) => {
+      httpRequest("POST", "/api/login", credentials),
+    onSuccess: (data: { success: boolean; user: SelectUser }) => {
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
@@ -50,8 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: (userData: InsertUser) => 
-      httpRequest<{ success: boolean; user: SelectUser }>("POST", "/api/register", userData),
-    onSuccess: (data) => {
+      httpRequest("POST", "/api/register", userData),
+    onSuccess: (data: { success: boolean; user: SelectUser }) => {
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
@@ -65,7 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: () => httpRequest<{ success: boolean }>("POST", "/api/logout"),
+    mutationFn: () => httpRequest("POST", "/api/logout"),
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
