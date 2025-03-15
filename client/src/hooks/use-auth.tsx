@@ -5,7 +5,7 @@ import {
   UseMutationResult,
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { getQueryFn, apiRequest, httpRequest, queryClient } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextType = {
@@ -35,16 +35,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      return await apiRequest("/api/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      });
+      return await httpRequest("POST", "/api/login", credentials);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
       toast({
         title: "Login successful",
-        description: `Welcome back, ${data.user.name || data.user.username}!`,
+        description: `Welcome back, ${data.name || data.username}!`,
       });
     },
     onError: (error: Error) => {
@@ -58,16 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: async (userData: InsertUser) => {
-      return await apiRequest("/api/register", {
-        method: "POST",
-        body: JSON.stringify(userData),
-      });
+      return await httpRequest("POST", "/api/register", userData);
     },
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
       toast({
         title: "Registration successful",
-        description: `Welcome, ${data.user.name || data.user.username}!`,
+        description: `Welcome, ${data.name || data.username}!`,
       });
     },
     onError: (error: Error) => {
@@ -81,9 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      return await apiRequest("/api/logout", {
-        method: "POST",
-      });
+      return await httpRequest("POST", "/api/logout");
     },
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
