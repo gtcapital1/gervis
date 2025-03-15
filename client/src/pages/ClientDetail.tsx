@@ -438,282 +438,86 @@ Cordiali saluti,`
                           <p>Loading assets...</p>
                         </div>
                       ) : assets.length === 0 ? (
-                        <div className="flex flex-col justify-center items-center h-48 space-y-3">
-                          <p className="text-muted-foreground">No assets found</p>
-                          <Button 
-                            variant="outline"
-                            onClick={() => {
-                              toast({
-                                title: "Feature coming soon",
-                                description: "Adding assets will be available soon."
-                              });
-                            }}
-                          >
+                        <div className="flex flex-col justify-center items-center h-48 space-y-4">
+                          <p className="text-muted-foreground">No assets found for this client.</p>
+                          <Button variant="outline" size="sm">
+                            <PlusCircle className="mr-2 h-4 w-4" />
                             Add Assets
                           </Button>
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          {(() => {
-                            // Calculate total portfolio value
-                            const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-                            
-                            // Group assets by category and calculate amounts
-                            const assetsByCategory = assets.reduce((acc, asset) => {
-                              const category = asset.category;
-                              if (!acc[category]) {
-                                acc[category] = 0;
-                              }
-                              acc[category] += asset.value;
-                              return acc;
-                            }, {} as Record<string, number>);
-                            
-                            // Calculate percentages
-                            const percentages = Object.entries(assetsByCategory).map(([category, value]) => ({
-                              category,
-                              value,
-                              percentage: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
-                            }));
-                            
-                            // Define category icons and colors
-                            const categoryConfig = {
-                              real_estate: { icon: Home, color: "text-blue-500" },
-                              equity: { icon: Briefcase, color: "text-green-500" },
-                              bonds: { icon: FileText, color: "text-purple-500" },
-                              cash: { icon: Briefcase, color: "text-yellow-500" },
-                              other: { icon: FileText, color: "text-gray-500" },
-                            };
-                            
-                            return (
-                              <>
-                                <div className="grid grid-cols-2 gap-4">
-                                  <Card>
-                                    <CardHeader className="p-4 pb-2">
-                                      <CardTitle className="text-base">Risk Alignment</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-4 pt-0">
-                                      <div className="flex items-center mt-2">
-                                        <Check className="h-4 w-4 mr-2 text-green-500" />
-                                        <span className="text-sm">Properly aligned with risk profile</span>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                  
-                                  <Card>
-                                    <CardHeader className="p-4 pb-2">
-                                      <CardTitle className="text-base">Total Portfolio Value</CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-4 pt-0">
-                                      <div className="text-2xl font-bold">
-                                        €{totalValue.toLocaleString()}
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                </div>
-                                
-                                <div className="space-y-4">
-                                  <h3 className="text-lg font-medium">Asset Allocation</h3>
-                                  
-                                  {percentages.length === 0 ? (
-                                    <div className="text-muted-foreground text-sm">
-                                      No assets to display.
+                          <div className="grid grid-cols-2 gap-4">
+                            {assets.map((asset) => (
+                              <Card key={asset.id} className="overflow-hidden">
+                                <CardHeader className="p-4 bg-muted">
+                                  <CardTitle className="text-sm font-medium capitalize">
+                                    {asset.category.replace('_', ' ')}
+                                  </CardTitle>
+                                </CardHeader>
+                                <CardContent className="p-4">
+                                  <div className="space-y-2">
+                                    <div className="text-2xl font-bold">
+                                      ${asset.value.toLocaleString()}
                                     </div>
-                                  ) : (
-                                    percentages.map(({ category, value, percentage }) => {
-                                      const config = categoryConfig[category as keyof typeof categoryConfig] || 
-                                                    categoryConfig.other;
-                                      const Icon = config.icon;
-                                      
-                                      return (
-                                        <div key={category} className="space-y-3">
-                                          <div className="flex justify-between items-center">
-                                            <div className="flex items-center">
-                                              <Icon className={`h-4 w-4 mr-2 ${config.color}`} />
-                                              <span className="capitalize">{category.replace('_', ' ')}</span>
-                                            </div>
-                                            <span className="font-medium">
-                                              {percentage}% (€{value.toLocaleString()})
-                                            </span>
-                                          </div>
-                                          <Progress value={percentage} className="h-2" />
+                                    {asset.description && (
+                                      <div className="text-xs text-muted-foreground">
+                                        {asset.description}
+                                      </div>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                          
+                          <Card>
+                            <CardHeader className="py-4">
+                              <CardTitle className="text-lg">Asset Allocation</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-4">
+                                {/* Group assets by category and calculate percentages */}
+                                {(() => {
+                                  const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+                                  
+                                  // Group assets by category
+                                  const assetsByCategory: Record<string, number> = {};
+                                  assets.forEach(asset => {
+                                    if (assetsByCategory[asset.category]) {
+                                      assetsByCategory[asset.category] += asset.value;
+                                    } else {
+                                      assetsByCategory[asset.category] = asset.value;
+                                    }
+                                  });
+                                  
+                                  return Object.entries(assetsByCategory).map(([category, value]) => {
+                                    const percentage = (value / totalValue) * 100;
+                                    
+                                    return (
+                                      <div key={category} className="space-y-2">
+                                        <div className="flex justify-between text-sm">
+                                          <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
+                                          <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
                                         </div>
-                                      );
-                                    })
-                                  )}
-                                </div>
-                              </>
-                            );
-                          })()}
+                                        <Progress value={percentage} className="h-2" />
+                                      </div>
+                                    );
+                                  });
+                                })()}
+                              </div>
+                            </CardContent>
+                          </Card>
                         </div>
                       )}
                     </TabsContent>
                     
                     <TabsContent value="recommendations" className="space-y-4">
-                      {(() => {
-                        // Calculate total portfolio value
-                        const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-                        
-                        // Group assets by category and calculate amounts
-                        const assetsByCategory = assets.reduce((acc, asset) => {
-                          const category = asset.category;
-                          if (!acc[category]) {
-                            acc[category] = 0;
-                          }
-                          acc[category] += asset.value;
-                          return acc;
-                        }, {} as Record<string, number>);
-                        
-                        // Calculate percentages
-                        const percentages = Object.entries(assetsByCategory).reduce((acc, [category, value]) => {
-                          acc[category] = totalValue > 0 ? Math.round((value / totalValue) * 100) : 0;
-                          return acc;
-                        }, {} as Record<string, number>);
-                        
-                        // Define optimal allocations based on risk profile
-                        const riskProfileAllocations = {
-                          conservative: {
-                            real_estate: 20,
-                            equity: 15,
-                            bonds: 45,
-                            cash: 20,
-                          },
-                          moderate: {
-                            real_estate: 25,
-                            equity: 25,
-                            bonds: 35,
-                            cash: 15,
-                          },
-                          balanced: {
-                            real_estate: 30,
-                            equity: 30,
-                            bonds: 30,
-                            cash: 10,
-                          },
-                          growth: {
-                            real_estate: 35,
-                            equity: 40,
-                            bonds: 20,
-                            cash: 5,
-                          },
-                          aggressive: {
-                            real_estate: 40,
-                            equity: 45,
-                            bonds: 10,
-                            cash: 5,
-                          }
-                        };
-                        
-                        // Use client's risk profile or default to balanced
-                        const clientRiskProfile = (client?.riskProfile as keyof typeof riskProfileAllocations) || 'balanced';
-                        const optimalAllocation = riskProfileAllocations[clientRiskProfile];
-                        
-                        // Identify mismatches
-                        const mismatches = Object.entries(optimalAllocation).reduce((acc, [category, optimalPercentage]) => {
-                          const currentPercentage = percentages[category] || 0;
-                          const diff = currentPercentage - optimalPercentage;
-                          
-                          if (Math.abs(diff) >= 5) {
-                            acc.push({
-                              category,
-                              currentPercentage,
-                              optimalPercentage,
-                              diff,
-                            });
-                          }
-                          
-                          return acc;
-                        }, [] as Array<{category: string, currentPercentage: number, optimalPercentage: number, diff: number}>);
-                        
-                        // Generate recommendations
-                        const recommendations = mismatches.map(({ category, currentPercentage, optimalPercentage, diff }) => {
-                          const formattedCategory = category.replace('_', ' ');
-                          const direction = diff > 0 ? 'Reduce' : 'Increase';
-                          const adjustmentAmount = Math.abs(diff);
-                          
-                          return {
-                            title: `${direction} ${formattedCategory.charAt(0).toUpperCase() + formattedCategory.slice(1)} Exposure`,
-                            description: diff > 0 
-                              ? `Consider reducing ${formattedCategory} allocation by approximately ${adjustmentAmount}% to align with your ${clientRiskProfile} risk profile.`
-                              : `Consider increasing ${formattedCategory} allocation by approximately ${adjustmentAmount}% to align with your ${clientRiskProfile} risk profile.`
-                          };
-                        });
-                        
-                        return (
-                          <>
-                            {mismatches.length > 0 ? (
-                              <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
-                                <CardHeader className="pb-2">
-                                  <div className="flex items-center">
-                                    <AlertTriangle className="h-4 w-4 mr-2 text-orange-500" />
-                                    <CardTitle className="text-base text-orange-700 dark:text-orange-400">
-                                      Allocation Mismatch
-                                    </CardTitle>
-                                  </div>
-                                </CardHeader>
-                                <CardContent>
-                                  <p className="text-sm text-orange-700 dark:text-orange-400">
-                                    Current allocation doesn't match your {clientRiskProfile} risk profile. 
-                                    {mismatches.map(({ category, currentPercentage, optimalPercentage }) => (
-                                      <span key={category} className="block mt-1">
-                                        {category.replace('_', ' ')}: {currentPercentage}% vs recommended {optimalPercentage}%
-                                      </span>
-                                    ))}
-                                  </p>
-                                </CardContent>
-                              </Card>
-                            ) : (
-                              <Card className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
-                                <CardHeader className="pb-2">
-                                  <div className="flex items-center">
-                                    <Check className="h-4 w-4 mr-2 text-green-500" />
-                                    <CardTitle className="text-base text-green-700 dark:text-green-400">
-                                      Allocation Aligned
-                                    </CardTitle>
-                                  </div>
-                                </CardHeader>
-                                <CardContent>
-                                  <p className="text-sm text-green-700 dark:text-green-400">
-                                    Your portfolio is well-aligned with your {clientRiskProfile} risk profile.
-                                  </p>
-                                </CardContent>
-                              </Card>
-                            )}
-                            
-                            {recommendations.length > 0 && (
-                              <Card>
-                                <CardHeader>
-                                  <CardTitle className="text-lg">Recommended Actions</CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                  {recommendations.map((recommendation, index) => (
-                                    <div key={index} className="space-y-2">
-                                      <h4 className="font-medium">{index + 1}. {recommendation.title}</h4>
-                                      <p className="text-sm text-muted-foreground">
-                                        {recommendation.description}
-                                      </p>
-                                    </div>
-                                  ))}
-                                  
-                                  <div className="pt-2">
-                                    <Button 
-                                      variant="secondary" 
-                                      size="sm"
-                                      onClick={() => {
-                                        toast({
-                                          title: "Feature coming soon",
-                                          description: "Adding recommendations will be available soon."
-                                        });
-                                      }}
-                                    >
-                                      Generate Custom Recommendation
-                                    </Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            )}
-                          </>
-                        );
-                      })()}
+                      <p>Recommendations and financial advice will appear here.</p>
+                      <Button variant="outline" size="sm">
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Add Recommendation
+                      </Button>
                     </TabsContent>
                   </Tabs>
                 </CardContent>
@@ -724,142 +528,16 @@ Cordiali saluti,`
       </div>
       
       {/* Edit Client Information Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[650px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
-            <DialogDescription>
-              Make changes to {client?.name}'s information
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Personal Information</CardTitle>
-                <CardDescription>
-                  Contact and identification details
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="name" className="font-medium">Full Name</Label>
-                    <Input
-                      id="name"
-                      className="w-full"
-                      {...form.register("name")}
-                      placeholder="Enter client name"
-                    />
-                    {form.formState.errors.name && (
-                      <p className="text-sm text-red-500">
-                        {form.formState.errors.name.message}
-                      </p>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="email" className="font-medium">Email Address</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      className="w-full"
-                      {...form.register("email")}
-                      placeholder="client@example.com"
-                    />
-                    {form.formState.errors.email && (
-                      <p className="text-sm text-red-500">
-                        {form.formState.errors.email.message}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="font-medium">Phone Number</Label>
-                    <Input
-                      id="phone"
-                      className="w-full"
-                      {...form.register("phone")}
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="taxCode" className="font-medium">Tax Identification</Label>
-                    <Input
-                      id="taxCode"
-                      className="w-full"
-                      {...form.register("taxCode")}
-                      placeholder="Tax identification number"
-                    />
-                    <p className="text-xs text-muted-foreground">Used for tax reporting purposes only</p>
-                  </div>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="address" className="font-medium">Home Address</Label>
-                  <Input
-                    id="address"
-                    className="w-full"
-                    {...form.register("address")}
-                    placeholder="123 Main St, City, Country"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Investment Profile</CardTitle>
-                <CardDescription>
-                  Client's risk tolerance and investment preferences
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="riskProfile" className="font-medium">Risk Profile</Label>
-                  <Select
-                    onValueChange={(value) => form.setValue("riskProfile", value as any)}
-                    value={form.watch("riskProfile") || undefined}
-                  >
-                    <SelectTrigger id="riskProfile" className="w-full">
-                      <SelectValue placeholder="Select risk profile" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {RISK_PROFILES.map((profile) => (
-                        <SelectItem key={profile} value={profile} className="capitalize">
-                          {profile}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted-foreground">
-                    This determines the investment strategy recommended for this client
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 pt-4">
-              <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={updateClientMutation.isPending} className="gap-2">
-                {updateClientMutation.isPending ? (
-                  <>Saving Changes...</>
-                ) : (
-                  <>
-                    <Check className="h-4 w-4" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {client && (
+        <ClientEditDialog
+          client={client}
+          assets={assets}
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          clientId={clientId}
+        />
+      )}
+      
       {/* Email language dialog */}
       <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
