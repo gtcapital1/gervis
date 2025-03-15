@@ -125,7 +125,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
               <Link href="/">
                 <div className="text-xl font-bold tracking-tight text-white flex items-center cursor-pointer">
-                  <svg
+                  <svg 
                     className="w-7 h-7 mr-2 text-accent"
                     fill="none"
                     stroke="currentColor"
@@ -136,18 +136,10 @@ export function Layout({ children }: LayoutProps) {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth="2"
-                      d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11a7 7 0 00-7 7m7-7v4"
-                    ></path>
-                    <circle
-                      cx="12"
-                      cy="11"
-                      r="2"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      fill="none"
+                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
                     />
                   </svg>
-                  Watson
+                  FinAdvisor
                 </div>
               </Link>
             </div>
@@ -165,7 +157,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
           <Link href="/">
             <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
-              <svg
+              <svg 
                 className="w-7 h-7 mr-2 text-accent"
                 fill="none"
                 stroke="currentColor"
@@ -176,18 +168,10 @@ export function Layout({ children }: LayoutProps) {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth="2"
-                  d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11a7 7 0 00-7 7m7-7v4"
-                ></path>
-                <circle
-                  cx="12"
-                  cy="11"
-                  r="2"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  fill="none"
+                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
                 />
               </svg>
-              Watson
+              FinAdvisor
             </div>
           </Link>
 

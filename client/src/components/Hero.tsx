@@ -8,7 +8,7 @@ export default function Hero() {
   const [, setLocation] = useLocation();
 
   return (
-    <section id="hero" className="pt-32 pb-20 bg-black text-white overflow-hidden">
+    <section id="hero" className="min-h-screen flex items-center bg-black text-white overflow-hidden">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="max-w-2xl">
