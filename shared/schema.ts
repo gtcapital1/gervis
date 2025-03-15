@@ -26,6 +26,18 @@ export type User = typeof users.$inferSelect;
 export const RISK_PROFILES = ["conservative", "moderate", "balanced", "growth", "aggressive"] as const;
 export type RiskProfile = typeof RISK_PROFILES[number];
 
+// Investment Experience Levels
+export const EXPERIENCE_LEVELS = ["none", "beginner", "intermediate", "advanced", "expert"] as const;
+export type ExperienceLevel = typeof EXPERIENCE_LEVELS[number];
+
+// Investment Goals
+export const INVESTMENT_GOALS = ["retirement", "wealth_growth", "income_generation", "capital_preservation", "estate_planning"] as const;
+export type InvestmentGoal = typeof INVESTMENT_GOALS[number];
+
+// Investment Horizons
+export const INVESTMENT_HORIZONS = ["short_term", "medium_term", "long_term"] as const;
+export type InvestmentHorizon = typeof INVESTMENT_HORIZONS[number];
+
 // Asset Categories
 export const ASSET_CATEGORIES = ["real_estate", "equity", "bonds", "cash", "other"] as const;
 export type AssetCategory = typeof ASSET_CATEGORIES[number];
@@ -43,6 +55,14 @@ export const clients = pgTable("clients", {
   isOnboarded: boolean("is_onboarded").default(false),
   isArchived: boolean("is_archived").default(false),
   riskProfile: text("risk_profile"),
+  investmentExperience: text("investment_experience"),
+  investmentGoals: text("investment_goals").array(),
+  investmentHorizon: text("investment_horizon"),
+  annualIncome: integer("annual_income"),
+  netWorth: integer("net_worth"),
+  monthlyExpenses: integer("monthly_expenses"),
+  dependents: integer("dependents"),
+  employmentStatus: text("employment_status"),
   onboardingToken: text("onboarding_token"),
   tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -60,6 +80,14 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   isOnboarded: true,
   isArchived: true,
   riskProfile: true,
+  investmentExperience: true,
+  investmentGoals: true,
+  investmentHorizon: true,
+  annualIncome: true,
+  netWorth: true,
+  monthlyExpenses: true,
+  dependents: true,
+  employmentStatus: true,
   advisorId: true,
 });
 
