@@ -58,6 +58,8 @@
     "framer-motion": "^11.13.1",
     "i18next": "^24.2.3",
     "input-otp": "^1.2.4",
+    "jspdf": "^3.0.0",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.453.0",
     "memorystore": "^1.6.7",
     "nodemailer": "^6.10.0",
