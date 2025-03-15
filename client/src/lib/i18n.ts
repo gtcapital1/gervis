@@ -484,7 +484,7 @@ const resourcesIt = {
       error: "Si è verificato un problema durante l'invio del modulo. Riprova."
     },
     footer: {
-      description: "Lo strumento definitivo per i consulenti finanziari, alimentato da intelligenza artificiale avanzata.",
+      description: "L'assistente indispensabile per i Consulenti Finanziari, alimentato da intelligenza artificiale avanzata.",
       social: {
         twitter: "Twitter",
         linkedin: "LinkedIn"
