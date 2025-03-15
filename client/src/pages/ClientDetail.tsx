@@ -16,13 +16,14 @@ import {
   Check,
   AlertTriangle,
   PlusCircle,
+  BarChart,
+  Users,
 } from "lucide-react";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -258,6 +259,9 @@ Cordiali saluti,`
     return new Date(date).toLocaleDateString();
   }
   
+  // Calculate total asset value for percentage calculations
+  const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -354,57 +358,130 @@ Cordiali saluti,`
             </Card>
           ) : null}
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="md:col-span-1">
+          {/* Edit Button at the top for all sections */}
+          <div className="flex justify-end mb-6">
+            <Button 
+              onClick={() => setIsEditDialogOpen(true)}
+              className="bg-primary hover:bg-primary/90"
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Client Information
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6">
+            {/* First Box: Personal Information */}
+            <Card>
               <CardHeader>
-                <CardTitle className="text-xl">Client Information</CardTitle>
+                <CardTitle className="text-xl">Personal Information</CardTitle>
+                <CardDescription>
+                  Basic details and contact information
+                </CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center">
-                  <User className="h-4 w-4 mr-2 opacity-70" />
-                  <span className="text-sm text-muted-foreground mr-2">Name:</span>
-                  <span>{client.name}</span>
-                </div>
-                <div className="flex items-center">
-                  <Mail className="h-4 w-4 mr-2 opacity-70" />
-                  <span className="text-sm text-muted-foreground mr-2">Email:</span>
-                  <span>{client.email}</span>
-                </div>
-                {client.phone && (
-                  <div className="flex items-center">
-                    <Phone className="h-4 w-4 mr-2 opacity-70" />
-                    <span className="text-sm text-muted-foreground mr-2">Phone:</span>
-                    <span>{client.phone}</span>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-4">
+                    <div className="flex items-center">
+                      <User className="h-4 w-4 mr-2 opacity-70" />
+                      <span className="text-sm text-muted-foreground mr-2">Name:</span>
+                      <span>{client.name}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2 opacity-70" />
+                      <span className="text-sm text-muted-foreground mr-2">Email:</span>
+                      <span>{client.email}</span>
+                    </div>
+                    {client.phone && (
+                      <div className="flex items-center">
+                        <Phone className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">Phone:</span>
+                        <span>{client.phone}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 opacity-70" />
+                      <span className="text-sm text-muted-foreground mr-2">Created:</span>
+                      <span>{formatDate(client.createdAt)}</span>
+                    </div>
                   </div>
-                )}
-                {client.address && (
-                  <div className="flex items-center">
-                    <Home className="h-4 w-4 mr-2 opacity-70" />
-                    <span className="text-sm text-muted-foreground mr-2">Address:</span>
-                    <span>{client.address}</span>
+                  <div className="space-y-4">
+                    {client.address && (
+                      <div className="flex items-center">
+                        <Home className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">Address:</span>
+                        <span>{client.address}</span>
+                      </div>
+                    )}
+                    {client.taxCode && (
+                      <div className="flex items-center">
+                        <FileText className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">Tax Code:</span>
+                        <span>{client.taxCode}</span>
+                      </div>
+                    )}
+                    {client.employmentStatus && (
+                      <div className="flex items-center">
+                        <Briefcase className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">Employment:</span>
+                        <span>{client.employmentStatus}</span>
+                      </div>
+                    )}
+                    {client.dependents !== undefined && (
+                      <div className="flex items-center">
+                        <Users className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">Dependents:</span>
+                        <span>{client.dependents}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {client.taxCode && (
-                  <div className="flex items-center">
-                    <FileText className="h-4 w-4 mr-2 opacity-70" />
-                    <span className="text-sm text-muted-foreground mr-2">Tax Code:</span>
-                    <span>{client.taxCode}</span>
-                  </div>
-                )}
-                <div className="flex items-center">
-                  <Calendar className="h-4 w-4 mr-2 opacity-70" />
-                  <span className="text-sm text-muted-foreground mr-2">Created:</span>
-                  <span>{formatDate(client.createdAt)}</span>
                 </div>
                 
-                <Separator className="my-4" />
-                
-                <div>
-                  <span className="text-sm text-muted-foreground">Risk Profile:</span>
-                  <div className="mt-2">
+                {/* Financial Information */}
+                {(client.annualIncome !== undefined || 
+                  client.monthlyExpenses !== undefined || 
+                  client.netWorth !== undefined) && (
+                  <>
+                    <Separator className="my-4" />
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                      {client.annualIncome !== undefined && (
+                        <div>
+                          <span className="text-sm text-muted-foreground block">Annual Income:</span>
+                          <span className="text-lg font-medium">${client.annualIncome.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {client.monthlyExpenses !== undefined && (
+                        <div>
+                          <span className="text-sm text-muted-foreground block">Monthly Expenses:</span>
+                          <span className="text-lg font-medium">${client.monthlyExpenses.toLocaleString()}</span>
+                        </div>
+                      )}
+                      {client.netWorth !== undefined && (
+                        <div>
+                          <span className="text-sm text-muted-foreground block">Net Worth:</span>
+                          <span className="text-lg font-medium">${client.netWorth.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+            
+            {/* Second Box: Investment Profile */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">Investment Profile</CardTitle>
+                <CardDescription>
+                  Client investment preferences and risk assessment
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <span className="text-sm text-muted-foreground block mb-2">Risk Profile:</span>
                     {client.riskProfile ? (
                       <Badge className="capitalize">
-                        {client.riskProfile}
+                        {client.riskProfile.replace('_', ' ')}
                       </Badge>
                     ) : (
                       <Badge variant="outline">
@@ -412,36 +489,72 @@ Cordiali saluti,`
                       </Badge>
                     )}
                   </div>
-                </div>
-                
-                <div className="pt-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="w-full"
-                    onClick={() => setIsEditDialogOpen(true)}
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Information
-                  </Button>
+                  
+                  <div>
+                    <span className="text-sm text-muted-foreground block mb-2">Investment Experience:</span>
+                    {client.investmentExperience ? (
+                      <Badge className="capitalize">
+                        {client.investmentExperience.replace('_', ' ')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">
+                        Not Specified
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm text-muted-foreground block mb-2">Investment Horizon:</span>
+                    {client.investmentHorizon ? (
+                      <Badge className="capitalize">
+                        {client.investmentHorizon.replace('_', ' ')}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">
+                        Not Specified
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm text-muted-foreground block mb-2">Investment Goals:</span>
+                    {client.investmentGoals && client.investmentGoals.length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {client.investmentGoals.map(goal => (
+                          <Badge key={goal} className="capitalize">
+                            {goal.replace('_', ' ')}
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <Badge variant="outline">
+                        Not Specified
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
             
+            {/* Third Box: Asset Allocation */}
             {client.isOnboarded ? (
-              <Card className="md:col-span-2">
+              <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-xl">Portfolio Overview</CardTitle>
+                  <CardTitle className="text-xl">Asset Allocation</CardTitle>
                   <CardDescription>
-                    Snapshot of client's current asset allocation
+                    Snapshot of client's current portfolio
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="portfolio">
+                  <Tabs defaultValue="allocation">
                     <TabsList className="mb-4">
-                      <TabsTrigger value="portfolio">
+                      <TabsTrigger value="allocation">
                         <PieChart className="mr-2 h-4 w-4" />
-                        Portfolio
+                        Asset Allocation
+                      </TabsTrigger>
+                      <TabsTrigger value="assets">
+                        <BarChart className="mr-2 h-4 w-4" />
+                        Assets List
                       </TabsTrigger>
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
@@ -449,7 +562,7 @@ Cordiali saluti,`
                       </TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="portfolio" className="space-y-6">
+                    <TabsContent value="allocation" className="space-y-6">
                       {isLoadingAssets ? (
                         <div className="flex justify-center items-center h-48">
                           <p>Loading assets...</p>
@@ -457,47 +570,17 @@ Cordiali saluti,`
                       ) : assets.length === 0 ? (
                         <div className="flex flex-col justify-center items-center h-48 space-y-4">
                           <p className="text-muted-foreground">No assets found for this client.</p>
-                          <Button variant="outline" size="sm">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Assets
-                          </Button>
                         </div>
                       ) : (
                         <div className="space-y-6">
-                          <div className="grid grid-cols-2 gap-4">
-                            {assets.map((asset) => (
-                              <Card key={asset.id} className="overflow-hidden">
-                                <CardHeader className="p-4 bg-muted">
-                                  <CardTitle className="text-sm font-medium capitalize">
-                                    {asset.category.replace('_', ' ')}
-                                  </CardTitle>
-                                </CardHeader>
-                                <CardContent className="p-4">
-                                  <div className="space-y-2">
-                                    <div className="text-2xl font-bold">
-                                      ${asset.value.toLocaleString()}
-                                    </div>
-                                    {asset.description && (
-                                      <div className="text-xs text-muted-foreground">
-                                        {asset.description}
-                                      </div>
-                                    )}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                          
                           <Card>
                             <CardHeader className="py-4">
-                              <CardTitle className="text-lg">Asset Allocation</CardTitle>
+                              <CardTitle className="text-lg">Asset Distribution</CardTitle>
                             </CardHeader>
                             <CardContent>
                               <div className="space-y-4">
                                 {/* Group assets by category and calculate percentages */}
                                 {(() => {
-                                  const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-                                  
                                   // Group assets by category
                                   const assetsByCategory: Record<string, number> = {};
                                   assets.forEach(asset => {
@@ -517,7 +600,12 @@ Cordiali saluti,`
                                           <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
                                           <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
                                         </div>
-                                        <Progress value={Math.min(percentage, 100)} className="h-2" />
+                                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
+                                          <div
+                                            className="h-full bg-primary transition-all"
+                                            style={{ width: `${percentage}%` }}
+                                          />
+                                        </div>
                                       </div>
                                     );
                                   });
@@ -525,6 +613,42 @@ Cordiali saluti,`
                               </div>
                             </CardContent>
                           </Card>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="assets" className="space-y-6">
+                      {isLoadingAssets ? (
+                        <div className="flex justify-center items-center h-48">
+                          <p>Loading assets...</p>
+                        </div>
+                      ) : assets.length === 0 ? (
+                        <div className="flex flex-col justify-center items-center h-48 space-y-4">
+                          <p className="text-muted-foreground">No assets found for this client.</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {assets.map((asset) => (
+                            <Card key={asset.id} className="overflow-hidden">
+                              <CardHeader className="p-4 bg-muted">
+                                <CardTitle className="text-sm font-medium capitalize">
+                                  {asset.category.replace('_', ' ')}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-4">
+                                <div className="space-y-2">
+                                  <div className="text-2xl font-bold">
+                                    ${asset.value.toLocaleString()}
+                                  </div>
+                                  {asset.description && (
+                                    <div className="text-xs text-muted-foreground">
+                                      {asset.description}
+                                    </div>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
                         </div>
                       )}
                     </TabsContent>
@@ -600,25 +724,22 @@ Cordiali saluti,`
                 placeholder="Enter your personalized message here..."
               />
               <p className="text-xs text-muted-foreground">
-                {emailLanguage === 'english' 
-                  ? "This message will be sent along with the onboarding link to the client."
-                  : "Questo messaggio sarà inviato insieme al link di onboarding al cliente."}
-              </p>
-            </div>
-            
-            <div className="border rounded-md p-3 bg-muted/50">
-              <p className="text-sm text-muted-foreground leading-normal">
-                <span className="font-medium">Recipient:</span> {client?.email}
+                Customize the message to include personalized details. The onboarding link will be automatically included in the email.
               </p>
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsEmailDialogOpen(false)}
+            >
               Cancel
             </Button>
-            <Button 
-              onClick={handleSendEmail}
+            <Button
+              type="button"
               disabled={sendOnboardingMutation.isPending}
+              onClick={handleSendEmail}
             >
               {sendOnboardingMutation.isPending ? "Sending..." : "Send Email"}
             </Button>
