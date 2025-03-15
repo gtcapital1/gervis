@@ -293,7 +293,9 @@ export default function Dashboard() {
                 <TableBody>
                   {filteredClients.map((client: Client) => (
                     <TableRow key={client.id}>
-                      <TableCell className="font-medium">{client.name}</TableCell>
+                      <TableCell className="font-medium">
+                        {client.lastName}, {client.firstName}
+                      </TableCell>
                       <TableCell>{client.email}</TableCell>
                       <TableCell>{client.phone || "—"}</TableCell>
                       <TableCell>
@@ -379,7 +381,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Archive Client</DialogTitle>
             <DialogDescription>
-              Are you sure you want to archive {clientToArchive?.name}? Archived clients will be moved to 
+              Are you sure you want to archive {clientToArchive ? `${clientToArchive.firstName} ${clientToArchive.lastName}` : ''}? Archived clients will be moved to 
               the archive section and won't appear in the main client list.
             </DialogDescription>
           </DialogHeader>
@@ -416,7 +418,7 @@ export default function Dashboard() {
           <DialogHeader>
             <DialogTitle>Delete Client Permanently</DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete {clientToDelete?.name}? This action cannot be undone.
+              Are you sure you want to permanently delete {clientToDelete ? `${clientToDelete.firstName} ${clientToDelete.lastName}` : ''}? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
