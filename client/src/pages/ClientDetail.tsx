@@ -18,9 +18,12 @@ import {
   PlusCircle,
   BarChart,
   Users,
+  Settings,
+  KeyRound
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
+import { ClientSettings } from "@/components/settings/ClientSettings";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -608,6 +611,10 @@ Cordiali saluti,`
                         <FileText className="mr-2 h-4 w-4" />
                         Recommendations
                       </TabsTrigger>
+                      <TabsTrigger value="settings">
+                        <Settings className="mr-2 h-4 w-4" />
+                        Client Settings
+                      </TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="portfolio" className="space-y-6">
@@ -726,6 +733,27 @@ Cordiali saluti,`
                         <PlusCircle className="mr-2 h-4 w-4" />
                         Add Recommendation
                       </Button>
+                    </TabsContent>
+                    
+                    <TabsContent value="settings" className="space-y-4">
+                      {client.isOnboarded ? (
+                        <ClientSettings clientId={clientId} />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center p-6 space-y-4">
+                          <AlertTriangle className="h-12 w-12 text-yellow-500" />
+                          <h3 className="text-lg font-medium">Client not onboarded</h3>
+                          <p className="text-muted-foreground text-center">
+                            The client must complete the onboarding process before accessing settings.
+                          </p>
+                          <Button
+                            className="bg-accent hover:bg-accent/90"
+                            onClick={handleSendOnboardingForm}
+                          >
+                            <Send className="mr-2 h-4 w-4" />
+                            Send Onboarding Email
+                          </Button>
+                        </div>
+                      )}
                     </TabsContent>
                   </Tabs>
                 </CardContent>
