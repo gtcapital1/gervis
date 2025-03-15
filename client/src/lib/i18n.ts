@@ -14,7 +14,7 @@ const resourcesEn = {
     hero: {
       title_1: "The Ultimate Assistant for",
       title_2: "Financial Consultants",
-      description: "Watson empowers financial consultants with AI-driven tools to deliver an exceptional financial advice experience. Automate documentation, optimize client management, and deliver AI enabled financial advice.",
+      description: "Watson empowers financial consultants with AI-driven tools so you can deliver to your clients an exceptional financial advice experience. Automate documentation, optimize client management, and exploit the full potential of applied AI with Watson.",
       get_started: "Get Started",
       learn_more: "Learn More",
       title: "Watson Financial Advisor Platform",
@@ -272,7 +272,7 @@ const resourcesIt = {
     hero: {
       title_1: "L'assistente imprescindibile per",
       title_2: "Consulenti Finanziari",
-      description: "Watson rivoluziona il lavoro dei consulenti finanziari grazie a strumenti avanzati di intelligenza artificiale per garantire al cliente un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione della clientela e offri consulenza basata su IA.",
+      description: "Watson rivoluziona il lavoro dei consulenti finanziari grazie a strumenti avanzati di intelligenza artificiale per garantire al cliente un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione della clientela e sfrutta il potenziale dell'IA con Watson.",
       get_started: "Inizia",
       learn_more: "Scopri di Più",
       title: "Piattaforma di Consulenza Finanziaria Watson",
