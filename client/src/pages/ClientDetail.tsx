@@ -477,11 +477,11 @@ Cordiali saluti,`
                           className="capitalize"
                           style={{
                             backgroundColor: 
-                              client.riskProfile === "conservative" ? "#10b981" : // Green
-                              client.riskProfile === "moderate" ? "#f59e0b" : // Amber
-                              client.riskProfile === "balanced" ? "#fbbf24" : // Yellow
-                              client.riskProfile === "growth" ? "#f97316" : // Orange
-                              client.riskProfile === "aggressive" ? "#ef4444" : // Red
+                              client.riskProfile === "conservative" ? "#93c5fd" : // Light blue
+                              client.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
+                              client.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
+                              client.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
+                              client.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
                               "#6b7280", // Gray default
                             color: "#ffffff"
                           }}
@@ -502,13 +502,13 @@ Cordiali saluti,`
                           className="capitalize"
                           style={{
                             backgroundColor: 
-                              client.investmentExperience === "none" ? "#94a3b8" : // Gray
-                              client.investmentExperience === "beginner" ? "#3b82f6" : // Blue
-                              client.investmentExperience === "intermediate" ? "#8b5cf6" : // Purple
-                              client.investmentExperience === "advanced" ? "#ec4899" : // Pink
-                              client.investmentExperience === "expert" ? "#f97316" : // Orange
+                              client.investmentExperience === "none" ? "#dbeafe" : // Very light blue
+                              client.investmentExperience === "beginner" ? "#93c5fd" : // Light blue
+                              client.investmentExperience === "intermediate" ? "#60a5fa" : // Medium light blue
+                              client.investmentExperience === "advanced" ? "#3b82f6" : // Medium blue
+                              client.investmentExperience === "expert" ? "#1e40af" : // Dark blue
                               "#6b7280", // Gray default
-                            color: "#ffffff"
+                            color: client.investmentExperience === "none" || client.investmentExperience === "beginner" ? "#1e3a8a" : "#ffffff"
                           }}
                         >
                           {client.investmentExperience.replace(/_/g, ' ')}
@@ -527,11 +527,11 @@ Cordiali saluti,`
                           className="capitalize"
                           style={{
                             backgroundColor: 
-                              client.investmentHorizon === "short_term" ? "#38bdf8" : // Light blue
-                              client.investmentHorizon === "medium_term" ? "#0ea5e9" : // Medium blue
+                              client.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
+                              client.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
                               client.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
                               "#6b7280", // Gray default
-                            color: "#ffffff"
+                            color: client.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
                           }}
                         >
                           {client.investmentHorizon.replace(/_/g, ' ')}
@@ -553,13 +553,15 @@ Cordiali saluti,`
                               className="capitalize"
                               style={{
                                 backgroundColor: 
-                                  goal === "retirement" ? "#8b5cf6" : // Purple
-                                  goal === "wealth_growth" ? "#f97316" : // Orange 
-                                  goal === "income_generation" ? "#10b981" : // Green
-                                  goal === "capital_preservation" ? "#3b82f6" : // Blue
-                                  goal === "estate_planning" ? "#6366f1" : // Indigo
+                                  goal === "retirement" ? "#dbeafe" : // Very light blue
+                                  goal === "wealth_growth" ? "#bfdbfe" : // Light blue
+                                  goal === "income_generation" ? "#93c5fd" : // Medium light blue
+                                  goal === "capital_preservation" ? "#60a5fa" : // Medium blue
+                                  goal === "estate_planning" ? "#3b82f6" : // Medium dark blue
                                   "#6b7280", // Gray default
-                                color: "#ffffff"
+                                color: 
+                                  (goal === "retirement" || goal === "wealth_growth" || goal === "income_generation") 
+                                    ? "#1e3a8a" : "#ffffff"
                               }}
                             >
                               {goal.replace(/_/g, ' ')}
@@ -620,14 +622,14 @@ Cordiali saluti,`
                                     <div className="w-2 h-2 rounded-full mr-2" 
                                       style={{
                                         backgroundColor: 
-                                          asset.category === "equity" ? "#2563eb" : 
-                                          asset.category === "real_estate" ? "#0ea5e9" : 
-                                          asset.category === "bonds" ? "#94a3b8" : 
-                                          asset.category === "cash" ? "#60a5fa" : 
-                                          asset.category === "private_equity" ? "#1e40af" :
-                                          asset.category === "venture_capital" ? "#3b82f6" :
-                                          asset.category === "cryptocurrencies" ? "#38bdf8" :
-                                          "#64748b"
+                                          asset.category === "equity" ? "#2563eb" : // Medium dark blue
+                                          asset.category === "real_estate" ? "#3b82f6" : // Medium blue
+                                          asset.category === "bonds" ? "#60a5fa" : // Medium light blue
+                                          asset.category === "cash" ? "#93c5fd" : // Light blue
+                                          asset.category === "private_equity" ? "#1e40af" : // Dark blue
+                                          asset.category === "venture_capital" ? "#2563eb" : // Medium dark blue
+                                          asset.category === "cryptocurrencies" ? "#3b82f6" : // Medium blue
+                                          "#bfdbfe" // Very light blue
                                       }}
                                     />
                                     <span className="font-medium capitalize">{asset.category.replace(/_/g, ' ')}</span>
@@ -648,14 +650,14 @@ Cordiali saluti,`
                             <div className="h-[220px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
-                                  equity: "#2563eb", // Blue
-                                  real_estate: "#0ea5e9", // Light blue
-                                  bonds: "#94a3b8", // Grey
-                                  cash: "#60a5fa", // Medium blue
+                                  equity: "#2563eb", // Medium dark blue
+                                  real_estate: "#3b82f6", // Medium blue
+                                  bonds: "#60a5fa", // Medium light blue
+                                  cash: "#93c5fd", // Light blue
                                   private_equity: "#1e40af", // Dark blue
-                                  venture_capital: "#3b82f6", // Royal blue
-                                  cryptocurrencies: "#38bdf8", // Sky blue
-                                  other: "#64748b" // Slate grey
+                                  venture_capital: "#2563eb", // Medium dark blue
+                                  cryptocurrencies: "#3b82f6", // Medium blue
+                                  other: "#bfdbfe" // Very light blue
                                 };
                                 
                                 // Group assets by category
