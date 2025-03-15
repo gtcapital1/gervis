@@ -3,15 +3,16 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 // Extend Express Request to include user property
-declare global {
-  namespace Express {
-    interface Request {
-      user?: {
-        id: number;
-      };
-    }
+import session from "express-session";
+
+// Estendi SessionData con le nostre proprietà
+declare module "express-session" {
+  interface SessionData {
+    onboardingComplete?: boolean;
   }
 }
+
+// La dichiarazione di Request.user è già definita in auth.ts
 
 const app = express();
 app.use(express.json());
