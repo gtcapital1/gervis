@@ -5,7 +5,7 @@ import {
   UseMutationResult,
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, InsertUser } from "@shared/schema";
-import { getQueryFn, apiRequest, queryClient } from "../lib/queryClient";
+import { queryClient, httpRequest } from "../lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 type AuthContextType = {
@@ -26,26 +26,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data,
     error,
     isLoading,
-  } = useQuery<{ success: boolean; user: SelectUser } | undefined, Error>({
+  } = useQuery<{ success: boolean; user: SelectUser } | null, Error>({
     queryKey: ["/api/user"],
-    queryFn: getQueryFn({ on401: "returnNull" }),
+    refetchOnWindowFocus: true,
+    retry: false,
   });
 
-  const user = data?.user ?? null;
-
   const loginMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      return await apiRequest("/api/login", {
-        method: "POST",
-        body: JSON.stringify(credentials),
-      });
-    },
+    mutationFn: (credentials: LoginData) => 
+      httpRequest<{ success: boolean; user: SelectUser }>("POST", "/api/login", credentials),
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
-      toast({
-        title: "Login successful",
-        description: `Welcome back, ${data.user.name || data.user.username}!`,
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       toast({
@@ -57,18 +49,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const registerMutation = useMutation({
-    mutationFn: async (userData: InsertUser) => {
-      return await apiRequest("/api/register", {
-        method: "POST",
-        body: JSON.stringify(userData),
-      });
-    },
+    mutationFn: (userData: InsertUser) => 
+      httpRequest<{ success: boolean; user: SelectUser }>("POST", "/api/register", userData),
     onSuccess: (data) => {
       queryClient.setQueryData(["/api/user"], data);
-      toast({
-        title: "Registration successful",
-        description: `Welcome, ${data.user.name || data.user.username}!`,
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       toast({
@@ -80,17 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const logoutMutation = useMutation({
-    mutationFn: async () => {
-      return await apiRequest("/api/logout", {
-        method: "POST",
-      });
-    },
+    mutationFn: () => httpRequest<{ success: boolean }>("POST", "/api/logout"),
     onSuccess: () => {
       queryClient.setQueryData(["/api/user"], null);
-      toast({
-        title: "Logged out",
-        description: "You have been successfully logged out.",
-      });
+      queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
       toast({
@@ -104,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider
       value={{
-        user,
+        user: data?.user || null,
         isLoading,
         error,
         loginMutation,

@@ -5,15 +5,13 @@ import {
   recommendations, type Recommendation, type InsertRecommendation
 } from "@shared/schema";
 import session from "express-session";
-import { drizzle } from 'drizzle-orm/neon-serverless';
 import { eq, and, gt } from 'drizzle-orm';
-import { neon } from '@neondatabase/serverless';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes } from 'crypto';
 import createMemoryStore from 'memorystore';
+import { db } from './db';
 
 const MemoryStore = createMemoryStore(session);
-
 const PgSession = connectPgSimple(session);
 
 export interface IStorage {
@@ -45,34 +43,36 @@ export interface IStorage {
 }
 
 export class PostgresStorage implements IStorage {
-  private sql: any;
-  private db: ReturnType<typeof drizzle>;
   public sessionStore: session.Store;
   
   constructor() {
-    this.sql = neon(process.env.DATABASE_URL!);
-    this.db = drizzle(this.sql);
-    
-    // Temporary memory store for sessions
+    // Start with memory store for sessions
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // Clear expired sessions every day
     });
     
-    // We'll use the dynamic import for pg to avoid ESM issues
+    // Set up PG session asynchronously
     this.setupPgSession();
+    
+    // Log database status
+    console.log('PostgreSQL storage initialized with database connection');
   }
   
   private async setupPgSession() {
     try {
       const pg = await import('pg');
+      // Create a separate connection for the session store
       const pool = new pg.default.Pool({
         connectionString: process.env.DATABASE_URL
       });
       
+      // Initialize session store with the pool
       this.sessionStore = new PgSession({
         pool: pool,
         createTableIfMissing: true
       });
+      
+      console.log('PostgreSQL session store initialized successfully');
     } catch (error) {
       console.error('Failed to setup PG session store:', error);
       // Continue using memory store if this fails
@@ -81,33 +81,33 @@ export class PostgresStorage implements IStorage {
 
   // User Methods
   async getUser(id: number): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.id, id));
+    const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await this.db.select().from(users).where(eq(users.username, username));
+    const result = await db.select().from(users).where(eq(users.username, username));
     return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await this.db.insert(users).values(insertUser).returning();
+    const result = await db.insert(users).values(insertUser).returning();
     return result[0];
   }
   
   // Client Methods
   async getClient(id: number): Promise<Client | undefined> {
-    const result = await this.db.select().from(clients).where(eq(clients.id, id));
+    const result = await db.select().from(clients).where(eq(clients.id, id));
     return result[0];
   }
   
   async getClientsByAdvisor(advisorId: number): Promise<Client[]> {
-    const result = await this.db.select().from(clients).where(eq(clients.advisorId, advisorId));
+    const result = await db.select().from(clients).where(eq(clients.advisorId, advisorId));
     return result;
   }
   
   async createClient(insertClient: InsertClient): Promise<Client> {
-    const result = await this.db.insert(clients).values({
+    const result = await db.insert(clients).values({
       ...insertClient,
       createdAt: new Date()
     }).returning();
@@ -115,7 +115,7 @@ export class PostgresStorage implements IStorage {
   }
   
   async updateClient(id: number, clientUpdate: Partial<Client>): Promise<Client> {
-    const result = await this.db.update(clients)
+    const result = await db.update(clients)
       .set(clientUpdate)
       .where(eq(clients.id, id))
       .returning();
@@ -128,12 +128,12 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteClient(id: number): Promise<boolean> {
-    const result = await this.db.delete(clients).where(eq(clients.id, id)).returning();
+    const result = await db.delete(clients).where(eq(clients.id, id)).returning();
     return result.length > 0;
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {
-    const result = await this.db.select().from(clients).where(
+    const result = await db.select().from(clients).where(
       and(
         eq(clients.onboardingToken, token),
         gt(clients.tokenExpiry as any, new Date())
@@ -166,12 +166,12 @@ export class PostgresStorage implements IStorage {
   
   // Asset Methods
   async getAssetsByClient(clientId: number): Promise<Asset[]> {
-    const result = await this.db.select().from(assets).where(eq(assets.clientId, clientId));
+    const result = await db.select().from(assets).where(eq(assets.clientId, clientId));
     return result;
   }
   
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {
-    const result = await this.db.insert(assets).values({
+    const result = await db.insert(assets).values({
       ...insertAsset,
       createdAt: new Date()
     }).returning();
@@ -179,7 +179,7 @@ export class PostgresStorage implements IStorage {
   }
   
   async updateAsset(id: number, assetUpdate: Partial<Asset>): Promise<Asset> {
-    const result = await this.db.update(assets)
+    const result = await db.update(assets)
       .set(assetUpdate)
       .where(eq(assets.id, id))
       .returning();
@@ -192,18 +192,18 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteAsset(id: number): Promise<boolean> {
-    const result = await this.db.delete(assets).where(eq(assets.id, id)).returning();
+    const result = await db.delete(assets).where(eq(assets.id, id)).returning();
     return result.length > 0;
   }
   
   // Recommendation Methods
   async getRecommendationsByClient(clientId: number): Promise<Recommendation[]> {
-    const result = await this.db.select().from(recommendations).where(eq(recommendations.clientId, clientId));
+    const result = await db.select().from(recommendations).where(eq(recommendations.clientId, clientId));
     return result;
   }
   
   async createRecommendation(insertRecommendation: InsertRecommendation): Promise<Recommendation> {
-    const result = await this.db.insert(recommendations).values({
+    const result = await db.insert(recommendations).values({
       ...insertRecommendation,
       createdAt: new Date()
     }).returning();
@@ -211,7 +211,7 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteRecommendation(id: number): Promise<boolean> {
-    const result = await this.db.delete(recommendations).where(eq(recommendations.id, id)).returning();
+    const result = await db.delete(recommendations).where(eq(recommendations.id, id)).returning();
     return result.length > 0;
   }
 }
