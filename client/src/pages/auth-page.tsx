@@ -72,12 +72,6 @@ export default function AuthPage() {
   const [location, navigate] = useLocation();
   const { t } = useTranslation();
 
-  // Redirect to dashboard if already logged in
-  if (user) {
-    navigate("/dashboard");
-    return null;
-  }
-
   // Login form
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -97,6 +91,12 @@ export default function AuthPage() {
       confirmPassword: "",
     },
   });
+  
+  // Redirect to dashboard if already logged in
+  if (user) {
+    navigate("/dashboard");
+    return null;
+  }
 
   function onLoginSubmit(data: LoginFormValues) {
     loginMutation.mutate(data, {
