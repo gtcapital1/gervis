@@ -20,7 +20,7 @@ const englishContent = {
   buttonText: 'Complete My Profile',
   expiry: 'This link will expire in 7 days for security purposes.',
   questions: 'If you have any questions, please feel free to contact me directly.',
-  signature: '', // Removed per client request
+  signature: 'Warm regards,',
   team: 'Financial Advisor'
 };
 
@@ -34,7 +34,7 @@ const italianContent = {
   buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',
   questions: 'Se hai domande, non esitare a contattarmi direttamente.',
-  signature: '', // Removed per client request
+  signature: 'Cordiali saluti,',
   team: 'Consulente Finanziario'
 };
 
@@ -79,8 +79,10 @@ export async function sendOnboardingEmail(
   
   // Prepare signature section
   const signatureHtml = advisorSignature 
-    ? `<p style="margin-top: 30px; white-space: pre-line;">${advisorSignature}</p>`
-    : `<p style="margin-top: 30px;">${content.team}</p>`;
+    ? `<p style="margin-top: 30px;">${content.signature}</p>
+       <p style="white-space: pre-line;">${advisorSignature}</p>`
+    : `<p style="margin-top: 30px;">${content.signature}</p>
+       <p>${content.team}</p>`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
