@@ -120,26 +120,13 @@ export function Layout({ children }: LayoutProps) {
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64 bg-black text-accent">
+        <div className="flex flex-col w-64 bg-black text-white">
           <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
+            <div className="flex items-center h-16 flex-shrink-0 px-4 bg-black">
               <Link href="/">
                 <div className="text-xl font-bold tracking-tight text-white flex items-center cursor-pointer">
-                  <svg 
-                    className="w-7 h-7 mr-2 text-accent"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    xmlns="http://www.w3.org/2000/svg"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                    />
-                  </svg>
-                  FinAdvisor
+                  <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
+                  Watson
                 </div>
               </Link>
             </div>
@@ -157,21 +144,8 @@ export function Layout({ children }: LayoutProps) {
         <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
           <Link href="/">
             <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
-              <svg 
-                className="w-7 h-7 mr-2 text-accent"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"
-                />
-              </svg>
-              FinAdvisor
+              <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
+              Watson
             </div>
           </Link>
 
