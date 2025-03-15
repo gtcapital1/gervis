@@ -305,11 +305,11 @@ export default function AuthPage() {
                           name="confirmPassword"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Confirm Password</FormLabel>
+                              <FormLabel>{t('auth.confirm_password')}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="password"
-                                  placeholder="Confirm your password"
+                                  placeholder={t('auth.confirm_password_placeholder')}
                                   {...field}
                                 />
                               </FormControl>
@@ -325,10 +325,10 @@ export default function AuthPage() {
                           {registerMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              Creating account...
+                              {t('auth.creating_account')}
                             </>
                           ) : (
-                            "Register"
+                            t('auth.register')
                           )}
                         </Button>
                       </form>
@@ -357,11 +357,10 @@ export default function AuthPage() {
       <div className="hidden lg:flex flex-1 bg-primary/5 p-12 items-center">
         <div className="max-w-2xl mx-auto">
           <h1 className="text-4xl font-bold tracking-tight text-primary mb-6">
-            Watson Financial Advisor Platform
+            {t('hero.title')}
           </h1>
           <p className="text-lg mb-8 text-muted-foreground">
-            A sophisticated platform designed for financial advisors to manage clients, 
-            analyze portfolios, and provide intelligent recommendations with AI-powered tools.
+            {t('hero.description')}
           </p>
           
           <div className="space-y-6">
@@ -383,9 +382,9 @@ export default function AuthPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-medium">Portfolio Analysis</h3>
+                <h3 className="text-lg font-medium">{t('hero.feature1.title')}</h3>
                 <p className="text-muted-foreground">
-                  Analyze client portfolios with sophisticated algorithms to identify opportunities and risks.
+                  {t('hero.feature1.description')}
                 </p>
               </div>
             </div>
@@ -408,9 +407,9 @@ export default function AuthPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-medium">AI-Powered Insights</h3>
+                <h3 className="text-lg font-medium">{t('hero.feature2.title')}</h3>
                 <p className="text-muted-foreground">
-                  Leverage artificial intelligence to generate personalized financial recommendations.
+                  {t('hero.feature2.description')}
                 </p>
               </div>
             </div>
@@ -433,9 +432,9 @@ export default function AuthPage() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-medium">Secure & Compliant</h3>
+                <h3 className="text-lg font-medium">{t('hero.feature3.title')}</h3>
                 <p className="text-muted-foreground">
-                  Built with security and regulatory compliance in mind, including Italian financial regulations.
+                  {t('hero.feature3.description')}
                 </p>
               </div>
             </div>
