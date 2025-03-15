@@ -9,6 +9,8 @@ export const users = pgTable("users", {
   email: text("email"),
   name: text("name"),
   role: text("role").default("advisor"),
+  isPro: boolean("is_pro").default(false),
+  proSince: timestamp("pro_since"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -52,6 +54,9 @@ export const clients = pgTable("clients", {
   phone: text("phone"),
   address: text("address"),
   taxCode: text("tax_code"),
+  password: text("password"), // Client portal password
+  lastLogin: timestamp("last_login"),
+  hasPortalAccess: boolean("has_portal_access").default(false),
   isOnboarded: boolean("is_onboarded").default(false),
   isArchived: boolean("is_archived").default(false),
   riskProfile: text("risk_profile"),
