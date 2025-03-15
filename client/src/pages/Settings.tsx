@@ -63,6 +63,30 @@ export default function Settings() {
     },
   });
 
+  // Downgrade to Base plan mutation
+  const downgradeMutation = useMutation({
+    mutationFn: () => {
+      return apiRequest(`/api/users/${user?.id}/downgrade`, {
+        method: "POST",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Account downgraded",
+        description: "Your account has been downgraded to Base successfully.",
+      });
+      // Refresh user data
+      window.location.reload();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to downgrade account",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Password change mutation
   const passwordMutation = useMutation({
     mutationFn: (data: PasswordFormValues) => {
@@ -100,8 +124,10 @@ export default function Settings() {
       <div className="container mx-auto py-6 max-w-7xl">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-6">
-            <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-            <p className="text-muted-foreground">
+            <div className="flex items-center justify-between p-6 border-b text-black">
+              <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
+            </div>
+            <p className="text-muted-foreground px-2">
               Manage your account settings and preferences
             </p>
             
@@ -264,8 +290,18 @@ export default function Settings() {
                       </div>
                       
                       {user?.isPro && (
-                        <div>
-                          <h3 className="font-medium text-lg">Premium Features</h3>
+                        <>
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="font-medium text-lg">Premium Features</h3>
+                            <Button 
+                              variant="outline"
+                              onClick={() => downgradeMutation.mutate()}
+                              disabled={downgradeMutation.isPending}
+                              className="text-red-500 border-red-200 hover:bg-red-50"
+                            >
+                              {downgradeMutation.isPending ? "Downgrading..." : "Downgrade to Base"}
+                            </Button>
+                          </div>
                           <ul className="mt-2 space-y-2">
                             <li className="flex items-center">
                               <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -292,7 +328,7 @@ export default function Settings() {
                               Portfolio optimization tools
                             </li>
                           </ul>
-                        </div>
+                        </>
                       )}
                     </div>
                   </CardContent>
