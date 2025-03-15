@@ -29,7 +29,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<Client>): Promise<Client>;
   deleteClient(id: number): Promise<boolean>;
-  generateOnboardingToken(clientId: number): Promise<string>;
+  generateOnboardingToken(clientId: number, language?: 'english' | 'italian'): Promise<string>;
   archiveClient(id: number): Promise<Client>;
   restoreClient(id: number): Promise<Client>;
   
@@ -218,7 +218,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
   
-  async generateOnboardingToken(clientId: number): Promise<string> {
+  async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english'): Promise<string> {
     const client = await this.getClient(clientId);
     if (!client) {
       throw new Error(`Client with id ${clientId} not found`);
@@ -247,9 +247,10 @@ export class PostgresStorage implements IStorage {
         client.email,
         client.firstName,
         client.lastName,
-        onboardingLink
+        onboardingLink,
+        language
       );
-      console.log(`Onboarding email sent to ${client.email}`);
+      console.log(`Onboarding email sent to ${client.email} in ${language}`);
     } catch (error) {
       console.error('Failed to send onboarding email:', error);
       // Don't throw error, still return the token

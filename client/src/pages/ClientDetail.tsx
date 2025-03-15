@@ -147,18 +147,21 @@ export default function ClientDetail() {
   }
   
   const sendOnboardingMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (language: 'english' | 'italian' = 'english') => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
+        body: JSON.stringify({ language }),
       });
     },
-    onSuccess: (data: { token: string, link: string }) => {
+    onSuccess: (data: { token: string, link: string, language: 'english' | 'italian' }) => {
       setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       toast({
         title: "Onboarding link generated",
-        description: "Successfully generated an onboarding link for the client.",
+        description: `Successfully generated an onboarding link in ${data.language === 'english' ? 'English' : 'Italian'}.`,
       });
+      // Close the email dialog
+      setIsEmailDialogOpen(false);
     },
     onError: () => {
       toast({
@@ -170,7 +173,17 @@ export default function ClientDetail() {
   });
 
   function handleSendOnboardingForm() {
-    sendOnboardingMutation.mutate();
+    // If the dialog is not open, open it
+    if (!onboardingLink) {
+      setIsEmailDialogOpen(true);
+    } else {
+      // If the link already exists, reset it
+      setOnboardingLink(null);
+    }
+  }
+  
+  function handleSendEmail() {
+    sendOnboardingMutation.mutate(emailLanguage);
   }
   
   function formatDate(date: Date | string | null) {
