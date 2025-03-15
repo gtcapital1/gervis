@@ -98,27 +98,31 @@ export default function ClientDetail() {
   
   // Initialize default email messages
   const defaultEmailMessages = {
-    english: `Hello ${client?.name},
+    english: `Dear ${client?.name},
 
-I hope this email finds you well. I'd like to invite you to complete your financial profile through our onboarding process.
+I hope this message finds you well! I'm reaching out personally to invite you to complete your financial profile through our simple onboarding process.
 
-This will help me better understand your financial situation and goals so I can provide you with tailored advice.
+By sharing some information about your financial situation and goals, I'll be able to provide you with truly personalized financial guidance tailored specifically to your needs.
 
-The process is simple and should take only a few minutes. Please click the link below to get started.
+The process is quick and straightforward - it should only take about 5 minutes of your time. Simply click the link below to get started.
 
-Thank you for your trust.
+I'm looking forward to working together on your financial journey!
 
-Best regards,`,
+Thank you for your trust and partnership.
+
+Warm regards,`,
     
     italian: `Gentile ${client?.name},
 
-Spero che questa email ti trovi bene. Ti invito a completare il tuo profilo finanziario attraverso il nostro processo di onboarding.
+Spero che tu stia bene! Ti scrivo personalmente per invitarti a completare il tuo profilo finanziario attraverso la nostra semplice procedura di onboarding.
 
-Questo mi aiuterà a comprendere meglio la tua situazione finanziaria e i tuoi obiettivi in modo da poterti fornire una consulenza personalizzata.
+Condividendo alcune informazioni sulla tua situazione finanziaria e i tuoi obiettivi, sarò in grado di offrirti una consulenza finanziaria veramente personalizzata e su misura per le tue esigenze.
 
-Il processo è semplice e dovrebbe richiedere solo pochi minuti. Clicca sul link qui sotto per iniziare.
+La procedura è rapida e semplice - richiederà solo circa 5 minuti del tuo tempo. Basta cliccare sul link qui sotto per iniziare.
 
-Grazie per la tua fiducia.
+Non vedo l'ora di lavorare insieme nel tuo percorso finanziario!
+
+Grazie per la tua fiducia e collaborazione.
 
 Cordiali saluti,`
   };

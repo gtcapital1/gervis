@@ -12,30 +12,30 @@ const transporter = nodemailer.createTransport({
 
 // English content
 const englishContent = {
-  subject: 'Complete Your Financial Advisory Onboarding',
-  title: 'Welcome to Your Financial Journey',
+  subject: 'Complete Your Financial Profile',
+  title: 'Your Personal Financial Journey',
   greeting: (firstName: string, lastName: string) => `Dear ${firstName} ${lastName},`,
-  invitation: 'Your financial advisor has invited you to complete your onboarding process. This includes a comprehensive suitability assessment to help us better understand your financial goals and risk tolerance.',
-  callToAction: 'Please click the button below to start your onboarding process:',
-  buttonText: 'Start Onboarding',
+  invitation: 'I have personally invited you to complete our simple onboarding process. This quick assessment will help me better understand your unique financial situation and goals so I can provide you with truly personalized guidance.',
+  callToAction: 'Please click the button below to complete your profile (it only takes about 5 minutes):',
+  buttonText: 'Complete My Profile',
   expiry: 'This link will expire in 7 days for security purposes.',
-  questions: 'If you have any questions, please contact your financial advisor.',
-  signature: 'Best regards,',
-  team: 'Your Financial Advisory Team'
+  questions: 'If you have any questions, please feel free to contact me directly.',
+  signature: 'Looking forward to our journey together,',
+  team: 'Your Financial Advisor'
 };
 
 // Italian content
 const italianContent = {
-  subject: 'Completa la tua procedura di onboarding finanziario',
-  title: 'Benvenuto nel tuo percorso finanziario',
+  subject: 'Completa il tuo Profilo Finanziario',
+  title: 'Il tuo Percorso Finanziario Personale',
   greeting: (firstName: string, lastName: string) => `Gentile ${firstName} ${lastName},`,
-  invitation: 'Il tuo consulente finanziario ti ha invitato a completare la procedura di onboarding. Ciò include una valutazione completa dell\'idoneità per aiutarci a comprendere meglio i tuoi obiettivi finanziari e la tua tolleranza al rischio.',
-  callToAction: 'Fai clic sul pulsante qui sotto per iniziare la procedura di onboarding:',
-  buttonText: 'Inizia Onboarding',
+  invitation: 'Ti ho personalmente invitato a completare la nostra semplice procedura di onboarding. Questa rapida valutazione mi aiuterà a comprendere meglio la tua situazione finanziaria e i tuoi obiettivi personali così da poterti fornire una consulenza davvero personalizzata.',
+  callToAction: 'Per favore, clicca sul pulsante qui sotto per completare il tuo profilo (richiede solo circa 5 minuti):',
+  buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',
-  questions: 'In caso di domande, contatta il tuo consulente finanziario.',
-  signature: 'Cordiali saluti,',
-  team: 'Il Tuo Team di Consulenza Finanziaria'
+  questions: 'Se hai domande, non esitare a contattarmi direttamente.',
+  signature: 'Non vedo l\'ora di intraprendere questo percorso insieme,',
+  team: 'Il Tuo Consulente Finanziario'
 };
 
 type EmailLanguage = 'english' | 'italian';
