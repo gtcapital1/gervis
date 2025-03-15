@@ -27,7 +27,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { ClientDialog } from "@/components/advisor/ClientDialog";
+import { ClientDialog } from "../components/advisor/ClientDialog";
 import { Client } from "@shared/schema";
 import { useLocation } from "wouter";
 
