@@ -58,7 +58,7 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-4">
             <LanguageSwitcher />
             <Button 
-              onClick={() => setLocation("/auth")}
+              onClick={() => setLocation("/app")}
               className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white"
             >
               {t('nav.launch')}
@@ -89,7 +89,7 @@ export default function Navbar() {
             <Button 
               onClick={() => {
                 closeMobileMenu();
-                setLocation("/auth");
+                setLocation("/app");
               }}
               className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white w-full"
             >

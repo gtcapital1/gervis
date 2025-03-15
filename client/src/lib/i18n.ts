@@ -135,6 +135,36 @@ const resourcesEn = {
       en: "English",
       it: "Italian"
     },
+    benefits: {
+      title: "Transform Your Financial Practice",
+      subtitle: "Join consultants who are saving time, reducing errors, and growing their business with Watson.",
+      items: {
+        save_time: {
+          title: "Save 10+ Hours Weekly",
+          description: "Automate routine tasks and documentation, freeing up more time to focus on client relationships."
+        },
+        reduce_errors: {
+          title: "Reduce Errors by 95%",
+          description: "AI-powered checks and balances ensure your recommendations and documentation are error-free."
+        },
+        grow_aum: {
+          title: "Grow AUM by 30%",
+          description: "Serve more clients effectively and increase assets under management with optimized workflows."
+        },
+        improve_satisfaction: {
+          title: "Improve Client Satisfaction",
+          description: "Deliver more personalized service and faster responses to client inquiries and needs."
+        },
+        compliance: {
+          title: "Compliance Made Simple",
+          description: "Automatically generate compliant documentation and reduce regulatory risks."
+        },
+        insights: {
+          title: "Instant Insights",
+          description: "Access real-time market data and AI-powered analytics to make informed decisions quickly."
+        }
+      }
+    },
     features: {
       title: "Powerful Features for Financial Excellence",
       subtitle: "Watson provides cutting-edge tools that transform how financial consultants work.",
@@ -288,6 +318,36 @@ const resourcesIt = {
     language: {
       en: "Inglese",
       it: "Italiano"
+    },
+    benefits: {
+      title: "Trasforma la Tua Pratica Finanziaria",
+      subtitle: "Unisciti ai consulenti che risparmiano tempo, riducono gli errori e fanno crescere la loro attività con Watson.",
+      items: {
+        save_time: {
+          title: "Risparmia 10+ Ore Settimanali",
+          description: "Automatizza le attività di routine e la documentazione, liberando più tempo per concentrarti sulle relazioni con i clienti."
+        },
+        reduce_errors: {
+          title: "Riduci gli Errori del 95%",
+          description: "I controlli e i bilanciamenti basati sull'IA garantiscono che le tue raccomandazioni e la documentazione siano prive di errori."
+        },
+        grow_aum: {
+          title: "Aumenta gli AUM del 30%",
+          description: "Servi più clienti in modo efficace e aumenta il patrimonio gestito con flussi di lavoro ottimizzati."
+        },
+        improve_satisfaction: {
+          title: "Migliora la Soddisfazione dei Clienti",
+          description: "Offri un servizio più personalizzato e risposte più rapide alle richieste e alle esigenze dei clienti."
+        },
+        compliance: {
+          title: "Conformità Semplificata",
+          description: "Genera automaticamente documentazione conforme e riduci i rischi normativi."
+        },
+        insights: {
+          title: "Approfondimenti Istantanei",
+          description: "Accedi a dati di mercato in tempo reale e analisi basate sull'IA per prendere decisioni informate rapidamente."
+        }
+      }
     },
     features: {
       title: "Potenti Funzionalità per l'Eccellenza Finanziaria",

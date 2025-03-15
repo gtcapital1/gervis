@@ -2,6 +2,7 @@ import {
   CheckCircle, Award, TrendingUp, Users, 
   FileText, Zap
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface BenefitCardProps {
   icon: React.ReactNode;
@@ -25,41 +26,43 @@ function BenefitCard({ icon, title, description, iconColor }: BenefitCardProps) 
 }
 
 export default function Benefits() {
+  const { t } = useTranslation();
+  
   const benefits = [
     {
       icon: <CheckCircle className="h-8 w-8" />,
-      title: "Save 10+ Hours Weekly",
-      description: "Automate routine tasks and documentation, freeing up more time to focus on client relationships.",
+      title: t('benefits.items.save_time.title'),
+      description: t('benefits.items.save_time.description'),
       iconColor: "text-secondary",
     },
     {
       icon: <Award className="h-8 w-8" />,
-      title: "Reduce Errors by 95%",
-      description: "AI-powered checks and balances ensure your recommendations and documentation are error-free.",
+      title: t('benefits.items.reduce_errors.title'),
+      description: t('benefits.items.reduce_errors.description'),
       iconColor: "text-accent",
     },
     {
       icon: <TrendingUp className="h-8 w-8" />,
-      title: "Grow AUM by 30%",
-      description: "Serve more clients effectively and increase assets under management with optimized workflows.",
+      title: t('benefits.items.grow_aum.title'),
+      description: t('benefits.items.grow_aum.description'),
       iconColor: "text-success",
     },
     {
       icon: <Users className="h-8 w-8" />,
-      title: "Improve Client Satisfaction",
-      description: "Deliver more personalized service and faster responses to client inquiries and needs.",
+      title: t('benefits.items.improve_satisfaction.title'),
+      description: t('benefits.items.improve_satisfaction.description'),
       iconColor: "text-warning",
     },
     {
       icon: <FileText className="h-8 w-8" />,
-      title: "Compliance Made Simple",
-      description: "Automatically generate compliant documentation and reduce regulatory risks.",
+      title: t('benefits.items.compliance.title'),
+      description: t('benefits.items.compliance.description'),
       iconColor: "text-secondary",
     },
     {
       icon: <Zap className="h-8 w-8" />,
-      title: "Instant Insights",
-      description: "Access real-time market data and AI-powered analytics to make informed decisions quickly.",
+      title: t('benefits.items.insights.title'),
+      description: t('benefits.items.insights.description'),
       iconColor: "text-accent",
     },
   ];
@@ -69,10 +72,10 @@ export default function Benefits() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold">
-            Transform Your Financial Practice
+            {t('benefits.title')}
           </h2>
           <p className="mt-4 text-lg text-gray-300">
-            Join consultants who are saving time, reducing errors, and growing their business with Watson.
+            {t('benefits.subtitle')}
           </p>
         </div>
         
