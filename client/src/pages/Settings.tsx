@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UpgradeDialog } from "@/components/pro/UpgradeDialog";
 
@@ -130,14 +131,18 @@ export default function Settings() {
       <div className="container mx-auto py-6 max-w-7xl">
         <div className="flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-6 max-w-3xl mx-auto w-full">
-            <div className="flex flex-col p-6 border-b">
-              <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
-              <p className="text-muted-foreground mt-2">
-                Manage your account settings and preferences
-              </p>
+            <div className="flex items-center justify-between p-6 border-b text-black">
+              <div>
+                <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
+                <p className="text-gray-600">
+                  Manage your account settings and preferences
+                </p>
+              </div>
             </div>
             
-            <div className="space-y-6">
+            <Separator />
+            
+            <div className="p-6 space-y-6">
               {/* Account Section */}
               <Card>
                 <CardHeader>
