@@ -148,6 +148,8 @@ export default function Dashboard() {
       // First filter by search query
       const matchesSearch = 
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
         client.email.toLowerCase().includes(searchQuery.toLowerCase());
       
       // Then filter by archive status
@@ -158,10 +160,8 @@ export default function Dashboard() {
       return matchesSearch && matchesArchiveFilter;
     })
     .sort((a, b) => {
-      // Sort by surname (last word in the name field)
-      const aSurname = a.name.split(' ').pop() || '';
-      const bSurname = b.name.split(' ').pop() || '';
-      return aSurname.localeCompare(bSurname);
+      // Sort by last name first
+      return a.lastName.localeCompare(b.lastName);
     });
 
   function formatDate(date: Date | string | null) {

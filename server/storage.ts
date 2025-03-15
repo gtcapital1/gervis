@@ -109,21 +109,68 @@ export class PostgresStorage implements IStorage {
   }
   
   async createClient(insertClient: InsertClient): Promise<Client> {
+    // Ensure we have both first and last name
+    const { firstName, lastName, name, ...restOfClient } = insertClient;
+    
+    // If first name and last name are provided but name is not,
+    // automatically generate the full name
+    const fullName = name || `${firstName} ${lastName}`;
+    
     const result = await db.insert(clients).values({
-      ...insertClient,
+      firstName: firstName || (name ? name.split(' ')[0] : ''),
+      lastName: lastName || (name ? name.split(' ').slice(1).join(' ') : ''),
+      name: fullName,
+      ...restOfClient,
       createdAt: new Date()
     }).returning();
+    
     return result[0];
   }
   
   async updateClient(id: number, clientUpdate: Partial<Client>): Promise<Client> {
+    const { firstName, lastName, name, ...restOfUpdate } = clientUpdate;
+    
+    // Get the current client first
+    const currentClient = await this.getClient(id);
+    if (!currentClient) {
+      throw new Error(`Client with id ${id} not found`);
+    }
+    
+    let updateData: Partial<Client> = { ...restOfUpdate };
+    
+    // Handle name fields synchronization
+    if (firstName !== undefined || lastName !== undefined) {
+      // If either first or last name is updated, update all three fields
+      const newFirstName = firstName !== undefined ? firstName : currentClient.firstName;
+      const newLastName = lastName !== undefined ? lastName : currentClient.lastName;
+      
+      updateData = {
+        ...updateData,
+        firstName: newFirstName,
+        lastName: newLastName,
+        name: `${newFirstName} ${newLastName}`
+      };
+    } else if (name !== undefined) {
+      // If only full name is updated, update first and last name too
+      const nameParts = name.split(' ');
+      const newFirstName = nameParts[0];
+      const newLastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
+      
+      updateData = {
+        ...updateData,
+        firstName: newFirstName,
+        lastName: newLastName,
+        name
+      };
+    }
+    
     const result = await db.update(clients)
-      .set(clientUpdate)
+      .set(updateData)
       .where(eq(clients.id, id))
       .returning();
     
     if (!result[0]) {
-      throw new Error(`Client with id ${id} not found`);
+      throw new Error(`Failed to update client with id ${id}`);
     }
     
     return result[0];

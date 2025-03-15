@@ -33,7 +33,9 @@ export type AssetCategory = typeof ASSET_CATEGORIES[number];
 // Client Schema
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
-  name: text("name").notNull(),
+  firstName: text("first_name").notNull(),
+  lastName: text("last_name").notNull(),
+  name: text("name").notNull(), // Keep for backward compatibility
   email: text("email").notNull(),
   phone: text("phone"),
   address: text("address"),
@@ -48,6 +50,8 @@ export const clients = pgTable("clients", {
 });
 
 export const insertClientSchema = createInsertSchema(clients).pick({
+  firstName: true,
+  lastName: true,
   name: true,
   email: true,
   phone: true,
