@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft } from "lucide-react";
 import { useLocation, Link } from "wouter";
+import { useTranslation } from "react-i18next";
 
 // Components
 import {
@@ -69,6 +70,7 @@ export default function AuthPage() {
   const { loginMutation, registerMutation, user } = useAuth();
   const { toast } = useToast();
   const [location, navigate] = useLocation();
+  const { t } = useTranslation();
 
   // Redirect to home if already logged in
   if (user) {
@@ -152,8 +154,8 @@ export default function AuthPage() {
         <div className="w-full max-w-md">
           <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
+              <TabsTrigger value="register">{t('auth.register')}</TabsTrigger>
             </TabsList>
             <div className="mt-6">
               <TabsContent value="login">

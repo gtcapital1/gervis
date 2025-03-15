@@ -117,6 +117,23 @@ const resourcesEn = {
     language: {
       en: "English",
       it: "Italian"
+    },
+    features: {
+      title: "Powerful Features for Financial Excellence",
+      subtitle: "Watson provides cutting-edge tools that transform how financial consultants work.",
+      wealth_assessment: {
+        title: "Wealth Assessment",
+        description: "Comprehensive analysis of client portfolios with detailed risk assessments and opportunity identification."
+      },
+      ai_allocation: {
+        title: "AI-Powered Allocation",
+        description: "Advanced algorithms that analyze market trends and optimize client portfolios for maximum returns."
+      },
+      intelligent_assistant: {
+        title: "Intelligent Assistant",
+        description: "Automatically track client conversations and generate compliance-ready documentation with AI."
+      },
+      learn_more: "Learn more"
     }
   }
 };
@@ -237,6 +254,23 @@ const resourcesIt = {
     language: {
       en: "Inglese",
       it: "Italiano"
+    },
+    features: {
+      title: "Potenti Funzionalità per l'Eccellenza Finanziaria",
+      subtitle: "Watson fornisce strumenti all'avanguardia che trasformano il modo di lavorare dei consulenti finanziari.",
+      wealth_assessment: {
+        title: "Valutazione Patrimoniale",
+        description: "Analisi completa dei portafogli dei clienti con valutazioni dettagliate del rischio e identificazione delle opportunità."
+      },
+      ai_allocation: {
+        title: "Allocazione basata su IA",
+        description: "Algoritmi avanzati che analizzano le tendenze di mercato e ottimizzano i portafogli dei clienti per massimizzare i rendimenti."
+      },
+      intelligent_assistant: {
+        title: "Assistente Intelligente",
+        description: "Traccia automaticamente le conversazioni con i clienti e genera documentazione conforme alle normative con l'aiuto dell'IA."
+      },
+      learn_more: "Scopri di più"
     }
   }
 };

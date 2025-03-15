@@ -28,23 +28,25 @@ function FeatureCard({ icon, title, description, learnMoreColor }: FeatureCardPr
 }
 
 export default function Features() {
+  const { t } = useTranslation();
+  
   const features = [
     {
       icon: <LineChart className="h-7 w-7 text-secondary" />,
-      title: "Wealth Assessment",
-      description: "Comprehensive analysis of client portfolios with detailed risk assessments and opportunity identification.",
+      title: t('features.wealth_assessment.title'),
+      description: t('features.wealth_assessment.description'),
       learnMoreColor: "text-secondary",
     },
     {
       icon: <LayoutDashboard className="h-7 w-7 text-accent" />,
-      title: "AI-Powered Allocation",
-      description: "Advanced algorithms that analyze market trends and optimize client portfolios for maximum returns.",
+      title: t('features.ai_allocation.title'),
+      description: t('features.ai_allocation.description'),
       learnMoreColor: "text-accent",
     },
     {
       icon: <MessageCircle className="h-7 w-7 text-accent" />,
-      title: "Intelligent Assistant",
-      description: "Automatically track client conversations and generate compliance-ready documentation with AI.",
+      title: t('features.intelligent_assistant.title'),
+      description: t('features.intelligent_assistant.description'),
       learnMoreColor: "text-accent",
     },
   ];
@@ -54,10 +56,10 @@ export default function Features() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-white">
-            Powerful Features for Financial Excellence
+            {t('features.title')}
           </h2>
           <p className="mt-4 text-lg text-gray-400">
-            Watson provides cutting-edge tools that transform how financial consultants work.
+            {t('features.subtitle')}
           </p>
         </div>
         
