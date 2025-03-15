@@ -38,10 +38,10 @@ export function UpgradeDialog({
     },
     onSuccess: () => {
       toast({
-        title: "Upgraded to PRO",
-        description: "Your account has been successfully upgraded to PRO!",
+        title: "Upgraded to Watson PRO",
+        description: "Your account has been successfully upgraded to Watson PRO!",
       });
-      // Invalidate user query to refresh UI with PRO status
+      // Invalidate user query to refresh UI with Watson PRO status
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       onOpenChange(false);
     },
