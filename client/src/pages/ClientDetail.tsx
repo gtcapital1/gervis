@@ -46,7 +46,7 @@ export default function ClientDetail() {
   const { 
     data: assets = [], 
     isLoading: isLoadingAssets 
-  } = useQuery<any[]>({
+  } = useQuery<Array<{id: number, clientId: number, category: string, value: number, description: string, createdAt: string}>>({
     queryKey: [`/api/clients/${clientId}/assets`],
     enabled: !isNaN(clientId) && !!client?.isOnboarded,
   });
@@ -267,135 +267,293 @@ export default function ClientDetail() {
                       </div>
                     ) : (
                       <div className="space-y-6">
-                        <div className="grid grid-cols-2 gap-4">
-                          <Card>
-                            <CardHeader className="p-4 pb-2">
-                              <CardTitle className="text-base">Risk Alignment</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0">
-                              <div className="flex items-center mt-2">
-                                <Check className="h-4 w-4 mr-2 text-green-500" />
-                                <span className="text-sm">Properly aligned with risk profile</span>
-                              </div>
-                            </CardContent>
-                          </Card>
+                        {(() => {
+                          // Calculate total portfolio value
+                          const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
                           
-                          <Card>
-                            <CardHeader className="p-4 pb-2">
-                              <CardTitle className="text-base">Total Portfolio Value</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-4 pt-0">
-                              <div className="text-2xl font-bold">
-                                €320,000
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                        
-                        <div className="space-y-4">
-                          <h3 className="text-lg font-medium">Asset Allocation</h3>
+                          // Group assets by category and calculate amounts
+                          const assetsByCategory = assets.reduce((acc, asset) => {
+                            const category = asset.category;
+                            if (!acc[category]) {
+                              acc[category] = 0;
+                            }
+                            acc[category] += asset.value;
+                            return acc;
+                          }, {} as Record<string, number>);
                           
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center">
-                                <Home className="h-4 w-4 mr-2 text-blue-500" />
-                                <span>Real Estate</span>
-                              </div>
-                              <span className="font-medium">45% (€144,000)</span>
-                            </div>
-                            <Progress value={45} className="h-2" />
-                          </div>
+                          // Calculate percentages
+                          const percentages = Object.entries(assetsByCategory).map(([category, value]) => ({
+                            category,
+                            value,
+                            percentage: totalValue > 0 ? Math.round((value / totalValue) * 100) : 0,
+                          }));
                           
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center">
-                                <Briefcase className="h-4 w-4 mr-2 text-green-500" />
-                                <span>Equity</span>
-                              </div>
-                              <span className="font-medium">30% (€96,000)</span>
-                            </div>
-                            <Progress value={30} className="h-2" />
-                          </div>
+                          // Define category icons and colors
+                          const categoryConfig = {
+                            real_estate: { icon: Home, color: "text-blue-500" },
+                            equity: { icon: Briefcase, color: "text-green-500" },
+                            bonds: { icon: FileText, color: "text-purple-500" },
+                            cash: { icon: Briefcase, color: "text-yellow-500" },
+                            other: { icon: FileText, color: "text-gray-500" },
+                          };
                           
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center">
-                                <FileText className="h-4 w-4 mr-2 text-purple-500" />
-                                <span>Bonds</span>
+                          return (
+                            <>
+                              <div className="grid grid-cols-2 gap-4">
+                                <Card>
+                                  <CardHeader className="p-4 pb-2">
+                                    <CardTitle className="text-base">Risk Alignment</CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-4 pt-0">
+                                    <div className="flex items-center mt-2">
+                                      <Check className="h-4 w-4 mr-2 text-green-500" />
+                                      <span className="text-sm">Properly aligned with risk profile</span>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                                
+                                <Card>
+                                  <CardHeader className="p-4 pb-2">
+                                    <CardTitle className="text-base">Total Portfolio Value</CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-4 pt-0">
+                                    <div className="text-2xl font-bold">
+                                      €{totalValue.toLocaleString()}
+                                    </div>
+                                  </CardContent>
+                                </Card>
                               </div>
-                              <span className="font-medium">15% (€48,000)</span>
-                            </div>
-                            <Progress value={15} className="h-2" />
-                          </div>
-                          
-                          <div className="space-y-3">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center">
-                                <Briefcase className="h-4 w-4 mr-2 text-yellow-500" />
-                                <span>Cash</span>
+                              
+                              <div className="space-y-4">
+                                <h3 className="text-lg font-medium">Asset Allocation</h3>
+                                
+                                {percentages.length === 0 ? (
+                                  <div className="text-muted-foreground text-sm">
+                                    No assets to display.
+                                  </div>
+                                ) : (
+                                  percentages.map(({ category, value, percentage }) => {
+                                    const config = categoryConfig[category as keyof typeof categoryConfig] || 
+                                                  categoryConfig.other;
+                                    const Icon = config.icon;
+                                    
+                                    return (
+                                      <div key={category} className="space-y-3">
+                                        <div className="flex justify-between items-center">
+                                          <div className="flex items-center">
+                                            <Icon className={`h-4 w-4 mr-2 ${config.color}`} />
+                                            <span className="capitalize">{category.replace('_', ' ')}</span>
+                                          </div>
+                                          <span className="font-medium">
+                                            {percentage}% (€{value.toLocaleString()})
+                                          </span>
+                                        </div>
+                                        <Progress value={percentage} className="h-2" />
+                                      </div>
+                                    );
+                                  })
+                                )}
                               </div>
-                              <span className="font-medium">10% (€32,000)</span>
-                            </div>
-                            <Progress value={10} className="h-2" />
-                          </div>
-                        </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </TabsContent>
                   
                   <TabsContent value="recommendations" className="space-y-4">
-                    <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center">
-                          <AlertTriangle className="h-4 w-4 mr-2 text-orange-500" />
-                          <CardTitle className="text-base text-orange-700 dark:text-orange-400">Allocation Mismatch</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-sm text-orange-700 dark:text-orange-400">
-                          Current allocation is over-exposed to real estate (45% vs recommended 35%)
-                          and under-allocated to bonds (15% vs recommended 25%).
-                        </p>
-                      </CardContent>
-                    </Card>
-                    
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-lg">Recommended Actions</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="space-y-2">
-                          <h4 className="font-medium">1. Reduce Real Estate Exposure</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Consider liquidating secondary property investments to reduce
-                            real estate exposure by approximately 10%.
-                          </p>
-                        </div>
+                    {(() => {
+                      // Calculate total portfolio value
+                      const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+                      
+                      // Group assets by category and calculate amounts
+                      const assetsByCategory = assets.reduce((acc, asset) => {
+                        const category = asset.category;
+                        if (!acc[category]) {
+                          acc[category] = 0;
+                        }
+                        acc[category] += asset.value;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      
+                      // Calculate percentages
+                      const percentages = Object.entries(assetsByCategory).reduce((acc, [category, value]) => {
+                        acc[category] = totalValue > 0 ? Math.round((value / totalValue) * 100) : 0;
+                        return acc;
+                      }, {} as Record<string, number>);
+                      
+                      // Define optimal allocations based on risk profile
+                      const riskProfileAllocations = {
+                        conservative: {
+                          real_estate: 20,
+                          equity: 15,
+                          bonds: 45,
+                          cash: 20,
+                        },
+                        moderate: {
+                          real_estate: 25,
+                          equity: 25,
+                          bonds: 35,
+                          cash: 15,
+                        },
+                        balanced: {
+                          real_estate: 30,
+                          equity: 30,
+                          bonds: 30,
+                          cash: 10,
+                        },
+                        growth: {
+                          real_estate: 35,
+                          equity: 40,
+                          bonds: 20,
+                          cash: 5,
+                        },
+                        aggressive: {
+                          real_estate: 40,
+                          equity: 45,
+                          bonds: 10,
+                          cash: 5,
+                        }
+                      };
+                      
+                      // Use client's risk profile or default to balanced
+                      const clientRiskProfile = (client?.riskProfile as keyof typeof riskProfileAllocations) || 'balanced';
+                      const optimalAllocation = riskProfileAllocations[clientRiskProfile];
+                      
+                      // Identify mismatches
+                      const mismatches = Object.entries(optimalAllocation).reduce((acc, [category, optimalPercentage]) => {
+                        const currentPercentage = percentages[category] || 0;
+                        const diff = currentPercentage - optimalPercentage;
                         
-                        <div className="space-y-2">
-                          <h4 className="font-medium">2. Increase Bond Allocation</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Invest the proceeds from real estate reduction into high-quality
-                            corporate bonds to increase bond allocation by 10%.
-                          </p>
-                        </div>
+                        if (Math.abs(diff) >= 5) {
+                          acc.push({
+                            category,
+                            currentPercentage,
+                            optimalPercentage,
+                            diff,
+                          });
+                        }
                         
-                        <div className="pt-4">
-                          <Button 
-                            size="sm"
-                            onClick={() => {
-                              toast({
-                                title: "Feature coming soon",
-                                description: "Generating PDF summaries will be available soon."
-                              });
-                            }}
-                          >
-                            <FileText className="mr-2 h-4 w-4" />
-                            Generate PDF Summary
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        return acc;
+                      }, [] as Array<{category: string, currentPercentage: number, optimalPercentage: number, diff: number}>);
+                      
+                      // Generate recommendations
+                      const recommendations = mismatches.map(({ category, currentPercentage, optimalPercentage, diff }) => {
+                        const formattedCategory = category.replace('_', ' ');
+                        const direction = diff > 0 ? 'Reduce' : 'Increase';
+                        const adjustmentAmount = Math.abs(diff);
+                        
+                        return {
+                          title: `${direction} ${formattedCategory.charAt(0).toUpperCase() + formattedCategory.slice(1)} Exposure`,
+                          description: diff > 0 
+                            ? `Consider reducing ${formattedCategory} allocation by approximately ${adjustmentAmount}% to align with your ${clientRiskProfile} risk profile.`
+                            : `Consider increasing ${formattedCategory} allocation by approximately ${adjustmentAmount}% to align with your ${clientRiskProfile} risk profile.`
+                        };
+                      });
+                      
+                      return (
+                        <>
+                          {mismatches.length > 0 ? (
+                            <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+                              <CardHeader className="pb-2">
+                                <div className="flex items-center">
+                                  <AlertTriangle className="h-4 w-4 mr-2 text-orange-500" />
+                                  <CardTitle className="text-base text-orange-700 dark:text-orange-400">
+                                    Allocation Mismatch
+                                  </CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-sm text-orange-700 dark:text-orange-400">
+                                  Current allocation doesn't match your {clientRiskProfile} risk profile. 
+                                  {mismatches.map(({ category, currentPercentage, optimalPercentage }) => (
+                                    <span key={category} className="block mt-1">
+                                      {category.replace('_', ' ')}: {currentPercentage}% vs recommended {optimalPercentage}%
+                                    </span>
+                                  ))}
+                                </p>
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            <Card className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                              <CardHeader className="pb-2">
+                                <div className="flex items-center">
+                                  <Check className="h-4 w-4 mr-2 text-green-500" />
+                                  <CardTitle className="text-base text-green-700 dark:text-green-400">
+                                    Allocation Aligned
+                                  </CardTitle>
+                                </div>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-sm text-green-700 dark:text-green-400">
+                                  Your portfolio is well-aligned with your {clientRiskProfile} risk profile.
+                                </p>
+                              </CardContent>
+                            </Card>
+                          )}
+                          
+                          {recommendations.length > 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Recommended Actions</CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-4">
+                                {recommendations.map((recommendation, index) => (
+                                  <div key={index} className="space-y-2">
+                                    <h4 className="font-medium">{index + 1}. {recommendation.title}</h4>
+                                    <p className="text-sm text-muted-foreground">
+                                      {recommendation.description}
+                                    </p>
+                                  </div>
+                                ))}
+                                
+                                <div className="pt-4">
+                                  <Button 
+                                    size="sm"
+                                    onClick={() => {
+                                      toast({
+                                        title: "Feature coming soon",
+                                        description: "Generating PDF summaries will be available soon."
+                                      });
+                                    }}
+                                  >
+                                    <FileText className="mr-2 h-4 w-4" />
+                                    Generate PDF Summary
+                                  </Button>
+                                </div>
+                              </CardContent>
+                            </Card>
+                          )}
+                          
+                          {recommendations.length === 0 && (
+                            <Card>
+                              <CardHeader>
+                                <CardTitle className="text-lg">Portfolio Status</CardTitle>
+                              </CardHeader>
+                              <CardContent>
+                                <p className="text-sm text-muted-foreground mb-4">
+                                  Your portfolio is well-balanced according to your {clientRiskProfile} risk profile.
+                                  Continue with your current investment strategy.
+                                </p>
+                                
+                                <Button 
+                                  size="sm"
+                                  onClick={() => {
+                                    toast({
+                                      title: "Feature coming soon",
+                                      description: "Generating PDF summaries will be available soon."
+                                    });
+                                  }}
+                                >
+                                  <FileText className="mr-2 h-4 w-4" />
+                                  Generate PDF Summary
+                                </Button>
+                              </CardContent>
+                            </Card>
+                          )}
+                        </>
+                      );
+                    })()}
                   </TabsContent>
                 </Tabs>
               </CardContent>
