@@ -82,14 +82,29 @@ export default function ClientDetail() {
     enabled: !isNaN(clientId)
   });
   
-  // Fetch client assets
+  // Fetch client assets with type definition
+  const [forceRefresh, setForceRefresh] = useState(0); // Add a force refresh counter
+  
+  // Define the asset type to fix TypeScript errors
+  type AssetType = {
+    id: number, 
+    clientId: number, 
+    category: string, 
+    value: number, 
+    description: string, 
+    createdAt: string
+  };
+  
   const { 
-    data: assets = [], 
+    data: assets = [] as AssetType[], 
     isLoading: isLoadingAssets,
     refetch: refetchAssets
-  } = useQuery<Array<{id: number, clientId: number, category: string, value: number, description: string, createdAt: string}>>({
-    queryKey: [`/api/clients/${clientId}/assets`],
+  } = useQuery<AssetType[]>({
+    queryKey: [`/api/clients/${clientId}/assets`, forceRefresh], // Add forceRefresh to the query key
     enabled: !isNaN(clientId) && !!client?.isOnboarded,
+    // Force refetch on each query
+    staleTime: 0,
+    gcTime: 0 // Use gcTime instead of cacheTime in TanStack Query v5
   });
 
   // For sending onboarding form
@@ -538,7 +553,9 @@ Cordiali saluti,`
           onOpenChange={setIsEditDialogOpen}
           clientId={clientId}
           onAssetsUpdated={() => {
-            // Make sure to refetch assets after update
+            // Increment force refresh counter to force a query cache bypass
+            setForceRefresh(prev => prev + 1);
+            // Also directly refetch assets
             refetchAssets();
           }}
         />
