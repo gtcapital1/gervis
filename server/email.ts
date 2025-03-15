@@ -13,28 +13,28 @@ const transporter = nodemailer.createTransport({
 // English content
 const englishContent = {
   subject: 'Complete Your Financial Profile',
-  title: 'Your Personal Financial Journey',
+  title: '', // Removed per client request
   greeting: (firstName: string, lastName: string) => `Dear ${firstName} ${lastName},`,
   invitation: 'I have personally invited you to complete our simple onboarding process. This quick assessment will help me better understand your unique financial situation and goals so I can provide you with truly personalized guidance.',
   callToAction: 'Please click the button below to complete your profile (it only takes about 5 minutes):',
   buttonText: 'Complete My Profile',
   expiry: 'This link will expire in 7 days for security purposes.',
   questions: 'If you have any questions, please feel free to contact me directly.',
-  signature: 'Warm regards,',
+  signature: '', // Removed per client request
   team: 'Financial Advisor'
 };
 
 // Italian content
 const italianContent = {
   subject: 'Completa il tuo Profilo Finanziario',
-  title: 'Il tuo Percorso Finanziario Personale',
+  title: '', // Removed per client request
   greeting: (firstName: string, lastName: string) => `Gentile ${firstName} ${lastName},`,
   invitation: 'Ti ho personalmente invitato a completare la nostra semplice procedura di onboarding. Questa rapida valutazione mi aiuterà a comprendere meglio la tua situazione finanziaria e i tuoi obiettivi personali così da poterti fornire una consulenza davvero personalizzata.',
   callToAction: 'Per favore, clicca sul pulsante qui sotto per completare il tuo profilo (richiede solo circa 5 minuti):',
   buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',
   questions: 'Se hai domande, non esitare a contattarmi direttamente.',
-  signature: 'Cordiali saluti,',
+  signature: '', // Removed per client request
   team: 'Consulente Finanziario'
 };
 
@@ -79,14 +79,12 @@ export async function sendOnboardingEmail(
   
   // Prepare signature section
   const signatureHtml = advisorSignature 
-    ? `<p style="margin-top: 30px;">${content.signature}</p>
-       <p style="white-space: pre-line;">${advisorSignature}</p>`
-    : `<p style="margin-top: 30px;">${content.signature}</p>
-       <p>${content.team}</p>`;
+    ? `<p style="margin-top: 30px; white-space: pre-line;">${advisorSignature}</p>`
+    : `<p style="margin-top: 30px;">${content.team}</p>`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-      <h2 style="color: #0066cc;">${content.title}</h2>
+      ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
       <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
       ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
       <p style="margin-top: 20px;">${content.callToAction}</p>
