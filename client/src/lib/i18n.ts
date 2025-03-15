@@ -12,9 +12,9 @@ const resourcesEn = {
       launch: "Launch App"
     },
     hero: {
-      title_1: "The Ultimate Tool for",
+      title_1: "The Ultimate Assistant for",
       title_2: "Financial Consultants",
-      description: "Watson empowers financial consultants with AI-driven tools to optimize client portfolios, automate documentation, and deliver exceptional financial advice.",
+      description: "Watson empowers financial consultants with AI-driven tools to deliver an exceptional financial advice experience. Automate documentation, optimize client management, and deliver AI enabled financial advice with Watson PRO.",
       get_started: "Get Started",
       learn_more: "Learn More",
       title: "Watson Financial Advisor Platform",
@@ -226,7 +226,7 @@ const resourcesEn = {
       error: "There was a problem submitting your form. Please try again."
     },
     footer: {
-      description: "The ultimate tool for financial consultants, powered by advanced AI.",
+      description: "The Ultimate Assistant for Financial Consultants, powered by advanced AI.",
       social: {
         twitter: "Twitter",
         linkedin: "LinkedIn"
@@ -270,9 +270,9 @@ const resourcesIt = {
       launch: "Avvia App"
     },
     hero: {
-      title_1: "Lo Strumento Definitivo per",
+      title_1: "L'assistente indispensabile per",
       title_2: "Consulenti Finanziari",
-      description: "Watson supporta i consulenti finanziari con strumenti basati sull'intelligenza artificiale per ottimizzare i portafogli dei clienti, automatizzare la documentazione e fornire consulenza finanziaria eccezionale.",
+      description: "Watson potenzia i consulenti finanziari con strumenti basati sull'intelligenza artificiale per offrire un'esperienza di consulenza finanziaria eccezionale. Automatizza la documentazione, ottimizza la gestione dei clienti e fornisci consulenza finanziaria potenziata dall'IA con Watson PRO.",
       get_started: "Inizia",
       learn_more: "Scopri di Più",
       title: "Piattaforma di Consulenza Finanziaria Watson",
