@@ -29,7 +29,7 @@ const italianContent = {
   subject: 'Completa il tuo Profilo Finanziario',
   title: '', // Removed per client request
   greeting: (firstName: string, lastName: string) => `Gentile ${firstName} ${lastName},`,
-  invitation: 'Ti ho personalmente invitato a completare la nostra semplice procedura di onboarding. Questa rapida valutazione mi aiuterà a comprendere meglio la tua situazione finanziaria e i tuoi obiettivi personali così da poterti fornire una consulenza davvero personalizzata.',
+  invitation: 'Ti invito personalmente a completare la nostra semplice procedura iniziale. Questa breve valutazione mi permetterà di comprendere meglio la tua situazione finanziaria e i tuoi obiettivi, così da offrirti una consulenza realmente su misura per te.',
   callToAction: 'Per favore, clicca sul pulsante qui sotto per completare il tuo profilo (richiede solo circa 5 minuti):',
   buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',

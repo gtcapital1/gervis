@@ -394,7 +394,7 @@ const resourcesIt = {
       it: "Italiano"
     },
     benefits: {
-      title: "Trasforma la Tua Pratica Finanziaria",
+      title: "Potenzia la Tua Attività di Consulenza",
       subtitle: "Unisciti ai consulenti che risparmiano tempo, riducono gli errori e fanno crescere la loro attività con Watson.",
       items: {
         save_time: {
@@ -403,7 +403,7 @@ const resourcesIt = {
         },
         reduce_errors: {
           title: "Riduci gli Errori del 95%",
-          description: "I controlli e i bilanciamenti basati sull'IA garantiscono che le tue raccomandazioni e la documentazione siano prive di errori."
+          description: "I sistemi di verifica automatica basati sull'IA garantiscono che le tue raccomandazioni e i documenti siano sempre impeccabili."
         },
         grow_aum: {
           title: "Aumenta gli AUM del 30%",
@@ -443,7 +443,7 @@ const resourcesIt = {
     about: {
       title: "Chi Siamo",
       description1: "Watson è un prodotto di punta di GT AI Solutions, un'azienda dedicata a portare soluzioni innovative di intelligenza artificiale alle imprese di tutti i settori.",
-      description2: "In GT AI Solutions, la nostra missione è quella di dotare le organizzazioni di tecnologie AI all'avanguardia che risparmiano tempo, riducono il consumo di risorse, aumentano la produttività e permettono ai professionisti di concentrarsi su attività ad alto valore aggiunto mentre l'IA gestisce il lavoro di routine.",
+      description2: "In GT AI Solutions, la nostra missione è dotare le aziende di tecnologie AI all'avanguardia che fanno risparmiare tempo, ottimizzano l'uso delle risorse e incrementano la produttività. Lasciamo che l'IA si occupi delle attività ripetitive, così i professionisti possono dedicarsi a ciò che conta davvero.",
       description3: "Dal 2020, Watson ha aiutato oltre 500 consulenti finanziari a risparmiare migliaia di ore e a far crescere le loro attività in media del 30%, dimostrando l'impegno di GT AI Solutions nel fornire valore aziendale tangibile attraverso l'intelligenza artificiale.",
       team: "Il Nostro Team",
       stats: {
