@@ -184,9 +184,9 @@ const resourcesEn = {
     },
     about: {
       title: "Who We Are",
-      description1: "Watson was founded by a team of financial experts and AI engineers who recognized the challenges facing modern financial consultants.",
-      description2: "Our mission is to empower financial consultants with cutting-edge technology that simplifies complex tasks, automates documentation, and provides deeper insights into client portfolios.",
-      description3: "Since our founding in 2020, we've helped over 500 financial consultants save thousands of hours and grow their practices by an average of 30%.",
+      description1: "Watson is a flagship product of GT AI Solutions, a company dedicated to bringing innovative AI solutions to businesses across all sectors.",
+      description2: "At GT AI Solutions, our mission is to empower organizations with cutting-edge AI technology that saves time, reduces resource consumption, increases productivity, and allows professionals to focus on high-value tasks while the AI handles the routine work.",
+      description3: "Since our founding in 2020, Watson has helped over 500 financial consultants save thousands of hours and grow their practices by an average of 30%, demonstrating GT AI Solutions' commitment to delivering tangible business value through artificial intelligence.",
       team: "Our Team",
       stats: {
         consultants: "Consultants",
@@ -442,9 +442,9 @@ const resourcesIt = {
     },
     about: {
       title: "Chi Siamo",
-      description1: "Watson è stato fondato da un team di esperti finanziari e ingegneri di IA che hanno riconosciuto le sfide che affrontano i consulenti finanziari moderni.",
-      description2: "La nostra missione è quella di dare ai consulenti finanziari una tecnologia all'avanguardia che semplifica compiti complessi, automatizza la documentazione e fornisce approfondimenti più profondi sui portafogli dei clienti.",
-      description3: "Dalla nostra fondazione nel 2020, abbiamo aiutato oltre 500 consulenti finanziari a risparmiare migliaia di ore e a far crescere le loro attività in media del 30%.",
+      description1: "Watson è un prodotto di punta di GT AI Solutions, un'azienda dedicata a portare soluzioni innovative di intelligenza artificiale alle imprese di tutti i settori.",
+      description2: "In GT AI Solutions, la nostra missione è quella di dotare le organizzazioni di tecnologie AI all'avanguardia che risparmiano tempo, riducono il consumo di risorse, aumentano la produttività e permettono ai professionisti di concentrarsi su attività ad alto valore aggiunto mentre l'IA gestisce il lavoro di routine.",
+      description3: "Dal 2020, Watson ha aiutato oltre 500 consulenti finanziari a risparmiare migliaia di ore e a far crescere le loro attività in media del 30%, dimostrando l'impegno di GT AI Solutions nel fornire valore aziendale tangibile attraverso l'intelligenza artificiale.",
       team: "Il Nostro Team",
       stats: {
         consultants: "Consulenti",

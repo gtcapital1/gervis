@@ -72,9 +72,9 @@ export default function AuthPage() {
   const [location, navigate] = useLocation();
   const { t } = useTranslation();
 
-  // Redirect to home if already logged in
+  // Redirect to dashboard if already logged in
   if (user) {
-    navigate("/");
+    navigate("/dashboard");
     return null;
   }
 
