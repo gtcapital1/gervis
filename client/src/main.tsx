@@ -2,9 +2,6 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./lib/i18n"; // Import i18n configuration
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient"; 
-import { Toaster } from "@/components/ui/toaster";
 
 // Get user's preferred language from localStorage or browser settings
 const getInitialLanguage = () => {
@@ -21,9 +18,4 @@ const getInitialLanguage = () => {
 import i18n from 'i18next';
 i18n.changeLanguage(getInitialLanguage());
 
-createRoot(document.getElementById("root")!).render(
-  <QueryClientProvider client={queryClient}>
-    <App />
-    <Toaster />
-  </QueryClientProvider>
-);
+createRoot(document.getElementById("root")!).render(<App />);

@@ -1,15 +1,22 @@
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from "@/components/ui/button";
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-import { Globe } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Languages } from 'lucide-react';
 
 export function LanguageSwitcher() {
   const { i18n, t } = useTranslation();
+  const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'en');
+
+  useEffect(() => {
+    // Update state when language changes
+    setCurrentLanguage(i18n.language);
+  }, [i18n.language]);
 
   const changeLanguage = (lng: string) => {
     i18n.changeLanguage(lng);
@@ -20,17 +27,17 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="ml-1">
-          <Globe className="h-5 w-5" />
-          <span className="sr-only">Change language</span>
+        <Button variant="outline" size="sm" className="flex items-center gap-2">
+          <Languages className="h-4 w-4" />
+          <span className="hidden sm:inline-block">{t(`language.${currentLanguage}`)}</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => changeLanguage('en')}>
-          {t('language.en')}
+        <DropdownMenuItem onClick={() => changeLanguage('en')} className={currentLanguage === 'en' ? 'bg-accent/20' : ''}>
+          English
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => changeLanguage('it')}>
-          {t('language.it')}
+        <DropdownMenuItem onClick={() => changeLanguage('it')} className={currentLanguage === 'it' ? 'bg-accent/20' : ''}>
+          Italiano
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

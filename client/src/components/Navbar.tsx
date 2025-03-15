@@ -79,18 +79,21 @@ export default function Navbar() {
         {/* Mobile Navigation */}
         <div className={`md:hidden pt-4 ${isOpen ? 'block' : 'hidden'}`}>
           <div className="flex flex-col space-y-3 px-2 pb-3">
-            <a href="#features" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">Features</a>
-            <a href="#benefits" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">Benefits</a>
-            <a href="#about" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">About Us</a>
-            <a href="#contact" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">Contact</a>
+            <a href="#features" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">{t('nav.features')}</a>
+            <a href="#benefits" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">{t('nav.benefits')}</a>
+            <a href="#about" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">{t('nav.about')}</a>
+            <a href="#contact" onClick={closeMobileMenu} className="px-3 py-2 rounded-md text-sm font-medium hover:bg-gray-900">{t('nav.contact')}</a>
+            <div className="px-3 py-2">
+              <LanguageSwitcher />
+            </div>
             <Button 
               onClick={() => {
                 closeMobileMenu();
-                setLocation("/app");
+                setLocation("/auth");
               }}
               className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white w-full"
             >
-              Launch App
+              {t('nav.launch')}
             </Button>
           </div>
         </div>
