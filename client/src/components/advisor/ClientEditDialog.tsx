@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -130,6 +130,35 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId 
       }))
     }
   });
+
+  // Reset form when dialog opens or assets change
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        firstName: client.firstName || "",
+        lastName: client.lastName || "",
+        email: client.email,
+        address: client.address || "",
+        phone: client.phone || "",
+        taxCode: client.taxCode || "",
+        employmentStatus: client.employmentStatus || "",
+        annualIncome: client.annualIncome || 0,
+        monthlyExpenses: client.monthlyExpenses || 0,
+        netWorth: client.netWorth || 0,
+        dependents: client.dependents || 0,
+        riskProfile: client.riskProfile || "",
+        investmentExperience: client.investmentExperience || "",
+        investmentGoals: client.investmentGoals || [],
+        investmentHorizon: client.investmentHorizon || "",
+        assets: assets.map(asset => ({
+          id: asset.id,
+          category: asset.category,
+          value: asset.value,
+          description: asset.description || ""
+        }))
+      });
+    }
+  }, [open, assets, client, form]);
 
   // Function to add a new asset
   function addAsset() {
