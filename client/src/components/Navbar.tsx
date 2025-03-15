@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
+import { LanguageSwitcher } from "./LanguageSwitcher";
 
 export default function Navbar() {
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [showShadow, setShowShadow] = useState(false);
   const [, setLocation] = useLocation();
@@ -46,18 +49,19 @@ export default function Navbar() {
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex space-x-10">
-            <a href="#features" className="text-sm font-medium hover:text-accent transition-colors">Features</a>
-            <a href="#benefits" className="text-sm font-medium hover:text-accent transition-colors">Benefits</a>
-            <a href="#about" className="text-sm font-medium hover:text-accent transition-colors">About Us</a>
-            <a href="#contact" className="text-sm font-medium hover:text-accent transition-colors">Contact</a>
+            <a href="#features" className="text-sm font-medium hover:text-accent transition-colors">{t('nav.features')}</a>
+            <a href="#benefits" className="text-sm font-medium hover:text-accent transition-colors">{t('nav.benefits')}</a>
+            <a href="#about" className="text-sm font-medium hover:text-accent transition-colors">{t('nav.about')}</a>
+            <a href="#contact" className="text-sm font-medium hover:text-accent transition-colors">{t('nav.contact')}</a>
           </nav>
           
-          <div className="hidden md:block">
+          <div className="hidden md:flex items-center space-x-4">
+            <LanguageSwitcher />
             <Button 
-              onClick={() => setLocation("/app")}
+              onClick={() => setLocation("/auth")}
               className="bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white"
             >
-              Launch App
+              {t('nav.launch')}
             </Button>
           </div>
           
