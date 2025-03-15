@@ -19,6 +19,7 @@ import {
   BarChart,
   Users,
 } from "lucide-react";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -561,12 +562,33 @@ Cordiali saluti,`
                           <p className="text-muted-foreground">No assets found for this client.</p>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          {/* Asset Categories with Progress Bars */}
-                          <div className="space-y-4 mb-6">
-                            <h3 className="text-lg font-medium">Asset Distribution</h3>
-                            <div className="space-y-4">
-                              {/* Group assets by category and calculate percentages */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Left side: Asset list */}
+                          <div>
+                            <h3 className="text-lg font-medium mb-3">Asset Details</h3>
+                            <div className="space-y-2">
+                              {assets.map((asset) => (
+                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
+                                  <div className="flex items-center">
+                                    <div className="w-2 h-2 rounded-full mr-2" 
+                                      style={{
+                                        backgroundColor: 
+                                          asset.category === "equity" ? "#4f46e5" : 
+                                          asset.category === "real_estate" ? "#16a34a" : 
+                                          asset.category === "bonds" ? "#d97706" : 
+                                          asset.category === "cash" ? "#2563eb" : "#6b7280"
+                                      }}
+                                    />
+                                    <span className="font-medium capitalize">{asset.category.replace('_', ' ')}</span>
+                                  </div>
+                                  <div className="font-semibold">${asset.value.toLocaleString()}</div>
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Asset Categories with Progress Bars */}
+                            <div className="space-y-3 mt-6">
+                              <h3 className="text-lg font-medium">Percentage Distribution</h3>
                               {(() => {
                                 // Group assets by category
                                 const assetsByCategory: Record<string, number> = {};
@@ -582,15 +604,22 @@ Cordiali saluti,`
                                   const percentage = (value / totalValue) * 100;
                                   
                                   return (
-                                    <div key={category} className="space-y-2">
+                                    <div key={category} className="space-y-1">
                                       <div className="flex justify-between text-sm">
                                         <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
-                                        <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
+                                        <span>{percentage.toFixed(1)}%</span>
                                       </div>
                                       <div className="w-full bg-secondary rounded-full h-2">
                                         <div 
-                                          className="bg-primary h-2 rounded-full" 
-                                          style={{ width: `${percentage}%` }}
+                                          className="h-2 rounded-full" 
+                                          style={{ 
+                                            width: `${percentage}%`,
+                                            backgroundColor: 
+                                              category === "equity" ? "#4f46e5" : 
+                                              category === "real_estate" ? "#16a34a" : 
+                                              category === "bonds" ? "#d97706" : 
+                                              category === "cash" ? "#2563eb" : "#6b7280"
+                                          }}
                                         ></div>
                                       </div>
                                     </div>
@@ -600,31 +629,65 @@ Cordiali saluti,`
                             </div>
                           </div>
                           
-                          {/* Individual Assets */}
+                          {/* Right side: Pie chart */}
                           <div>
-                            <h3 className="text-lg font-medium mb-3">Individual Assets</h3>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              {assets.map((asset) => (
-                                <Card key={asset.id} className="overflow-hidden">
-                                  <CardHeader className="p-3 bg-muted">
-                                    <CardTitle className="text-sm font-medium capitalize">
-                                      {asset.category.replace('_', ' ')}
-                                    </CardTitle>
-                                  </CardHeader>
-                                  <CardContent className="p-3">
-                                    <div className="space-y-1">
-                                      <div className="text-xl font-bold">
-                                        ${asset.value.toLocaleString()}
-                                      </div>
-                                      {asset.description && (
-                                        <div className="text-xs text-muted-foreground">
-                                          {asset.description}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </CardContent>
-                                </Card>
-                              ))}
+                            <h3 className="text-lg font-medium mb-3">Asset Visualization</h3>
+                            <div className="h-[300px] flex items-center justify-center">
+                              {(() => {
+                                const COLORS = {
+                                  equity: "#4f46e5",
+                                  real_estate: "#16a34a",
+                                  bonds: "#d97706",
+                                  cash: "#2563eb",
+                                  other: "#6b7280"
+                                };
+                                
+                                // Group assets by category
+                                const assetsByCategory: Record<string, number> = {};
+                                assets.forEach(asset => {
+                                  if (assetsByCategory[asset.category]) {
+                                    assetsByCategory[asset.category] += asset.value;
+                                  } else {
+                                    assetsByCategory[asset.category] = asset.value;
+                                  }
+                                });
+                                
+                                // Convert to data format needed for pie chart
+                                const data = Object.entries(assetsByCategory).map(([category, value]) => ({
+                                  name: category.replace('_', ' '),
+                                  value,
+                                  category
+                                }));
+                                
+                                return (
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <RechartsPieChart>
+                                      <Pie
+                                        data={data}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        nameKey="name"
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                      >
+                                        {data.map((entry, index) => (
+                                          <Cell 
+                                            key={`cell-${index}`} 
+                                            fill={COLORS[entry.category as keyof typeof COLORS] || COLORS.other}
+                                          />
+                                        ))}
+                                      </Pie>
+                                      <Tooltip 
+                                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                                      />
+                                      <Legend />
+                                    </RechartsPieChart>
+                                  </ResponsiveContainer>
+                                );
+                              })()}
                             </div>
                           </div>
                         </div>
