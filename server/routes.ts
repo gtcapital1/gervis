@@ -203,6 +203,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // ===== Onboarding Routes =====
+
+  // Generate onboarding token for a client
+  app.post('/api/clients/:clientId/onboarding-token', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to generate token for this client' });
+      }
+      
+      const token = await storage.generateOnboardingToken(clientId);
+      
+      // Return the token and a link that can be sent to the client
+      const onboardingLink = `${req.protocol}://${req.get('host')}/onboarding/${token}`;
+      
+      res.json({ 
+        success: true,
+        token,
+        link: onboardingLink 
+      });
+    } catch (error) {
+      console.error('Error generating onboarding token:', error);
+      res.status(500).json({ message: 'Failed to generate onboarding token' });
+    }
+  });
+  
+  // Get client data using onboarding token (no auth required)
+  app.get('/api/onboarding/:token', async (req, res) => {
+    try {
+      const token = req.params.token;
+      const client = await storage.getClientByToken(token);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Invalid or expired token' });
+      }
+      
+      // Return limited client information
+      res.json({
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        isOnboarded: client.isOnboarded
+      });
+    } catch (error) {
+      console.error('Error retrieving client by token:', error);
+      res.status(500).json({ message: 'Failed to retrieve client information' });
+    }
+  });
+  
+  // Update client information using onboarding token (no auth required)
+  app.post('/api/onboarding/:token', async (req, res) => {
+    try {
+      const token = req.params.token;
+      const client = await storage.getClientByToken(token);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Invalid or expired token' });
+      }
+      
+      // Validate the onboarding data
+      const onboardingSchema = z.object({
+        phone: z.string().optional(),
+        address: z.string().optional(),
+        taxCode: z.string().optional(),
+        riskProfile: z.enum(['conservative', 'moderate', 'balanced', 'growth', 'aggressive']),
+        assets: z.array(z.object({
+          category: z.enum(['real_estate', 'equity', 'bonds', 'cash', 'other']),
+          value: z.number().min(0),
+          description: z.string().optional()
+        })).optional()
+      });
+      
+      const validatedData = onboardingSchema.parse(req.body);
+      
+      // Update client data
+      const updateData = {
+        ...validatedData,
+        isOnboarded: true,
+        onboardingToken: null,  // Clear the token after successful onboarding
+        tokenExpiry: null
+      };
+      
+      // Remove assets from the update data as we'll handle them separately
+      const { assets, ...clientUpdateData } = updateData;
+      const updatedClient = await storage.updateClient(client.id, clientUpdateData);
+      
+      // Add assets if provided
+      if (assets && assets.length > 0) {
+        for (const asset of assets) {
+          await storage.createAsset({
+            ...asset,
+            clientId: client.id
+          });
+        }
+      }
+      
+      res.json({ 
+        success: true,
+        message: 'Onboarding completed successfully',
+        client: updatedClient
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        console.error('Error completing onboarding:', error);
+        res.status(500).json({ message: 'Failed to complete onboarding' });
+      }
+    }
+  });
+
   // ===== Recommendation Routes =====
   
   // Get recommendations for a client

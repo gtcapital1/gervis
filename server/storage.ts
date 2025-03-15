@@ -14,9 +14,11 @@ export interface IStorage {
   // Client Methods
   getClient(id: number): Promise<Client | undefined>;
   getClientsByAdvisor(advisorId: number): Promise<Client[]>;
+  getClientByToken(token: string): Promise<Client | undefined>;
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<Client>): Promise<Client>;
   deleteClient(id: number): Promise<boolean>;
+  generateOnboardingToken(clientId: number): Promise<string>;
   
   // Asset Methods
   getAssetsByClient(clientId: number): Promise<Asset[]>;
@@ -114,6 +116,36 @@ export class MemStorage implements IStorage {
   
   async deleteClient(id: number): Promise<boolean> {
     return this.clients.delete(id);
+  }
+  
+  async getClientByToken(token: string): Promise<Client | undefined> {
+    return Array.from(this.clients.values()).find(
+      (client) => client.onboardingToken === token && 
+                  client.tokenExpiry && 
+                  new Date(client.tokenExpiry) > new Date()
+    );
+  }
+  
+  async generateOnboardingToken(clientId: number): Promise<string> {
+    const client = await this.getClient(clientId);
+    if (!client) {
+      throw new Error(`Client with id ${clientId} not found`);
+    }
+    
+    // Generate a random token
+    const token = Array.from(Array(32), () => Math.floor(Math.random() * 36).toString(36)).join('');
+    
+    // Set token expiry to 7 days from now
+    const expiry = new Date();
+    expiry.setDate(expiry.getDate() + 7);
+    
+    // Update client with token and expiry
+    await this.updateClient(clientId, { 
+      onboardingToken: token,
+      tokenExpiry: expiry
+    });
+    
+    return token;
   }
   
   // Asset Methods

@@ -40,6 +40,8 @@ export const clients = pgTable("clients", {
   taxCode: text("tax_code"),
   isOnboarded: boolean("is_onboarded").default(false),
   riskProfile: text("risk_profile"),
+  onboardingToken: text("onboarding_token"),
+  tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }),
 });

@@ -6,6 +6,8 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import ClientDetail from "@/pages/ClientDetail";
+import OnboardingForm from "@/pages/OnboardingForm";
+import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import { Layout } from "@/components/advisor/Layout";
 
 function Router() {
