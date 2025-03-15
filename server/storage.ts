@@ -29,6 +29,8 @@ export interface IStorage {
   updateClient(id: number, client: Partial<Client>): Promise<Client>;
   deleteClient(id: number): Promise<boolean>;
   generateOnboardingToken(clientId: number): Promise<string>;
+  archiveClient(id: number): Promise<Client>;
+  restoreClient(id: number): Promise<Client>;
   
   // Asset Methods
   getAssetsByClient(clientId: number): Promise<Asset[]>;
@@ -130,6 +132,32 @@ export class PostgresStorage implements IStorage {
   async deleteClient(id: number): Promise<boolean> {
     const result = await db.delete(clients).where(eq(clients.id, id)).returning();
     return result.length > 0;
+  }
+  
+  async archiveClient(id: number): Promise<Client> {
+    const result = await db.update(clients)
+      .set({ isArchived: true })
+      .where(eq(clients.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error(`Client with id ${id} not found`);
+    }
+    
+    return result[0];
+  }
+  
+  async restoreClient(id: number): Promise<Client> {
+    const result = await db.update(clients)
+      .set({ isArchived: false })
+      .where(eq(clients.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error(`Client with id ${id} not found`);
+    }
+    
+    return result[0];
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {

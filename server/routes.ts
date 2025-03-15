@@ -53,6 +53,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/clients', isAuthenticated, async (req, res) => {
     try {
       const advisorId = req.user?.id;
+      if (!advisorId) {
+        return res.status(401).json({ message: 'Authentication required' });
+      }
       const clients = await storage.getClientsByAdvisor(advisorId);
       res.json(clients);
     } catch (error) {
@@ -146,6 +149,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error deleting client:', error);
       res.status(500).json({ message: 'Failed to delete client' });
+    }
+  });
+  
+  // Archive client
+  app.post('/api/clients/:id/archive', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to archive this client' });
+      }
+      
+      const archivedClient = await storage.archiveClient(clientId);
+      res.json(archivedClient);
+    } catch (error) {
+      console.error('Error archiving client:', error);
+      res.status(500).json({ message: 'Failed to archive client' });
+    }
+  });
+  
+  // Restore client from archive
+  app.post('/api/clients/:id/restore', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to restore this client' });
+      }
+      
+      const restoredClient = await storage.restoreClient(clientId);
+      res.json(restoredClient);
+    } catch (error) {
+      console.error('Error restoring client:', error);
+      res.status(500).json({ message: 'Failed to restore client' });
     }
   });
   

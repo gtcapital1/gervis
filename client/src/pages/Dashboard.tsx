@@ -73,9 +73,46 @@ export default function Dashboard() {
   // Archive client mutation
   const archiveClientMutation = useMutation({
     mutationFn: (clientId: number) => {
-      return apiRequest(`/api/clients/${clientId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isArchived: true }),
+      return apiRequest(`/api/clients/${clientId}/archive`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      setIsArchiveDialogOpen(false);
+      toast({
+        title: "Client archived",
+        description: "The client has been moved to the archive.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to archive client. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Restore client mutation
+  const restoreClientMutation = useMutation({
+    mutationFn: (clientId: number) => {
+      return apiRequest(`/api/clients/${clientId}/restore`, {
+        method: 'POST',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      toast({
+        title: "Client restored",
+        description: "The client has been restored from the archive.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to restore client. Please try again.",
+        variant: "destructive",
       });
     },
   });
@@ -105,19 +142,26 @@ export default function Dashboard() {
   });
 
   // Filter clients based on search query and archived status
-  const filteredClients = clients.filter((client: Client) => {
-    // First filter by search query
-    const matchesSearch = 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Then filter by archive status
-    const matchesArchiveFilter = showArchived ? 
-      client.isArchived === true : 
-      client.isArchived !== true;
-    
-    return matchesSearch && matchesArchiveFilter;
-  });
+  const filteredClients = clients
+    .filter((client: Client) => {
+      // First filter by search query
+      const matchesSearch = 
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      // Then filter by archive status
+      const matchesArchiveFilter = showArchived ? 
+        client.isArchived === true : 
+        client.isArchived !== true;
+      
+      return matchesSearch && matchesArchiveFilter;
+    })
+    .sort((a, b) => {
+      // Sort by surname (last word in the name field)
+      const aSurname = a.name.split(' ').pop() || '';
+      const bSurname = b.name.split(' ').pop() || '';
+      return aSurname.localeCompare(bSurname);
+    });
 
   function formatDate(date: Date | string | null) {
     if (!date) return "N/A";
