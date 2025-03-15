@@ -315,7 +315,7 @@ Cordiali saluti,`
               </Button>
             )}
             <Button 
-              className="bg-primary hover:bg-primary/90 text-white flex items-center"
+              className="bg-accent hover:bg-accent/90 flex items-center"
               onClick={() => setIsEditDialogOpen(true)}
             >
               <Edit className="mr-2 h-4 w-4" />
