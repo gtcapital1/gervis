@@ -340,7 +340,7 @@ const resourcesIt = {
       income: "Reddito Annuale (€)",
       expenses: "Spese Annuali (€)",
       savings: "Risparmi Mensili (€)",
-      dependent_count: "Numero di Dipendenti",
+      dependent_count: "Numero di Persone a Carico",
       risk_profile: "Profilo di Rischio",
       investment_goals: "Obiettivi di Investimento",
       investment_horizon: "Orizzonte di Investimento",
@@ -454,7 +454,7 @@ const resourcesIt = {
     },
     contact: {
       title: "Contattaci",
-      subtitle: "Pronto a trasformare la tua pratica di consulenza finanziaria? Contattaci oggi.",
+      subtitle: "Pronto a migliorare la tua attività di consulenza finanziaria? Contattaci oggi.",
       form: {
         firstName: "Nome",
         lastName: "Cognome",
