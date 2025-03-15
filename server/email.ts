@@ -45,25 +45,32 @@ export async function sendOnboardingEmail(
   firstName: string,
   lastName: string,
   onboardingLink: string,
-  language: EmailLanguage = 'english'
+  language: EmailLanguage = 'english',
+  customMessage?: string
 ) {
   // Select content based on language
   const content = language === 'english' ? englishContent : italianContent;
   
+  // Use custom message if provided, otherwise use default content
+  const messageContent = customMessage 
+    ? customMessage.split('\n').map(line => line ? `<p>${line}</p>` : '<br>').join('')
+    : `<p>${content.invitation}</p>`;
+  
   const html = `
-    <h2>${content.title}</h2>
-    <p>${content.greeting(firstName, lastName)}</p>
-    <p>${content.invitation}</p>
-    <p>${content.callToAction}</p>
-    <div style="margin: 30px 0;">
-      <a href="${onboardingLink}" 
-         style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
-        ${content.buttonText}
-      </a>
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+      ${customMessage ? '' : `<h2>${content.title}</h2>`}
+      ${customMessage ? '' : `<p>${content.greeting(firstName, lastName)}</p>`}
+      ${messageContent}
+      ${customMessage ? '' : `<p>${content.callToAction}</p>`}
+      <div style="margin: 30px 0;">
+        <a href="${onboardingLink}" 
+           style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block;">
+          ${content.buttonText}
+        </a>
+      </div>
+      <p>${content.expiry}</p>
+      <p>${content.questions}</p>
     </div>
-    <p>${content.expiry}</p>
-    <p>${content.questions}</p>
-    <p>${content.signature}<br>${content.team}</p>
   `;
 
   await transporter.sendMail({

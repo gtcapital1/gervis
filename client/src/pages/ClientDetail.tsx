@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Select, 
   SelectContent, 
@@ -93,6 +94,34 @@ export default function ClientDetail() {
   const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [emailLanguage, setEmailLanguage] = useState<"english" | "italian">("english");
+  const [emailMessage, setEmailMessage] = useState<string>("");
+  
+  // Initialize default email messages
+  const defaultEmailMessages = {
+    english: `Hello ${client?.name},
+
+I hope this email finds you well. I'd like to invite you to complete your financial profile through our onboarding process.
+
+This will help me better understand your financial situation and goals so I can provide you with tailored advice.
+
+The process is simple and should take only a few minutes. Please click the link below to get started.
+
+Thank you for your trust.
+
+Best regards,`,
+    
+    italian: `Gentile ${client?.name},
+
+Spero che questa email ti trovi bene. Ti invito a completare il tuo profilo finanziario attraverso il nostro processo di onboarding.
+
+Questo mi aiuterà a comprendere meglio la tua situazione finanziaria e i tuoi obiettivi in modo da poterti fornire una consulenza personalizzata.
+
+Il processo è semplice e dovrebbe richiedere solo pochi minuti. Clicca sul link qui sotto per iniziare.
+
+Grazie per la tua fiducia.
+
+Cordiali saluti,`
+  };
   
   // Form for editing client information
   const form = useForm<ClientFormValues>({
@@ -179,11 +208,20 @@ export default function ClientDetail() {
   function handleSendOnboardingForm() {
     // If the dialog is not open, open it
     if (!onboardingLink) {
+      // Set default message based on the selected language
+      setEmailMessage(defaultEmailMessages[emailLanguage]);
       setIsEmailDialogOpen(true);
     } else {
       // If the link already exists, reset it
       setOnboardingLink(null);
     }
+  }
+  
+  // Update email message when language changes
+  function handleLanguageChange(value: string) {
+    const language = value as 'english' | 'italian';
+    setEmailLanguage(language);
+    setEmailMessage(defaultEmailMessages[language]);
   }
   
   function handleSendEmail() {
@@ -284,7 +322,7 @@ export default function ClientDetail() {
                     className="bg-accent hover:bg-accent/90"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {sendOnboardingMutation.isPending ? "Generating..." : "Generate Onboarding Link"}
+                    {sendOnboardingMutation.isPending ? "Sending..." : "Generate Onboarding Email"}
                   </Button>
                 )}
               </CardContent>
@@ -777,38 +815,56 @@ export default function ClientDetail() {
       </Dialog>
       {/* Email language dialog */}
       <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Select Email Language</DialogTitle>
+            <DialogTitle>Customize Onboarding Email</DialogTitle>
             <DialogDescription>
-              Choose the language for the onboarding email that will be sent to {client?.name}.
+              Customize the email that will be sent to {client?.name}.
             </DialogDescription>
           </DialogHeader>
-          <div className="py-4 space-y-4">
-            <RadioGroup 
-              value={emailLanguage} 
-              onValueChange={(value) => setEmailLanguage(value as 'english' | 'italian')}
-              className="space-y-2"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="english" id="english" />
-                <Label htmlFor="english">English</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="italian" id="italian" />
-                <Label htmlFor="italian">Italian (Italiano)</Label>
-              </div>
-            </RadioGroup>
+          <div className="py-4 space-y-6">
+            <div>
+              <Label htmlFor="email-language">Email Language</Label>
+              <RadioGroup 
+                id="email-language"
+                value={emailLanguage} 
+                onValueChange={handleLanguageChange}
+                className="mt-2 space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="english" id="english" />
+                  <Label htmlFor="english">English</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="italian" id="italian" />
+                  <Label htmlFor="italian">Italian (Italiano)</Label>
+                </div>
+              </RadioGroup>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="email-content">Email Content</Label>
+              <Textarea 
+                id="email-content"
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                className="min-h-[200px] font-mono text-sm"
+                placeholder="Enter your personalized message here..."
+              />
+              <p className="text-xs text-muted-foreground">
+                {emailLanguage === 'english' 
+                  ? "This message will be sent along with the onboarding link to the client."
+                  : "Questo messaggio sarà inviato insieme al link di onboarding al cliente."}
+              </p>
+            </div>
             
             <div className="border rounded-md p-3 bg-muted/50">
               <p className="text-sm text-muted-foreground leading-normal">
-                {emailLanguage === 'english' 
-                  ? "An email will be sent to the client with instructions on how to complete the onboarding process."
-                  : "Un'email sarà inviata al cliente con le istruzioni su come completare il processo di onboarding."}
+                <span className="font-medium">Recipient:</span> {client?.email}
               </p>
             </div>
           </div>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
               Cancel
             </Button>
