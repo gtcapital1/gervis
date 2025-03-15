@@ -53,27 +53,29 @@ export function Layout({ children }: LayoutProps) {
         {navigation.map((item) => {
           const Icon = item.icon;
           return (
-            <Link key={item.name} href={item.disabled ? "#" : item.href}>
-              <a
-                className={`
-                  flex items-center px-4 py-2 text-sm font-medium rounded-md 
-                  ${
-                    item.current
-                      ? "bg-accent text-white"
-                      : "text-gray-300 hover:bg-gray-800"
-                  }
-                  ${item.disabled ? "opacity-50 cursor-not-allowed" : ""}
-                `}
-                onClick={(e) => {
-                  if (item.disabled) {
-                    e.preventDefault();
-                  }
-                }}
-              >
-                <Icon className="mr-3 h-5 w-5" />
-                {item.name}
-              </a>
-            </Link>
+            <div key={item.name} className="block">
+              <Link href={item.disabled ? "#" : item.href}>
+                <div
+                  className={`
+                    flex items-center px-4 py-2 text-sm font-medium rounded-md 
+                    ${
+                      item.current
+                        ? "bg-accent text-white"
+                        : "text-gray-300 hover:bg-gray-800"
+                    }
+                    ${item.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
+                  `}
+                  onClick={(e) => {
+                    if (item.disabled) {
+                      e.preventDefault();
+                    }
+                  }}
+                >
+                  <Icon className="mr-3 h-5 w-5" />
+                  {item.name}
+                </div>
+              </Link>
+            </div>
           );
         })}
       </div>
@@ -90,10 +92,10 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </div>
         <Link href="/">
-          <a className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md">
+          <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
             <LogOut className="mr-3 h-5 w-5" />
             Return to Home
-          </a>
+          </div>
         </Link>
       </div>
     </>
@@ -107,7 +109,7 @@ export function Layout({ children }: LayoutProps) {
           <div className="flex-1 flex flex-col min-h-0">
             <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900">
               <Link href="/">
-                <a className="text-xl font-bold tracking-tight text-white flex items-center">
+                <div className="text-xl font-bold tracking-tight text-white flex items-center cursor-pointer">
                   <svg
                     className="w-7 h-7 mr-2 text-accent"
                     fill="none"
@@ -131,7 +133,7 @@ export function Layout({ children }: LayoutProps) {
                     />
                   </svg>
                   Watson
-                </a>
+                </div>
               </Link>
             </div>
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
@@ -147,7 +149,7 @@ export function Layout({ children }: LayoutProps) {
       <div className="flex flex-col w-0 flex-1">
         <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
           <Link href="/">
-            <a className="text-xl font-bold tracking-tight flex items-center">
+            <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
               <svg
                 className="w-7 h-7 mr-2 text-accent"
                 fill="none"
@@ -171,7 +173,7 @@ export function Layout({ children }: LayoutProps) {
                 />
               </svg>
               Watson
-            </a>
+            </div>
           </Link>
 
           <Sheet>
