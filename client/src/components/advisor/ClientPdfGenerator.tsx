@@ -100,7 +100,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
       [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
-      [`${t('pdf.investmentGoals')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
+      [`${t('pdf.investmentGoal')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
       [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
       [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
     ];
@@ -129,18 +129,30 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // Assets table
     if (assets && assets.length > 0) {
+      // Calcola il valore totale per le percentuali
+      const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+      
+      // Crea la tabella degli asset con la percentuale
       autoTable(doc, {
         startY: lastY + 25,
         head: [[
           t('pdf.category'),
-          t('pdf.description'),
-          t('pdf.value')
+          t('pdf.value'),
+          '%'
         ]],
-        body: assets.map(asset => [
-          t(`asset_categories.${asset.category}`),
-          asset.description,
-          formatCurrency(asset.value)
-        ]),
+        body: [
+          ...assets.map(asset => [
+            t(`asset_categories.${asset.category}`),
+            formatCurrency(asset.value),
+            `${Math.round((asset.value / totalValue) * 100)}%`
+          ]),
+          // Aggiungi il totale come ultima riga della tabella
+          [
+            `${t('pdf.totalAssetsValue')}`,
+            formatCurrency(totalValue),
+            '100%'
+          ]
+        ],
         theme: 'grid',
         headStyles: {
           fillColor: [41, 98, 255],
@@ -150,27 +162,16 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
         alternateRowStyles: {
           fillColor: [240, 240, 240],
         },
-      });
-      
-      // Total assets value
-      const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-      const assetsTableLastY = (doc as any).lastAutoTable.finalY || (lastY + 25);
-      
-      autoTable(doc, {
-        startY: assetsTableLastY + 5,
-        head: [],
-        body: [[
-          `${t('pdf.totalAssetsValue')}:`,
-          formatCurrency(totalValue)
-        ]],
-        theme: 'plain',
-        styles: {
-          fontSize: 12,
-          fontStyle: 'bold',
+        // Applica stile in grassetto all'ultima riga (totale)
+        bodyStyles: {
+          fontSize: 10
         },
-        columnStyles: {
-          0: { halign: 'right' },
-          1: { halign: 'right' }
+        // Stile specifico per la riga del totale
+        didDrawCell: (data) => {
+          if (data.row.index === assets.length && data.section === 'body') {
+            data.cell.styles.fontStyle = 'bold';
+            data.cell.styles.fillColor = [220, 220, 220];
+          }
         },
       });
     } else {
@@ -178,25 +179,28 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       doc.text(t('pdf.noAssetsFound'), 15, lastY + 30);
     }
     
-    // Add disclaimer
-    const disclaimerLastY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : lastY + 40;
+    // Add client declaration
+    const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : lastY + 40;
     
     doc.setFontSize(12);
-    doc.text(t('pdf.disclaimer'), 15, disclaimerLastY);
-    doc.setFontSize(9);
-    doc.setTextColor(80, 80, 80);
+    doc.text(t('pdf.clientDeclaration'), 15, declarationY);
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
     
-    const disclaimer = t('pdf.disclaimerText');
-    const splitDisclaimer = doc.splitTextToSize(disclaimer, 180);
-    doc.text(splitDisclaimer, 15, disclaimerLastY + 10);
+    const declaration = t('pdf.clientDeclarationText');
+    const splitDeclaration = doc.splitTextToSize(declaration, 180);
+    doc.text(splitDeclaration, 15, declarationY + 10);
     
     // Add signature areas
-    const signatureY = disclaimerLastY + 10 + splitDisclaimer.length * 4.5 + 15;
+    const signatureY = declarationY + 10 + splitDeclaration.length * 4.5 + 15;
     
     doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
     doc.text(t('pdf.advisorSignature'), 15, signatureY);
     doc.text(t('pdf.clientSignature'), 110, signatureY);
+    
+    // Aggiungi campo data accanto alla firma del cliente
+    doc.text(t('pdf.date') + ': ___/___/_____', 110, signatureY + 35);
     
     doc.line(15, signatureY + 25, 85, signatureY + 25);
     doc.line(110, signatureY + 25, 180, signatureY + 25);
