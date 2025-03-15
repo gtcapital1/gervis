@@ -369,18 +369,16 @@ Cordiali saluti,`
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 gap-6">
-            {/* First Box: Personal Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Personal Information</CardTitle>
-                <CardDescription>
-                  Basic details and contact information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-4">
+          <div className="space-y-6">
+            {/* Top row: Personal Information and Investment Profile side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* First Box: Personal Information */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl">Personal Information</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
                     <div className="flex items-center">
                       <User className="h-4 w-4 mr-2 opacity-70" />
                       <span className="text-sm text-muted-foreground mr-2">Name:</span>
@@ -398,13 +396,6 @@ Cordiali saluti,`
                         <span>{client.phone}</span>
                       </div>
                     )}
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">Created:</span>
-                      <span>{formatDate(client.createdAt)}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-4">
                     {client.address && (
                       <div className="flex items-center">
                         <Home className="h-4 w-4 mr-2 opacity-70" />
@@ -433,128 +424,126 @@ Cordiali saluti,`
                         <span>{client.dependents}</span>
                       </div>
                     )}
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 opacity-70" />
+                      <span className="text-sm text-muted-foreground mr-2">Created:</span>
+                      <span>{formatDate(client.createdAt)}</span>
+                    </div>
                   </div>
-                </div>
-                
-                {/* Financial Information */}
-                {(client.annualIncome !== undefined || 
-                  client.monthlyExpenses !== undefined || 
-                  client.netWorth !== undefined) && (
-                  <>
-                    <Separator className="my-4" />
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                      {client.annualIncome !== undefined && (
-                        <div>
-                          <span className="text-sm text-muted-foreground block">Annual Income:</span>
-                          <span className="text-lg font-medium">${client.annualIncome.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {client.monthlyExpenses !== undefined && (
-                        <div>
-                          <span className="text-sm text-muted-foreground block">Monthly Expenses:</span>
-                          <span className="text-lg font-medium">${client.monthlyExpenses.toLocaleString()}</span>
-                        </div>
-                      )}
-                      {client.netWorth !== undefined && (
-                        <div>
-                          <span className="text-sm text-muted-foreground block">Net Worth:</span>
-                          <span className="text-lg font-medium">${client.netWorth.toLocaleString()}</span>
-                        </div>
+                  
+                  {/* Financial Information */}
+                  {(client.annualIncome !== undefined || 
+                    client.monthlyExpenses !== undefined || 
+                    client.netWorth !== undefined) && (
+                    <>
+                      <Separator className="my-3" />
+                      <div className="grid grid-cols-1 gap-3 mt-3">
+                        {client.annualIncome ? (
+                          <div>
+                            <span className="text-sm text-muted-foreground block">Annual Income:</span>
+                            <span className="text-lg font-medium">${client.annualIncome.toLocaleString()}</span>
+                          </div>
+                        ) : null}
+                        {client.monthlyExpenses ? (
+                          <div>
+                            <span className="text-sm text-muted-foreground block">Monthly Expenses:</span>
+                            <span className="text-lg font-medium">${client.monthlyExpenses.toLocaleString()}</span>
+                          </div>
+                        ) : null}
+                        {client.netWorth ? (
+                          <div>
+                            <span className="text-sm text-muted-foreground block">Net Worth:</span>
+                            <span className="text-lg font-medium">${client.netWorth.toLocaleString()}</span>
+                          </div>
+                        ) : null}
+                      </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+              
+              {/* Second Box: Investment Profile */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl">Investment Profile</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 gap-4">
+                    <div>
+                      <span className="text-sm text-muted-foreground block mb-2">Risk Profile:</span>
+                      {client.riskProfile ? (
+                        <Badge className="capitalize">
+                          {client.riskProfile.replace('_', ' ')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          Not Assessed
+                        </Badge>
                       )}
                     </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+                    
+                    <div>
+                      <span className="text-sm text-muted-foreground block mb-2">Investment Experience:</span>
+                      {client.investmentExperience ? (
+                        <Badge className="capitalize">
+                          {client.investmentExperience.replace('_', ' ')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          Not Specified
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm text-muted-foreground block mb-2">Investment Horizon:</span>
+                      {client.investmentHorizon ? (
+                        <Badge className="capitalize">
+                          {client.investmentHorizon.replace('_', ' ')}
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline">
+                          Not Specified
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm text-muted-foreground block mb-2">Investment Goals:</span>
+                      {client.investmentGoals && client.investmentGoals.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {client.investmentGoals.map(goal => (
+                            <Badge key={goal} className="capitalize">
+                              {goal.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <Badge variant="outline">
+                          Not Specified
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
             
-            {/* Second Box: Investment Profile */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-xl">Investment Profile</CardTitle>
-                <CardDescription>
-                  Client investment preferences and risk assessment
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <span className="text-sm text-muted-foreground block mb-2">Risk Profile:</span>
-                    {client.riskProfile ? (
-                      <Badge className="capitalize">
-                        {client.riskProfile.replace('_', ' ')}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">
-                        Not Assessed
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm text-muted-foreground block mb-2">Investment Experience:</span>
-                    {client.investmentExperience ? (
-                      <Badge className="capitalize">
-                        {client.investmentExperience.replace('_', ' ')}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">
-                        Not Specified
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm text-muted-foreground block mb-2">Investment Horizon:</span>
-                    {client.investmentHorizon ? (
-                      <Badge className="capitalize">
-                        {client.investmentHorizon.replace('_', ' ')}
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline">
-                        Not Specified
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div>
-                    <span className="text-sm text-muted-foreground block mb-2">Investment Goals:</span>
-                    {client.investmentGoals && client.investmentGoals.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {client.investmentGoals.map(goal => (
-                          <Badge key={goal} className="capitalize">
-                            {goal.replace('_', ' ')}
-                          </Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <Badge variant="outline">
-                        Not Specified
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            
-            {/* Third Box: Asset Allocation */}
+            {/* Bottom row: Asset Allocation full width */}
             {client.isOnboarded ? (
               <Card>
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-2">
                   <CardTitle className="text-xl">Asset Allocation</CardTitle>
                   <CardDescription>
                     Snapshot of client's current portfolio
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <Tabs defaultValue="allocation">
+                  <Tabs defaultValue="portfolio">
                     <TabsList className="mb-4">
-                      <TabsTrigger value="allocation">
+                      <TabsTrigger value="portfolio">
                         <PieChart className="mr-2 h-4 w-4" />
-                        Asset Allocation
-                      </TabsTrigger>
-                      <TabsTrigger value="assets">
-                        <BarChart className="mr-2 h-4 w-4" />
-                        Assets List
+                        Portfolio Overview
                       </TabsTrigger>
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
@@ -562,93 +551,82 @@ Cordiali saluti,`
                       </TabsTrigger>
                     </TabsList>
                     
-                    <TabsContent value="allocation" className="space-y-6">
+                    <TabsContent value="portfolio" className="space-y-6">
                       {isLoadingAssets ? (
-                        <div className="flex justify-center items-center h-48">
+                        <div className="flex justify-center items-center h-32">
                           <p>Loading assets...</p>
                         </div>
                       ) : assets.length === 0 ? (
-                        <div className="flex flex-col justify-center items-center h-48 space-y-4">
+                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
                           <p className="text-muted-foreground">No assets found for this client.</p>
                         </div>
                       ) : (
-                        <div className="space-y-6">
-                          <Card>
-                            <CardHeader className="py-4">
-                              <CardTitle className="text-lg">Asset Distribution</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                              <div className="space-y-4">
-                                {/* Group assets by category and calculate percentages */}
-                                {(() => {
-                                  // Group assets by category
-                                  const assetsByCategory: Record<string, number> = {};
-                                  assets.forEach(asset => {
-                                    if (assetsByCategory[asset.category]) {
-                                      assetsByCategory[asset.category] += asset.value;
-                                    } else {
-                                      assetsByCategory[asset.category] = asset.value;
-                                    }
-                                  });
+                        <div className="space-y-4">
+                          {/* Asset Categories with Progress Bars */}
+                          <div className="space-y-4 mb-6">
+                            <h3 className="text-lg font-medium">Asset Distribution</h3>
+                            <div className="space-y-4">
+                              {/* Group assets by category and calculate percentages */}
+                              {(() => {
+                                // Group assets by category
+                                const assetsByCategory: Record<string, number> = {};
+                                assets.forEach(asset => {
+                                  if (assetsByCategory[asset.category]) {
+                                    assetsByCategory[asset.category] += asset.value;
+                                  } else {
+                                    assetsByCategory[asset.category] = asset.value;
+                                  }
+                                });
+                                
+                                return Object.entries(assetsByCategory).map(([category, value]) => {
+                                  const percentage = (value / totalValue) * 100;
                                   
-                                  return Object.entries(assetsByCategory).map(([category, value]) => {
-                                    const percentage = (value / totalValue) * 100;
-                                    
-                                    return (
-                                      <div key={category} className="space-y-2">
-                                        <div className="flex justify-between text-sm">
-                                          <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
-                                          <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
-                                        </div>
-                                        <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
-                                          <div
-                                            className="h-full bg-primary transition-all"
-                                            style={{ width: `${percentage}%` }}
-                                          />
-                                        </div>
+                                  return (
+                                    <div key={category} className="space-y-2">
+                                      <div className="flex justify-between text-sm">
+                                        <span className="font-medium capitalize">{category.replace('_', ' ')}</span>
+                                        <span>${value.toLocaleString()} ({percentage.toFixed(1)}%)</span>
                                       </div>
-                                    );
-                                  });
-                                })()}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="assets" className="space-y-6">
-                      {isLoadingAssets ? (
-                        <div className="flex justify-center items-center h-48">
-                          <p>Loading assets...</p>
-                        </div>
-                      ) : assets.length === 0 ? (
-                        <div className="flex flex-col justify-center items-center h-48 space-y-4">
-                          <p className="text-muted-foreground">No assets found for this client.</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {assets.map((asset) => (
-                            <Card key={asset.id} className="overflow-hidden">
-                              <CardHeader className="p-4 bg-muted">
-                                <CardTitle className="text-sm font-medium capitalize">
-                                  {asset.category.replace('_', ' ')}
-                                </CardTitle>
-                              </CardHeader>
-                              <CardContent className="p-4">
-                                <div className="space-y-2">
-                                  <div className="text-2xl font-bold">
-                                    ${asset.value.toLocaleString()}
-                                  </div>
-                                  {asset.description && (
-                                    <div className="text-xs text-muted-foreground">
-                                      {asset.description}
+                                      <div className="w-full bg-secondary rounded-full h-2">
+                                        <div 
+                                          className="bg-primary h-2 rounded-full" 
+                                          style={{ width: `${percentage}%` }}
+                                        ></div>
+                                      </div>
                                     </div>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </div>
+                          
+                          {/* Individual Assets */}
+                          <div>
+                            <h3 className="text-lg font-medium mb-3">Individual Assets</h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {assets.map((asset) => (
+                                <Card key={asset.id} className="overflow-hidden">
+                                  <CardHeader className="p-3 bg-muted">
+                                    <CardTitle className="text-sm font-medium capitalize">
+                                      {asset.category.replace('_', ' ')}
+                                    </CardTitle>
+                                  </CardHeader>
+                                  <CardContent className="p-3">
+                                    <div className="space-y-1">
+                                      <div className="text-xl font-bold">
+                                        ${asset.value.toLocaleString()}
+                                      </div>
+                                      {asset.description && (
+                                        <div className="text-xs text-muted-foreground">
+                                          {asset.description}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </TabsContent>
