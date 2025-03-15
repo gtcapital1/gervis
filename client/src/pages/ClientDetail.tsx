@@ -52,26 +52,27 @@ export default function ClientDetail() {
   });
 
   // For sending onboarding form
+  // State for the onboarding link
+  const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
+  
   const sendOnboardingMutation = useMutation({
     mutationFn: () => {
-      // This would normally send an email to the client with an onboarding link
-      // For this demo, we'll just simulate it and update the client status
-      return apiRequest(`/api/clients/${clientId}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ isOnboarded: true }),
+      return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
+        method: 'POST',
       });
     },
-    onSuccess: () => {
+    onSuccess: (data: { token: string, link: string }) => {
+      setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       toast({
-        title: "Onboarding form sent",
-        description: "The client has been successfully onboarded for demo purposes.",
+        title: "Onboarding link generated",
+        description: "Successfully generated an onboarding link for the client.",
       });
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to send onboarding form. Please try again.",
+        description: "Failed to generate onboarding link. Please try again.",
         variant: "destructive",
       });
     },
@@ -133,14 +134,45 @@ export default function ClientDetail() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button 
-                onClick={handleSendOnboardingForm}
-                disabled={sendOnboardingMutation.isPending}
-                className="bg-accent hover:bg-accent/90"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {sendOnboardingMutation.isPending ? "Sending..." : "Send Onboarding Form"}
-              </Button>
+              {onboardingLink ? (
+                <div className="space-y-4">
+                  <div className="p-3 bg-muted rounded-md overflow-x-auto">
+                    <p className="text-sm font-mono break-all">{onboardingLink}</p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(onboardingLink);
+                        toast({
+                          title: "Link copied",
+                          description: "Onboarding link copied to clipboard."
+                        });
+                      }}
+                    >
+                      Copy Link
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setOnboardingLink(null)}
+                    >
+                      Generate New Link
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    Share this link with your client to complete the onboarding process.
+                  </p>
+                </div>
+              ) : (
+                <Button 
+                  onClick={handleSendOnboardingForm}
+                  disabled={sendOnboardingMutation.isPending}
+                  className="bg-accent hover:bg-accent/90"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {sendOnboardingMutation.isPending ? "Generating..." : "Generate Onboarding Link"}
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : null}

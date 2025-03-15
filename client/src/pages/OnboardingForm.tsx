@@ -1,63 +1,46 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams, useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { z } from "zod";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 import { 
-  ArrowLeft, 
-  Plus, 
-  Trash2,
-  Check,
-  AlertCircle
+  PlusCircle, 
+  Trash2, 
+  AlertTriangle, 
+  ArrowRight,
+  CheckCircle2,
+  HomeIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { RISK_PROFILES, ASSET_CATEGORIES } from "@shared/schema";
 
-// Define form schema
-const onboardingFormSchema = z.object({
-  phone: z.string().optional(),
-  address: z.string().min(1, "Address is required"),
-  taxCode: z.string().min(1, "Tax code or ID is required"),
-  riskProfile: z.enum(RISK_PROFILES as [string, ...string[]], {
-    required_error: "Please select a risk profile",
+// Define the form schema
+const assetSchema = z.object({
+  value: z.coerce.number().min(1, "Value must be greater than 0"),
+  category: z.string().refine(val => ASSET_CATEGORIES.includes(val as any), {
+    message: "Please select a valid category"
   }),
-  assets: z.array(
-    z.object({
-      category: z.enum(ASSET_CATEGORIES as [string, ...string[]], {
-        required_error: "Asset category is required",
-      }),
-      value: z.coerce.number().min(0, "Value must be a positive number"),
-      description: z.string().optional(),
-    })
-  ).min(0)
+  description: z.string().optional(),
+});
+
+const onboardingFormSchema = z.object({
+  address: z.string().min(5, "Address must be at least 5 characters"),
+  phone: z.string().min(5, "Phone number must be at least 5 characters"),
+  taxCode: z.string().min(3, "Tax code must be at least 3 characters"),
+  riskProfile: z.string().refine(val => RISK_PROFILES.includes(val as any), {
+    message: "Please select a valid risk profile"
+  }),
+  assets: z.array(assetSchema).min(1, "Please add at least one asset")
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingFormSchema>;
@@ -66,9 +49,14 @@ export default function OnboardingForm() {
   const { token } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState(false);
   
-  // Query client data based on the token
+  // Convert risk profile and asset category arrays to select options
+  const riskProfileOptions = RISK_PROFILES as unknown as [string, ...string[]];
+  const categoryOptions = ASSET_CATEGORIES as unknown as [string, ...string[]];
+
+  // Fetch client data using token
   const { 
     data: client, 
     isLoading, 
@@ -77,144 +65,136 @@ export default function OnboardingForm() {
   } = useQuery({
     queryKey: [`/api/onboarding/${token}`],
     enabled: !!token,
-    retry: false,
   });
   
-  // Set up form with default values
+  // Form setup
   const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingFormSchema),
     defaultValues: {
-      phone: "",
       address: "",
+      phone: "",
       taxCode: "",
-      riskProfile: "balanced",
+      riskProfile: "balanced", // Default to balanced risk
       assets: [
-        { category: "cash", value: 0, description: "Cash holdings" }
-      ],
-    },
+        // Start with one empty asset
+        { value: 0, category: "cash", description: "" }
+      ]
+    }
   });
   
-  // Submit form data
-  const submitMutation = useMutation({
+  // Handle form submission
+  const mutation = useMutation({
     mutationFn: (data: OnboardingFormValues) => {
       return apiRequest(`/api/onboarding/${token}`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(data),
       });
     },
     onSuccess: () => {
-      toast({
-        title: "Onboarding successful",
-        description: "Your profile has been updated successfully.",
-      });
-      
-      // Reset form and redirect to success page or login
+      setFormSuccess(true);
       setTimeout(() => {
         setLocation("/onboarding/success");
       }, 1500);
     },
-    onError: (error) => {
-      console.error("Error submitting form:", error);
-      toast({
-        title: "Error",
-        description: "Failed to submit form. Please try again.",
-        variant: "destructive",
-      });
-      setSubmitting(false);
-    },
+    onError: (error: any) => {
+      setFormError(error.message || "Failed to submit onboarding form. Please try again.");
+    }
   });
   
-  // Add a new asset field
   function addAsset() {
-    const assets = form.getValues().assets || [];
+    const assets = form.getValues().assets;
     form.setValue("assets", [
       ...assets, 
-      { category: "cash", value: 0, description: "" }
+      { value: 0, category: "cash", description: "" }
     ]);
   }
   
-  // Remove an asset field
   function removeAsset(index: number) {
     const assets = form.getValues().assets;
-    if (assets && assets.length > 1) {
-      form.setValue(
-        "assets", 
-        assets.filter((_, i) => i !== index)
-      );
+    if (assets.length > 1) {
+      form.setValue("assets", assets.filter((_, i) => i !== index));
+    } else {
+      toast({
+        title: "Cannot remove",
+        description: "You need at least one asset",
+        variant: "destructive"
+      });
     }
   }
   
-  // Handle form submission
   async function onSubmit(data: OnboardingFormValues) {
-    setSubmitting(true);
-    submitMutation.mutate(data);
+    setFormError(null);
+    mutation.mutate(data);
   }
   
   if (isLoading) {
     return (
-      <div className="container max-w-3xl mx-auto py-10 px-4 sm:px-6">
+      <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
         <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Loading</CardTitle>
-            <CardDescription>
-              Please wait while we load your information...
-            </CardDescription>
+          <CardHeader>
+            <CardTitle>Loading...</CardTitle>
+            <CardDescription>Please wait while we load your information.</CardDescription>
           </CardHeader>
         </Card>
       </div>
     );
   }
   
-  if (isError || !client) {
+  if (isError) {
     return (
-      <div className="container max-w-3xl mx-auto py-10 px-4 sm:px-6">
+      <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
         <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold text-destructive">Error</CardTitle>
+          <CardHeader>
+            <CardTitle>Invalid Link</CardTitle>
             <CardDescription>
-              Invalid or expired onboarding link. Please contact your financial advisor.
+              This onboarding link is invalid or has expired.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Invalid Link</AlertTitle>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
               <AlertDescription>
-                This onboarding link is not valid or has expired. 
-                Please ask your advisor to send you a new link.
+                {error instanceof Error ? error.message : "Please contact your financial advisor for a new link."}
               </AlertDescription>
             </Alert>
           </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full"
+              onClick={() => setLocation("/")}
+            >
+              Return to Home
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );
   }
-  
-  if (client.isOnboarded) {
+
+  if (client?.isOnboarded) {
     return (
-      <div className="container max-w-3xl mx-auto py-10 px-4 sm:px-6">
+      <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
         <Card>
-          <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl font-bold">Already Onboarded</CardTitle>
+          <CardHeader>
+            <CardTitle>Already Onboarded</CardTitle>
             <CardDescription>
               You have already completed the onboarding process.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Alert>
-              <Check className="h-4 w-4" />
-              <AlertTitle>Already Onboarded</AlertTitle>
+              <CheckCircle2 className="h-4 w-4 text-green-500" />
+              <AlertTitle>Success</AlertTitle>
               <AlertDescription>
-                You have already completed the onboarding process for this account.
-                If you need to update your information, please contact your financial advisor.
+                Your information has been successfully submitted. There is no need to fill out this form again.
               </AlertDescription>
             </Alert>
           </CardContent>
           <CardFooter>
             <Button 
-              variant="outline" 
-              onClick={() => setLocation("/")}
               className="w-full"
+              onClick={() => setLocation("/")}
             >
               Return to Home
             </Button>
@@ -224,219 +204,261 @@ export default function OnboardingForm() {
     );
   }
   
+  if (formSuccess) {
+    return (
+      <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Submitting Your Information</CardTitle>
+            <CardDescription>
+              Please wait while we process your information.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col items-center justify-center py-10">
+            <CheckCircle2 className="h-16 w-16 text-green-500 animate-pulse" />
+            <p className="mt-4 text-center">Your information is being processed...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   return (
-    <div className="container max-w-3xl mx-auto py-10 px-4 sm:px-6">
-      <Card>
+    <div className="container max-w-4xl mx-auto py-10 px-4 sm:px-6">
+      <Card className="mb-10">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome, {client.name}</CardTitle>
+          <CardTitle className="text-2xl font-bold">Welcome, {client?.name}</CardTitle>
           <CardDescription>
-            Please complete this form to finalize your account setup
+            Complete this form to finalize your onboarding with Watson Financial Advisors
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <div className="space-y-4">
-                <h3 className="text-lg font-medium">Personal Information</h3>
-                
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1 (555) 123-4567" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="address"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Address</FormLabel>
-                      <FormControl>
-                        <Textarea 
-                          placeholder="Enter your full address" 
-                          className="resize-none" 
-                          {...field} 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="taxCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Tax ID / Tax Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter your tax identification number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <Separator className="my-4" />
-                
-                <h3 className="text-lg font-medium">Investment Profile</h3>
-                
-                <FormField
-                  control={form.control}
-                  name="riskProfile"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Risk Profile</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select your risk tolerance" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="conservative">Conservative</SelectItem>
-                          <SelectItem value="moderate">Moderate</SelectItem>
-                          <SelectItem value="balanced">Balanced</SelectItem>
-                          <SelectItem value="growth">Growth</SelectItem>
-                          <SelectItem value="aggressive">Aggressive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        This helps us tailor investment recommendations to match your risk tolerance.
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <Separator className="my-4" />
-                
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-lg font-medium">Your Assets</h3>
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={addAsset}
+      </Card>
+      
+      {formError && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{formError}</AlertDescription>
+        </Alert>
+      )}
+      
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Personal Information</CardTitle>
+              <CardDescription>
+                Please provide your contact and additional personal details
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Home Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="123 Main St, City, Country" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="taxCode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax Identification</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Your tax identification number" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      This is used for tax reporting purposes only.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="riskProfile"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Investment Risk Profile</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
                     >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Add Asset
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your risk tolerance" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {riskProfileOptions.map(profile => (
+                          <SelectItem key={profile} value={profile}>
+                            <span className="capitalize">{profile}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      This helps us determine the best investment strategy for you.
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="space-y-1">
+              <div className="flex justify-between items-center">
+                <CardTitle>Your Assets</CardTitle>
+                <Button 
+                  type="button" 
+                  onClick={addAsset} 
+                  variant="outline" 
+                  size="sm"
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Asset
+                </Button>
+              </div>
+              <CardDescription>
+                List your current financial assets and their approximate values
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {form.watch('assets').map((asset, index) => (
+                <div key={index}>
+                  {index > 0 && <Separator className="my-6" />}
+                  <div className="flex justify-between items-center mb-4">
+                    <h4 className="font-medium">Asset {index + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeAsset(index)}
+                      className="text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Remove
                     </Button>
                   </div>
                   
-                  {form.watch("assets")?.map((_, index) => (
-                    <div key={index} className="space-y-4 p-4 border rounded-md">
-                      <div className="flex justify-between items-center">
-                        <h4 className="font-medium">Asset {index + 1}</h4>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAsset(index)}
-                          disabled={form.watch("assets")?.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <FormField
-                          control={form.control}
-                          name={`assets.${index}.category`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Category</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select asset type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="real_estate">Real Estate</SelectItem>
-                                  <SelectItem value="equity">Equity/Stocks</SelectItem>
-                                  <SelectItem value="bonds">Bonds</SelectItem>
-                                  <SelectItem value="cash">Cash</SelectItem>
-                                  <SelectItem value="other">Other</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={form.control}
-                          name={`assets.${index}.value`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Value (€)</FormLabel>
-                              <FormControl>
-                                <Input 
-                                  type="number" 
-                                  placeholder="0" 
-                                  {...field} 
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <FormField
-                        control={form.control}
-                        name={`assets.${index}.description`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name={`assets.${index}.category`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Asset Type</FormLabel>
+                          <Select 
+                            onValueChange={field.onChange} 
+                            defaultValue={field.value}
+                          >
                             <FormControl>
-                              <Input 
-                                placeholder="E.g., Primary residence, Stock portfolio" 
-                                {...field} 
-                                value={field.value || ""}
-                              />
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select asset type" />
+                              </SelectTrigger>
                             </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  ))}
+                            <SelectContent>
+                              {categoryOptions.map(category => (
+                                <SelectItem key={category} value={category}>
+                                  <span className="capitalize">{category.replace('_', ' ')}</span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`assets.${index}.value`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Approximate Value (€)</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="100000" 
+                              {...field} 
+                              onChange={e => field.onChange(e.target.valueAsNumber)}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`assets.${index}.description`}
+                      render={({ field }) => (
+                        <FormItem className="col-span-1 md:col-span-2">
+                          <FormLabel>Description (Optional)</FormLabel>
+                          <FormControl>
+                            <Textarea 
+                              placeholder="e.g., Primary residence, Stocks in Company XYZ, etc." 
+                              className="resize-none"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
-              </div>
+              ))}
               
-              <div className="flex justify-end space-x-4">
-                <Button type="button" variant="outline" onClick={() => setLocation("/")}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-accent hover:bg-accent/90"
-                  disabled={submitting || submitMutation.isPending}
-                >
-                  {submitting || submitMutation.isPending ? "Submitting..." : "Complete Onboarding"}
-                </Button>
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+              {form.formState.errors.assets?.root && (
+                <Alert variant="destructive">
+                  <AlertDescription>
+                    {form.formState.errors.assets.root.message}
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardContent className="pt-6">
+              <Button 
+                type="submit" 
+                className="w-full"
+                disabled={mutation.isPending}
+              >
+                {mutation.isPending ? "Submitting..." : "Submit Onboarding Information"}
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </CardContent>
+          </Card>
+        </form>
+      </Form>
     </div>
   );
 }

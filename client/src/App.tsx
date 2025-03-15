@@ -28,6 +28,8 @@ function Router() {
           </Layout>
         )}
       </Route>
+      <Route path="/onboarding/:token" component={OnboardingForm} />
+      <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route component={NotFound} />
     </Switch>
   );
