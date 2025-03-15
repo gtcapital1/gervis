@@ -11,7 +11,8 @@ import {
   Phone,
   Mail,
   UserX,
-  AlertTriangle
+  AlertTriangle,
+  RefreshCcw
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -329,14 +330,11 @@ export default function Dashboard() {
                               </DropdownMenuItem>
                               {client.isArchived ? (
                                 <DropdownMenuItem 
-                                  onClick={() => {
-                                    toast({
-                                      title: "Restore feature coming soon",
-                                      description: "Restoring archived clients will be available soon."
-                                    });
-                                  }}
+                                  onClick={() => restoreClientMutation.mutate(client.id)}
+                                  className="text-green-600"
                                 >
-                                  Restore
+                                  <RefreshCcw className="mr-2 h-4 w-4" />
+                                  Restore Client
                                 </DropdownMenuItem>
                               ) : (
                                 <>
