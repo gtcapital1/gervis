@@ -20,8 +20,8 @@ const englishContent = {
   buttonText: 'Complete My Profile',
   expiry: 'This link will expire in 7 days for security purposes.',
   questions: 'If you have any questions, please feel free to contact me directly.',
-  signature: 'Looking forward to our journey together,',
-  team: 'Your Financial Advisor'
+  signature: 'Warm regards,',
+  team: 'Financial Advisor'
 };
 
 // Italian content
@@ -34,8 +34,8 @@ const italianContent = {
   buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',
   questions: 'Se hai domande, non esitare a contattarmi direttamente.',
-  signature: 'Non vedo l\'ora di intraprendere questo percorso insieme,',
-  team: 'Il Tuo Consulente Finanziario'
+  signature: 'Cordiali saluti,',
+  team: 'Consulente Finanziario'
 };
 
 type EmailLanguage = 'english' | 'italian';
@@ -55,6 +55,12 @@ export async function sendOnboardingEmail(
   const messageContent = customMessage 
     ? customMessage.split('\n').map(line => line ? `<p>${line}</p>` : '<br>').join('')
     : `<p>${content.invitation}</p>`;
+  
+  // Get advisor name from message to add signature
+  const messageLines = customMessage ? customMessage.split('\n') : [];
+  const lastLines = messageLines.slice(-3);
+  // Extract advisor name from signature area (assuming it's in the last 3 lines)
+  const advisorName = lastLines.find(line => line && line.trim() !== '')?.trim() || '';
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
@@ -76,10 +82,10 @@ export async function sendOnboardingEmail(
       </div>
       <p style="font-size: 14px; color: #666;">${content.expiry}</p>
       <p>${content.questions}</p>
-      <p style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
-        ${content.signature}<br>
-        ${content.team}
-      </p>
+      <div style="margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px;">
+        ${advisorName ? `<p>${advisorName}</p>` : ''}
+        <p style="color: #666; font-size: 14px;">Financial Advisor</p>
+      </div>
     </div>
   `;
 

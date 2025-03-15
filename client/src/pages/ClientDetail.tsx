@@ -133,11 +133,10 @@ By sharing some information about your financial situation and goals, I'll be ab
 
 The process is quick and straightforward - it should only take about 5 minutes of your time. Simply click the link below to get started.
 
-I'm looking forward to working together on your financial journey!
-
 Thank you for your trust and partnership.
 
-Warm regards,`,
+Warm regards,
+${user?.name || ""}`,
     
     italian: `Gentile ${client?.name},
 
@@ -147,11 +146,10 @@ Condividendo alcune informazioni sulla tua situazione finanziaria e i tuoi obiet
 
 La procedura è rapida e semplice - richiederà solo circa 5 minuti del tuo tempo. Basta cliccare sul link qui sotto per iniziare.
 
-Non vedo l'ora di lavorare insieme nel tuo percorso finanziario!
-
 Grazie per la tua fiducia e collaborazione.
 
-Cordiali saluti,`
+Cordiali saluti,
+${user?.name || ""}`
   };
   
   // Form for editing client information
@@ -312,15 +310,6 @@ Cordiali saluti,`
             </div>
           </div>
           <div className="flex gap-4">
-            {!client.isOnboarded && (
-              <Button 
-                onClick={() => setIsEmailDialogOpen(true)}
-                className="flex items-center"
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                Send Onboarding Form
-              </Button>
-            )}
             <Button 
               className="bg-accent hover:bg-accent/90 flex items-center"
               onClick={() => setIsEditDialogOpen(true)}
