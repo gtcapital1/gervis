@@ -265,12 +265,12 @@ Cordiali saluti,`
   return (
     <>
       <div className="flex flex-col h-full">
-        <div className="flex items-center p-6 border-b">
+        <div className="flex items-center p-6 border-b text-black">
           <Button variant="ghost" onClick={() => setLocation("/app")}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back
           </Button>
-          <h1 className="ml-4 text-3xl font-bold tracking-tight">{client.name}</h1>
+          <h1 className="ml-4 text-3xl font-bold tracking-tight text-black">{client.name}</h1>
           <div className="ml-4 flex gap-2">
             {client.isArchived && (
               <Badge className="bg-amber-600">Archived</Badge>
