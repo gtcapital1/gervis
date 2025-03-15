@@ -46,28 +46,49 @@ export async function sendOnboardingEmail(
   lastName: string,
   onboardingLink: string,
   language: EmailLanguage = 'english',
-  customMessage?: string
+  customMessage?: string,
+  advisorSignature?: string
 ) {
   // Select content based on language
   const content = language === 'english' ? englishContent : italianContent;
   
-  // Use custom message if provided, otherwise use default content
+  // Process custom message if provided
+  // Remove salutations that might be duplicated in the email
+  let processedMessage = customMessage || '';
+  const greetingPatterns = [
+    new RegExp(`Dear\\s+${firstName}\\s+${lastName}`, 'i'),
+    new RegExp(`Gentile\\s+${firstName}\\s+${lastName}`, 'i'),
+    /^Dear\s+.*,/i,
+    /^Gentile\s+.*,/i
+  ];
+  
+  // Remove greeting lines from custom message to avoid duplication
+  if (customMessage) {
+    const messageLines = customMessage.split('\n');
+    const filteredLines = messageLines.filter(line => {
+      const trimmedLine = line.trim();
+      return !greetingPatterns.some(pattern => pattern.test(trimmedLine));
+    });
+    processedMessage = filteredLines.join('\n');
+  }
+  
+  // Format the message content with HTML paragraphs
   const messageContent = customMessage 
-    ? customMessage.split('\n').map(line => line ? `<p>${line}</p>` : '<br>').join('')
+    ? processedMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
     : `<p>${content.invitation}</p>`;
   
-  // Get advisor name from message to add signature
-  const messageLines = customMessage ? customMessage.split('\n') : [];
-  const lastLines = messageLines.slice(-3);
-  // Extract advisor name from signature area (assuming it's in the last 3 lines)
-  const advisorName = lastLines.find(line => line && line.trim() !== '')?.trim() || '';
+  // Prepare signature section
+  const signatureHtml = advisorSignature 
+    ? `<p style="margin-top: 30px;">${content.signature}</p>
+       <p style="white-space: pre-line;">${advisorSignature}</p>`
+    : `<p style="margin-top: 30px;">${content.signature}</p>
+       <p>${content.team}</p>`;
   
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-      ${customMessage ? '' : `<h2 style="color: #0066cc;">${content.title}</h2>
+      <h2 style="color: #0066cc;">${content.title}</h2>
       <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
-      <p>${content.invitation}</p>`}
-      ${customMessage ? messageContent : ''}
+      ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
       <p style="margin-top: 20px;">${content.callToAction}</p>
       <div style="margin: 30px 0;">
         <a href="${onboardingLink}" 
@@ -77,6 +98,7 @@ export async function sendOnboardingEmail(
       </div>
       <p style="font-size: 14px; color: #666;">${content.expiry}</p>
       <p>${content.questions}</p>
+      ${signatureHtml}
     </div>
   `;
 

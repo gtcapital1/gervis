@@ -257,6 +257,10 @@ export class PostgresStorage implements IStorage {
     // Generate onboarding link
     const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
     const onboardingLink = `${baseUrl}/onboarding/${token}`;
+    
+    // Get advisor information (to include signature)
+    const advisor = client.advisorId ? await this.getUser(client.advisorId) : undefined;
+    const advisorSignature = advisor?.signature || undefined;
 
     // Send onboarding email
     try {
@@ -266,7 +270,8 @@ export class PostgresStorage implements IStorage {
         client.lastName,
         onboardingLink,
         language,
-        customMessage
+        customMessage,
+        advisorSignature
       );
       console.log(`Onboarding email sent to ${client.email} in ${language}`);
     } catch (error) {
