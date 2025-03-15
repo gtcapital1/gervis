@@ -10,23 +10,25 @@ import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-
-const contactFormSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Please enter a valid email address"),
-  company: z.string().optional(),
-  message: z.string().min(1, "Message is required"),
-  privacy: z.boolean().refine(val => val === true, {
-    message: "You must agree to the terms and privacy policy"
-  })
-});
-
-type ContactFormValues = z.infer<typeof contactFormSchema>;
+import { useTranslation } from "react-i18next";
 
 export default function Contact() {
+  const { t } = useTranslation();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
+  
+  const contactFormSchema = z.object({
+    firstName: z.string().min(1, t('contact.validation.firstName')),
+    lastName: z.string().min(1, t('contact.validation.lastName')),
+    email: z.string().email(t('contact.validation.email')),
+    company: z.string().optional(),
+    message: z.string().min(1, t('contact.validation.message')),
+    privacy: z.boolean().refine(val => val === true, {
+      message: t('contact.validation.privacy')
+    })
+  });
+  
+  type ContactFormValues = z.infer<typeof contactFormSchema>;
   
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(contactFormSchema),
@@ -47,7 +49,7 @@ export default function Contact() {
     } catch (error) {
       toast({
         title: "Error",
-        description: "There was a problem submitting your form. Please try again.",
+        description: t('contact.error'),
         variant: "destructive"
       });
       console.error("Contact form submission error:", error);
@@ -58,9 +60,9 @@ export default function Contact() {
     <section id="contact" className="py-20 bg-gray-50">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto text-center mb-16">
-          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4">Get in Touch</h2>
+          <h2 className="text-3xl sm:text-4xl font-bold text-black mb-4">{t('contact.title')}</h2>
           <p className="text-lg text-gray-600">
-            Ready to transform your financial consulting practice? Contact us today.
+            {t('contact.subtitle')}
           </p>
         </div>
         
@@ -70,8 +72,8 @@ export default function Contact() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-6">
                 <Check className="h-8 w-8 text-green-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h3>
-              <p className="text-gray-600">We've received your message and will get back to you shortly.</p>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('contact.form.success')}</h3>
+              <p className="text-gray-600">{t('contact.form.success_message')}</p>
             </div>
           ) : (
             <Form {...form}>
@@ -82,9 +84,9 @@ export default function Contact() {
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>{t('contact.form.firstName')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="John" {...field} />
+                          <Input placeholder={t('contact.form.placeholders.firstName')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -95,9 +97,9 @@ export default function Contact() {
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>{t('contact.form.lastName')}</FormLabel>
                         <FormControl>
-                          <Input placeholder="Doe" {...field} />
+                          <Input placeholder={t('contact.form.placeholders.lastName')} {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -110,9 +112,9 @@ export default function Contact() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>{t('contact.form.email')}</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="john.doe@example.com" {...field} />
+                        <Input type="email" placeholder={t('contact.form.placeholders.email')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -124,9 +126,9 @@ export default function Contact() {
                   name="company"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company</FormLabel>
+                      <FormLabel>{t('contact.form.company')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Your Company" {...field} />
+                        <Input placeholder={t('contact.form.placeholders.company')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -138,10 +140,10 @@ export default function Contact() {
                   name="message"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Message</FormLabel>
+                      <FormLabel>{t('contact.form.message')}</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="How can we help you?"
+                          placeholder={t('contact.form.placeholders.message')}
                           className="min-h-[120px]"
                           {...field}
                         />
@@ -165,7 +167,7 @@ export default function Contact() {
                       </FormControl>
                       <div className="space-y-1 leading-none">
                         <FormLabel>
-                          I agree to the <a href="#" className="text-secondary hover:underline">Privacy Policy</a> and <a href="#" className="text-secondary hover:underline">Terms of Service</a>
+                          {t('contact.form.privacy')}
                         </FormLabel>
                         <FormMessage />
                       </div>
@@ -178,7 +180,7 @@ export default function Contact() {
                   className="w-full bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white py-6 font-medium"
                   disabled={form.formState.isSubmitting}
                 >
-                  {form.formState.isSubmitting ? "Submitting..." : "Submit"}
+                  {form.formState.isSubmitting ? t('contact.form.submitting') : t('contact.form.submit')}
                 </Button>
               </form>
             </Form>

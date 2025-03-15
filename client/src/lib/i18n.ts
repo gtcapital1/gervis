@@ -181,6 +181,80 @@ const resourcesEn = {
         description: "Automatically track client conversations and generate compliance-ready documentation with AI."
       },
       learn_more: "Learn more"
+    },
+    about: {
+      title: "Who We Are",
+      description1: "Watson was founded by a team of financial experts and AI engineers who recognized the challenges facing modern financial consultants.",
+      description2: "Our mission is to empower financial consultants with cutting-edge technology that simplifies complex tasks, automates documentation, and provides deeper insights into client portfolios.",
+      description3: "Since our founding in 2020, we've helped over 500 financial consultants save thousands of hours and grow their practices by an average of 30%.",
+      team: "Our Team",
+      stats: {
+        consultants: "Consultants",
+        aum: "AUM Managed",
+        satisfaction: "Satisfaction"
+      }
+    },
+    contact: {
+      title: "Get in Touch",
+      subtitle: "Ready to transform your financial consulting practice? Contact us today.",
+      form: {
+        firstName: "First Name",
+        lastName: "Last Name",
+        email: "Email Address",
+        company: "Company",
+        message: "Message",
+        placeholders: {
+          firstName: "John",
+          lastName: "Doe",
+          email: "john.doe@example.com",
+          company: "Your Company",
+          message: "How can we help you?"
+        },
+        privacy: "I agree to the Privacy Policy and Terms of Service",
+        submit: "Submit",
+        submitting: "Submitting...",
+        success: "Thank You!",
+        success_message: "We've received your message and will get back to you shortly."
+      },
+      validation: {
+        firstName: "First name is required",
+        lastName: "Last name is required",
+        email: "Please enter a valid email address",
+        message: "Message is required",
+        privacy: "You must agree to the terms and privacy policy"
+      },
+      error: "There was a problem submitting your form. Please try again."
+    },
+    footer: {
+      description: "The ultimate tool for financial consultants, powered by advanced AI.",
+      social: {
+        twitter: "Twitter",
+        linkedin: "LinkedIn"
+      },
+      sections: {
+        product: {
+          title: "Product",
+          features: "Features",
+          pricing: "Pricing",
+          use_cases: "Use Cases",
+          integrations: "Integrations"
+        },
+        company: {
+          title: "Company",
+          about: "About Us",
+          careers: "Careers",
+          blog: "Blog",
+          contact: "Contact"
+        },
+        resources: {
+          title: "Resources",
+          help: "Help Center",
+          documentation: "Documentation",
+          api: "API Reference",
+          privacy: "Privacy Policy"
+        }
+      },
+      copyright: "Watson Financial Technologies, Inc. All rights reserved."
     }
   }
 };
@@ -365,6 +439,80 @@ const resourcesIt = {
         description: "Traccia automaticamente le conversazioni con i clienti e genera documentazione conforme alle normative con l'aiuto dell'IA."
       },
       learn_more: "Scopri di più"
+    },
+    about: {
+      title: "Chi Siamo",
+      description1: "Watson è stato fondato da un team di esperti finanziari e ingegneri di IA che hanno riconosciuto le sfide che affrontano i consulenti finanziari moderni.",
+      description2: "La nostra missione è quella di dare ai consulenti finanziari una tecnologia all'avanguardia che semplifica compiti complessi, automatizza la documentazione e fornisce approfondimenti più profondi sui portafogli dei clienti.",
+      description3: "Dalla nostra fondazione nel 2020, abbiamo aiutato oltre 500 consulenti finanziari a risparmiare migliaia di ore e a far crescere le loro attività in media del 30%.",
+      team: "Il Nostro Team",
+      stats: {
+        consultants: "Consulenti",
+        aum: "AUM Gestiti",
+        satisfaction: "Soddisfazione"
+      }
+    },
+    contact: {
+      title: "Contattaci",
+      subtitle: "Pronto a trasformare la tua pratica di consulenza finanziaria? Contattaci oggi.",
+      form: {
+        firstName: "Nome",
+        lastName: "Cognome",
+        email: "Indirizzo Email",
+        company: "Azienda",
+        message: "Messaggio",
+        placeholders: {
+          firstName: "Mario",
+          lastName: "Rossi",
+          email: "mario.rossi@esempio.com",
+          company: "La Tua Azienda",
+          message: "Come possiamo aiutarti?"
+        },
+        privacy: "Accetto la Privacy Policy e i Termini di Servizio",
+        submit: "Invia",
+        submitting: "Invio in corso...",
+        success: "Grazie!",
+        success_message: "Abbiamo ricevuto il tuo messaggio e ti risponderemo al più presto."
+      },
+      validation: {
+        firstName: "Il nome è obbligatorio",
+        lastName: "Il cognome è obbligatorio",
+        email: "Inserisci un indirizzo email valido",
+        message: "Il messaggio è obbligatorio",
+        privacy: "Devi accettare i termini e la privacy policy"
+      },
+      error: "Si è verificato un problema durante l'invio del modulo. Riprova."
+    },
+    footer: {
+      description: "Lo strumento definitivo per i consulenti finanziari, alimentato da intelligenza artificiale avanzata.",
+      social: {
+        twitter: "Twitter",
+        linkedin: "LinkedIn"
+      },
+      sections: {
+        product: {
+          title: "Prodotto",
+          features: "Funzionalità",
+          pricing: "Prezzi",
+          use_cases: "Casi d'Uso",
+          integrations: "Integrazioni"
+        },
+        company: {
+          title: "Azienda",
+          about: "Chi Siamo",
+          careers: "Lavora con Noi",
+          blog: "Blog",
+          contact: "Contatti"
+        },
+        resources: {
+          title: "Risorse",
+          help: "Centro Assistenza",
+          documentation: "Documentazione",
+          api: "Riferimento API",
+          privacy: "Privacy Policy"
+        }
+      },
+      copyright: "Watson Financial Technologies, Inc. Tutti i diritti riservati."
     }
   }
 };
