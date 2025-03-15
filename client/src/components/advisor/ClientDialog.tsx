@@ -57,9 +57,15 @@ export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
   // Create client mutation
   const createClientMutation = useMutation({
     mutationFn: (data: ClientFormValues) => {
+      // Add the full name field required by the server
+      const payload = {
+        ...data,
+        name: `${data.firstName} ${data.lastName}` // This is needed for backward compatibility
+      };
+      
       return apiRequest('/api/clients', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(payload),
       });
     },
     onSuccess: () => {

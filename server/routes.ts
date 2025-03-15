@@ -323,15 +323,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate the onboarding data
       const onboardingSchema = z.object({
-        phone: z.string().optional(),
-        address: z.string().optional(),
-        taxCode: z.string().optional(),
+        // Personal Information
+        phone: z.string().min(5, "Phone number must be at least 5 characters"),
+        address: z.string().min(5, "Address must be at least 5 characters"),
+        taxCode: z.string().min(3, "Tax code must be at least 3 characters"),
+        employmentStatus: z.string().min(1, "Employment status is required"),
+        annualIncome: z.number().min(0, "Annual income must be 0 or greater"),
+        monthlyExpenses: z.number().min(0, "Monthly expenses must be 0 or greater"),
+        netWorth: z.number().min(0, "Net worth must be 0 or greater"),
+        dependents: z.number().min(0, "Number of dependents must be 0 or greater"),
+        
+        // Investment Profile
         riskProfile: z.enum(['conservative', 'moderate', 'balanced', 'growth', 'aggressive']),
+        investmentExperience: z.enum(['none', 'beginner', 'intermediate', 'advanced', 'expert']),
+        investmentGoals: z.array(z.enum([
+          'retirement', 'wealth_growth', 'income_generation', 'capital_preservation', 'estate_planning'
+        ])),
+        investmentHorizon: z.enum(['short_term', 'medium_term', 'long_term']),
+        
+        // Assets
         assets: z.array(z.object({
           category: z.enum(['real_estate', 'equity', 'bonds', 'cash', 'other']),
           value: z.number().min(0),
           description: z.string().optional()
-        })).optional()
+        })).min(1, "At least one asset is required")
       });
       
       const validatedData = onboardingSchema.parse(req.body);
