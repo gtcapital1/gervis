@@ -14,7 +14,7 @@ const resourcesEn = {
     hero: {
       title_1: "The Ultimate Assistant for",
       title_2: "Financial Consultants",
-      description: "Watson empowers financial consultants with AI-driven tools to deliver an exceptional financial advice experience. Automate documentation, optimize client management, and deliver AI enabled financial advice with Watson PRO.",
+      description: "Watson empowers financial consultants with AI-driven tools to deliver an exceptional financial advice experience. Automate documentation, optimize client management, and deliver AI enabled financial advice.",
       get_started: "Get Started",
       learn_more: "Learn More",
       title: "Watson Financial Advisor Platform",
@@ -270,9 +270,9 @@ const resourcesIt = {
       launch: "Avvia App"
     },
     hero: {
-      title_1: "L'assistente indispensabile per",
+      title_1: "L'assistente imprescindibile per",
       title_2: "Consulenti Finanziari",
-      description: "Watson potenzia i consulenti finanziari con strumenti basati sull'intelligenza artificiale per offrire un'esperienza di consulenza finanziaria eccezionale. Automatizza la documentazione, ottimizza la gestione dei clienti e fornisci consulenza finanziaria potenziata dall'IA con Watson PRO.",
+      description: "Watson rivoluziona il lavoro dei consulenti finanziari grazie a strumenti avanzati di intelligenza artificiale per garantire al cliente un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione della clientela e offri consulenza basata su IA.",
       get_started: "Inizia",
       learn_more: "Scopri di Più",
       title: "Piattaforma di Consulenza Finanziaria Watson",
@@ -484,7 +484,7 @@ const resourcesIt = {
       error: "Si è verificato un problema durante l'invio del modulo. Riprova."
     },
     footer: {
-      description: "L'assistente indispensabile per i Consulenti Finanziari, alimentato da intelligenza artificiale avanzata.",
+      description: "L'assistente imprescindibile per i Consulenti Finanziari, alimentato da intelligenza artificiale avanzata.",
       social: {
         twitter: "Twitter",
         linkedin: "LinkedIn"
