@@ -40,10 +40,10 @@ export default function Features() {
       learnMoreColor: "text-accent",
     },
     {
-      icon: <MessageCircle className="h-7 w-7 text-primary" />,
+      icon: <MessageCircle className="h-7 w-7 text-secondary" />,
       title: "Intelligent Assistant",
       description: "Automatically track client conversations and generate compliance-ready documentation with AI.",
-      learnMoreColor: "text-primary",
+      learnMoreColor: "text-secondary",
     },
   ];
 

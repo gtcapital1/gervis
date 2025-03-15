@@ -175,7 +175,7 @@ export default function Contact() {
                 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white py-6"
+                  className="w-full bg-gradient-to-r from-secondary to-accent hover:from-secondary/90 hover:to-accent/90 text-white py-6 font-medium"
                   disabled={form.formState.isSubmitting}
                 >
                   {form.formState.isSubmitting ? "Submitting..." : "Submit"}
