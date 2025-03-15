@@ -5,9 +5,16 @@ import {
   recommendations, type Recommendation, type InsertRecommendation
 } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { drizzle } from 'drizzle-orm/neon-serverless';
+import { eq, and, gt } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
+import connectPgSimple from "connect-pg-simple";
+import { randomBytes } from 'crypto';
+import createMemoryStore from 'memorystore';
 
 const MemoryStore = createMemoryStore(session);
+
+const PgSession = connectPgSimple(session);
 
 export interface IStorage {
   sessionStore: session.Store;
@@ -37,206 +44,102 @@ export interface IStorage {
   deleteRecommendation(id: number): Promise<boolean>;
 }
 
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
-
 export class PostgresStorage implements IStorage {
-  private pool: Pool;
-  private db: any;
+  private sql: any;
+  private db: ReturnType<typeof drizzle>;
   public sessionStore: session.Store;
   
   constructor() {
-    this.pool = new Pool({
-      connectionString: process.env.DATABASE_URL
-    });
-    this.db = drizzle(this.pool);
-
-  constructor() {
+    this.sql = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(this.sql);
+    
+    // Temporary memory store for sessions
     this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // Clear expired sessions every day
-    });
-    this.users = new Map();
-    this.clients = new Map();
-    this.assets = new Map();
-    this.recommendations = new Map();
-    this.userCurrentId = 1;
-    this.clientCurrentId = 1;
-    this.assetCurrentId = 1;
-    this.recommendationCurrentId = 1;
-    
-    // Add a default admin user with hashed password
-    // The password is "password" hashed with scrypt and salt
-    this.users.set(this.userCurrentId++, {
-      id: 1,
-      username: "admin",
-      password: "c6e19da1cbbfe0c96d33bc7972f0f9ab755fc78d592b874c3cc9c28146d7e94c78e28724a0d53cb8f5b5ed51552bf5bf24aa7adac5d7ca8a32df3761c3645acd.6c76704d14bc8241d1a89ebcab6d7371",
-      name: "Admin User",
-      email: "admin@watson.com",
-      role: "advisor"
+      checkPeriod: 86400000 // Clear expired sessions every day
     });
     
-    // Add demo clients for testing
-    // Demo client 1 (Regular client)
-    this.clients.set(this.clientCurrentId++, {
-      id: 1,
-      name: "John Smith",
-      email: "john.smith@example.com",
-      phone: "+1 (555) 123-4567",
-      address: "123 Main St, New York, NY 10001",
-      taxCode: "123-45-6789",
-      isOnboarded: true,
-      isArchived: false,
-      riskProfile: "balanced",
-      onboardingToken: null,
-      tokenExpiry: null,
-      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-      advisorId: 1
-    });
-    
-    // Demo client 2 (Not onboarded yet)
-    this.clients.set(this.clientCurrentId++, {
-      id: 2,
-      name: "Sarah Johnson",
-      email: "sarah.johnson@example.com",
-      phone: "+1 (555) 987-6543",
-      address: null,
-      taxCode: null,
-      isOnboarded: false,
-      isArchived: false,
-      riskProfile: null,
-      onboardingToken: null,
-      tokenExpiry: null,
-      createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-      advisorId: 1
-    });
-    
-    // Demo client 3 (Archived client)
-    this.clients.set(this.clientCurrentId++, {
-      id: 3,
-      name: "Robert Davis",
-      email: "robert.davis@example.com",
-      phone: "+1 (555) 456-7890",
-      address: "789 Oak Ave, Chicago, IL 60007",
-      taxCode: "987-65-4321",
-      isOnboarded: true,
-      isArchived: true,
-      riskProfile: "conservative",
-      onboardingToken: null,
-      tokenExpiry: null,
-      createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000), // 90 days ago
-      advisorId: 1
-    });
-    
-    // Add some assets for the demo clients
-    // Assets for John Smith (Client 1)
-    this.assets.set(this.assetCurrentId++, {
-      id: 1,
-      clientId: 1,
-      category: "real_estate",
-      value: 450000,
-      description: "Primary residence",
-      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
-    });
-    
-    this.assets.set(this.assetCurrentId++, {
-      id: 2,
-      clientId: 1,
-      category: "equity",
-      value: 150000,
-      description: "Stock portfolio",
-      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
-    });
-    
-    this.assets.set(this.assetCurrentId++, {
-      id: 3,
-      clientId: 1,
-      category: "cash",
-      value: 50000,
-      description: "Savings account",
-      createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000)
-    });
-    
-    // Assets for Robert Davis (Client 3)
-    this.assets.set(this.assetCurrentId++, {
-      id: 4,
-      clientId: 3,
-      category: "bonds",
-      value: 200000,
-      description: "Government bonds",
-      createdAt: new Date(Date.now() - 85 * 24 * 60 * 60 * 1000)
-    });
-    
-    this.assets.set(this.assetCurrentId++, {
-      id: 5,
-      clientId: 3,
-      category: "cash",
-      value: 75000,
-      description: "Emergency fund",
-      createdAt: new Date(Date.now() - 85 * 24 * 60 * 60 * 1000)
-    });
+    // We'll use the dynamic import for pg to avoid ESM issues
+    this.setupPgSession();
+  }
+  
+  private async setupPgSession() {
+    try {
+      const pg = await import('pg');
+      const pool = new pg.default.Pool({
+        connectionString: process.env.DATABASE_URL
+      });
+      
+      this.sessionStore = new PgSession({
+        pool: pool,
+        createTableIfMissing: true
+      });
+    } catch (error) {
+      console.error('Failed to setup PG session store:', error);
+      // Continue using memory store if this fails
+    }
   }
 
   // User Methods
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const result = await this.db.select().from(users).where(eq(users.id, id));
+    return result[0];
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+    const result = await this.db.select().from(users).where(eq(users.username, username));
+    return result[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userCurrentId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+    const result = await this.db.insert(users).values(insertUser).returning();
+    return result[0];
   }
   
   // Client Methods
   async getClient(id: number): Promise<Client | undefined> {
-    return this.clients.get(id);
+    const result = await this.db.select().from(clients).where(eq(clients.id, id));
+    return result[0];
   }
   
   async getClientsByAdvisor(advisorId: number): Promise<Client[]> {
-    return Array.from(this.clients.values()).filter(
-      (client) => client.advisorId === advisorId
-    );
+    const result = await this.db.select().from(clients).where(eq(clients.advisorId, advisorId));
+    return result;
   }
   
   async createClient(insertClient: InsertClient): Promise<Client> {
-    const id = this.clientCurrentId++;
-    const client: Client = { 
-      ...insertClient, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.clients.set(id, client);
-    return client;
+    const result = await this.db.insert(clients).values({
+      ...insertClient,
+      createdAt: new Date()
+    }).returning();
+    return result[0];
   }
   
   async updateClient(id: number, clientUpdate: Partial<Client>): Promise<Client> {
-    const client = this.clients.get(id);
-    if (!client) {
+    const result = await this.db.update(clients)
+      .set(clientUpdate)
+      .where(eq(clients.id, id))
+      .returning();
+    
+    if (!result[0]) {
       throw new Error(`Client with id ${id} not found`);
     }
     
-    const updatedClient = { ...client, ...clientUpdate };
-    this.clients.set(id, updatedClient);
-    return updatedClient;
+    return result[0];
   }
   
   async deleteClient(id: number): Promise<boolean> {
-    return this.clients.delete(id);
+    const result = await this.db.delete(clients).where(eq(clients.id, id)).returning();
+    return result.length > 0;
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {
-    return Array.from(this.clients.values()).find(
-      (client) => client.onboardingToken === token && 
-                  client.tokenExpiry && 
-                  new Date(client.tokenExpiry) > new Date()
+    const result = await this.db.select().from(clients).where(
+      and(
+        eq(clients.onboardingToken, token),
+        gt(clients.tokenExpiry as any, new Date())
+      )
     );
+    return result[0];
   }
   
   async generateOnboardingToken(clientId: number): Promise<string> {
@@ -246,7 +149,7 @@ export class PostgresStorage implements IStorage {
     }
     
     // Generate a random token
-    const token = Array.from(Array(32), () => Math.floor(Math.random() * 36).toString(36)).join('');
+    const token = randomBytes(16).toString('hex');
     
     // Set token expiry to 7 days from now
     const expiry = new Date();
@@ -263,58 +166,54 @@ export class PostgresStorage implements IStorage {
   
   // Asset Methods
   async getAssetsByClient(clientId: number): Promise<Asset[]> {
-    return Array.from(this.assets.values()).filter(
-      (asset) => asset.clientId === clientId
-    );
+    const result = await this.db.select().from(assets).where(eq(assets.clientId, clientId));
+    return result;
   }
   
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {
-    const id = this.assetCurrentId++;
-    const asset: Asset = { 
-      ...insertAsset, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.assets.set(id, asset);
-    return asset;
+    const result = await this.db.insert(assets).values({
+      ...insertAsset,
+      createdAt: new Date()
+    }).returning();
+    return result[0];
   }
   
   async updateAsset(id: number, assetUpdate: Partial<Asset>): Promise<Asset> {
-    const asset = this.assets.get(id);
-    if (!asset) {
+    const result = await this.db.update(assets)
+      .set(assetUpdate)
+      .where(eq(assets.id, id))
+      .returning();
+    
+    if (!result[0]) {
       throw new Error(`Asset with id ${id} not found`);
     }
     
-    const updatedAsset = { ...asset, ...assetUpdate };
-    this.assets.set(id, updatedAsset);
-    return updatedAsset;
+    return result[0];
   }
   
   async deleteAsset(id: number): Promise<boolean> {
-    return this.assets.delete(id);
+    const result = await this.db.delete(assets).where(eq(assets.id, id)).returning();
+    return result.length > 0;
   }
   
   // Recommendation Methods
   async getRecommendationsByClient(clientId: number): Promise<Recommendation[]> {
-    return Array.from(this.recommendations.values()).filter(
-      (recommendation) => recommendation.clientId === clientId
-    );
+    const result = await this.db.select().from(recommendations).where(eq(recommendations.clientId, clientId));
+    return result;
   }
   
   async createRecommendation(insertRecommendation: InsertRecommendation): Promise<Recommendation> {
-    const id = this.recommendationCurrentId++;
-    const recommendation: Recommendation = { 
-      ...insertRecommendation, 
-      id, 
-      createdAt: new Date() 
-    };
-    this.recommendations.set(id, recommendation);
-    return recommendation;
+    const result = await this.db.insert(recommendations).values({
+      ...insertRecommendation,
+      createdAt: new Date()
+    }).returning();
+    return result[0];
   }
   
   async deleteRecommendation(id: number): Promise<boolean> {
-    return this.recommendations.delete(id);
+    const result = await this.db.delete(recommendations).where(eq(recommendations.id, id)).returning();
+    return result.length > 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new PostgresStorage();

@@ -30,11 +30,12 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "watson-super-secret-key",
+    secret: process.env.SESSION_SECRET || "top-secret-session-key",
     resave: false,
     saveUninitialized: false,
+    store: storage.sessionStore,
     cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
     }
   };
 
@@ -45,43 +46,50 @@ export function setupAuth(app: Express) {
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
-      const user = await storage.getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        } else {
+          return done(null, user);
+        }
+      } catch (err) {
+        return done(err);
       }
     }),
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: number, done) => {
-    const user = await storage.getUser(id);
-    done(null, user);
+    try {
+      const user = await storage.getUser(id);
+      done(null, user);
+    } catch (err) {
+      done(err);
+    }
   });
 
   app.post("/api/register", async (req, res, next) => {
     try {
       const existingUser = await storage.getUserByUsername(req.body.username);
       if (existingUser) {
-        return res.status(400).json({ success: false, message: "Username already exists" });
+        return res.status(400).json({ 
+          success: false, 
+          message: "Username already exists" 
+        });
       }
 
-      const hashedPassword = await hashPassword(req.body.password);
       const user = await storage.createUser({
         ...req.body,
-        password: hashedPassword,
+        password: await hashPassword(req.body.password),
       });
 
       req.login(user, (err) => {
         if (err) return next(err);
-        // Don't expose the password hash
-        const { password, ...safeUser } = user;
-        res.status(201).json({ success: true, user: safeUser });
+        res.status(201).json({ success: true, user });
       });
-    } catch (error) {
-      console.error("Registration error:", error);
-      res.status(500).json({ success: false, message: "Error during registration" });
+    } catch (err) {
+      next(err);
     }
   });
 
@@ -89,13 +97,15 @@ export function setupAuth(app: Express) {
     passport.authenticate("local", (err, user, info) => {
       if (err) return next(err);
       if (!user) {
-        return res.status(401).json({ success: false, message: "Invalid username or password" });
+        return res.status(401).json({ 
+          success: false, 
+          message: "Invalid username or password" 
+        });
       }
+      
       req.login(user, (err) => {
         if (err) return next(err);
-        // Don't expose the password hash
-        const { password, ...safeUser } = user;
-        return res.json({ success: true, user: safeUser });
+        return res.status(200).json({ success: true, user });
       });
     })(req, res, next);
   });
@@ -103,16 +113,17 @@ export function setupAuth(app: Express) {
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.json({ success: true });
+      res.status(200).json({ success: true });
     });
   });
 
   app.get("/api/user", (req, res) => {
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ success: false, message: "Not authenticated" });
+      return res.status(401).json({ 
+        success: false, 
+        message: "Not authenticated" 
+      });
     }
-    // Don't expose the password hash
-    const { password, ...safeUser } = req.user as SelectUser;
-    res.json({ success: true, user: safeUser });
+    res.json({ success: true, user: req.user });
   });
 }
