@@ -15,6 +15,7 @@ import {
   Mail,
   Check,
   AlertTriangle,
+  PlusCircle,
 } from "lucide-react";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { Button } from "@/components/ui/button";
