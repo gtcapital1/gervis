@@ -38,15 +38,15 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
 
   // Fetch clients
-  const { data: clients, isLoading, isError } = useQuery({
+  const { data: clients = [], isLoading, isError } = useQuery<Client[]>({
     queryKey: ['/api/clients'],
     retry: 1,
   });
 
-  const filteredClients = clients?.filter((client: Client) => 
+  const filteredClients = clients.filter((client: Client) => 
     client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     client.email.toLowerCase().includes(searchQuery.toLowerCase())
-  ) || [];
+  );
 
   function formatDate(date: Date | string | null) {
     if (!date) return "N/A";

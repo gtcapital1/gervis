@@ -37,7 +37,7 @@ export default function ClientDetail() {
     data: client, 
     isLoading, 
     isError 
-  } = useQuery({
+  } = useQuery<Client>({
     queryKey: [`/api/clients/${clientId}`],
     enabled: !isNaN(clientId)
   });
@@ -46,7 +46,7 @@ export default function ClientDetail() {
   const { 
     data: assets = [], 
     isLoading: isLoadingAssets 
-  } = useQuery({
+  } = useQuery<any[]>({
     queryKey: [`/api/clients/${clientId}/assets`],
     enabled: !isNaN(clientId) && !!client?.isOnboarded,
   });
