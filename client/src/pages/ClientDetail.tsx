@@ -452,19 +452,19 @@ Cordiali saluti,`
                         {client.annualIncome ? (
                           <div>
                             <span className="text-sm text-muted-foreground block">Annual Income:</span>
-                            <span className="text-lg font-medium">${client.annualIncome.toLocaleString()}</span>
+                            <span className="text-lg font-medium">€{client.annualIncome.toLocaleString()}</span>
                           </div>
                         ) : null}
                         {client.monthlyExpenses ? (
                           <div>
                             <span className="text-sm text-muted-foreground block">Monthly Expenses:</span>
-                            <span className="text-lg font-medium">${client.monthlyExpenses.toLocaleString()}</span>
+                            <span className="text-lg font-medium">€{client.monthlyExpenses.toLocaleString()}</span>
                           </div>
                         ) : null}
                         {client.netWorth ? (
                           <div>
                             <span className="text-sm text-muted-foreground block">Net Worth:</span>
-                            <span className="text-lg font-medium">${client.netWorth.toLocaleString()}</span>
+                            <span className="text-lg font-medium">€{client.netWorth.toLocaleString()}</span>
                           </div>
                         ) : null}
                       </div>
@@ -644,12 +644,12 @@ Cordiali saluti,`
                                     />
                                     <span className="font-medium capitalize">{asset.category.replace(/_/g, ' ')}</span>
                                   </div>
-                                  <div className="font-semibold">${asset.value.toLocaleString()}</div>
+                                  <div className="font-semibold">€{asset.value.toLocaleString()}</div>
                                 </div>
                               ))}
                               <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
                                 <div className="font-semibold">Total</div>
-                                <div className="font-bold">${totalValue.toLocaleString()}</div>
+                                <div className="font-bold">€{totalValue.toLocaleString()}</div>
                               </div>
                             </div>
                           </div>
@@ -709,7 +709,7 @@ Cordiali saluti,`
                                         ))}
                                       </Pie>
                                       <Tooltip 
-                                        formatter={(value: number) => [`$${value.toLocaleString()}`, 'Value']}
+                                        formatter={(value: number) => [`€${value.toLocaleString()}`, 'Value']}
                                       />
                                     </RechartsPieChart>
                                   </ResponsiveContainer>
