@@ -8,26 +8,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Check } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { httpRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+
+const createContactFormSchema = (t: any) => z.object({
+  firstName: z.string().min(1, t('contact.validation.firstName')),
+  lastName: z.string().min(1, t('contact.validation.lastName')),
+  email: z.string().email(t('contact.validation.email')),
+  company: z.string().optional(),
+  message: z.string().min(1, t('contact.validation.message')),
+  privacy: z.boolean().refine(val => val === true, {
+    message: t('contact.validation.privacy')
+  })
+});
 
 export default function Contact() {
   const { t } = useTranslation();
   const [isSubmitted, setIsSubmitted] = useState(false);
   const { toast } = useToast();
   
-  const contactFormSchema = z.object({
-    firstName: z.string().min(1, t('contact.validation.firstName')),
-    lastName: z.string().min(1, t('contact.validation.lastName')),
-    email: z.string().email(t('contact.validation.email')),
-    company: z.string().optional(),
-    message: z.string().min(1, t('contact.validation.message')),
-    privacy: z.boolean().refine(val => val === true, {
-      message: t('contact.validation.privacy')
-    })
-  });
-  
+  const contactFormSchema = createContactFormSchema(t);
   type ContactFormValues = z.infer<typeof contactFormSchema>;
   
   const form = useForm<ContactFormValues>({
@@ -44,7 +45,7 @@ export default function Contact() {
 
   async function onSubmit(data: ContactFormValues) {
     try {
-      await apiRequest("POST", "/api/contact", data);
+      await httpRequest("POST", "/api/contact", data);
       setIsSubmitted(true);
     } catch (error) {
       toast({
