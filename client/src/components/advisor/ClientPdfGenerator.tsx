@@ -199,9 +199,17 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     doc.line(15, signatureY + 25, 85, signatureY + 25);
     doc.line(110, signatureY + 25, 180, signatureY + 25);
     
-    // Add advisor signature if available
+    // Add advisor signature if available and valid
     if (advisorSignature) {
-      doc.addImage(advisorSignature, 'PNG', 15, signatureY + 5, 70, 20);
+      try {
+        doc.addImage(advisorSignature, 'PNG', 15, signatureY + 5, 70, 20);
+      } catch (error) {
+        console.warn("Could not add advisor signature image:", error);
+        // Instead add text to indicate a signature would be here
+        doc.setFontSize(10);
+        doc.setTextColor(100, 100, 100);
+        doc.text(t('pdf.signatureHere'), 35, signatureY + 15);
+      }
     }
     
     // Add footer
@@ -227,7 +235,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="default" className="flex items-center gap-2 bg-green-600 hover:bg-green-700">
           <FileText className="h-4 w-4" />
           {t('pdf.generatePdf')}
         </Button>
