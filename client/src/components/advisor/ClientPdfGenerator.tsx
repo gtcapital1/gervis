@@ -28,22 +28,25 @@ interface Asset {
   createdAt: string;
 }
 
+// Utilizziamo un'interfaccia Client compatibile con i dati che riceviamo dalla pagina di dettaglio
 interface Client {
   id: number;
   name: string;
   email: string;
-  phone?: string;
-  address?: string;
-  isOnboarded: boolean;
-  riskProfile?: string;
-  investmentGoal?: string;
-  investmentGoals?: string[];
-  investmentHorizon?: string;
-  experienceLevel?: string;
-  investmentExperience?: string;
-  advisorId: number;
+  phone?: string | null;
+  address?: string | null;
+  taxCode?: string | null;
+  isOnboarded: boolean | null;
+  riskProfile?: string | null;
+  investmentExperience?: string | null;
+  investmentGoals?: string[] | null;
+  investmentHorizon?: string | null;
+  advisorId: number | null;
+  createdAt?: Date | string | null;
+  firstName?: string;
+  lastName?: string;
   advisorName?: string;
-  createdAt?: string;
+  experienceLevel?: string | null;
 }
 import { Label } from "@/components/ui/label";
 
@@ -114,9 +117,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
       [`${t('pdf.riskProfile')}:`, t(`riskProfiles.${client.riskProfile}`) || t('pdf.notProvided')],
-      [`${t('pdf.investmentGoal')}:`, t(`investmentGoals.${client.investmentGoal}`) || t('pdf.notProvided')],
+      [`${t('pdf.investmentGoals')}:`, client.investmentGoals?.map(goal => t(`investmentGoals.${goal}`)).join(', ') || t('pdf.notProvided')],
       [`${t('pdf.investmentHorizon')}:`, t(`investmentHorizons.${client.investmentHorizon}`) || t('pdf.notProvided')],
-      [`${t('pdf.experienceLevel')}:`, t(`experienceLevels.${client.experienceLevel}`) || t('pdf.notProvided')],
+      [`${t('pdf.experienceLevel')}:`, t(`experienceLevels.${client.investmentExperience}`) || t('pdf.notProvided')],
     ];
     
     autoTable(doc, {
