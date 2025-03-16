@@ -32,7 +32,7 @@ const resourcesIt = {
       }
     },
     features: {
-      title: "Soluzioni Potenti per Consulenti Finanziari",
+      title: "Cosa offriamo",
       subtitle: "Strumenti completi per migliorare il tuo servizio di consulenza e offrire valore aggiunto ai tuoi clienti.",
       learn_more: "Scopri di Più",
       onboarding: {
@@ -451,7 +451,7 @@ const resourcesEn = {
       }
     },
     features: {
-      title: "Powerful Solutions for Financial Advisors",
+      title: "What We Offer",
       subtitle: "Comprehensive tools to enhance your consulting service and provide added value to your clients.",
       learn_more: "Learn More",
       onboarding: {
