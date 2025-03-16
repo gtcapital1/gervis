@@ -66,94 +66,96 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
     
-    // Intestazione in alto
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(t('pdf.coverLetter.heading'), 105, 20, { align: "center" });
-    
-    // Mittente (Consulente)
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.fromAdvisor')}:`, 15, 40);
-    doc.setFont('helvetica', 'normal');
-    
-    // Estrai nome, cognome e società dalla firma
+    // Estrai informazioni del consulente
     const advisorInfo = client.advisorId ? (advisorSignature?.split('\n') || []) : [];
     const advisorName = advisorInfo[0] || "Financial Advisor";
     const advisorCompany = advisorInfo[1] || "";
+    const advisorEmail = advisorInfo[2] || "";
+    const advisorPhone = advisorInfo[3] || "";
     
-    doc.text(advisorName, 45, 40);
+    // Usa un font più elegante per la lettera
+    doc.setFont('times', 'normal');
+    
+    // Mittente a sinistra in alto (nome, cognome, società, mail, telefono)
+    doc.setFontSize(11);
+    doc.text(advisorName, 20, 25);
     if (advisorCompany) {
-      doc.text(advisorCompany, 45, 46);
+      doc.text(advisorCompany, 20, 30);
+    }
+    if (advisorEmail) {
+      doc.text(advisorEmail, 20, 35);
+    }
+    if (advisorPhone) {
+      doc.text(advisorPhone, 20, 40);
     }
     
-    // Data
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.date')}:`, 140, 40);
-    doc.setFont('helvetica', 'normal');
+    // Data in alto a destra
     const now = new Date();
     const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-    doc.text(dateStr, 155, 40);
+    doc.text(dateStr, 150, 25, { align: "right" });
     
-    // Linea separatrice
-    doc.setDrawColor(100, 100, 100);
-    doc.line(15, 50, 195, 50);
+    // Destinatario in basso a destra
+    doc.text(`${t('pdf.coverLetter.toClient')}:`, 150, 50, { align: "right" });
+    doc.setFont('times', 'bold');
+    doc.text(`${client.firstName} ${client.lastName}`, 150, 55, { align: "right" });
+    doc.setFont('times', 'normal');
+    if (client.email) {
+      doc.text(client.email, 150, 60, { align: "right" });
+    }
     
-    // Destinatario (Cliente)
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.toClient')}:`, 15, 60);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`${client.firstName} ${client.lastName}`, 45, 60);
+    // Titolo della lettera
+    doc.setFont('times', 'bold');
+    doc.setFontSize(14);
+    doc.text(t('pdf.coverLetter.title'), 105, 80, { align: "center" });
     
-    // Oggetto
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.subject')}:`, 15, 70);
-    doc.setFont('helvetica', 'normal');
-    doc.text(t('pdf.coverLetter.title'), 45, 70);
-    
-    // Spazio
+    // Saluti
+    doc.setFontSize(11);
+    doc.setFont('times', 'normal');
     const greetingText = `${t('pdf.coverLetter.greetings')} ${client.firstName},`;
-    doc.text(greetingText, 15, 85);
+    doc.text(greetingText, 20, 95);
     
     // Corpo della lettera
     const introText = t('pdf.coverLetter.intro');
-    const introLines = doc.splitTextToSize(introText, 180);
-    doc.text(introLines, 15, 95);
+    const introLines = doc.splitTextToSize(introText, 170);
+    doc.text(introLines, 20, 105);
     
     // Collaboration text
     const collaborationText = t('pdf.coverLetter.collaboration');
-    doc.text(collaborationText, 15, 115);
+    doc.text(collaborationText, 20, 125);
     
     // Bullet points
     const points = t('pdf.coverLetter.points', { returnObjects: true }) as string[];
-    let bulletY = 122;
+    let bulletY = 132;
     
     for (const point of points) {
-      doc.text(`- ${point}`, 20, bulletY);
-      bulletY += 7;
+      const pointLines = doc.splitTextToSize(`• ${point}`, 160);
+      doc.text(pointLines, 25, bulletY);
+      bulletY += pointLines.length * 6;
     }
     
     // Process text
     const processText = t('pdf.coverLetter.process');
-    const processLines = doc.splitTextToSize(processText, 180);
-    doc.text(processLines, 15, bulletY + 5);
+    const processLines = doc.splitTextToSize(processText, 170);
+    doc.text(processLines, 20, bulletY + 5);
     
     // Contact info
     const contactText = t('pdf.coverLetter.contactInfo');
-    const contactLines = doc.splitTextToSize(contactText, 180);
-    doc.text(contactLines, 15, bulletY + 20);
+    const contactLines = doc.splitTextToSize(contactText, 170);
+    doc.text(contactLines, 20, bulletY + 20);
     
     // Chiusura e firma
-    doc.text(t('pdf.coverLetter.closing'), 15, bulletY + 40);
+    doc.text(t('pdf.coverLetter.closing'), 20, bulletY + 40);
     
     // Nome, cognome e società nella firma
-    doc.text(advisorName, 15, bulletY + 50);
+    doc.setFont('times', 'bold');
+    doc.text(advisorName, 20, bulletY + 50);
+    doc.setFont('times', 'normal');
     if (advisorCompany) {
-      doc.text(advisorCompany, 15, bulletY + 56);
+      doc.text(advisorCompany, 20, bulletY + 56);
     }
     
     // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
@@ -180,8 +182,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
       [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
-      [`${t('onboarding.income')}:`, client.annualIncome ? formatCurrency(client.annualIncome) + ' €' : t('pdf.notProvided')],
-      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? formatCurrency(client.monthlyExpenses) + ' €' : t('pdf.notProvided')],
+      [`${t('onboarding.income')}:`, client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : t('pdf.notProvided')],
+      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : t('pdf.notProvided')],
       [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
       [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
     ];
@@ -264,13 +266,13 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
         body: [
           ...assets.map(asset => [
             t(`asset_categories.${asset.category}`),
-            formatCurrency(asset.value) + ' €',
+            `${formatCurrency(asset.value)} €`,
             `${Math.round((asset.value / totalValue) * 100)}%`
           ]),
           // Aggiungi il totale come ultima riga della tabella
           [
             `${t('pdf.totalAssetsValue')}`,
-            formatCurrency(totalValue) + ' €',
+            `${formatCurrency(totalValue)} €`,
             '100%'
           ]
         ],
@@ -325,15 +327,15 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     doc.line(15, signatureY + 25, 85, signatureY + 25);
     
-    // Add page numbers
+    // Add page numbers solo alle pagine del modulo (non alla lettera)
     const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
+    for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
       
-      // Page numbers
+      // Page numbers - partendo da pag 1 per il modulo
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text(`${t('pdf.page')} ${i} ${t('pdf.of')} ${pageCount}`, 170, 285);
+      doc.text(`${t('pdf.page')} ${i-1} ${t('pdf.of')} ${pageCount-1}`, 170, 285);
     }
     
     // Save the PDF

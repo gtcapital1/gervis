@@ -6,9 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(value: number): string {
+  // Format as number with thousand separators, then replace the € sign with value and add space
   return new Intl.NumberFormat('en-EU', {
-    style: 'currency',
-    currency: 'EUR',
+    style: 'decimal',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value)
