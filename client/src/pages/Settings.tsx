@@ -55,13 +55,20 @@ const signatureFormSchema = z.object({
   }),
 });
 
+// Schema per il form del logo aziendale
+const companyLogoFormSchema = z.object({
+  companyLogo: z.string().optional(),
+});
+
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 type SignatureFormValues = z.infer<typeof signatureFormSchema>;
+type CompanyLogoFormValues = z.infer<typeof companyLogoFormSchema>;
 
 export default function Settings() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [previewLogo, setPreviewLogo] = useState<string | null>(null);
   
   // Form setup with default values
   const form = useForm<PasswordFormValues>({
@@ -81,12 +88,25 @@ export default function Settings() {
     },
   });
   
+  // Company logo form setup
+  const logoForm = useForm<CompanyLogoFormValues>({
+    resolver: zodResolver(companyLogoFormSchema),
+    defaultValues: {
+      companyLogo: "",
+    },
+  });
+  
   // Update signature form when user data changes
   useEffect(() => {
     if (user) {
       signatureForm.reset({
         signature: user.signature || "",
       });
+      
+      // Set preview logo from user data if available
+      if (user.companyLogo) {
+        setPreviewLogo(user.companyLogo);
+      }
     }
   }, [user, signatureForm]);
 
@@ -182,6 +202,61 @@ export default function Settings() {
   // Signature form submission handler
   function onSignatureSubmit(data: SignatureFormValues) {
     signatureMutation.mutate(data);
+  }
+  
+  // Company logo mutation
+  const logoMutation = useMutation({
+    mutationFn: (data: CompanyLogoFormValues) => {
+      return apiRequest(`/api/users/${user?.id}/company-logo`, {
+        method: "POST",
+        body: JSON.stringify({
+          companyLogo: data.companyLogo,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Logo aggiornato",
+        description: "Il logo aziendale è stato aggiornato con successo",
+      });
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile aggiornare il logo aziendale",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Handle logo file upload
+  function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      toast({
+        title: "File troppo grande",
+        description: "Il logo deve essere inferiore a 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setPreviewLogo(result);
+      logoForm.setValue("companyLogo", result);
+    };
+    reader.readAsDataURL(file);
+  }
+  
+  // Company logo form submission handler
+  function onLogoSubmit(data: CompanyLogoFormValues) {
+    logoMutation.mutate(data);
   }
 
   return (
@@ -313,6 +388,61 @@ export default function Settings() {
                   </>
                 )}
               </div>
+            </CardContent>
+          </Card>
+          
+          {/* Company Logo Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Logo Aziendale</CardTitle>
+              <CardDescription>
+                Carica il logo della tua azienda da utilizzare nei documenti PDF
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...logoForm}>
+                <form onSubmit={logoForm.handleSubmit(onLogoSubmit)} className="space-y-4">
+                  <div className="flex flex-col space-y-6">
+                    {/* Logo preview */}
+                    {previewLogo && (
+                      <div className="mb-4">
+                        <h3 className="font-medium mb-2">Anteprima Logo</h3>
+                        <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
+                          <img 
+                            src={previewLogo} 
+                            alt="Company Logo Preview" 
+                            className="max-h-[150px] max-w-full object-contain"
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Upload input for logo */}
+                    <div>
+                      <FormLabel>Seleziona file logo (max 2MB)</FormLabel>
+                      <div className="mt-2">
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleLogoUpload}
+                          className="cursor-pointer"
+                        />
+                      </div>
+                      <FormDescription>
+                        Il logo verrà utilizzato come filigrana nell'intestazione dei tuoi documenti PDF
+                      </FormDescription>
+                    </div>
+                    
+                    <Button
+                      type="submit"
+                      disabled={logoMutation.isPending || !previewLogo}
+                      className="mt-4"
+                    >
+                      {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
             </CardContent>
           </Card>
           

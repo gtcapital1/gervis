@@ -196,6 +196,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update company logo
+  app.post('/api/users/:userId/company-logo', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Ensure the user is only updating their own logo
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to update this account' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Logo schema
+      const logoSchema = z.object({
+        companyLogo: z.string()
+      });
+      
+      const validatedData = logoSchema.parse(req.body);
+      
+      // Check logo size (roughly - assuming base64 encoding is ~4/3 the size of binary)
+      const base64Data = validatedData.companyLogo.split(',')[1] || validatedData.companyLogo;
+      const estimatedSizeInBytes = Math.ceil((base64Data.length * 3) / 4);
+      
+      // 2MB limit
+      if (estimatedSizeInBytes > 2 * 1024 * 1024) {
+        return res.status(400).json({ 
+          message: 'Logo file is too large. Maximum size is 2MB.' 
+        });
+      }
+      
+      // Update the user's company logo
+      await storage.updateUser(userId, {
+        companyLogo: validatedData.companyLogo
+      });
+      
+      res.json({ 
+        success: true,
+        message: 'Company logo updated successfully'
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        console.error('Error updating company logo:', error);
+        res.status(500).json({ message: 'Failed to update company logo' });
+      }
+    }
+  });
+  
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {
