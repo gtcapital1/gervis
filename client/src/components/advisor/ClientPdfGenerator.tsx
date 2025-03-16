@@ -864,12 +864,6 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                     <p>{client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
                     <p className="font-bold">{language === "english" ? "Investment Horizon:" : "Orizzonte di Investimento:"}</p>
                     <p>{client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
-                    <p className="font-bold">{language === "english" ? "Investment Goals:" : "Obiettivi di Investimento:"}</p>
-                    <p>{client.investmentGoals && client.investmentGoals.length > 0 
-                      ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(", ")
-                      : (language === "english" ? "Not provided" : "Non fornito")}</p>
-                    <p className="font-bold">{language === "english" ? "Experience Level:" : "Livello di Esperienza:"}</p>
-                    <p>{client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
                   </div>
                   
                   <h4 className="font-bold mt-4">{language === "english" ? "Asset Allocation" : "Allocazione Asset"}</h4>
