@@ -124,9 +124,10 @@ export default function ClientDetail() {
   // State for the onboarding link
   const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  // La lingua dell'email deve essere ereditata dalla lingua dell'interfaccia corrente
+  // La lingua dell'email viene sempre impostata su italiano
   const { i18n } = useTranslation();
-  const [emailLanguage, setEmailLanguage] = useState<"english" | "italian">(i18n.language === "it" ? "italian" : "english");
+  // Impostiamo sempre italiano come lingua predefinita per l'email
+  const emailLanguage = "italian";
   const [emailMessage, setEmailMessage] = useState<string>("");
   
   // Initialize default email messages
@@ -243,12 +244,9 @@ ${user?.name || ""}`
   function handleSendOnboardingForm() {
     // If the dialog is not open, open it
     if (!onboardingLink) {
-      // Usa la lingua dell'interfaccia corrente per l'invio dell'email
-      const currentLanguage = i18n.language === "it" ? "italian" : "english";
-      // Aggiorniamo lo stato della lingua prima di aprire il dialogo
-      setEmailLanguage(currentLanguage);
-      // Set default message based on the selected language
-      setEmailMessage(defaultEmailMessages[currentLanguage]);
+      // Usa sempre italiano come lingua per l'invio dell'email
+      // Set default message based on Italian
+      setEmailMessage(defaultEmailMessages["italian"]);
       setIsEmailDialogOpen(true);
     } else {
       // If the link already exists, reset it
@@ -817,12 +815,12 @@ ${user?.name || ""}`
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-6">
-            {/* La lingua dell'email viene ereditata automaticamente dall'interfaccia */}
+            {/* La lingua dell'email è sempre in italiano */}
             <div className="rounded-lg border bg-muted p-3">
               <div className="flex items-center space-x-2">
                 <Info className="h-4 w-4 text-accent" />
                 <p className="text-sm text-muted-foreground">
-                  {t('client.email_language_auto', { language: emailLanguage === 'italian' ? t('languages.italian') : t('languages.english') })}
+                  L'email verrà inviata in italiano
                 </p>
               </div>
             </div>
