@@ -32,7 +32,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<Client>): Promise<Client>;
   deleteClient(id: number): Promise<boolean>;
-  generateOnboardingToken(clientId: number, language?: 'english' | 'italian', customMessage?: string): Promise<string>;
+  generateOnboardingToken(clientId: number, language?: 'english' | 'italian', customMessage?: string, advisorEmail?: string): Promise<string>;
   archiveClient(id: number): Promise<Client>;
   restoreClient(id: number): Promise<Client>;
   updateClientPassword(clientId: number, password: string): Promise<boolean>;
@@ -241,7 +241,7 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
   
-  async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english', customMessage?: string): Promise<string> {
+  async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english', customMessage?: string, advisorEmail?: string): Promise<string> {
     const client = await this.getClient(clientId);
     if (!client) {
       throw new Error(`Client with id ${clientId} not found`);
@@ -270,6 +270,9 @@ export class PostgresStorage implements IStorage {
 
     // Send onboarding email
     try {
+      // Use advisor email if provided, otherwise get from advisor object
+      const emailToUse = advisorEmail || (advisor ? advisor.email : undefined);
+      
       await sendOnboardingEmail(
         client.email,
         client.firstName,
@@ -277,7 +280,8 @@ export class PostgresStorage implements IStorage {
         onboardingLink,
         language,
         customMessage,
-        advisorSignature
+        advisorSignature,
+        emailToUse
       );
       console.log(`Onboarding email sent to ${client.email} in ${language}`);
     } catch (error) {

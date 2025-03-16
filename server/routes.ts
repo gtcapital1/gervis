@@ -713,7 +713,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: 'Not authorized to generate token for this client' });
       }
       
-      const token = await storage.generateOnboardingToken(clientId, language, customMessage);
+      // Include advisor email to send CC
+      const token = await storage.generateOnboardingToken(clientId, language, customMessage, req.user?.email);
       
       // Return the token and a link that can be sent to the client
       const onboardingLink = `${req.protocol}://${req.get('host')}/onboarding/${token}`;
