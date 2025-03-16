@@ -608,14 +608,13 @@ ${closing}`;
         "Welcome to our consultancy service" : 
         "Benvenuto nel nostro servizio di consulenza");
       
-      const defaultMessage = currentLanguage === "english" ? 
-        `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
-        `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`;
+      // Usa il contenuto della lettera come corpo dell'email
+      const emailMessage = letterFields.fullContent;
       
       const emailData = {
         to: client.email,
         subject: emailSubject || defaultSubject,
-        message: emailCustomMessage || defaultMessage,
+        message: emailMessage,
         includeAttachment: true,
         pdfBase64,
         fileName: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
@@ -754,20 +753,10 @@ ${closing}`;
                 onChange={(e) => setEmailSubject(e.target.value)}
               />
             </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="emailMessage" className="text-right">
-                {t('pdf.emailMessage')}
-              </Label>
-              <Textarea
-                id="emailMessage"
-                className="col-span-3"
-                rows={4}
-                placeholder={currentLanguage === "english" ? 
-                  `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
-                  `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`}
-                value={emailCustomMessage}
-                onChange={(e) => setEmailCustomMessage(e.target.value)}
-              />
+            <div className="grid grid-cols-4 items-center">
+              <div className="col-span-4 text-sm text-muted-foreground">
+                {t('pdf.emailBodyInfoMessage')}
+              </div>
             </div>
           </div>
           

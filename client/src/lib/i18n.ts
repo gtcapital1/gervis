@@ -359,6 +359,7 @@ const resourcesEn = {
       emailDialogDescription: "Send this report by email to the client",
       emailSubject: "Subject",
       emailMessage: "Message",
+      emailBodyInfoMessage: "The letter content will be used as the email body",
       emailDefaultSubject: "Welcome to our consultancy service",
       send: "Send",
       noEmailProvided: "Client email is not provided"
