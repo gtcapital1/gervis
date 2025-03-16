@@ -610,9 +610,17 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           pdfDoc.setFontSize(8);
           pdfDoc.setTextColor(128, 128, 128); // Gray color
           
-          // Assicurati che le informazioni siano in un formato che preserva i ritorni a capo originali
-          // ma elimina i ritorni a capo non voluti che potrebbero essere stati aggiunti
-          const sanitizedCompanyInfo = companyInfo.replace(/\r\n/g, '\n'); // Normalizza tutti i ritorni a capo
+          // Gestione avanzata dei ritorni a capo nei dati della company info
+          // 1. Rimuovi eventuali spazi bianchi in eccesso all'inizio e alla fine
+          // 2. Normalizza tutti i tipi di ritorni a capo (\r\n, \r, \n) in \n
+          // 3. Rimuovi ritorni a capo duplicati (come \n\n)
+          let sanitizedCompanyInfo = companyInfo.trim()
+            .replace(/\r\n|\r/g, '\n')     // normalizza tutti i newlines a \n
+            .replace(/\n{3,}/g, '\n\n')    // riduce sequenze di 3+ newlines a 2
+            .replace(/\s+\n/g, '\n')       // rimuove spazi bianchi prima di newline
+            .replace(/\n\s+/g, '\n');      // rimuove spazi bianchi dopo newline
+            
+          // Preserva i ritorni a capo voluti (massimo due consecutivi)
           const companyInfoLines = pdfDoc.splitTextToSize(sanitizedCompanyInfo, 80);
           companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           pdfDoc.text(companyInfoLines, 15, 15); // Position to the left
