@@ -12,9 +12,9 @@ const resourcesIt = {
       launch: "Accedi"
     },
     hero: {
-      title_1: "L'Assistente Definitivo per",
+      title_1: "L'Assistente di Riferimento per",
       title_2: "Consulenti Finanziari",
-      description: "Watson potenzia i consulenti finanziari con strumenti basati sull'IA per offrire ai tuoi clienti un'esperienza di consulenza finanziaria eccezionale. Automatizza la documentazione, ottimizza la gestione dei clienti e sfrutta il pieno potenziale dell'IA applicata con Watson.",
+      description: "Watson fornisce ai consulenti finanziari strumenti basati sull'IA per offrire ai clienti un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione dei clienti e sfrutta il pieno potenziale dell'IA applicata con Watson.",
       get_started: "Inizia Ora",
       learn_more: "Scopri di Più",
       title: "Piattaforma Watson per Consulenti Finanziari",
