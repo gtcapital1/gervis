@@ -164,6 +164,7 @@ export default function Contact() {
                           checked={field.value}
                           onCheckedChange={field.onChange}
                           id="privacy"
+                          className="border-gray-400 data-[state=checked]:bg-secondary data-[state=checked]:border-secondary"
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
