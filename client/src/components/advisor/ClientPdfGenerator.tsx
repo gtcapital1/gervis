@@ -215,37 +215,35 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Dimensioni specifiche per garantire che non si distorca l'immagine
-          const MAX_WIDTH = 50;    // Larghezza ridotta rispetto al valore precedente
-          const MAX_HEIGHT = 30;   // Altezza ridotta rispetto al valore precedente
-          
           try {
-            // Per un approccio che preservi meglio le proporzioni, utilizziamo dimensioni
-            // più piccole ma ben proporzionate
+            // Utilizziamo una strategia più semplice con dimensioni ridotte
+            // che dovrebbero mantenere naturalmente le proporzioni
+            // senza bisogno di calcoli complessi
+            const FIXED_WIDTH = 45;  // Larghezza ridotta
+            const FIXED_HEIGHT = 25; // Altezza ridotta ma proporzionata
+            
             doc.addImage(
               companyLogo, 
-              'NONE',  // formato automatico
-              125,     // posizione x (destra) - stessa posizione
-              5,       // posizione y (alto) - stessa posizione
-              MAX_WIDTH,
-              MAX_HEIGHT,
-              'company_logo', 
-              'FAST'   // compressione - mantiene la qualità
+              125,          // posizione x (destra)
+              5,            // posizione y (alto)
+              FIXED_WIDTH,  // larghezza ridotta
+              FIXED_HEIGHT  // altezza ridotta
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // In caso di errore, usiamo dimensioni ancora più piccole per sicurezza
-            doc.addImage(
-              companyLogo, 
-              'NONE',
-              125,    
-              5,      
-              40,    // larghezza ancora più ridotta
-              20,    // altezza ancora più ridotta
-              'company_logo', 
-              'FAST'
-            );
+            // In caso di errore, utilizziamo dimensioni ancora più piccole
+            try {
+              doc.addImage(
+                companyLogo, 
+                125,    
+                5,      
+                35,     // larghezza ancora minore
+                20      // altezza ancora minore
+              );
+            } catch (e) {
+              console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
+            }
           }
         }
         
@@ -606,37 +604,34 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Dimensioni specifiche per garantire che non si distorca l'immagine
-          const MAX_WIDTH = 50;    // Larghezza ridotta rispetto al valore precedente
-          const MAX_HEIGHT = 30;   // Altezza ridotta rispetto al valore precedente
-          
           try {
-            // Per un approccio che preservi meglio le proporzioni, utilizziamo dimensioni
-            // più piccole ma ben proporzionate
+            // Impostiamo SOLO la LARGHEZZA e lasciamo che jsPDF calcoli automaticamente l'altezza
+            // in modo proporzionale, preservando l'aspect ratio originale dell'immagine
+            const FIXED_WIDTH = 50;  // Larghezza fissa
+            
+            // Se specifichiamo solo la larghezza, jsPDF manterrà le proporzioni originali
             pdfDoc.addImage(
               companyLogo, 
-              'NONE',  // formato automatico
-              125,     // posizione x (destra) - stessa posizione
-              5,       // posizione y (alto) - stessa posizione
-              MAX_WIDTH,
-              MAX_HEIGHT,
-              'company_logo', 
-              'FAST'   // compressione - mantiene la qualità
+              125,          // posizione x (destra)
+              5,            // posizione y (alto)
+              FIXED_WIDTH,  // larghezza ridotta
+              25            // altezza proporzionata
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // In caso di errore, usiamo dimensioni ancora più piccole per sicurezza
-            pdfDoc.addImage(
-              companyLogo, 
-              'NONE',
-              125,    
-              5,      
-              40,    // larghezza ancora più ridotta
-              20,    // altezza ancora più ridotta
-              'company_logo', 
-              'FAST'
-            );
+            // In caso di errore, proviamo con una larghezza ancora minore
+            try {
+              pdfDoc.addImage(
+                companyLogo, 
+                125,    
+                5,      
+                35,     // larghezza minore
+                20      // altezza proporzionata
+              );
+            } catch (e) {
+              console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
+            }
           }
         }
         
