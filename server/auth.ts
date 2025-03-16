@@ -45,9 +45,12 @@ export function setupAuth(app: Express) {
   app.use(passport.session());
 
   passport.use(
-    new LocalStrategy(async (username, password, done) => {
+    new LocalStrategy({
+      usernameField: 'email',
+      passwordField: 'password'
+    }, async (email, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
+        const user = await storage.getUserByEmail(email);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
         } else {
@@ -71,16 +74,25 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      const existingUser = await storage.getUserByUsername(req.body.username);
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(req.body.email);
       if (existingUser) {
         return res.status(400).json({ 
           success: false, 
-          message: "Username already exists" 
+          message: "Email already registered" 
         });
       }
-
+      
+      // Generate a username based on firstName and lastName
+      const username = `${req.body.firstName.toLowerCase()}.${req.body.lastName.toLowerCase()}`;
+      
+      // Set default signature format
+      const signature = `${req.body.firstName} ${req.body.lastName},\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
+      
       const user = await storage.createUser({
         ...req.body,
+        username,
+        signature,
         password: await hashPassword(req.body.password),
       });
 
@@ -99,7 +111,7 @@ export function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ 
           success: false, 
-          message: "Invalid username or password" 
+          message: "Email o password non validi" 
         });
       }
       
