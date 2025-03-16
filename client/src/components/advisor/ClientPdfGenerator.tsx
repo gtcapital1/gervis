@@ -786,7 +786,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
-              <div className="border rounded-md p-4 bg-gray-50 space-y-4">
+              <div className="border rounded-md p-4 bg-white space-y-4 text-black">
+                <h3 className="text-lg font-bold mb-4">{language === "english" ? "Cover Letter" : "Lettera di Accompagnamento"}</h3>
                 <div className="flex justify-between">
                   <div>
                     <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
@@ -839,6 +840,52 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                     {client.advisorId ? advisorSignature?.split('\n')[1] || "" : ""}
                   </p>
                 </div>
+
+                <div className="mt-8 border-t pt-4">
+                  <h3 className="text-lg font-bold mb-4">{language === "english" ? "Client Summary Report" : "Riepilogo Cliente"}</h3>
+                  
+                  <h4 className="font-bold mt-4">{language === "english" ? "Personal Information" : "Informazioni Personali"}</h4>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <p className="font-bold">{language === "english" ? "Name:" : "Nome:"}</p>
+                    <p>{client.firstName} {client.lastName}</p>
+                    <p className="font-bold">{language === "english" ? "Email:" : "Email:"}</p>
+                    <p>{client.email}</p>
+                    <p className="font-bold">{language === "english" ? "Phone:" : "Telefono:"}</p>
+                    <p>{client.phone || (language === "english" ? "Not provided" : "Non fornito")}</p>
+                  </div>
+                  
+                  <h4 className="font-bold mt-4">{language === "english" ? "Investment Profile" : "Profilo di Investimento"}</h4>
+                  <div className="grid grid-cols-2 gap-2 mt-2">
+                    <p className="font-bold">{language === "english" ? "Risk Profile:" : "Profilo di Rischio:"}</p>
+                    <p>{client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                    <p className="font-bold">{language === "english" ? "Investment Horizon:" : "Orizzonte di Investimento:"}</p>
+                    <p>{client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                  </div>
+                  
+                  <h4 className="font-bold mt-4">{language === "english" ? "Asset Allocation" : "Allocazione Asset"}</h4>
+                  {assets && assets.length > 0 ? (
+                    <div className="mt-2">
+                      <div className="grid grid-cols-3 gap-2 font-bold">
+                        <p>{language === "english" ? "Category" : "Categoria"}</p>
+                        <p>{language === "english" ? "Value" : "Valore"}</p>
+                        <p>%</p>
+                      </div>
+                      {assets.map((asset, index) => {
+                        const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
+                        const percentage = Math.round((asset.value / totalValue) * 100);
+                        return (
+                          <div key={index} className="grid grid-cols-3 gap-2 mt-1">
+                            <p>{t(`asset_categories.${asset.category}`)}</p>
+                            <p>{formatCurrency(asset.value)} €</p>
+                            <p>{percentage}%</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <p className="mt-2 italic">{language === "english" ? "No assets found" : "Nessun asset trovato"}</p>
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -852,28 +899,20 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
               {language === "english" ? "Cancel" : "Annulla"}
             </Button>
             
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  generatePdf();
-                  setShowSendEmailDialog(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={isGenerating}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                {language === "english" ? "Generate & Send Email" : "Genera & Invia Email"}
-              </Button>
-              
-              <Button
-                onClick={generatePdf}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={isGenerating}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                {language === "english" ? "Generate PDF" : "Genera PDF"}
-              </Button>
-            </div>
+            <Button
+              onClick={() => {
+                generatePdf();
+                setShowSendEmailDialog(true);
+              }}
+              className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+              disabled={isGenerating}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {isGenerating 
+                ? language === "english" ? "Generating..." : "Generazione in corso..." 
+                : language === "english" ? "Generate & Send Email" : "Genera & Invia Email"
+              }
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
