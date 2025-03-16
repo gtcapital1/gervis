@@ -453,7 +453,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select risk profile" />
+                              <SelectValue placeholder={t('client_edit.select_risk_profile')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -532,7 +532,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   render={() => (
                     <FormItem>
                       <div className="mb-2">
-                        <FormLabel>Investment Goals (Select all that apply)</FormLabel>
+                        <FormLabel>{t('client_edit.investment_goals')}</FormLabel>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                         {investmentGoalOptions.map((goal) => (
@@ -591,7 +591,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                 {form.watch("assets")?.map((_, index) => (
                   <div key={index} className="p-4 border rounded-md bg-muted/30">
                     <div className="flex justify-between items-center mb-4">
-                      <h4 className="text-sm font-medium">Asset {index + 1}</h4>
+                      <h4 className="text-sm font-medium">{t('client_edit.asset')} {index + 1}</h4>
                       <Button
                         type="button"
                         variant="ghost"
@@ -608,14 +608,14 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         name={`assets.${index}.category`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Asset Type</FormLabel>
+                            <FormLabel>{t('client_edit.asset_type')}</FormLabel>
                             <Select 
                               onValueChange={field.onChange} 
                               defaultValue={field.value}
                             >
                               <FormControl>
                                 <SelectTrigger>
-                                  <SelectValue placeholder="Select asset type" />
+                                  <SelectValue placeholder={t('client_edit.select_asset_type')} />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
@@ -636,7 +636,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         name={`assets.${index}.value`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Asset Value ($)</FormLabel>
+                            <FormLabel>{t('client_edit.asset_value')}</FormLabel>
                             <FormControl>
                               <Input 
                                 {...field} 
@@ -657,7 +657,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         name={`assets.${index}.description`}
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Description (Optional)</FormLabel>
+                            <FormLabel>{t('client_edit.asset_description')}</FormLabel>
                             <FormControl>
                               <Textarea {...field} rows={2} />
                             </FormControl>
@@ -676,14 +676,14 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   onClick={addAsset}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Another Asset
+                  {t('client_edit.add_asset')}
                 </Button>
               </CardContent>
             </Card>
             
             <DialogFooter className="pt-4">
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
               <Button 
                 type="submit" 
@@ -691,11 +691,11 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                 className="ml-2 gap-2"
               >
                 {updateClientMutation.isPending ? (
-                  <>Saving Changes...</>
+                  <>{t('common.saving')}</>
                 ) : (
                   <>
                     <Check className="h-4 w-4" />
-                    Save Changes
+                    {t('common.save_changes')}
                   </>
                 )}
               </Button>
