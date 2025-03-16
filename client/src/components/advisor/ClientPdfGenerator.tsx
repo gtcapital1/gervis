@@ -502,6 +502,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       // Utilizza la funzione condivisa per generare il PDF
       const doc = generatePdfContent();
       
+      // Salva il PDF con nome appropriato
+      const fileName = `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`;
+      doc.save(fileName);
+      
       // Set PDF document properties
       doc.setProperties({
         title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
