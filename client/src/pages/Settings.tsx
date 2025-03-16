@@ -74,6 +74,7 @@ type CompanyLogoFormValues = z.infer<typeof companyLogoFormSchema>;
 type CompanyInfoFormValues = z.infer<typeof companyInfoFormSchema>;
 
 export default function Settings() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const { user } = useAuth();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
@@ -394,7 +395,7 @@ export default function Settings() {
                         variant="outline"
                         className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
                       >
-                        <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
+                        <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
                         Upgrade to Watson PRO
                       </Button>
                     )}
