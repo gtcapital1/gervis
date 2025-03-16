@@ -1,0 +1,2 @@
+775:                            className="max-h-10 max-w-[120px] object-contain" 
+865:                            className="max-h-10 max-w-[120px] object-contain" 
