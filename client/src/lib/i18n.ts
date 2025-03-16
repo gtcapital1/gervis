@@ -48,7 +48,8 @@ const resourcesEn = {
       description: "The intelligent platform that helps financial advisors provide personalized wealth management and intuitive financial guidance.",
       login_description: "Log in to access your advisor dashboard.",
       creating_account: "Creating account...",
-      back_to_home: "Back to Home"
+      back_to_home: "Back to Home",
+      independent_advisor: "I am an independent financial advisor"
     },
     dashboard: {
       clients: "Clients",
@@ -343,7 +344,8 @@ const resourcesIt = {
       description: "La piattaforma intelligente che aiuta i consulenti finanziari a fornire una gestione patrimoniale personalizzata e una guida finanziaria intuitiva.",
       login_description: "Accedi per entrare nella dashboard del consulente.",
       creating_account: "Creazione account in corso...",
-      back_to_home: "Torna alla Home"
+      back_to_home: "Torna alla Home",
+      independent_advisor: "Sono un consulente finanziario indipendente"
     },
     dashboard: {
       clients: "Clienti",

@@ -269,10 +269,10 @@ export default function AuthPage() {
                           name="firstName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Nome</FormLabel>
+                              <FormLabel>{t('onboarding.first_name')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Nome..."
+                                  placeholder={`${t('onboarding.first_name')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -285,10 +285,10 @@ export default function AuthPage() {
                           name="lastName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Cognome</FormLabel>
+                              <FormLabel>{t('onboarding.last_name')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Cognome..."
+                                  placeholder={`${t('onboarding.last_name')}...`}
                                   {...field}
                                 />
                               </FormControl>
@@ -301,10 +301,10 @@ export default function AuthPage() {
                           name="company"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Società di consulenza</FormLabel>
+                              <FormLabel>{t('contact.form.company')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Società..."
+                                  placeholder={`${t('contact.form.company')}...`}
                                   disabled={registerForm.watch("isIndependent")}
                                   value={registerForm.watch("isIndependent") ? "" : field.value}
                                   onChange={field.onChange}
@@ -335,7 +335,7 @@ export default function AuthPage() {
                               </FormControl>
                               <div className="space-y-1 leading-none">
                                 <FormLabel>
-                                  Sono un consulente finanziario indipendente
+                                  {t('auth.independent_advisor')}
                                 </FormLabel>
                               </div>
                             </FormItem>
@@ -346,7 +346,7 @@ export default function AuthPage() {
                           name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Email</FormLabel>
+                              <FormLabel>{t('onboarding.email')}</FormLabel>
                               <FormControl>
                                 <Input
                                   type="email"
@@ -363,10 +363,10 @@ export default function AuthPage() {
                           name="phone"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Telefono</FormLabel>
+                              <FormLabel>{t('onboarding.phone')}</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder="Numero di telefono..."
+                                  placeholder={`${t('onboarding.phone')}...`}
                                   {...field}
                                 />
                               </FormControl>
