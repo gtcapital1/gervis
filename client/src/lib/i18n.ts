@@ -280,7 +280,9 @@ const resourcesEn = {
       update_failure: "Failed to update client information. Please try again."
     },
     common: {
-      cancel: "Cancel"
+      cancel: "Cancel",
+      saving: "Saving...",
+      save_changes: "Save Changes"
     },
     languages: {
       english: "English",
@@ -675,12 +677,18 @@ const resourcesIt = {
       net_worth: "Patrimonio Netto (€)",
       risk_profile: "Profilo di Rischio",
       investment_experience: "Esperienza di Investimento",
+      investment_horizon: "Orizzonte Temporale di Investimento",
       investment_time_horizon: "Orizzonte Temporale di Investimento",
       investment_goals: "Obiettivi di Investimento (Seleziona tutti quelli applicabili)",
       select_risk_profile: "Seleziona profilo di rischio",
-      select_experience: "Seleziona livello di esperienza",
-      select_horizon: "Seleziona orizzonte di investimento",
+      select_experience_level: "Seleziona livello di esperienza",
+      select_investment_horizon: "Seleziona orizzonte di investimento",
+      select_asset_type: "Seleziona tipo di asset",
+      asset: "Asset",
       asset_number: "Asset",
+      asset_type: "Tipo di Asset",
+      asset_value: "Valore (€)",
+      asset_description: "Descrizione",
       category: "Categoria",
       value: "Valore (€)",
       description: "Descrizione (opzionale)",
@@ -756,7 +764,9 @@ const resourcesIt = {
       send_email: "Invia Email"
     },
     common: {
-      cancel: "Annulla"
+      cancel: "Annulla",
+      saving: "Salvataggio in corso...",
+      save_changes: "Salva Modifiche"
     },
     languages: {
       english: "Inglese",
