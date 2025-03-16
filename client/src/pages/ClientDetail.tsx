@@ -20,7 +20,8 @@ import {
   BarChart,
   Users,
   Settings,
-  KeyRound
+  KeyRound,
+  Info
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
@@ -255,12 +256,7 @@ ${user?.name || ""}`
     }
   }
   
-  // Update email message when language changes
-  function handleLanguageChange(value: string) {
-    const language = value as 'english' | 'italian';
-    setEmailLanguage(language);
-    setEmailMessage(defaultEmailMessages[language]);
-  }
+  // Non è più necessaria la funzione handleLanguageChange perché la lingua viene ereditata automaticamente
   
   function handleSendEmail() {
     sendOnboardingMutation.mutate({
@@ -821,23 +817,14 @@ ${user?.name || ""}`
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-6">
-            <div>
-              <Label htmlFor="email-language">{t('client.email_language')}</Label>
-              <RadioGroup 
-                id="email-language"
-                value={emailLanguage} 
-                onValueChange={handleLanguageChange}
-                className="mt-2 space-y-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="english" id="english" />
-                  <Label htmlFor="english">{t('languages.english')}</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="italian" id="italian" />
-                  <Label htmlFor="italian">{t('languages.italian')}</Label>
-                </div>
-              </RadioGroup>
+            {/* La lingua dell'email viene ereditata automaticamente dall'interfaccia */}
+            <div className="rounded-lg border bg-muted p-3">
+              <div className="flex items-center space-x-2">
+                <Info className="h-4 w-4 text-accent" />
+                <p className="text-sm text-muted-foreground">
+                  {t('client.email_language_auto', { language: emailLanguage === 'italian' ? t('languages.italian') : t('languages.english') })}
+                </p>
+              </div>
             </div>
             
             <div className="space-y-2">

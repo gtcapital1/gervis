@@ -98,10 +98,13 @@ export default function OnboardingForm() {
 
   // Imposta la lingua in base al parametro nell'URL
   useEffect(() => {
-    // Ottieni la lingua dal parametro token nell'URL
-    if (window.location.href.includes('language=italian')) {
+    // Ottieni la lingua dal parametro nell'URL in modo più preciso
+    const url = new URL(window.location.href);
+    const languageParam = url.searchParams.get('language');
+    
+    if (languageParam === 'italian') {
       i18n.changeLanguage('it');
-    } else if (window.location.href.includes('language=english')) {
+    } else if (languageParam === 'english') {
       i18n.changeLanguage('en');
     }
   }, [i18n]);
