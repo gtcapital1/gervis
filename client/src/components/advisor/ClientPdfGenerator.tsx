@@ -499,12 +499,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     setIsGenerating(true);
     
     try {
-      // Create new PDF document
-      const doc = new jsPDF({
-        orientation: "portrait",
-        unit: "mm",
-        format: "a4",
-      });
+      // Utilizza la funzione condivisa per generare il PDF
+      const doc = generatePdfContent();
       
       // Set PDF document properties
       doc.setProperties({
