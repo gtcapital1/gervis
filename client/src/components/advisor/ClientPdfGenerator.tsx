@@ -73,8 +73,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     const advisorEmail = advisorInfo[2] || "";
     const advisorPhone = advisorInfo[3] || "";
     
-    // Usa un font più elegante per la lettera
-    doc.setFont('times', 'normal');
+    // Usa Calibri (sans-serif) per la lettera
+    doc.setFont('helvetica', 'normal'); // JSPDF non ha Calibri, helvetica è il più simile
+
+    // Creo un margine destro per allineare correttamente
+    const rightMargin = 190;
     
     // Mittente a sinistra in alto (nome, cognome, società, mail, telefono)
     doc.setFontSize(11);
@@ -96,25 +99,29 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       month: "long",
       day: "numeric",
     });
-    doc.text(dateStr, 150, 25, { align: "right" });
+    doc.text(dateStr, rightMargin, 25, { align: "right" });
     
-    // Destinatario in basso a destra
-    doc.text(`${t('pdf.coverLetter.toClient')}:`, 150, 50, { align: "right" });
-    doc.setFont('times', 'bold');
-    doc.text(`${client.firstName} ${client.lastName}`, 150, 55, { align: "right" });
-    doc.setFont('times', 'normal');
+    // Destinatario veramente a destra (allineato correttamente)
+    const toClientText = `${t('pdf.coverLetter.toClient')}:`;
+    doc.text(toClientText, rightMargin, 50, { align: "right" });
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${client.firstName} ${client.lastName}`, rightMargin, 55, { align: "right" });
+    doc.setFont('helvetica', 'normal');
     if (client.email) {
-      doc.text(client.email, 150, 60, { align: "right" });
+      doc.text(client.email, rightMargin, 60, { align: "right" });
     }
     
-    // Titolo della lettera
-    doc.setFont('times', 'bold');
-    doc.setFontSize(14);
-    doc.text(t('pdf.coverLetter.title'), 105, 80, { align: "center" });
+    // Oggetto
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text("Oggetto:", 20, 75);
+    doc.setFont('helvetica', 'normal');
+    doc.text("Avvio della nostra collaborazione", 65, 75);
     
     // Saluti
     doc.setFontSize(11);
-    doc.setFont('times', 'normal');
+    doc.setFont('helvetica', 'normal');
     const greetingText = `${t('pdf.coverLetter.greetings')} ${client.firstName},`;
     doc.text(greetingText, 20, 95);
     
@@ -151,9 +158,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     doc.text(t('pdf.coverLetter.closing'), 20, bulletY + 40);
     
     // Nome, cognome e società nella firma
-    doc.setFont('times', 'bold');
+    doc.setFont('helvetica', 'bold');
     doc.text(advisorName, 20, bulletY + 50);
-    doc.setFont('times', 'normal');
+    doc.setFont('helvetica', 'normal');
     if (advisorCompany) {
       doc.text(advisorCompany, 20, bulletY + 56);
     }
