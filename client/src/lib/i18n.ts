@@ -195,15 +195,15 @@ const resourcesEn = {
       subtitle: "Join consultants who are saving time, reducing errors, and growing their business with Watson.",
       items: {
         save_time: {
-          title: "Save 10+ Hours Weekly",
+          title: "Save Valuable Time",
           description: "Automate routine tasks and documentation, freeing up more time to focus on client relationships."
         },
         reduce_errors: {
-          title: "Reduce Errors by 95%",
+          title: "Reduce Errors Significantly",
           description: "AI-powered checks and balances ensure your recommendations and documentation are error-free."
         },
         grow_aum: {
-          title: "Grow AUM by 30%",
+          title: "Grow Your Business",
           description: "Serve more clients effectively and increase assets under management with optimized workflows."
         },
         improve_satisfaction: {
@@ -245,13 +245,7 @@ const resourcesEn = {
       title: "Who We Are",
       description1: "Watson is a flagship product of GT AI Solutions, a company dedicated to bringing innovative AI solutions to businesses across all sectors.",
       description2: "At GT AI Solutions, our mission is to empower organizations with cutting-edge AI technology that saves time, reduces resource consumption, increases productivity, and allows professionals to focus on high-value tasks while the AI handles the routine work.",
-      description3: "Since our founding in 2020, Watson has helped over 500 financial consultants save thousands of hours and grow their practices by an average of 30%, demonstrating GT AI Solutions' commitment to delivering tangible business value through artificial intelligence.",
-      team: "Our Team",
-      stats: {
-        consultants: "Consultants",
-        aum: "AUM Managed",
-        satisfaction: "Satisfaction"
-      }
+      description3: "Watson is designed to support financial advisors in optimizing their business processes, allowing them to focus on client relationships rather than document management and repetitive tasks."
     },
     contact: {
       title: "Get in Touch",
@@ -512,15 +506,15 @@ const resourcesIt = {
       subtitle: "Unisciti ai consulenti che risparmiano tempo, riducono gli errori e fanno crescere la loro attività con Watson.",
       items: {
         save_time: {
-          title: "Risparmia 10+ Ore Settimanali",
+          title: "Risparmia Tempo Prezioso",
           description: "Automatizza le attività di routine e la documentazione, liberando più tempo per concentrarti sulle relazioni con i clienti."
         },
         reduce_errors: {
-          title: "Riduci gli Errori del 95%",
+          title: "Riduci gli Errori Significativamente",
           description: "I sistemi di verifica automatica basati sull'IA garantiscono che le tue raccomandazioni e i documenti siano sempre impeccabili."
         },
         grow_aum: {
-          title: "Aumenta gli AUM del 30%",
+          title: "Espandi la Tua Attività",
           description: "Servi più clienti in modo efficace e aumenta il patrimonio gestito con flussi di lavoro ottimizzati."
         },
         improve_satisfaction: {
@@ -562,13 +556,7 @@ const resourcesIt = {
       title: "Chi Siamo",
       description1: "Watson è un prodotto di punta di GT AI Solutions, un'azienda dedicata a portare soluzioni innovative di intelligenza artificiale alle imprese di tutti i settori.",
       description2: "In GT AI Solutions, la nostra missione è dotare le aziende di tecnologie AI all'avanguardia che fanno risparmiare tempo, ottimizzano l'uso delle risorse e incrementano la produttività. Lasciamo che l'IA si occupi delle attività ripetitive, così i professionisti possono dedicarsi a ciò che conta davvero.",
-      description3: "Dal 2020, Watson ha aiutato oltre 500 consulenti finanziari a risparmiare migliaia di ore e a far crescere le loro attività in media del 30%, dimostrando l'impegno di GT AI Solutions nel fornire valore aziendale tangibile attraverso l'intelligenza artificiale.",
-      team: "Il Nostro Team",
-      stats: {
-        consultants: "Consulenti",
-        aum: "AUM Gestiti",
-        satisfaction: "Soddisfazione"
-      }
+      description3: "Watson è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive."
     },
     contact: {
       title: "Contattaci",

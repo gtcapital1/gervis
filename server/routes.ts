@@ -295,6 +295,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Validate the request body
       const validatedData = contactFormSchema.parse(req.body);
       
+      // Send email notification to the admin
+      try {
+        await sendCustomEmail({
+          to: 'gianmarco.trapasso@gmail.com',
+          subject: 'Nuovo messaggio dal form di contatto Watson',
+          html: `
+            <h2>Nuovo messaggio dal form di contatto</h2>
+            <p><strong>Nome:</strong> ${validatedData.firstName} ${validatedData.lastName}</p>
+            <p><strong>Email:</strong> ${validatedData.email}</p>
+            <p><strong>Azienda:</strong> ${validatedData.company || 'Non specificata'}</p>
+            <p><strong>Messaggio:</strong></p>
+            <p>${validatedData.message}</p>
+          `,
+          language: 'italian'
+        });
+      } catch (emailError) {
+        console.error('Failed to send contact form email:', emailError);
+        // Continue execution even if email fails
+      }
+      
       // Log the contact submission (would typically save to database)
       console.log('Contact form submission:', validatedData);
       

@@ -79,7 +79,7 @@ export default function Features() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
             <FeatureCard
               key={index}
@@ -87,6 +87,7 @@ export default function Features() {
               title={feature.title}
               description={feature.description}
               learnMoreColor={feature.learnMoreColor}
+              isComingSoon={feature.isComingSoon}
             />
           ))}
         </div>
