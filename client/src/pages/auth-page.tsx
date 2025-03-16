@@ -179,7 +179,8 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <Card>
                   <CardHeader>
-                    <CardTitle>{t('auth.welcome')}</CardTitle>
+                    <CardTitle>{t('auth.welcome_back')}</CardTitle>
+                    <CardDescription>{t('auth.login_description')}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Form {...loginForm}>
@@ -255,7 +256,8 @@ export default function AuthPage() {
               <TabsContent value="register">
                 <Card>
                   <CardHeader>
-                    <CardTitle>{t('auth.welcome')}</CardTitle>
+                    <CardTitle>{t('auth.register_title')}</CardTitle>
+                    <CardDescription>{t('auth.register_description')}</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Form {...registerForm}>

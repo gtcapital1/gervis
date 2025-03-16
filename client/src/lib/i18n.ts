@@ -45,8 +45,10 @@ const resourcesEn = {
       register_error: "Registration failed! Please try again.",
       welcome: "Welcome to Watson, your financial advisor platform",
       welcome_back: "Welcome Back",
+      register_title: "Create Account",
       description: "The intelligent platform that helps financial advisors provide personalized wealth management and intuitive financial guidance.",
       login_description: "Log in to access your advisor dashboard.",
+      register_description: "Register to start managing your clients efficiently.",
       creating_account: "Creating account...",
       back_to_home: "Back to Home",
       independent_advisor: "I am an independent financial advisor"
