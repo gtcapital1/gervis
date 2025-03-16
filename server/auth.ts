@@ -87,8 +87,9 @@ export function setupAuth(app: Express) {
       const formattedFirstName = req.body.firstName.charAt(0).toUpperCase() + req.body.firstName.slice(1).toLowerCase();
       const formattedLastName = req.body.lastName.charAt(0).toUpperCase() + req.body.lastName.slice(1).toLowerCase();
       
-      // Generate a username based on firstName and lastName
-      const username = `${formattedFirstName.toLowerCase()}.${formattedLastName.toLowerCase()}`;
+      // Generate a username based on firstName and lastName with a random suffix to ensure uniqueness
+      const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+      const username = `${formattedFirstName.toLowerCase()}.${formattedLastName.toLowerCase()}.${randomSuffix}`;
       
       // Create the name from firstName and lastName
       const name = `${formattedFirstName} ${formattedLastName}`;
