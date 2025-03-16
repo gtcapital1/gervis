@@ -19,7 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, ArrowRight, Mail } from 'lucide-react';
+import { Loader2, FileText, ArrowRight, Mail, Globe } from 'lucide-react';
 import { httpRequest } from '@/lib/queryClient';
 import z from 'zod';
 
@@ -675,21 +675,16 @@ ${closing}`;
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex justify-end space-x-2 mb-4">
-            <RadioGroup 
-              value={language}
-              className="flex space-x-2 border rounded-lg p-1"
-              onValueChange={handleLanguageChange}
+          <div className="flex justify-end mb-4">
+            <Button
+              variant={language === "english" ? "outline" : "default"}
+              size="sm"
+              onClick={() => handleLanguageChange(language === "english" ? "italian" : "english")}
+              className="flex items-center gap-2"
             >
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="italian" id="italian" />
-                <Label htmlFor="italian">Italiano</Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <RadioGroupItem value="english" id="english" />
-                <Label htmlFor="english">English</Label>
-              </div>
-            </RadioGroup>
+              <Globe className="h-4 w-4" />
+              {language === "english" ? "English" : "Italiano"}
+            </Button>
           </div>
           
           <div className="grid grid-cols-1 gap-4 py-2">
