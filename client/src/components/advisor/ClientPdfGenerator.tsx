@@ -129,8 +129,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
           doc.setFontSize(8);
           doc.setTextColor(128, 128, 128); // Gray color
           
-          // Gestione avanzata dei ritorni a capo nei dati della company info
-          const companyInfoLines = doc.splitTextToSize(companyInfo.trim(), 100);
+          // Rimuove i ritorni a capo indesiderati e li sostituisce con spazi
+          const cleanedCompanyInfo = companyInfo.trim().replace(/\n+/g, " ");
+          
+          // Gestione avanzata del testo della società
+          const companyInfoLines = doc.splitTextToSize(cleanedCompanyInfo, 100);
           companyInfoHeight = companyInfoLines.length * 3.5;
           doc.text(companyInfoLines, 15, 15); // Position to the left
           
@@ -488,10 +491,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : 120;
       
       doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
+      doc.setFont('helvetica', 'normal');
       doc.text(t('pdf.clientDeclaration'), 15, declarationY);
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
       
       const declaration = t('pdf.clientDeclarationText');
       const splitDeclaration = doc.splitTextToSize(declaration, 180);
@@ -952,7 +954,7 @@ ${letterFields.closing}`}
                     </div>
                     
                     <div className="border-t pt-4">
-                      <p className="font-semibold">{language === "english" ? "Client Declaration" : "Dichiarazione Cliente"}</p>
+                      <p>{language === "english" ? "Client Declaration" : "Dichiarazione Cliente"}</p>
                       <p className="text-sm mt-2">{t('pdf.clientDeclarationText')}</p>
                       
                       <div className="mt-4 grid grid-cols-2 gap-8">
