@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
@@ -195,6 +195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
+  
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {
@@ -387,6 +388,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the advisor (for signature)
       const advisor = await storage.getUser(req.user.id);
       
+      // Extract signature
+      const advisorSignature = advisor?.signature || undefined;
+      
       // Send email
       await sendCustomEmail(
         client.email,
@@ -394,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message,
         language as 'english' | 'italian',
         undefined,
-        advisor?.signature || undefined
+        advisorSignature
       );
       
       res.json({ success: true, message: "Email sent successfully" });
@@ -585,53 +589,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: 'Client not found' });
       }
-      
-  // Send email with PDF
-  app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
-    try {
-      const clientId = parseInt(req.params.id);
-      const { subject, message, language = 'english', includeAttachment = true } = req.body;
-      
-      if (!subject || !message) {
-        return res.status(400).json({ success: false, message: "Subject and message are required" });
-      }
-      
-      const client = await storage.getClient(clientId);
-      if (!client) {
-        return res.status(404).json({ success: false, message: "Client not found" });
-      }
-      
-      // Check if this client belongs to the current advisor
-      if (client.advisorId !== req.user?.id) {
-        return res.status(403).json({ success: false, message: 'Not authorized to send email to this client' });
-      }
-      
-      if (!client.email) {
-        return res.status(400).json({ success: false, message: "Client has no email address" });
-      }
-      
-      // Get the advisor (for signature)
-      const advisor = await storage.getUser(req.user.id);
-      
-      // Get client assets
-      const assets = await storage.getAssetsByClient(clientId);
-      
-      // Send email
-      await sendCustomEmail(
-        client.email,
-        subject,
-        message,
-        language as 'english' | 'italian',
-        undefined,
-        advisor?.signature
-      );
-      
-      res.json({ success: true, message: "Email sent successfully" });
-    } catch (error) {
-      console.error("Error sending email:", error);
-      res.status(500).json({ success: false, message: "Failed to send email" });
-    }
-  });
       
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user?.id) {
@@ -836,72 +793,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     }
   });
-  
-  // Upgrade user to PRO status
-  app.post('/api/users/:id/upgrade', isAuthenticated, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      
-      // Only allow users to upgrade themselves
-      if (userId !== req.user?.id) {
-        return res.status(403).json({ message: 'Not authorized to upgrade this user' });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      // Update user to PRO status
-      const updatedUser = await storage.updateUser(userId, { 
-        isPro: true,
-        proSince: new Date()
-      });
-      
-      res.json({
-        success: true,
-        message: 'Successfully upgraded to PRO',
-        user: updatedUser
-      });
-    } catch (error) {
-      console.error('Error upgrading user:', error);
-      res.status(500).json({ message: 'Failed to upgrade user to PRO' });
-    }
-  });
-  
-  // Downgrade user from PRO to Base status
-  app.post('/api/users/:id/downgrade', isAuthenticated, async (req, res) => {
-    try {
-      const userId = parseInt(req.params.id);
-      
-      // Only allow users to downgrade themselves
-      if (userId !== req.user?.id) {
-        return res.status(403).json({ message: 'Not authorized to downgrade this user' });
-      }
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
-        return res.status(404).json({ message: 'User not found' });
-      }
-      
-      // Update user to Base status
-      const updatedUser = await storage.updateUser(userId, { 
-        isPro: false,
-        proSince: null
-      });
-      
-      res.json({
-        success: true,
-        message: 'Successfully downgraded to Base',
-        user: updatedUser
-      });
-    } catch (error) {
-      console.error('Error downgrading user:', error);
-      res.status(500).json({ message: 'Failed to downgrade user to Base' });
-    }
-  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
