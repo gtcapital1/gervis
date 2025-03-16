@@ -60,9 +60,17 @@ const companyLogoFormSchema = z.object({
   companyLogo: z.string().optional(),
 });
 
+// Schema per le informazioni societarie
+const companyInfoFormSchema = z.object({
+  companyInfo: z.string().max(1000, {
+    message: "Le informazioni societarie devono essere inferiori a 1000 caratteri",
+  }),
+});
+
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 type SignatureFormValues = z.infer<typeof signatureFormSchema>;
 type CompanyLogoFormValues = z.infer<typeof companyLogoFormSchema>;
+type CompanyInfoFormValues = z.infer<typeof companyInfoFormSchema>;
 
 export default function Settings() {
   const { toast } = useToast();
@@ -96,6 +104,14 @@ export default function Settings() {
     },
   });
   
+  // Company info form setup
+  const companyInfoForm = useForm<CompanyInfoFormValues>({
+    resolver: zodResolver(companyInfoFormSchema),
+    defaultValues: {
+      companyInfo: user?.companyInfo || "",
+    },
+  });
+  
   // Update signature form when user data changes
   useEffect(() => {
     if (user) {
@@ -103,12 +119,16 @@ export default function Settings() {
         signature: user.signature || "",
       });
       
+      companyInfoForm.reset({
+        companyInfo: user.companyInfo || "",
+      });
+      
       // Set preview logo from user data if available
       if (user.companyLogo) {
         setPreviewLogo(user.companyLogo);
       }
     }
-  }, [user, signatureForm]);
+  }, [user, signatureForm, companyInfoForm]);
 
   // Downgrade to Base plan mutation
   const downgradeMutation = useMutation({
@@ -257,6 +277,38 @@ export default function Settings() {
   // Company logo form submission handler
   function onLogoSubmit(data: CompanyLogoFormValues) {
     logoMutation.mutate(data);
+  }
+  
+  // Company info mutation
+  const companyInfoMutation = useMutation({
+    mutationFn: (data: CompanyInfoFormValues) => {
+      return apiRequest(`/api/users/${user?.id}/company-info`, {
+        method: "POST",
+        body: JSON.stringify({
+          companyInfo: data.companyInfo,
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Informazioni societarie aggiornate",
+        description: "Le informazioni societarie sono state aggiornate con successo",
+      });
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile aggiornare le informazioni societarie",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Company info form submission handler
+  function onCompanyInfoSubmit(data: CompanyInfoFormValues) {
+    companyInfoMutation.mutate(data);
   }
 
   return (
@@ -441,6 +493,49 @@ export default function Settings() {
                       {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
                     </Button>
                   </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+          
+          {/* Company Info Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Informazioni Societarie</CardTitle>
+              <CardDescription>
+                Inserisci le informazioni societarie che appariranno nei documenti PDF
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...companyInfoForm}>
+                <form onSubmit={companyInfoForm.handleSubmit(onCompanyInfoSubmit)} className="space-y-4">
+                  <FormField
+                    control={companyInfoForm.control}
+                    name="companyInfo"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Informazioni societarie</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            placeholder="Inserisci i dettagli della società (indirizzo, telefono, email, P.IVA, ecc.)"
+                            {...field}
+                            className="min-h-[150px]"
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Queste informazioni appariranno nell'intestazione dei documenti PDF sotto il logo aziendale
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    disabled={companyInfoMutation.isPending}
+                    className="mt-4"
+                  >
+                    {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
+                  </Button>
                 </form>
               </Form>
             </CardContent>
