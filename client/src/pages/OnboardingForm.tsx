@@ -98,7 +98,10 @@ export default function OnboardingForm() {
 
   // Imposta la lingua in base al parametro nell'URL
   useEffect(() => {
-    // Ottieni la lingua dal parametro nell'URL in modo più preciso
+    // Imposta la lingua di default in italiano a meno che non sia specificato diversamente
+    i18n.changeLanguage('it');
+    
+    // Controlla se c'è un parametro URL esplicito
     const url = new URL(window.location.href);
     const languageParam = url.searchParams.get('language');
     
@@ -107,6 +110,8 @@ export default function OnboardingForm() {
     } else if (languageParam === 'english') {
       i18n.changeLanguage('en');
     }
+    
+    console.log("Lingua impostata su:", i18n.language);
   }, [i18n]);
 
   // Fetch client data using token
