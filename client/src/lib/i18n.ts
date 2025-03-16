@@ -70,7 +70,11 @@ const resourcesEn = {
       onboarding_link: "Onboarding Link",
       send_link: "Send Link",
       confirm_delete: "Are you sure you want to delete this client?",
-      cancel: "Cancel"
+      cancel: "Cancel",
+      logout: "Logout",
+      return_to_home: "Return to Home",
+      dashboard: "Dashboard",
+      settings: "Settings"
     },
     onboarding: {
       title: "Financial Profile Questionnaire",
@@ -405,7 +409,11 @@ const resourcesIt = {
       onboarding_link: "Link di Registrazione",
       send_link: "Invia Link",
       confirm_delete: "Sei sicuro di voler eliminare questo cliente?",
-      cancel: "Annulla"
+      cancel: "Annulla",
+      logout: "Disconnetti",
+      return_to_home: "Torna alla Home",
+      dashboard: "Dashboard",
+      settings: "Impostazioni"
     },
     onboarding: {
       title: "Questionario del Profilo Finanziario",
