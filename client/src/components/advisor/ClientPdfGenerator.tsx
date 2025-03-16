@@ -612,7 +612,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       
       // Send email
       const response = await httpRequest('/api/clients/email', {
-        method: 'POST',
+        method: 'POST' as const,
         body: JSON.stringify(emailData),
       });
       

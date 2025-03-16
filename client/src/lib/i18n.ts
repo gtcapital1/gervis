@@ -153,9 +153,22 @@ const resourcesEn = {
         fromAdvisor: "From",
         subject: "Subject",
         title: "Welcome – Starting Our Collaboration",
-        greetings: "Dear",
-        intro: "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.",
+        greeting: "Dear Client,",
+        introduction: "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.",
         collaboration: "Through in-depth analysis and advanced tools, we will work together to:",
+        servicePoint1: "Optimize the composition of your portfolio based on your objectives and risk profile.",
+        servicePoint2: "Identify tailored solutions for more effective and sustainable asset management over time.",
+        servicePoint3: "Ensure transparent consulting in line with industry best practices.",
+        servicePoint4: "Provide regular updates and adjustments based on market changes and your evolving needs.",
+        fields: {
+          greeting: "Greeting",
+          introduction: "Introduction",
+          collaboration: "Collaboration",
+          servicePoints: "Service Points",
+          process: "Process",
+          contactInfo: "Contact Information",
+          closing: "Closing"
+        },
         points: [
           "Optimize the composition of your portfolio based on your objectives and risk profile.",
           "Identify tailored solutions for more effective and sustainable asset management over time.",
@@ -190,7 +203,14 @@ const resourcesEn = {
       of: "of",
       selectLanguage: "Select Language",
       generatePdf: "Generate PDF Report",
-      generate: "Generate PDF"
+      generate: "Generate PDF",
+      customizeLetterContent: "Customize Letter Content",
+      sendByEmail: "Send by Email",
+      emailDialogDescription: "Send this report by email to the client",
+      emailSubject: "Subject",
+      emailMessage: "Message",
+      send: "Send",
+      noEmailProvided: "Client email is not provided"
     },
     benefits: {
       title: "Transform Your Financial Practice",
@@ -466,9 +486,22 @@ const resourcesIt = {
         fromAdvisor: "Da",
         subject: "Oggetto",
         title: "Benvenuto – Avvio della Nostra Collaborazione",
-        greetings: "Gentile",
-        intro: "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
+        greeting: "Gentile Cliente,",
+        introduction: "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
         collaboration: "Attraverso un'analisi approfondita e strumenti avanzati, lavoreremo insieme per:",
+        servicePoint1: "Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.",
+        servicePoint2: "Individuare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo.",
+        servicePoint3: "Assicurare una consulenza trasparente e in linea con le migliori pratiche di settore.",
+        servicePoint4: "Fornire aggiornamenti regolari e adeguamenti in base ai cambiamenti del mercato e all'evoluzione delle tue esigenze.",
+        fields: {
+          greeting: "Saluto",
+          introduction: "Introduzione",
+          collaboration: "Collaborazione",
+          servicePoints: "Punti di servizio",
+          process: "Processo",
+          contactInfo: "Informazioni di contatto",
+          closing: "Chiusura"
+        },
         points: [
           "Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.",
           "Individuare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo.",
@@ -502,8 +535,15 @@ const resourcesIt = {
       page: "Pagina",
       of: "di",
       selectLanguage: "Seleziona Lingua",
-      generatePdf: "Generate Onboarding Form",
-      generate: "Genera PDF"
+      generatePdf: "Genera Modulo di Onboarding",
+      generate: "Genera PDF",
+      customizeLetterContent: "Personalizza Contenuto Lettera",
+      sendByEmail: "Invia via Email",
+      emailDialogDescription: "Invia questo report via email al cliente",
+      emailSubject: "Oggetto",
+      emailMessage: "Messaggio",
+      send: "Invia",
+      noEmailProvided: "Email del cliente non fornita"
     },
     benefits: {
       title: "Potenzia la Tua Attività di Consulenza",
@@ -635,7 +675,7 @@ i18n
       en: resourcesEn,
       it: resourcesIt
     },
-    lng: "en", // Default language
+    lng: "it", // Default language is Italian
     fallbackLng: "en",
     interpolation: {
       escapeValue: false // React already escapes values
