@@ -17,7 +17,8 @@ async function addCompanyLogoField() {
       WHERE table_name = 'users' AND column_name = 'company_logo'
     `);
 
-    if (checkResult.rows.length === 0) {
+    // Con le nuove versioni di drizzle-orm, accediamo direttamente all'array di risultati
+    if (checkResult.length === 0) {
       // Aggiungi la colonna company_logo se non esiste
       await db.execute(sql`
         ALTER TABLE users 

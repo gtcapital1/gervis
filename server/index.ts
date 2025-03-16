@@ -15,8 +15,9 @@ declare module "express-session" {
 // La dichiarazione di Request.user è già definita in auth.ts
 
 const app = express();
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Aumenta il limite per il payload JSON a 10MB per supportare upload di file più grandi
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: false, limit: '10mb' }));
 
 app.use((req, res, next) => {
   const start = Date.now();
