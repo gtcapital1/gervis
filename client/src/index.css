@@ -7,6 +7,30 @@
   max-height: 800px;
   overflow-y: auto;
   padding-right: 8px;
+  max-width: 100%;
+  overflow-x: hidden;
+  padding-bottom: 2rem;
+}
+
+.preview-container p {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+.preview-container .space-y-8 > div {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  page-break-after: always;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+/* Migliora la visualizzazione su dispositivi mobili */
+@media (max-width: 640px) {
+  .preview-container .space-y-8 > div {
+    min-height: auto;
+    transform-origin: top left;
+    margin-bottom: 2rem;
+  }
 }
 
 .preview-container::-webkit-scrollbar {

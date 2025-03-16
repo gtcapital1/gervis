@@ -683,223 +683,297 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                 <h3 className="font-bold mb-4">{language === "english" ? "Cover Letter Content" : "Contenuto della Lettera"}</h3>
                 
                 <Textarea
-                  id="greeting"
-                  value={letterFields.greeting}
-                  onChange={(e) => setLetterFields({...letterFields, greeting: e.target.value})}
-                  placeholder={language === "english" ? "Greeting..." : "Saluto..."}
-                  rows={2}
-                  className="mb-4 w-full"
+                  id="fullLetterContent"
+                  value={`${letterFields.greeting}
+
+${letterFields.introduction}
+
+${letterFields.collaboration}
+
+${letterFields.servicePoints.map((point, index) => `${index + 1}. ${point}`).join('\n')}
+
+${letterFields.process}
+
+${letterFields.contactInfo}
+
+${letterFields.closing}`}
+                  onChange={(e) => {
+                    // Dividiamo il testo in sezioni
+                    const text = e.target.value;
+                    const sections = text.split('\n\n');
+                    
+                    if (sections.length >= 6) {
+                      // Estraiamo i punti di servizio (possono contenere più righe)
+                      const servicePointSection = sections.length > 6 ? sections.slice(2, -3).join('\n\n') : sections[2];
+                      const pointsText = servicePointSection;
+                      
+                      // Estraiamo i punti numerati
+                      const pointsRegex = /(\d+)\.\s*(.+)/g;
+                      const points: string[] = [];
+                      let match;
+                      
+                      while ((match = pointsRegex.exec(pointsText)) !== null) {
+                        points.push(match[2].trim());
+                      }
+                      
+                      // Se non ci sono punti numerati, conserviamo quelli esistenti
+                      const servicePoints = points.length > 0 ? points : letterFields.servicePoints;
+                      
+                      // Aggiorniamo il letterFields con le sezioni
+                      setLetterFields({
+                        ...letterFields,
+                        greeting: sections[0]?.trim() || letterFields.greeting,
+                        introduction: sections[1]?.trim() || letterFields.introduction,
+                        collaboration: sections[2]?.trim() || letterFields.collaboration,
+                        servicePoints,
+                        process: sections[sections.length - 3]?.trim() || letterFields.process,
+                        contactInfo: sections[sections.length - 2]?.trim() || letterFields.contactInfo,
+                        closing: sections[sections.length - 1]?.trim() || letterFields.closing,
+                      });
+                    }
+                  }}
+                  placeholder={language === "english" ? "Enter the full content of your cover letter here..." : "Inserisci qui il contenuto completo della tua lettera..."}
+                  rows={20}
+                  className="w-full mb-4"
                 />
                 
-                <Textarea
-                  id="introduction"
-                  value={letterFields.introduction}
-                  onChange={(e) => setLetterFields({...letterFields, introduction: e.target.value})}
-                  placeholder={language === "english" ? "Introduction..." : "Introduzione..."}
-                  rows={3}
-                  className="mb-4 w-full"
-                />
-                
-                <Textarea
-                  id="collaboration"
-                  value={letterFields.collaboration}
-                  onChange={(e) => setLetterFields({...letterFields, collaboration: e.target.value})}
-                  placeholder={language === "english" ? "Collaboration text..." : "Testo collaborazione..."}
-                  rows={3}
-                  className="mb-4 w-full"
-                />
-                
-                <div className="mb-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-medium">{language === "english" ? "Service Points:" : "Punti del Servizio:"}</span>
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={addServicePoint}
-                    >
-                      <Plus className="h-4 w-4 mr-1" />
-                      {language === "english" ? "Add" : "Aggiungi"}
-                    </Button>
+                <div className="flex justify-between items-center">
+                  <div className="text-xs text-gray-500">
+                    {language === "english" 
+                      ? "The text will be automatically formatted in the PDF. Press Enter twice to create paragraph breaks." 
+                      : "Il testo sarà formattato automaticamente nel PDF. Premi Invio due volte per creare interruzioni di paragrafo."}
                   </div>
                   
-                  {letterFields.servicePoints.map((point, index) => (
-                    <div key={index} className="flex gap-2 mb-2">
-                      <div className="flex-none w-8 text-center pt-2 font-bold">{index + 1}.</div>
-                      <Textarea
-                        value={point}
-                        onChange={(e) => updateServicePoint(index, e.target.value)}
-                        rows={2}
-                        className="flex-grow"
-                      />
-                      <Button 
-                        type="button" 
-                        size="icon"
-                        variant="ghost" 
-                        className="flex-none h-10 mt-1"
-                        onClick={() => removeServicePoint(index)}
-                      >
-                        <Trash className="h-4 w-4 text-red-500" />
-                      </Button>
-                    </div>
-                  ))}
+                  <Button 
+                    type="button" 
+                    size="sm" 
+                    variant="outline" 
+                    onClick={resetToDefaults}
+                    className="mt-2"
+                  >
+                    <FileText className="h-4 w-4 mr-1" />
+                    {language === "english" ? "Reset Default Text" : "Ripristina Testo Predefinito"}
+                  </Button>
                 </div>
-                
-                <Textarea
-                  id="process"
-                  value={letterFields.process}
-                  onChange={(e) => setLetterFields({...letterFields, process: e.target.value})}
-                  placeholder={language === "english" ? "Process description..." : "Descrizione del processo..."}
-                  rows={3}
-                  className="mb-4 w-full"
-                />
-                
-                <Textarea
-                  id="contactInfo"
-                  value={letterFields.contactInfo}
-                  onChange={(e) => setLetterFields({...letterFields, contactInfo: e.target.value})}
-                  placeholder={language === "english" ? "Contact information..." : "Informazioni di contatto..."}
-                  rows={3}
-                  className="mb-4 w-full"
-                />
-                
-                <Textarea
-                  id="closing"
-                  value={letterFields.closing}
-                  onChange={(e) => setLetterFields({...letterFields, closing: e.target.value})}
-                  placeholder={language === "english" ? "Closing remarks..." : "Osservazioni finali..."}
-                  rows={2}
-                  className="w-full"
-                />
               </div>
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
               <div className="preview-container">
-                {/* Cover Letter Preview - PAGE 1 */}
-                <div className="border rounded-md p-5 bg-white text-black mb-8">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold">{language === "english" ? "Cover Letter" : "Lettera di Accompagnamento"}</h3>
-                    <span className="text-sm bg-gray-100 px-2 py-1 rounded-md">{language === "english" ? "Page 1" : "Pagina 1"}</span>
-                  </div>
-                  
-                  <div className="flex justify-between mb-6">
-                    <div>
-                      <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
-                      <p>{client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}</p>
-                    </div>
-                    <div className="text-right">
-                      <p>{new Date().toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-right mb-6">
-                    <p>{t('pdf.coverLetter.toClient')}:</p>
-                    <p className="font-bold">{client.firstName} {client.lastName}</p>
-                    <p>{client.email}</p>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <p>
-                      <span className="font-bold">{language === "english" ? "Subject: " : "Oggetto: "}</span>
-                      <span>{language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"}</span>
-                    </p>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <p>{letterFields.greeting}</p>
-                    <p>{letterFields.introduction}</p>
-                    <p>{letterFields.collaboration}</p>
-                    
-                    <div className="pl-4">
-                      {letterFields.servicePoints.map((point, index) => (
-                        <div key={index} className="mb-2">
-                          <span className="font-bold">{index + 1}. </span>
-                          {point}
+                {/* PDF Preview - Exactly as it will appear in the PDF */}
+                <div className="space-y-8">
+                  {/* Header with company info and logo (simulated) */}
+                  <div className="border rounded-md p-5 bg-white text-black relative">
+                    <div className="border-b pb-2 mb-4">
+                      {companyInfo && (
+                        <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
+                          {companyInfo}
                         </div>
-                      ))}
-                    </div>
-                    
-                    <p>{letterFields.process}</p>
-                    <p>{letterFields.contactInfo}</p>
-                    <p>{letterFields.closing}</p>
-                    
-                    <div className="mt-4">
-                      <p className="font-bold">
-                        {client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}
-                      </p>
-                      <p>
-                        {client.advisorId ? advisorSignature?.split('\n')[1] || "" : ""}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Client Summary Report - PAGE 2 */}
-                <div className="border rounded-md p-5 bg-white text-black">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold">{language === "english" ? "Client Summary Report" : "Riepilogo Cliente"}</h3>
-                    <span className="text-sm bg-gray-100 px-2 py-1 rounded-md">{language === "english" ? "Page 2" : "Pagina 2"}</span>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h4 className="font-semibold mb-3">{language === "english" ? "Personal Information" : "Informazioni Personali"}</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <p className="font-bold">{language === "english" ? "Name:" : "Nome:"}</p>
-                      <p>{client.firstName} {client.lastName}</p>
-                      <p className="font-bold">{language === "english" ? "Email:" : "Email:"}</p>
-                      <p>{client.email}</p>
-                      <p className="font-bold">{language === "english" ? "Phone:" : "Telefono:"}</p>
-                      <p>{client.phone || (language === "english" ? "Not provided" : "Non fornito")}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-6">
-                    <h4 className="font-semibold mb-3">{language === "english" ? "Investment Profile" : "Profilo di Investimento"}</h4>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-                      <p className="font-bold">{language === "english" ? "Risk Profile:" : "Profilo di Rischio:"}</p>
-                      <p>{client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
-                      <p className="font-bold">{language === "english" ? "Investment Horizon:" : "Orizzonte di Investimento:"}</p>
-                      <p>{client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="font-semibold mb-3">{language === "english" ? "Asset Allocation" : "Allocazione Asset"}</h4>
-                    {assets && assets.length > 0 ? (
-                      <div>
-                        <div className="grid grid-cols-3 gap-4 font-bold border-b pb-2 mb-1">
-                          <p>{language === "english" ? "Category" : "Categoria"}</p>
-                          <p>{language === "english" ? "Value" : "Valore"}</p>
-                          <p>%</p>
+                      )}
+                      
+                      {companyLogo && (
+                        <div className="absolute top-5 right-5">
+                          <img 
+                            src={companyLogo} 
+                            alt="Company Logo" 
+                            className="max-h-12 max-w-[200px] object-contain"
+                          />
                         </div>
-                        
-                        {assets.map((asset, index) => {
-                          const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
-                          const percentage = Math.round((asset.value / totalValue) * 100);
-                          return (
-                            <div key={index} className="grid grid-cols-3 gap-4 py-1">
-                              <p>{t(`asset_categories.${asset.category}`)}</p>
-                              <p>{formatCurrency(asset.value)} €</p>
-                              <p>{percentage}%</p>
-                            </div>
-                          );
-                        })}
-                        
-                        {/* Total row */}
-                        <div className="grid grid-cols-3 gap-4 mt-2 border-t pt-2 font-bold">
-                          <p>{language === "english" ? "Total" : "Totale"}</p>
-                          <p>{formatCurrency(assets.reduce((sum, a) => sum + a.value, 0))} €</p>
-                          <p>100%</p>
+                      )}
+                    </div>
+                    
+                    {/* Page 1 - Cover Letter */}
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <div>
+                          <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
+                          <p>{client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}</p>
+                          {advisorSignature?.split('\n')[1] && (
+                            <p>{advisorSignature.split('\n')[1]}</p>
+                          )}
+                          {advisorSignature?.split('\n')[2] && (
+                            <p>{advisorSignature.split('\n')[2]}</p>
+                          )}
+                          {advisorSignature?.split('\n')[3] && (
+                            <p>{advisorSignature.split('\n')[3]}</p>
+                          )}
+                        </div>
+                        <div className="text-right">
+                          <p>{new Date().toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}</p>
                         </div>
                       </div>
-                    ) : (
-                      <p className="italic">{language === "english" ? "No assets found" : "Nessun asset trovato"}</p>
-                    )}
+                      
+                      <div className="text-right">
+                        <p>{t('pdf.coverLetter.toClient')}:</p>
+                        <p className="font-bold">{client.firstName} {client.lastName}</p>
+                        <p>{client.email}</p>
+                      </div>
+                      
+                      <div>
+                        <p>
+                          <span className="font-bold">{language === "english" ? "Subject: " : "Oggetto: "}</span>
+                          <span>{language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"}</span>
+                        </p>
+                      </div>
+                      
+                      <p>{letterFields.greeting}</p>
+                      <p>{letterFields.introduction}</p>
+                      <p>{letterFields.collaboration}</p>
+                      
+                      <div className="pl-4">
+                        {letterFields.servicePoints.map((point, index) => (
+                          <div key={index} className="mb-2">
+                            <span className="font-bold">{index + 1}. </span>
+                            {point}
+                          </div>
+                        ))}
+                      </div>
+                      
+                      <p>{letterFields.process}</p>
+                      <p>{letterFields.contactInfo}</p>
+                      <p>{letterFields.closing}</p>
+                      
+                      <div className="mt-6">
+                        <p className="font-bold">
+                          {client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}
+                        </p>
+                        <p>
+                          {client.advisorId ? advisorSignature?.split('\n')[1] || "" : ""}
+                        </p>
+                      </div>
+                      
+                      <div className="text-xs text-right text-gray-500 mt-8">
+                        {language === "english" ? "Page 1" : "Pagina 1"}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Page 2 - Client Summary Report */}
+                  <div className="border rounded-md p-5 bg-white text-black">
+                    <div className="border-b pb-2 mb-4">
+                      {companyInfo && (
+                        <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
+                          {companyInfo}
+                        </div>
+                      )}
+                      
+                      {companyLogo && (
+                        <div className="absolute top-5 right-5">
+                          <img 
+                            src={companyLogo} 
+                            alt="Company Logo" 
+                            className="max-h-12 max-w-[200px] object-contain"
+                          />
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mb-6 text-center">
+                      <h3 className="text-xl font-bold">{language === "english" ? "Client Summary Report" : "Riepilogo Cliente"}</h3>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <h4 className="font-semibold mb-2 border-b border-blue-500 pb-1">
+                        {language === "english" ? "Personal Information" : "Informazioni Personali"}
+                      </h4>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+                        <p className="font-bold">{language === "english" ? "Name:" : "Nome:"}</p>
+                        <p>{client.firstName} {client.lastName}</p>
+                        <p className="font-bold">{language === "english" ? "Email:" : "Email:"}</p>
+                        <p>{client.email}</p>
+                        <p className="font-bold">{language === "english" ? "Phone:" : "Telefono:"}</p>
+                        <p>{client.phone || (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Address:" : "Indirizzo:"}</p>
+                        <p>{client.address || (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Tax Code:" : "Codice Fiscale:"}</p>
+                        <p>{client.taxCode || (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Dependents:" : "Persone a carico:"}</p>
+                        <p>{client.dependents || (language === "english" ? "Not provided" : "Non fornito")}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-6">
+                      <h4 className="font-semibold mb-2 border-b border-blue-500 pb-1">
+                        {language === "english" ? "Financial Information" : "Informazioni Finanziarie"}
+                      </h4>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 mt-3">
+                        <p className="font-bold">{language === "english" ? "Annual Income:" : "Reddito Annuale:"}</p>
+                        <p>{client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Monthly Expenses:" : "Spese Mensili:"}</p>
+                        <p>{client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Risk Profile:" : "Profilo di Rischio:"}</p>
+                        <p>{client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Investment Goal:" : "Obiettivo di Investimento:"}</p>
+                        <p>{client.investmentGoals && client.investmentGoals.length > 0 ? 
+                            client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : 
+                            (language === "english" ? "Not provided" : "Non fornito")}
+                        </p>
+                        <p className="font-bold">{language === "english" ? "Investment Horizon:" : "Orizzonte di Investimento:"}</p>
+                        <p>{client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                        <p className="font-bold">{language === "english" ? "Experience Level:" : "Livello di Esperienza:"}</p>
+                        <p>{client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : (language === "english" ? "Not provided" : "Non fornito")}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="mb-8">
+                      <h4 className="font-semibold mb-2 border-b border-blue-500 pb-1">
+                        {language === "english" ? "Asset Allocation" : "Allocazione Asset"}
+                      </h4>
+                      {assets && assets.length > 0 ? (
+                        <div className="mt-3">
+                          <div className="grid grid-cols-3 gap-4 font-bold pb-2 mb-1">
+                            <p>{language === "english" ? "Category" : "Categoria"}</p>
+                            <p>{language === "english" ? "Value" : "Valore"}</p>
+                            <p>%</p>
+                          </div>
+                          
+                          {assets.map((asset, index) => {
+                            const totalValue = assets.reduce((sum, a) => sum + a.value, 0);
+                            const percentage = Math.round((asset.value / totalValue) * 100);
+                            return (
+                              <div key={index} className="grid grid-cols-3 gap-4 py-1 border-b border-gray-100">
+                                <p>{t(`asset_categories.${asset.category}`)}</p>
+                                <p>{formatCurrency(asset.value)} €</p>
+                                <p>{percentage}%</p>
+                              </div>
+                            );
+                          })}
+                          
+                          {/* Total row */}
+                          <div className="grid grid-cols-3 gap-4 mt-2 pt-1 font-bold">
+                            <p>{language === "english" ? "Total" : "Totale"}</p>
+                            <p>{formatCurrency(assets.reduce((sum, a) => sum + a.value, 0))} €</p>
+                            <p>100%</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="italic mt-3">{language === "english" ? "No assets found" : "Nessun asset trovato"}</p>
+                      )}
+                    </div>
+                    
+                    <div className="border-t pt-4">
+                      <p className="font-semibold">{language === "english" ? "Client Declaration" : "Dichiarazione Cliente"}</p>
+                      <p className="text-sm mt-2">{t('pdf.clientDeclarationText')}</p>
+                      
+                      <div className="mt-4 grid grid-cols-2 gap-8">
+                        <div>
+                          <p className="font-semibold mb-2">{language === "english" ? "Client Signature:" : "Firma Cliente:"}</p>
+                          <div className="border-b border-gray-400 h-8 w-full"></div>
+                        </div>
+                        <div>
+                          <p className="font-semibold mb-2">{language === "english" ? "Date:" : "Data:"}</p>
+                          <div className="border-b border-gray-400 h-8 w-full"></div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="text-xs text-right text-gray-500 mt-8">
+                      {language === "english" ? "Page 2" : "Pagina 2"}
+                    </div>
                   </div>
                 </div>
               </div>
