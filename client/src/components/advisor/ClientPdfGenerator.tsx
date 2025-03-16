@@ -30,9 +30,10 @@ interface ClientPdfGeneratorProps {
   assets: Asset[];
   advisorSignature?: string | null;
   companyLogo?: string | null;
+  companyInfo?: string | null;
 }
 
-export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo }: ClientPdfGeneratorProps) {
+export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
