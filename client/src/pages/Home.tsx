@@ -3,7 +3,6 @@ import Hero from "@/components/Hero";
 import Features from "@/components/Features";
 import Benefits from "@/components/Benefits";
 import About from "@/components/About";
-import Contact from "@/components/Contact";
 import Footer from "@/components/Footer";
 import { useEffect } from "react";
 
@@ -44,7 +43,6 @@ export default function Home() {
       <Features />
       <Benefits />
       <About />
-      <Contact />
       <Footer />
     </div>
   );
