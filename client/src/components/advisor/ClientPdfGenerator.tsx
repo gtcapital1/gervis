@@ -46,8 +46,11 @@ interface LetterFields {
 
 export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
-  const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
+  // Utilizziamo la lingua corrente dell'i18n come default
+  const [language, setLanguage] = useState<string>(() => {
+    return i18n.language === "it" ? "italian" : "english";
+  });
   const { toast } = useToast();
   const [emailSubject, setEmailSubject] = useState("");
   const [emailCustomMessage, setEmailCustomMessage] = useState("");
@@ -336,10 +339,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       // Aggiungi intestazione alla pagina 2
       addHeaderToPage(2);
       
-      // Titolo documento
+      // Titolo documento - posizionato più in basso su richiesta dell'utente
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
+      doc.text(t('pdf.clientSummaryReport'), 105, 50, { align: "center" });
       
       // SECTION 1: Personal Information
       doc.setFontSize(14);
