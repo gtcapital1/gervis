@@ -58,39 +58,88 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // Set PDF document properties
     doc.setProperties({
-      title: `${t('pdf.title')} - ${client.name}`,
+      title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
       subject: t('pdf.subject'),
-      creator: 'Watson Financial Platform',
+      creator: 'Financial Advisor Platform',
       author: 'Financial Advisor'
     });
     
-    // Add letterhead
-    doc.setFillColor(41, 98, 255);
-    doc.rect(0, 0, 210, 25, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text("Watson Financial", 15, 15);
+    // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
     
-    // Add document title
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(16);
-    doc.text(t('pdf.clientSummaryReport'), 15, 40);
+    // Intestazione in alto
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.coverLetter.heading'), 105, 20, { align: "center" });
     
-    // Add date
+    // Mittente (Consulente)
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${t('pdf.coverLetter.fromAdvisor')}:`, 15, 40);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}`, 45, 40);
+    
+    // Data
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${t('pdf.coverLetter.date')}:`, 140, 40);
+    doc.setFont('helvetica', 'normal');
     const now = new Date();
     const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
       year: "numeric",
       month: "long",
       day: "numeric",
     });
-    doc.setFontSize(10);
-    doc.text(`${t('pdf.generatedOn')}: ${dateStr}`, 15, 50);
+    doc.text(dateStr, 155, 40);
+    
+    // Linea separatrice
+    doc.setDrawColor(100, 100, 100);
+    doc.line(15, 45, 195, 45);
+    
+    // Destinatario (Cliente)
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${t('pdf.coverLetter.toClient')}:`, 15, 55);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`${client.firstName} ${client.lastName}`, 45, 55);
+    
+    // Oggetto
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${t('pdf.coverLetter.subject')}:`, 15, 65);
+    doc.setFont('helvetica', 'normal');
+    doc.text(t('pdf.title'), 45, 65);
+    
+    // Spazio
+    const greetingText = `${t('pdf.coverLetter.greetings')} ${client.firstName},`;
+    doc.text(greetingText, 15, 80);
+    
+    // Corpo della lettera
+    const introText = t('pdf.coverLetter.intro');
+    const purposeText = t('pdf.coverLetter.purpose');
+    const contactText = t('pdf.coverLetter.contactInfo');
+    
+    const introLines = doc.splitTextToSize(introText, 180);
+    const purposeLines = doc.splitTextToSize(purposeText, 180);
+    const contactLines = doc.splitTextToSize(contactText, 180);
+    
+    doc.text(introLines, 15, 90);
+    doc.text(purposeLines, 15, 110);
+    doc.text(contactLines, 15, 130);
+    
+    // Chiusura e firma
+    doc.text(t('pdf.coverLetter.closing'), 15, 150);
+    doc.text(`${client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}`, 15, 165);
+    
+    // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
+    doc.addPage();
+    
+    // Titolo documento
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
     
     // SECTION 1: Personal Information
     doc.setFontSize(14);
-    doc.text(t('pdf.personalInformation'), 15, 65);
+    doc.text(t('pdf.personalInformation'), 15, 40);
     doc.setDrawColor(41, 98, 255);
-    doc.line(15, 68, 195, 68);
+    doc.line(15, 43, 195, 43);
     
     // Client personal details
     doc.setFontSize(11);
@@ -102,14 +151,14 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
       [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
       [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
-      [`${t('onboarding.income')}:`, client.annualIncome ? formatCurrency(client.annualIncome) : t('pdf.notProvided')],
-      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? formatCurrency(client.monthlyExpenses) : t('pdf.notProvided')],
+      [`${t('onboarding.income')}:`, client.annualIncome ? formatCurrency(client.annualIncome) + ' €' : t('pdf.notProvided')],
+      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? formatCurrency(client.monthlyExpenses) + ' €' : t('pdf.notProvided')],
       [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
       [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
     ];
     
     autoTable(doc, {
-      startY: 75,
+      startY: 50,
       head: [],
       body: personalInfo,
       theme: 'plain',
@@ -127,6 +176,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     const section2Y = (doc as any).lastAutoTable.finalY + 20;
     
     doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
     doc.text(t('pdf.investmentProfile'), 15, section2Y);
     doc.setDrawColor(41, 98, 255);
     doc.line(15, section2Y + 3, 195, section2Y + 3);
@@ -154,30 +204,20 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       },
     });
     
-    // SECTION 3: Asset Allocation - Start a new page for this section
+    // ======== PAGINA 3 - ASSET ALLOCATION E DICHIARAZIONE ========
     doc.addPage();
     
-    // Add letterhead on page 2
-    doc.setFillColor(41, 98, 255);
-    doc.rect(0, 0, 210, 25, "F");
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.text("Watson Financial", 15, 15);
-    
-    // Reset page for header on page 2
-    doc.setTextColor(41, 98, 255);
+    // Titolo documento
     doc.setFontSize(18);
-    doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`${t('pdf.generatedOn')}: ${dateStr}`, 15, 50);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
     
     // Asset allocation section
     doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text(t('pdf.assetAllocation'), 15, 65);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.assetAllocation'), 15, 40);
     doc.setDrawColor(41, 98, 255);
-    doc.line(15, 68, 195, 68);
+    doc.line(15, 43, 195, 43);
     
     // Assets table
     if (assets && assets.length > 0) {
@@ -186,7 +226,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       
       // Crea la tabella degli asset con la percentuale
       autoTable(doc, {
-        startY: 75,
+        startY: 50,
         head: [[
           t('pdf.category'),
           t('pdf.value'),
@@ -195,13 +235,13 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
         body: [
           ...assets.map(asset => [
             t(`asset_categories.${asset.category}`),
-            formatCurrency(asset.value),
+            formatCurrency(asset.value) + ' €',
             `${Math.round((asset.value / totalValue) * 100)}%`
           ]),
           // Aggiungi il totale come ultima riga della tabella
           [
             `${t('pdf.totalAssetsValue')}`,
-            formatCurrency(totalValue),
+            formatCurrency(totalValue) + ' €',
             '100%'
           ]
         ],
@@ -228,16 +268,18 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       });
     } else {
       doc.setFontSize(11);
-      doc.text(t('pdf.noAssetsFound'), 15, 75);
+      doc.setFont('helvetica', 'normal');
+      doc.text(t('pdf.noAssetsFound'), 15, 55);
     }
     
     // Add client declaration
     const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : 120;
     
     doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
     doc.text(t('pdf.clientDeclaration'), 15, declarationY);
     doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
     
     const declaration = t('pdf.clientDeclarationText');
     const splitDeclaration = doc.splitTextToSize(declaration, 180);
@@ -247,47 +289,26 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     const signatureY = declarationY + 10 + splitDeclaration.length * 4.5 + 15;
     
     doc.setFontSize(11);
-    doc.setTextColor(0, 0, 0);
-    doc.text(t('pdf.advisorSignature'), 15, signatureY);
-    doc.text(t('pdf.clientSignature'), 110, signatureY);
+    doc.text(t('pdf.clientSignature'), 15, signatureY);
     
     // Aggiungi campo data accanto alla firma del cliente
-    doc.text(t('pdf.date') + ': ___/___/_____', 110, signatureY + 35);
+    doc.text(t('pdf.date') + ': ___/___/_____', 15, signatureY + 35);
     
     doc.line(15, signatureY + 25, 85, signatureY + 25);
-    doc.line(110, signatureY + 25, 180, signatureY + 25);
     
-    // Add advisor signature if available and valid
-    if (advisorSignature) {
-      try {
-        doc.addImage(advisorSignature, 'PNG', 15, signatureY + 5, 70, 20);
-      } catch (error) {
-        console.warn("Could not add advisor signature image:", error);
-        // Instead add text to indicate a signature would be here
-        doc.setFontSize(10);
-        doc.setTextColor(100, 100, 100);
-        doc.text(t('pdf.signatureHere'), 35, signatureY + 15);
-      }
-    }
-    
-    // Add footer
+    // Add page numbers
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       
-      // Footer line
-      doc.setDrawColor(41, 98, 255);
-      doc.line(15, 280, 195, 280);
-      
-      // Footer text
+      // Page numbers
       doc.setFontSize(8);
       doc.setTextColor(100, 100, 100);
-      doc.text('Watson Financial Services | www.watsonfinancial.com', 15, 285);
       doc.text(`${t('pdf.page')} ${i} ${t('pdf.of')} ${pageCount}`, 170, 285);
     }
     
     // Save the PDF
-    doc.save(`${client.name.replace(/\s+/g, '_')}_Financial_Summary.pdf`);
+    doc.save(`${client.firstName}_${client.lastName}_Onboarding_Form.pdf`);
   };
   
   return (
