@@ -114,10 +114,10 @@ export default function ClientDetail() {
     refetch: refetchAssets
   } = useQuery<AssetType[]>({
     queryKey: [`/api/clients/${clientId}/assets`, forceRefresh], // Add forceRefresh to the query key
-    enabled: !isNaN(clientId) && !!client?.isOnboarded,
+    enabled: !isNaN(clientId) && !!client, // Rimosso il controllo su isOnboarded
     // Force refetch on each query
     staleTime: 0,
-    gcTime: 0 // Use gcTime instead of cacheTime in TanStack Query v5
+    gcTime: 0 // Use gcTime invece di cacheTime in TanStack Query v5
   });
 
   // For sending onboarding form
