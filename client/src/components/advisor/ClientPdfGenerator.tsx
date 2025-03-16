@@ -66,19 +66,16 @@ ${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
 
 È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
 
-La nostra collaborazione comprenderà:
+Attraverso un'analisi approfondita e strumenti avanzati, lavoreremo insieme per:
+1. Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.
+2. Individuare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo. 
+3. Assicurare una consulenza trasparente e in linea con le migliori pratiche di settore.
 
-1. Pianificazione finanziaria completa e personalizzata in base alle tue esigenze e obiettivi
-2. Revisioni e adeguamenti regolari del portafoglio
-3. Consulenza strategica sulle opportunità di investimento
-4. Strategie di ottimizzazione fiscale
-5. Supporto e guida continui quando ne hai bisogno
+Per completare il processo di onboarding, ti invito a verificare e restituire i documenti allegati, firmati. Questo passaggio è necessario per formalizzare la nostra collaborazione e procedere con le attività pianificate.
 
-Il mio processo è progettato per essere semplice e trasparente, con controlli regolari per assicurare che stiamo facendo progressi verso i tuoi obiettivi finanziari.
+Resto a disposizione per qualsiasi chiarimento o esigenza. Ti ringrazio per la fiducia e sono certo che sarà l'inizio di un percorso di valore.
 
-Non esitare a contattarmi in qualsiasi momento al [tuo numero di telefono] o [tua email] se hai domande o dubbi.
-
-Cordiali saluti,
+Un cordiale saluto,
 
 ${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`;
 
@@ -116,19 +113,16 @@ ${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
 
 È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
 
-La nostra collaborazione comprenderà:
+Attraverso un'analisi approfondita e strumenti avanzati, lavoreremo insieme per:
+1. Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.
+2. Individuare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo. 
+3. Assicurare una consulenza trasparente e in linea con le migliori pratiche di settore.
 
-1. Pianificazione finanziaria completa e personalizzata in base alle tue esigenze e obiettivi
-2. Revisioni e adeguamenti regolari del portafoglio
-3. Consulenza strategica sulle opportunità di investimento
-4. Strategie di ottimizzazione fiscale
-5. Supporto e guida continui quando ne hai bisogno
+Per completare il processo di onboarding, ti invito a verificare e restituire i documenti allegati, firmati. Questo passaggio è necessario per formalizzare la nostra collaborazione e procedere con le attività pianificate.
 
-Il mio processo è progettato per essere semplice e trasparente, con controlli regolari per assicurare che stiamo facendo progressi verso i tuoi obiettivi finanziari.
+Resto a disposizione per qualsiasi chiarimento o esigenza. Ti ringrazio per la fiducia e sono certo che sarà l'inizio di un percorso di valore.
 
-Non esitare a contattarmi in qualsiasi momento al [tuo numero di telefono] o [tua email] se hai domande o dubbi.
-
-Cordiali saluti,
+Un cordiale saluto,
 
 ${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`
     );
