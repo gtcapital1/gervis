@@ -272,7 +272,10 @@ const resourcesIt = {
     common: {
       cancel: "Annulla",
       saving: "Salvataggio in corso...",
-      save_changes: "Salva Modifiche"
+      save_changes: "Salva Modifiche",
+      app_name: "Watson",
+      pro_version: "Watson Pro",
+      coming_soon: "PROSSIMAMENTE"
     },
     languages: {
       english: "Inglese",
@@ -475,6 +478,14 @@ const resourcesEn = {
     language: {
       en: "English",
       it: "Italian"
+    },
+    common: {
+      cancel: "Cancel",
+      saving: "Saving...",
+      save_changes: "Save Changes",
+      app_name: "Watson",
+      pro_version: "Watson Pro",
+      coming_soon: "COMING SOON"
     }
   }
 };

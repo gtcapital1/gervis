@@ -11,7 +11,7 @@ export default function Footer() {
           <div className="col-span-1 md:col-span-1">
             <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
               <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
-              Watson
+              {t('common.app_name')}
             </a>
             <p className="mt-4 text-gray-400">
               {t('footer.description')}

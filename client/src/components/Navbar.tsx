@@ -40,7 +40,7 @@ export default function Navbar() {
           <div className="flex items-center">
             <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
               <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
-              Watson
+              {t('common.app_name')}
             </a>
           </div>
           
