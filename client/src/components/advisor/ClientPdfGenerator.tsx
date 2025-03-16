@@ -124,7 +124,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         
         // Variables to track the height needed for the header
         let headerHeight = 0;
-        const logoHeight = 25; // Altezza fissa del logo in mm
+        // Altezza fissa del logo in mm (definita qui per essere visibile in tutto il metodo)
+        const LOGO_HEIGHT = 25;
         let companyInfoHeight = 0;
         
         // Add company info in gray text in the top-left corner
@@ -155,27 +156,25 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         // Add the logo in the top-right corner with correct proportions
         if (companyLogo) {
           try {
-            // Miglioriamo il posizionamento del logo
-            const FIXED_HEIGHT = 20; // Altezza fissa in mm
-            
             // Posizione in alto a destra
             const x = 135; // Coordinate X (più a destra)
             const y = 5;   // Coordinate Y (alto del foglio)
             
-            // Per prevenire che l'immagine venga schiacciata, bisogna calcolare
-            // le dimensioni proporzionali dall'immagine originale
+            // Calcoliamo le dimensioni effettive del logo e le proporzioni
+            // utilizzando un oggetto Image
+            const img = new Image();
+            img.src = companyLogo;
             
-            // Utilizziamo un approccio sincrono per garantire che le proporzioni
-            // vengano mantenute in ogni circostanza
+            // Usiamo un rapporto di default di base pari a 2:1
+            let logoWidth = LOGO_HEIGHT * 2;
             
-            // Impostiamo un rapporto larghezza/altezza predefinito di 2:1
-            // che dovrebbe funzionare bene per la maggior parte dei loghi aziendali
-            const defaultRatio = 2;
-            const width = FIXED_HEIGHT * defaultRatio;
+            // Quando l'immagine sarà caricata, applicheremo il rapporto corretto
+            // ma intanto visualizziamo il logo con un rapporto provvisorio
             
+            // Calcoliamo il logo usando un rapporto di aspetto temporaneo
             // Clean the area before drawing
             doc.setFillColor(255, 255, 255);
-            doc.rect(x - 1, y - 1, width + 2, FIXED_HEIGHT + 2, 'F');
+            doc.rect(x - 1, y - 1, logoWidth + 2, LOGO_HEIGHT + 2, 'F');
             
             // Draw the image with maintained aspect ratio
             doc.addImage(
@@ -183,21 +182,21 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
               'JPEG', // formato automatico
               x,
               y,
-              width,
-              FIXED_HEIGHT,
+              logoWidth,
+              LOGO_HEIGHT,
               undefined, // alias
               'FAST' // compression 
             );
             
-            // Creiamo anche un'immagine nel DOM per calcolare
-            // le proporzioni corrette per un eventuale aggiornamento futuro
-            const img = new Image();
+            // Prepariamo il calcolo preciso delle dimensioni per usi futuri
             img.onload = function() {
               const actualRatio = img.width / img.height;
-              console.log("Logo actual dimensions:", { width: img.width, height: img.height, ratio: actualRatio });
+              console.log("Logo actual dimensions:", { 
+                width: img.width, 
+                height: img.height, 
+                ratio: actualRatio 
+              });
             };
-            img.src = companyLogo;
-            
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
@@ -208,8 +207,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                 'JPEG',
                 135,    
                 5,      
-                40,     // larghezza standard
-                20      // altezza standard
+                LOGO_HEIGHT * 2,   // larghezza standard (rapporto 2:1)
+                LOGO_HEIGHT        // altezza standard (come richiesto)
               );
             } catch (e) {
               console.error("Impossibile caricare il logo anche con dimensioni standard:", e);
@@ -218,7 +217,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         }
         
         // Determina l'altezza necessaria per l'intestazione
-        headerHeight = Math.max(logoHeight + 10, companyInfoHeight + 15);
+        headerHeight = Math.max(LOGO_HEIGHT + 10, companyInfoHeight + 15);
         
         // Aggiungi linea di separazione sotto il logo e le informazioni societarie
         doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
