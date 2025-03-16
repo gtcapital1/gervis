@@ -844,6 +844,7 @@ const resourcesIt = {
       emailDialogDescription: "Invia questo report via email al cliente",
       emailSubject: "Oggetto",
       emailMessage: "Messaggio",
+      emailBodyInfoMessage: "Il contenuto della lettera sarà utilizzato come corpo dell'email",
       emailDefaultSubject: "Benvenuto nel nostro servizio di consulenza",
       send: "Invia",
       noEmailProvided: "Email del cliente non fornita"

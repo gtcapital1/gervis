@@ -621,7 +621,7 @@ ${closing}`;
       };
       
       // Send email
-      const response = await fetch('/api/clients/email', {
+      const response = await fetch(`/api/clients/${client.id}/send-email`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
