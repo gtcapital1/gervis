@@ -155,7 +155,7 @@ export default function AuthPage() {
         <Link href="/">
           <Button variant="ghost" className="flex items-center gap-1">
             <ChevronLeft className="h-4 w-4" />
-            Back to Home
+            {t('auth.back_to_home')}
           </Button>
         </Link>
       </div>
@@ -296,25 +296,6 @@ export default function AuthPage() {
                         />
                         <FormField
                           control={registerForm.control}
-                          name="isIndependent"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={field.onChange}
-                                />
-                              </FormControl>
-                              <div className="space-y-1 leading-none">
-                                <FormLabel>
-                                  Sono un consulente finanziario indipendente
-                                </FormLabel>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
                           name="company"
                           render={({ field }) => (
                             <FormItem>
@@ -323,10 +304,38 @@ export default function AuthPage() {
                                 <Input
                                   placeholder="Società..."
                                   disabled={registerForm.watch("isIndependent")}
-                                  {...field}
+                                  value={registerForm.watch("isIndependent") ? "" : field.value}
+                                  onChange={field.onChange}
+                                  onBlur={field.onBlur}
+                                  name={field.name}
+                                  ref={field.ref}
                                 />
                               </FormControl>
                               <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="isIndependent"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={(checked) => {
+                                    field.onChange(checked);
+                                    if (checked) {
+                                      registerForm.setValue("company", "");
+                                    }
+                                  }}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  Sono un consulente finanziario indipendente
+                                </FormLabel>
+                              </div>
                             </FormItem>
                           )}
                         />
