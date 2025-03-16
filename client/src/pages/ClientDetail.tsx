@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
+import { useTranslation } from "react-i18next";
 import { 
   ArrowLeft, 
   Send, 
@@ -79,6 +80,7 @@ export default function ClientDetail() {
   const clientId = parseInt(id || "0");
   const { toast } = useToast();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   
@@ -272,7 +274,7 @@ ${user?.name || ""}`
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
-        <p>Loading client details...</p>
+        <p>{t('client.loading_details')}</p>
       </div>
     );
   }
@@ -280,10 +282,10 @@ ${user?.name || ""}`
   if (isError || !client) {
     return (
       <div className="flex flex-col justify-center items-center h-full space-y-4">
-        <p className="text-destructive">Error loading client details.</p>
+        <p className="text-destructive">{t('client.error_loading')}</p>
         <Button variant="outline" onClick={() => setLocation("/app")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Dashboard
+          {t('client.back_to_dashboard')}
         </Button>
       </div>
     );
@@ -296,17 +298,17 @@ ${user?.name || ""}`
           <div className="flex items-center">
             <Button variant="ghost" onClick={() => setLocation("/app")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              {t('client.back')}
             </Button>
             <h1 className="ml-4 text-3xl font-bold tracking-tight text-black">{client.name}</h1>
             <div className="ml-4 flex gap-2">
               {client.isArchived && (
-                <Badge className="bg-amber-600">Archived</Badge>
+                <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
               )}
               {client.isOnboarded ? (
-                <Badge className="bg-green-600">Onboarded</Badge>
+                <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
               ) : (
-                <Badge variant="outline">Not Onboarded</Badge>
+                <Badge variant="outline">{t('dashboard.not_onboarded')}</Badge>
               )}
             </div>
           </div>
@@ -325,7 +327,7 @@ ${user?.name || ""}`
               onClick={() => setIsEditDialogOpen(true)}
             >
               <Edit className="mr-2 h-4 w-4" />
-              Edit Client
+              {t('client.edit_client')}
             </Button>
           </div>
         </div>
@@ -336,9 +338,9 @@ ${user?.name || ""}`
           {!client.isOnboarded ? (
             <Card className="mb-6">
               <CardHeader className="pb-3">
-                <CardTitle className="text-xl">Client Onboarding Required</CardTitle>
+                <CardTitle className="text-xl">{t('client.onboarding_required')}</CardTitle>
                 <CardDescription>
-                  This client needs to complete the onboarding process to access all features.
+                  {t('client.onboarding_required_desc')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -353,22 +355,22 @@ ${user?.name || ""}`
                         onClick={() => {
                           navigator.clipboard.writeText(onboardingLink);
                           toast({
-                            title: "Link copied",
-                            description: "Onboarding link copied to clipboard."
+                            title: t('client.link_copied'),
+                            description: t('client.link_copied_desc')
                           });
                         }}
                       >
-                        Copy Link
+                        {t('client.copy_link')}
                       </Button>
                       <Button
                         variant="outline"
                         onClick={() => setOnboardingLink(null)}
                       >
-                        Generate New Link
+                        {t('client.generate_new_link')}
                       </Button>
                     </div>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Share this link with your client to complete the onboarding process.
+                      {t('client.share_link_desc')}
                     </p>
                   </div>
                 ) : (
@@ -378,7 +380,7 @@ ${user?.name || ""}`
                     className="bg-accent hover:bg-accent/90"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {sendOnboardingMutation.isPending ? "Sending..." : "Generate Onboarding Email"}
+                    {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_email')}
                   </Button>
                 )}
               </CardContent>
@@ -391,58 +393,58 @@ ${user?.name || ""}`
               {/* First Box: Personal Information */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">Personal Information</CardTitle>
+                  <CardTitle className="text-xl">{t('client.personal_information')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
                     <div className="flex items-center">
                       <User className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">Name:</span>
+                      <span className="text-sm text-muted-foreground mr-2">{t('client.name')}:</span>
                       <span>{client.name}</span>
                     </div>
                     <div className="flex items-center">
                       <Mail className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">Email:</span>
+                      <span className="text-sm text-muted-foreground mr-2">{t('client.email')}:</span>
                       <span>{client.email}</span>
                     </div>
                     {client.phone && (
                       <div className="flex items-center">
                         <Phone className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">Phone:</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.phone')}:</span>
                         <span>{client.phone}</span>
                       </div>
                     )}
                     {client.address && (
                       <div className="flex items-center">
                         <Home className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">Address:</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.address')}:</span>
                         <span>{client.address}</span>
                       </div>
                     )}
                     {client.taxCode && (
                       <div className="flex items-center">
                         <FileText className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">Tax Code:</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.tax_code')}:</span>
                         <span>{client.taxCode}</span>
                       </div>
                     )}
                     {client.employmentStatus && (
                       <div className="flex items-center">
                         <Briefcase className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">Employment:</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.employment')}:</span>
                         <span>{client.employmentStatus}</span>
                       </div>
                     )}
                     {client.dependents !== undefined && (
                       <div className="flex items-center">
                         <Users className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">Dependents:</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.dependents')}:</span>
                         <span>{client.dependents}</span>
                       </div>
                     )}
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">Created:</span>
+                      <span className="text-sm text-muted-foreground mr-2">{t('client.created')}:</span>
                       <span>{formatDate(client.createdAt)}</span>
                     </div>
                   </div>
@@ -456,19 +458,19 @@ ${user?.name || ""}`
                       <div className="grid grid-cols-1 gap-3 mt-3">
                         {client.annualIncome ? (
                           <div>
-                            <span className="text-sm text-muted-foreground block">Annual Income:</span>
+                            <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
                             <span className="text-lg font-medium">€{client.annualIncome.toLocaleString()}</span>
                           </div>
                         ) : null}
                         {client.monthlyExpenses ? (
                           <div>
-                            <span className="text-sm text-muted-foreground block">Monthly Expenses:</span>
+                            <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
                             <span className="text-lg font-medium">€{client.monthlyExpenses.toLocaleString()}</span>
                           </div>
                         ) : null}
                         {client.netWorth ? (
                           <div>
-                            <span className="text-sm text-muted-foreground block">Net Worth:</span>
+                            <span className="text-sm text-muted-foreground block">{t('client.net_worth')}:</span>
                             <span className="text-lg font-medium">€{client.netWorth.toLocaleString()}</span>
                           </div>
                         ) : null}
