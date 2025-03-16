@@ -131,7 +131,12 @@ export default function AuthPage() {
 
   function onRegisterSubmit(data: RegisterFormValues) {
     const { confirmPassword, ...userData } = data;
-    registerMutation.mutate(userData, {
+    // Add a username (it will be overwritten in the backend, but we need it to satisfy the schema)
+    const userDataWithUsername = {
+      ...userData,
+      username: `${userData.firstName.toLowerCase()}.${userData.lastName.toLowerCase()}`
+    };
+    registerMutation.mutate(userDataWithUsername, {
       onSuccess: () => {
         toast({
           title: "Registration successful",
