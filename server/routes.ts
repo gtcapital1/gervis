@@ -248,6 +248,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update company information
+  app.post('/api/users/:userId/company-info', isAuthenticated, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Ensure the user is only updating their own info
+      if (userId !== req.user?.id) {
+        return res.status(403).json({ message: 'Not authorized to update this account' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Company info schema
+      const companyInfoSchema = z.object({
+        companyInfo: z.string().max(1000, "Le informazioni societarie devono essere inferiori a 1000 caratteri")
+      });
+      
+      const validatedData = companyInfoSchema.parse(req.body);
+      
+      // Update the user's company info
+      await storage.updateUser(userId, {
+        companyInfo: validatedData.companyInfo
+      });
+      
+      res.json({ 
+        success: true,
+        message: 'Company information updated successfully'
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        console.error('Error updating company information:', error);
+        res.status(500).json({ message: 'Failed to update company information' });
+      }
+    }
+  });
+  
   // Contact form endpoint (landing page)
   app.post('/api/contact', async (req, res) => {
     try {
