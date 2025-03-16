@@ -130,15 +130,20 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
           doc.setTextColor(128, 128, 128); // Gray color
           doc.setFont('helvetica', 'normal'); // Assicuriamo che il testo non sia in grassetto
           
-          // Rimuove i ritorni a capo indesiderati e li sostituisce con spazi
-          const cleanedCompanyInfo = companyInfo.trim().replace(/\n+/g, " ");
+          // Manteniamo i ritorni a capo originali delle settings
+          const trimmedCompanyInfo = companyInfo.trim();
           
-          // Gestione avanzata del testo della società con giustificazione a sinistra
-          const companyInfoLines = doc.splitTextToSize(cleanedCompanyInfo, 100);
+          // Sostituiamo i newline con specifici caratteri per l'allineamento a sinistra
+          // preservando i ritorni a capo originali
+          const companyInfoLines = trimmedCompanyInfo.split('\n').map(line => line.trim());
+          
+          // Calcoliamo l'altezza in base al numero di righe
           companyInfoHeight = companyInfoLines.length * 3.5;
           
-          // Aggiunge il testo giustificato a sinistra
-          doc.text(companyInfoLines, 15, 15, { align: "left" });
+          // Aggiunge il testo giustificato a sinistra, riga per riga
+          companyInfoLines.forEach((line, index) => {
+            doc.text(line, 15, 15 + (index * 3.5), { align: "left" });
+          });
           
           // Reset text color for the rest of the content
           doc.setTextColor(0, 0, 0); // Back to black
@@ -411,10 +416,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       // Aggiungi intestazione alla pagina 3
       addHeaderToPage(3);
       
-      // Titolo documento
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
+      // Nella pagina 3 (asset allocation) non riproponiamo il titolo del modulo
+      // per evitare ripetizioni
       
       // Asset allocation section
       doc.setFontSize(14);
