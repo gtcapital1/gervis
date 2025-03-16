@@ -298,9 +298,9 @@ export default function OnboardingForm() {
     <div className="container max-w-4xl mx-auto py-48 px-4 sm:px-6">
       <Card className="mb-10">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Welcome, {client?.name}</CardTitle>
+          <CardTitle className="text-2xl font-bold">{t('onboarding.welcome')}, {client?.name}</CardTitle>
           <CardDescription>
-            Complete this form to finalize your onboarding with Watson Financial Advisors
+            {t('onboarding.instructions')}
           </CardDescription>
         </CardHeader>
       </Card>
@@ -308,7 +308,7 @@ export default function OnboardingForm() {
       {formError && (
         <Alert variant="destructive" className="mb-6">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
+          <AlertTitle>{t('onboarding.error')}</AlertTitle>
           <AlertDescription>{formError}</AlertDescription>
         </Alert>
       )}
@@ -317,9 +317,9 @@ export default function OnboardingForm() {
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
           <Card>
             <CardHeader>
-              <CardTitle>Personal Information</CardTitle>
+              <CardTitle>{t('onboarding.personal_info')}</CardTitle>
               <CardDescription>
-                Please provide your contact and additional personal details
+                {t('client_edit.personal_info_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -328,9 +328,9 @@ export default function OnboardingForm() {
                 name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Home Address</FormLabel>
+                    <FormLabel>{t('client.address')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="123 Main St, City, Country" {...field} />
+                      <Input placeholder={t('client.address')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -342,9 +342,9 @@ export default function OnboardingForm() {
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
+                    <FormLabel>{t('client.phone')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                      <Input placeholder={t('client.phone')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -356,12 +356,12 @@ export default function OnboardingForm() {
                 name="taxCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tax Identification</FormLabel>
+                    <FormLabel>{t('client.tax_code')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="Your tax identification number" {...field} />
+                      <Input placeholder={t('client.tax_code')} {...field} />
                     </FormControl>
                     <FormDescription>
-                      This is used for tax reporting purposes only.
+                      {t('client_edit.tax_code')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -373,9 +373,9 @@ export default function OnboardingForm() {
                 name="employmentStatus"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Employment Status</FormLabel>
+                    <FormLabel>{t('client.employment')}</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g., Employed, Self-Employed, Retired" {...field} />
+                      <Input placeholder={t('client.employment')} {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -388,7 +388,7 @@ export default function OnboardingForm() {
                   name="annualIncome"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Annual Income (€)</FormLabel>
+                      <FormLabel>{t('onboarding.income')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -407,7 +407,7 @@ export default function OnboardingForm() {
                   name="monthlyExpenses"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Monthly Expenses (€)</FormLabel>
+                      <FormLabel>{t('client.monthly_expenses')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -426,7 +426,7 @@ export default function OnboardingForm() {
                   name="netWorth"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Total Net Worth (€)</FormLabel>
+                      <FormLabel>{t('client.net_worth')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -445,7 +445,7 @@ export default function OnboardingForm() {
                   name="dependents"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Number of Dependents</FormLabel>
+                      <FormLabel>{t('client.dependents')}</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
@@ -464,9 +464,9 @@ export default function OnboardingForm() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Investment Profile</CardTitle>
+              <CardTitle>{t('onboarding.financial_profile')}</CardTitle>
               <CardDescription>
-                Help us understand your investment preferences and experience
+                {t('client_edit.investment_profile_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -475,26 +475,26 @@ export default function OnboardingForm() {
                 name="riskProfile"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Risk Tolerance</FormLabel>
+                    <FormLabel>{t('client.risk_profile')}</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select your risk tolerance" />
+                          <SelectValue placeholder={t('client_edit.select_risk_profile')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {riskProfileOptions.map(profile => (
                           <SelectItem key={profile} value={profile}>
-                            <span className="capitalize">{profile}</span>
+                            <span className="capitalize">{t(`risk_profiles.${profile}`)}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      This helps us determine the best investment strategy for you.
+                      {t('onboarding.risk_profile')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
