@@ -721,7 +721,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const token = await storage.generateOnboardingToken(clientId, language, customMessage, req.user?.email);
       
       // Return the token and a link that can be sent to the client
-      const onboardingLink = `${req.protocol}://${req.get('host')}/onboarding/${token}`;
+      // Include language parameter in the link for the form to display in the correct language
+      const onboardingLink = `${req.protocol}://${req.get('host')}/onboarding/${token}?language=${language}`;
       
       res.json({ 
         success: true,

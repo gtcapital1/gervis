@@ -96,23 +96,25 @@ export default function OnboardingForm() {
     isOnboarded: boolean;
   };
 
+  // Imposta la lingua in base al parametro nell'URL
+  useEffect(() => {
+    // Ottieni la lingua dal parametro token nell'URL
+    if (window.location.href.includes('language=italian')) {
+      i18n.changeLanguage('it');
+    } else if (window.location.href.includes('language=english')) {
+      i18n.changeLanguage('en');
+    }
+  }, [i18n]);
+
   // Fetch client data using token
   const { 
     data: client, 
     isLoading, 
     isError, 
     error 
-  } = useQuery<ClientResponse>({
+  } = useQuery<ClientResponse, Error, ClientResponse>({
     queryKey: [`/api/onboarding/${token}`],
-    enabled: !!token,
-    onSuccess: (data) => {
-      // Ottieni la lingua dal parametro token nell'URL
-      if (window.location.href.includes('language=italian')) {
-        i18n.changeLanguage('it');
-      } else if (window.location.href.includes('language=english')) {
-        i18n.changeLanguage('en');
-      }
-    }
+    enabled: !!token
   });
   
   // Form setup
