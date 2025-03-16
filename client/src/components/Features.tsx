@@ -15,7 +15,7 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }:
     <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border ${isComingSoon ? 'border-blue-800' : 'border-gray-800'} transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
       {isComingSoon && (
         <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
-          Watson Pro
+          {t('common.pro_version')}
         </div>
       )}
       <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
@@ -25,7 +25,7 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }:
         {title}
         {isComingSoon && (
           <span className="ml-2 text-white bg-blue-700 text-xs font-bold px-3 py-1 rounded-md mt-1">
-            COMING SOON
+            {t('common.coming_soon')}
           </span>
         )}
       </h3>

@@ -32,7 +32,7 @@ export default function About() {
               {t('about.description2')}
             </p>
             <p className="text-gray-600 text-lg mb-6">
-              Watson è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive.
+              {t('about.description3')}
             </p>
           </div>
         </div>
