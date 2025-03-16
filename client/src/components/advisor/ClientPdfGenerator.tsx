@@ -205,47 +205,77 @@ ${advisorPhone}`;
       // Add the logo in the top-right corner with correct proportions
       if (companyLogo) {
         try {
-          // Posizione in alto ancora più a destra come richiesto
-          const x = 150; // Coordinate X (spostato più a destra)
-          const y = 5;   // Coordinate Y (alto del foglio)
+          // Posizione in alto come richiesto, coordinata x=150 specificata
+          const x = 150; // Coordinata X come specificato
+          const y = 5;   // Coordinata Y (alto del foglio)
+          
+          // Altezza fissa del logo = 25mm come richiesto
+          const targetHeight = LOGO_HEIGHT; // 25mm
           
           // Calcoliamo le dimensioni effettive del logo e le proporzioni
-          // utilizzando un oggetto Image
+          // Uso di una promessa per assicurarsi che l'immagine venga caricata
+          const calculateImageAspectRatio = (imageUrl: string): Promise<number> => {
+            return new Promise((resolve) => {
+              const img = new Image();
+              img.onload = function() {
+                const actualRatio = img.width / img.height;
+                console.log("Logo actual dimensions:", { 
+                  width: img.width, 
+                  height: img.height, 
+                  ratio: actualRatio 
+                });
+                resolve(actualRatio);
+              };
+              img.onerror = function() {
+                // Fallback ratio di 2:1 se l'immagine non può essere caricata
+                console.error("Error loading image for ratio calculation");
+                resolve(2.0);
+              };
+              img.src = imageUrl;
+            });
+          };
+          
+          // Creiamo un'istanza temporanea di Image per ottenere le dimensioni
           const img = new Image();
           img.src = companyLogo;
           
-          // Usiamo un rapporto di default di base pari a 2:1
-          let logoWidth = LOGO_HEIGHT * 2;
+          // Per ora, usiamo un rapporto di default di 2:1
+          let logoWidth = targetHeight * 2;
           
-          // Quando l'immagine sarà caricata, applicheremo il rapporto corretto
-          // ma intanto visualizziamo il logo con un rapporto provvisorio
-          
-          // Calcoliamo il logo usando un rapporto di aspetto temporaneo
-          // Clean the area before drawing
+          // Calcoliamo il logo usando un rapporto di aspetto che conservi le proporzioni
+          // Puliamo l'area prima di disegnare
           doc.setFillColor(255, 255, 255);
-          doc.rect(x - 1, y - 1, logoWidth + 2, LOGO_HEIGHT + 2, 'F');
+          doc.rect(x - 1, y - 1, logoWidth + 2, targetHeight + 2, 'F');
           
-          // Draw the image with maintained aspect ratio
-          doc.addImage(
-            companyLogo,
-            'JPEG', // formato automatico
-            x,
-            y,
-            logoWidth,
-            LOGO_HEIGHT,
-            undefined, // alias
-            'FAST' // compression 
-          );
-          
-          // Prepariamo il calcolo preciso delle dimensioni per usi futuri
-          img.onload = function() {
-            const actualRatio = img.width / img.height;
-            console.log("Logo actual dimensions:", { 
-              width: img.width, 
-              height: img.height, 
-              ratio: actualRatio 
-            });
-          };
+          // Aggiungiamo l'immagine con il rapporto di aspetto corretto
+          if (img.complete && img.naturalWidth !== 0) {
+            // Se l'immagine è già caricata, usiamo il suo aspect ratio effettivo
+            const actualRatio = img.naturalWidth / img.naturalHeight;
+            logoWidth = targetHeight * actualRatio;
+            
+            doc.addImage(
+              companyLogo,
+              'JPEG', // formato automatico
+              x,
+              y,
+              logoWidth,
+              targetHeight,
+              undefined, // alias
+              'FAST' // compression 
+            );
+          } else {
+            // Altrimenti usiamo un placeholder temporaneo
+            doc.addImage(
+              companyLogo,
+              'JPEG',
+              x,
+              y,
+              logoWidth,
+              targetHeight,
+              undefined,
+              'FAST'
+            );
+          }
         } catch (err) {
           console.error("Errore nel caricamento del logo:", err);
           
@@ -254,10 +284,10 @@ ${advisorPhone}`;
             doc.addImage(
               companyLogo, 
               'JPEG',
-              150,    // Spostato più a destra anche nel fallback
+              150,    // Posizione X specificata
               5,      
               LOGO_HEIGHT * 2,   // larghezza standard (rapporto 2:1)
-              LOGO_HEIGHT        // altezza standard (come richiesto)
+              LOGO_HEIGHT        // altezza standard (25mm come richiesto)
             );
           } catch (e) {
             console.error("Impossibile caricare il logo anche con dimensioni standard:", e);
@@ -542,25 +572,19 @@ ${advisorPhone}`;
     
     doc.line(15, signatureY + 25, 85, signatureY + 25);
     
-    // Add page numbers solo alle pagine del modulo (non alla lettera)
+    // Aggiungi numeri di pagina solo alle pagine del modulo (non alla lettera)
     const pageCount = doc.getNumberOfPages();
+    
+    // Non mettiamo numeri di pagina sulla prima pagina (la lettera)
+    // La numerazione inizia da 1 per la seconda pagina fisica (che è la prima del modulo)
     for (let i = 2; i <= pageCount; i++) {
       doc.setPage(i);
       
       // Page numbers - partendo da pag 1 per il modulo
-      doc.setFontSize(8);
-      doc.setTextColor(100, 100, 100);
-      doc.text(`${t('pdf.page')} ${i-1} ${t('pdf.of')} ${pageCount-1}`, 170, 285);
-    }
-    
-    // Add page numbers
-    const totalPages = doc.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
       doc.setFontSize(9);
       doc.setTextColor(100, 100, 100);
       doc.text(
-        `${t('pdf.page')} ${i} ${t('pdf.of')} ${totalPages}`,
+        `${t('pdf.page')} ${i-1} ${t('pdf.of')} ${pageCount-1}`,
         doc.internal.pageSize.getWidth() - 20,
         doc.internal.pageSize.getHeight() - 10,
         { align: 'right' }
@@ -789,6 +813,7 @@ ${advisorPhone}`;
               <Button 
                 onClick={generatePdf} 
                 disabled={isGenerating}
+                variant="default"
                 className="w-auto"
               >
                 {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
