@@ -506,26 +506,26 @@ export default function OnboardingForm() {
                 name="investmentExperience"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Investment Experience</FormLabel>
+                    <FormLabel>{t('client.investment_experience')}</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select your experience level" />
+                          <SelectValue placeholder={t('client_edit.select_experience_level')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {experienceLevelOptions.map(level => (
                           <SelectItem key={level} value={level}>
-                            <span className="capitalize">{level}</span>
+                            <span className="capitalize">{t(`experience_levels.${level}`)}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Your experience with different types of investments.
+                      {t('onboarding.experience_level')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -537,26 +537,26 @@ export default function OnboardingForm() {
                 name="investmentHorizon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Investment Time Horizon</FormLabel>
+                    <FormLabel>{t('client.investment_horizon')}</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select your investment horizon" />
+                          <SelectValue placeholder={t('client_edit.select_investment_horizon')} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {investmentHorizonOptions.map(horizon => (
                           <SelectItem key={horizon} value={horizon}>
-                            <span className="capitalize">{horizon.replace('_', ' ')}</span>
+                            <span className="capitalize">{t(`investment_horizons.${horizon}`)}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      How long you plan to keep your investments.
+                      {t('onboarding.investment_horizon')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -568,9 +568,9 @@ export default function OnboardingForm() {
                 name="investmentGoals"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Investment Goals</FormLabel>
+                    <FormLabel>{t('client.investment_goals')}</FormLabel>
                     <FormDescription>
-                      Select all that apply to your financial objectives.
+                      {t('client_edit.investment_goals')}
                     </FormDescription>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                       {investmentGoalOptions.map(goal => (
@@ -588,9 +588,7 @@ export default function OnboardingForm() {
                             htmlFor={goal}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {goal.replace('_', ' ').split('_').map(word => 
-                              word.charAt(0).toUpperCase() + word.slice(1)
-                            ).join(' ')}
+                            {t(`investment_goals.${goal}`)}
                           </label>
                         </div>
                       ))}
@@ -605,7 +603,7 @@ export default function OnboardingForm() {
           <Card>
             <CardHeader className="space-y-1">
               <div className="flex justify-between items-center">
-                <CardTitle>Your Assets</CardTitle>
+                <CardTitle>{t('onboarding.assets')}</CardTitle>
                 <Button 
                   type="button" 
                   onClick={addAsset} 
@@ -613,11 +611,11 @@ export default function OnboardingForm() {
                   size="sm"
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Asset
+                  {t('onboarding.add_asset')}
                 </Button>
               </div>
               <CardDescription>
-                List your current financial assets and their approximate values
+                {t('client_edit.assets_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -625,7 +623,7 @@ export default function OnboardingForm() {
                 <div key={index}>
                   {index > 0 && <Separator className="my-6" />}
                   <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">Asset {index + 1}</h4>
+                    <h4 className="font-medium">{t('client_edit.asset')} {index + 1}</h4>
                     <Button
                       type="button"
                       variant="ghost"
@@ -634,7 +632,7 @@ export default function OnboardingForm() {
                       className="text-destructive"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Remove
+                      {t('onboarding.remove')}
                     </Button>
                   </div>
                   
@@ -644,20 +642,20 @@ export default function OnboardingForm() {
                       name={`assets.${index}.category`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Asset Type</FormLabel>
+                          <FormLabel>{t('client_edit.asset_type')}</FormLabel>
                           <Select 
                             onValueChange={field.onChange} 
                             defaultValue={field.value}
                           >
                             <FormControl>
                               <SelectTrigger>
-                                <SelectValue placeholder="Select asset type" />
+                                <SelectValue placeholder={t('client_edit.select_asset_type')} />
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {categoryOptions.map(category => (
                                 <SelectItem key={category} value={category}>
-                                  <span className="capitalize">{category.replace(/_/g, ' ')}</span>
+                                  <span className="capitalize">{t(`asset_categories.${category}`)}</span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
@@ -672,7 +670,7 @@ export default function OnboardingForm() {
                       name={`assets.${index}.value`}
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Approximate Value (€)</FormLabel>
+                          <FormLabel>{t('client_edit.asset_value')}</FormLabel>
                           <FormControl>
                             <Input 
                               type="number" 
@@ -691,10 +689,10 @@ export default function OnboardingForm() {
                       name={`assets.${index}.description`}
                       render={({ field }) => (
                         <FormItem className="col-span-1 md:col-span-2">
-                          <FormLabel>Description (Optional)</FormLabel>
+                          <FormLabel>{t('client_edit.description')}</FormLabel>
                           <FormControl>
                             <Textarea 
-                              placeholder="e.g., Primary residence, Stocks in Company XYZ, etc." 
+                              placeholder={t('pdf.description')} 
                               className="resize-none"
                               {...field} 
                             />
@@ -724,7 +722,7 @@ export default function OnboardingForm() {
                 className="w-full"
                 disabled={mutation.isPending}
               >
-                {mutation.isPending ? "Submitting..." : "Submit Onboarding Information"}
+                {mutation.isPending ? t('common.saving') : t('onboarding.submit')}
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </CardContent>
