@@ -71,7 +71,16 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const { toast } = useToast();
   
   // Imposta l'italiano come lingua di default ma tiene traccia della lingua corrente con useState
-  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "italian");
+  const [currentLanguage, setCurrentLanguage] = useState<string>("italian");
+  
+  // Imposta la lingua iniziale a italiano quando il componente viene montato
+  useEffect(() => {
+    console.log("Inizializzazione lingua:", i18n.language);
+    if (i18n.language !== "italian") {
+      i18n.changeLanguage("italian");
+    }
+    setCurrentLanguage("italian");
+  }, []);
   
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -654,12 +663,19 @@ ${closing}`;
 
   // Function to handle language switch and update letter fields
   const handleLanguageChange = () => {
-    // Alterna tra italiano e inglese
+    // Alterna tra italiano e inglese - forza il cambio esplicito
     const newLang = currentLanguage === "english" ? "italian" : "english";
     console.log("Changing language to:", newLang);
-    i18n.changeLanguage(newLang);
-    setCurrentLanguage(newLang); // Aggiorna lo stato locale
-    setLetterFieldsByLanguage(newLang);
+    
+    // Prima aggiorna lo stato locale, poi cambia la lingua in i18n
+    setCurrentLanguage(newLang);
+    
+    // Cambio lingua in i18n e aggiorna i campi
+    setTimeout(() => {
+      i18n.changeLanguage(newLang);
+      setLetterFieldsByLanguage(newLang);
+      console.log("Lingua aggiornata a:", newLang, "Stato corrente:", currentLanguage);
+    }, 10);
   };
 
   const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
