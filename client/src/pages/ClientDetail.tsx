@@ -316,6 +316,7 @@ ${user?.name || ""}`
                 client={client}
                 assets={assets}
                 advisorSignature={user?.signature || null}
+                companyLogo={user?.companyLogo || null}
               />
             )}
             <Button 
