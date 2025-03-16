@@ -40,6 +40,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("letter");
   
   // Formato predefinito della lettera
   const defaultLetterTemplate = language === "english" 
@@ -84,6 +85,11 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`;
 
   // Stato per la lettera completamente personalizzabile
   const [letterContent, setLetterContent] = useState<string>(defaultLetterTemplate);
+
+  // Gestisce il cambio di scheda
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+  };
 
   // Function to handle language change
   const changeLanguage = (lang: string) => {
@@ -765,7 +771,11 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             </DialogTitle>
           </DialogHeader>
           
-          <Tabs defaultValue="letter" className="mt-4">
+          <Tabs 
+            value={activeTab} 
+            onValueChange={handleTabChange}
+            className="mt-4"
+          >
             <TabsList className="mb-4">
               <TabsTrigger value="letter">
                 {language === "english" ? "Cover Letter" : "Lettera di Accompagnamento"}
