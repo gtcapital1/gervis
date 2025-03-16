@@ -818,11 +818,20 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
-              <div className="border rounded-md p-4 bg-gray-50 space-y-4">
+              <div className="border rounded-md p-6 bg-white shadow-sm space-y-4 max-h-[70vh] overflow-y-auto">
                 <div className="flex justify-between">
                   <div>
                     <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
                     <p>{client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}</p>
+                    {client.advisorId && advisorSignature?.split('\n')[1] && (
+                      <p>{advisorSignature?.split('\n')[1]}</p>
+                    )}
+                    {client.advisorId && advisorSignature?.split('\n')[2] && (
+                      <p>{advisorSignature?.split('\n')[2]}</p>
+                    )}
+                    {client.advisorId && advisorSignature?.split('\n')[3] && (
+                      <p>{advisorSignature?.split('\n')[3]}</p>
+                    )}
                   </div>
                   <div className="text-right">
                     <p>{new Date().toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
@@ -842,13 +851,18 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
                 <div className="mt-4">
                   <p>
                     <span className="font-bold">{language === "english" ? "Subject: " : "Oggetto: "}</span>
-                    <span>{language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"}</span>
+                    <span>{emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione")}</span>
                   </p>
                 </div>
                 
-                <div className="mt-4 whitespace-pre-line">
+                <div className="mt-4 whitespace-pre-line border-t pt-4">
                   {letterContent}
                 </div>
+              </div>
+              
+              <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
+                <FileText className="h-4 w-4" />
+                <span>{language === "english" ? "A full PDF with client information will be generated and attached to the email" : "Un PDF completo con le informazioni del cliente verrà generato e allegato all'email"}</span>
               </div>
             </TabsContent>
           </Tabs>
@@ -862,28 +876,14 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
               {language === "english" ? "Cancel" : "Annulla"}
             </Button>
             
-            <div className="flex gap-2">
-              <Button
-                onClick={() => {
-                  generatePdf();
-                  setShowSendEmailDialog(true);
-                }}
-                className="bg-blue-600 hover:bg-blue-700"
-                disabled={isGenerating}
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                {language === "english" ? "Generate & Send Email" : "Genera & Invia Email"}
-              </Button>
-              
-              <Button
-                onClick={generatePdf}
-                className="bg-green-600 hover:bg-green-700"
-                disabled={isGenerating}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                {language === "english" ? "Generate PDF" : "Genera PDF"}
-              </Button>
-            </div>
+            <Button
+              onClick={() => setShowSendEmailDialog(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={isGenerating}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {language === "english" ? "Generate & Send Email" : "Genera & Invia Email"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -927,7 +927,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             </Button>
             
             <Button
-              onClick={sendEmail}
+              onClick={generateAndSendEmail}
               className="bg-blue-600 hover:bg-blue-700"
               disabled={isSending}
             >
