@@ -595,13 +595,19 @@ ${closing}`;
       // Convert PDF to base64
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       
-      // Construct email data
+      // Construct email data with translated subject and message
+      const defaultSubject = t('pdf.emailDefaultSubject') || (language === "english" ? 
+        "Welcome to our consultancy service" : 
+        "Benvenuto nel nostro servizio di consulenza");
+      
+      const defaultMessage = language === "english" ? 
+        `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
+        `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`;
+      
       const emailData = {
         to: client.email,
-        subject: emailSubject || (language === "english" ? "Welcome to our consultancy service" : "Benvenuto nel nostro servizio di consulenza"),
-        message: emailCustomMessage || (language === "english" ? 
-          `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
-          `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`),
+        subject: emailSubject || defaultSubject,
+        message: emailCustomMessage || defaultMessage,
         includeAttachment: true,
         pdfBase64,
         fileName: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
@@ -646,8 +652,11 @@ ${closing}`;
 
   // Function to handle language switch and update letter fields
   const handleLanguageChange = (lang: string) => {
-    i18n.changeLanguage(lang);
-    setLetterFieldsByLanguage(lang);
+    // Forza l'aggiornamento della lingua nell'interfaccia
+    const newLang = lang === "english" ? "english" : "italian";
+    console.log("Changing language to:", newLang);
+    i18n.changeLanguage(newLang);
+    setLetterFieldsByLanguage(newLang);
   };
 
   const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
