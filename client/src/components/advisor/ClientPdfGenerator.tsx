@@ -184,28 +184,27 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       const addHeaderToPage = (pageNumber: number) => {
         doc.setPage(pageNumber);
         
-        // Add the logo in black and white in the top-left corner
+        // Add the logo in the top-left corner - dimensioni fisse ma ampie
         if (companyLogo) {
-          // Calculate logo dimensions to fit well in the header
           doc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
             15,    // x position - left side
             10,    // y position - top
-            40,    // width
-            15,    // height
+            60,    // width - dimensione ampia per non distorcere il logo
+            25,    // height - dimensione ampia per non distorcere il logo
             'company_logo', // alias
             'FAST'  // compression
           );
         }
         
-        // Add company info in gray text below the logo if available
+        // Add company info in gray text in the top-right corner
         if (companyInfo) {
           doc.setFontSize(8);
           doc.setTextColor(128, 128, 128); // Gray color
           
           const companyInfoLines = doc.splitTextToSize(companyInfo, 80);
-          doc.text(companyInfoLines, 15, 30); // Position below the logo
+          doc.text(companyInfoLines, 190, 15, { align: 'right' }); // Position to the right
           
           // Reset text color for the rest of the content
           doc.setTextColor(0, 0, 0); // Back to black
@@ -520,28 +519,27 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       const addHeaderToPage = (pageNumber: number) => {
         pdfDoc.setPage(pageNumber);
         
-        // Add the logo in black and white in the top-left corner
+        // Add the logo in the top-left corner - dimensioni fisse ma ampie
         if (companyLogo) {
-          // Calculate logo dimensions to fit well in the header
           pdfDoc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
             15,    // x position - left side
             10,    // y position - top
-            40,    // width
-            15,    // height
+            60,    // width - dimensione ampia per non distorcere il logo
+            25,    // height - dimensione ampia per non distorcere il logo
             'company_logo', // alias
             'FAST'  // compression
           );
         }
         
-        // Add company info in gray text below the logo if available
+        // Add company info in gray text in the top-right corner
         if (companyInfo) {
           pdfDoc.setFontSize(8);
           pdfDoc.setTextColor(128, 128, 128); // Gray color
           
           const companyInfoLines = pdfDoc.splitTextToSize(companyInfo, 80);
-          pdfDoc.text(companyInfoLines, 15, 30); // Position below the logo
+          pdfDoc.text(companyInfoLines, 190, 15, { align: 'right' }); // Position to the right
           
           // Reset text color for the rest of the content
           pdfDoc.setTextColor(0, 0, 0); // Back to black
