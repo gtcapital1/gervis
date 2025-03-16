@@ -366,8 +366,8 @@ ${advisorPhone}`;
     const subjectLabel = currentLanguage === "english" ? "Subject:" : "Oggetto:";
     doc.text(subjectLabel, 20, headerHeight + 60);
     doc.setFont('helvetica', 'normal');
-    const subjectText = currentLanguage === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
-    doc.text(subjectText, 65, headerHeight + 60);
+    const subjectText = currentLanguage === "english" ? "Consulting services offer" : "Offerta servizi di consulenza";
+    doc.text(subjectText, 45, headerHeight + 60);
     
     // Corpo della lettera completo - usando il contenuto pieno personalizzato
     doc.setFontSize(11);
@@ -812,7 +812,7 @@ ${advisorPhone}`;
               <Button 
                 onClick={generatePdf} 
                 disabled={isGenerating}
-                variant="default"
+                variant="outline"
                 className="w-auto"
               >
                 {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
