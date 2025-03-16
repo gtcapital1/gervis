@@ -123,7 +123,9 @@ export default function ClientDetail() {
   // State for the onboarding link
   const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  const [emailLanguage, setEmailLanguage] = useState<"english" | "italian">("english");
+  // La lingua dell'email deve essere ereditata dalla lingua dell'interfaccia corrente
+  const { i18n } = useTranslation();
+  const [emailLanguage, setEmailLanguage] = useState<"english" | "italian">(i18n.language === "it" ? "italian" : "english");
   const [emailMessage, setEmailMessage] = useState<string>("");
   
   // Initialize default email messages
@@ -240,8 +242,12 @@ ${user?.name || ""}`
   function handleSendOnboardingForm() {
     // If the dialog is not open, open it
     if (!onboardingLink) {
+      // Usa la lingua dell'interfaccia corrente per l'invio dell'email
+      const currentLanguage = i18n.language === "it" ? "italian" : "english";
+      // Aggiorniamo lo stato della lingua prima di aprire il dialogo
+      setEmailLanguage(currentLanguage);
       // Set default message based on the selected language
-      setEmailMessage(defaultEmailMessages[emailLanguage]);
+      setEmailMessage(defaultEmailMessages[currentLanguage]);
       setIsEmailDialogOpen(true);
     } else {
       // If the link already exists, reset it
