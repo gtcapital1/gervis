@@ -326,10 +326,9 @@ ${advisorPhone}`;
     
     // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dopo l'intestazione
     doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
+    doc.setFont('helvetica', 'normal');
     const fromLabel = currentLanguage === "english" ? "From:" : "Da:";
     doc.text(fromLabel, 20, headerHeight + 15);
-    doc.setFont('helvetica', 'normal');
     doc.text(advisorName, 35, headerHeight + 15);
     if (advisorCompany) {
       doc.text(advisorCompany, 35, headerHeight + 20);
