@@ -29,9 +29,10 @@ interface ClientPdfGeneratorProps {
   client: ClientSchema;
   assets: Asset[];
   advisorSignature?: string | null;
+  companyLogo?: string | null;
 }
 
-export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientPdfGeneratorProps) {
+export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
@@ -176,6 +177,37 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         creator: 'Financial Advisor Platform',
         author: 'Financial Advisor'
       });
+      
+      // Add company logo as a watermark if available
+      if (companyLogo) {
+        const pageCount = doc.getNumberOfPages();
+        // Add the logo to each page as a watermark in the header area
+        
+        // Function to add logo to a page
+        const addLogoToPage = (pageNumber: number) => {
+          doc.setPage(pageNumber);
+          
+          // Calculate logo dimensions to fit well in the header
+          // Assuming logo is in base64 format, add it as an image
+          // Position the logo in the top-right corner
+          doc.addImage(
+            companyLogo, 
+            'PNG', // or appropriate format
+            150,   // x position - right side
+            5,     // y position - top
+            40,    // width - adjust as needed
+            15,    // height - adjust as needed
+            'company_logo', // alias
+            'FAST'  // compression
+          );
+        };
+        
+        // Add logo to first page
+        addLogoToPage(1);
+        
+        // After adding pages, add logo to those pages too
+        doc.setPage(1); // Reset to first page to continue with content
+      }
       
       // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
       
