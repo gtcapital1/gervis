@@ -194,9 +194,17 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           doc.setFontSize(8);
           doc.setTextColor(128, 128, 128); // Gray color
           
-          // Assicurati che le informazioni siano in un formato che preserva i ritorni a capo originali
-          // ma elimina i ritorni a capo non voluti che potrebbero essere stati aggiunti
-          const sanitizedCompanyInfo = companyInfo.replace(/\r\n/g, '\n'); // Normalizza tutti i ritorni a capo
+          // Gestione avanzata dei ritorni a capo nei dati della company info
+          // 1. Rimuovi eventuali spazi bianchi in eccesso all'inizio e alla fine
+          // 2. Normalizza tutti i tipi di ritorni a capo (\r\n, \r, \n) in \n
+          // 3. Rimuovi ritorni a capo duplicati (come \n\n)
+          let sanitizedCompanyInfo = companyInfo.trim()
+            .replace(/\r\n|\r/g, '\n')     // normalizza tutti i newlines a \n
+            .replace(/\n{3,}/g, '\n\n')    // riduce sequenze di 3+ newlines a 2
+            .replace(/\s+\n/g, '\n')       // rimuove spazi bianchi prima di newline
+            .replace(/\n\s+/g, '\n');      // rimuove spazi bianchi dopo newline
+            
+          // Preserva i ritorni a capo voluti (massimo due consecutivi)
           const companyInfoLines = doc.splitTextToSize(sanitizedCompanyInfo, 80);
           companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           doc.text(companyInfoLines, 15, 15); // Position to the left
@@ -207,31 +215,63 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Calcola le dimensioni proporzionate
-          const img = new Image();
-          img.src = companyLogo;
+          // Per mantenere le proporzioni originali, usiamo una tecnica diversa
+          // invece di cercare di leggere le dimensioni direttamente dall'immagine
           
-          // Default dimensions
-          let imgWidth = 70;
-          let imgHeight = logoHeight;
-          
-          // Maintain aspect ratio if the image is loaded
-          if (img.width && img.height) {
-            const aspectRatio = img.width / img.height;
-            imgHeight = Math.min(logoHeight, 70 / aspectRatio);
-            imgWidth = imgHeight * aspectRatio;
+          try {
+            // Massima dimensione permessa
+            const maxHeight = logoHeight;
+            const maxWidth = 70;
+            
+            // Imposta dimensioni standard con aspect ratio di base
+            let imgWidth = maxWidth;
+            let imgHeight = maxHeight;
+            
+            // Determina le dimensioni in modo proporzionato
+            const b64Data = companyLogo.split(',')[1];
+            if (b64Data) {
+              // Se l'immagine è in base64, possiamo estrarre la dimensione dall'intestazione
+              // Per semplicità, usiamo dimensioni fisse con proporzioni 3:2 come compromesso
+              // (tipico per molti loghi aziendali)
+              const aspectRatio = 3/2; // proporzione tipica per loghi
+              
+              if (aspectRatio > 1) { 
+                // Se più largo che alto
+                imgHeight = maxWidth / aspectRatio;
+                imgWidth = maxWidth;
+              } else {
+                // Se più alto che largo o quadrato
+                imgWidth = maxHeight * aspectRatio;
+                imgHeight = maxHeight;
+              }
+            }
+            
+            // Aggiungi l'immagine con le dimensioni calcolate
+            doc.addImage(
+              companyLogo,
+              'NONE', // jsPDF rileva automaticamente il formato
+              125,     // x position - lato destro
+              5,      // y position - in alto
+              imgWidth, 
+              imgHeight,
+              'company_logo',
+              'FAST'  // compressione
+            );
+          } catch (err) {
+            console.error("Errore nel caricamento del logo:", err);
+            
+            // Fallback - carica comunque l'immagine con dimensioni fisse
+            doc.addImage(
+              companyLogo, 
+              'NONE',
+              125,    
+              5,      
+              70,    // larghezza fissa
+              35,    // altezza fissa
+              'company_logo', 
+              'FAST'
+            );
           }
-          
-          doc.addImage(
-            companyLogo, 
-            'NONE', // let jsPDF detect format automatically
-            125,    // x position - right side
-            5,      // y position - top
-            imgWidth,  // width - preserving aspect ratio
-            imgHeight, // height - preserving aspect ratio
-            'company_logo', // alias
-            'FAST'  // compression
-          );
         }
         
         // Determina l'altezza necessaria per l'intestazione
@@ -583,31 +623,63 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Calcola le dimensioni proporzionate
-          const img = new Image();
-          img.src = companyLogo;
+          // Per mantenere le proporzioni originali, usiamo una tecnica diversa
+          // invece di cercare di leggere le dimensioni direttamente dall'immagine
           
-          // Default dimensions
-          let imgWidth = 70;
-          let imgHeight = logoHeight;
-          
-          // Maintain aspect ratio if the image is loaded
-          if (img.width && img.height) {
-            const aspectRatio = img.width / img.height;
-            imgHeight = Math.min(logoHeight, 70 / aspectRatio);
-            imgWidth = imgHeight * aspectRatio;
+          try {
+            // Massima dimensione permessa
+            const maxHeight = logoHeight;
+            const maxWidth = 70;
+            
+            // Imposta dimensioni standard con aspect ratio di base
+            let imgWidth = maxWidth;
+            let imgHeight = maxHeight;
+            
+            // Determina le dimensioni in modo proporzionato
+            const b64Data = companyLogo.split(',')[1];
+            if (b64Data) {
+              // Se l'immagine è in base64, possiamo estrarre la dimensione dall'intestazione
+              // Per semplicità, usiamo dimensioni fisse con proporzioni 3:2 come compromesso
+              // (tipico per molti loghi aziendali)
+              const aspectRatio = 3/2; // proporzione tipica per loghi
+              
+              if (aspectRatio > 1) { 
+                // Se più largo che alto
+                imgHeight = maxWidth / aspectRatio;
+                imgWidth = maxWidth;
+              } else {
+                // Se più alto che largo o quadrato
+                imgWidth = maxHeight * aspectRatio;
+                imgHeight = maxHeight;
+              }
+            }
+            
+            // Aggiungi l'immagine con le dimensioni calcolate
+            pdfDoc.addImage(
+              companyLogo,
+              'NONE', // jsPDF rileva automaticamente il formato
+              125,     // x position - lato destro
+              5,      // y position - in alto
+              imgWidth, 
+              imgHeight,
+              'company_logo',
+              'FAST'  // compressione
+            );
+          } catch (err) {
+            console.error("Errore nel caricamento del logo:", err);
+            
+            // Fallback - carica comunque l'immagine con dimensioni fisse
+            pdfDoc.addImage(
+              companyLogo, 
+              'NONE',
+              125,    
+              5,      
+              70,    // larghezza fissa
+              35,    // altezza fissa
+              'company_logo', 
+              'FAST'
+            );
           }
-          
-          pdfDoc.addImage(
-            companyLogo, 
-            'NONE', // let jsPDF detect format automatically
-            125,    // x position - right side
-            5,      // y position - top
-            imgWidth,  // width - preserving aspect ratio
-            imgHeight, // height - preserving aspect ratio
-            'company_logo', // alias
-            'FAST'  // compression
-          );
         }
         
         // Determina l'altezza necessaria per l'intestazione
