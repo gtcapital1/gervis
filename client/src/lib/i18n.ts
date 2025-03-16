@@ -850,6 +850,9 @@ const resourcesIt = {
       emailBodyInfoMessage: "Il contenuto della lettera sarà utilizzato come corpo dell'email",
       emailDefaultSubject: "Benvenuto nel nostro servizio di consulenza",
       send: "Invia",
+      preview: "Anteprima",
+      pdfPreview: "Anteprima PDF",
+      close: "Chiudi",
       noEmailProvided: "Email del cliente non fornita"
     },
     benefits: {

@@ -749,13 +749,13 @@ ${advisorPhone}`;
           {showPreview && previewUrl && (
             <div className="mt-4 border rounded-lg overflow-hidden">
               <div className="bg-gray-100 p-2 border-b flex justify-between items-center">
-                <h4 className="text-sm font-medium">{currentLanguage === "english" ? "PDF Preview" : "Anteprima PDF"}</h4>
+                <h4 className="text-sm font-medium">{t('pdf.pdfPreview')}</h4>
                 <Button 
                   size="sm" 
                   variant="ghost" 
                   onClick={() => setShowPreview(false)}
                 >
-                  {currentLanguage === "english" ? "Close" : "Chiudi"}
+                  {t('pdf.close')}
                 </Button>
               </div>
               <iframe 
@@ -774,7 +774,7 @@ ${advisorPhone}`;
                 className="w-auto"
               >
                 <FileText className="mr-2 h-4 w-4" />
-                {currentLanguage === "english" ? "Preview" : "Anteprima"}
+                {t('pdf.preview')}
               </Button>
               
               <Button 
@@ -823,7 +823,7 @@ ${advisorPhone}`;
               <Input
                 id="emailSubject"
                 className="col-span-3"
-                placeholder={currentLanguage === "english" ? "Welcome to our consultancy service" : "Benvenuto nel nostro servizio di consulenza"}
+                placeholder={t('pdf.emailDefaultSubject')}
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
               />
