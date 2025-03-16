@@ -174,7 +174,7 @@ ${advisorPhone}`;
       // Variables to track the height needed for the header
       let headerHeight = 0;
       // Altezza fissa del logo in mm (definita qui per essere visibile in tutto il metodo)
-      const LOGO_HEIGHT = 25;
+      const LOGO_HEIGHT = 15;
       let companyInfoHeight = 0;
       
       // Add company info in gray text in the top-left corner
@@ -741,7 +741,7 @@ ${advisorPhone}`;
       <Button 
         onClick={() => setShowCustomizeDialog(true)} 
         className="w-full"
-        variant="default"
+        variant="outline"
         size="lg"
       >
         <FileText className="mr-2 h-5 w-5" />
