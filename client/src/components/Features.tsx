@@ -12,7 +12,7 @@ interface FeatureCardProps {
 function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }: FeatureCardProps) {
   const { t } = useTranslation();
   return (
-    <div className="bg-black rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative">
+    <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
       {isComingSoon && (
         <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
           Watson Pro
@@ -21,7 +21,14 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }:
       <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
         {icon}
       </div>
-      <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
+      <h3 className="text-xl font-bold mb-3 text-white">
+        {title}
+        {isComingSoon && (
+          <span className="ml-2 text-white bg-gray-600 text-xs font-bold px-2 py-1 rounded">
+            COMING SOON
+          </span>
+        )}
+      </h3>
       <p className="text-gray-400 mb-6">
         {description}
       </p>

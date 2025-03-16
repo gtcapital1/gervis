@@ -221,7 +221,7 @@ const resourcesEn = {
       }
     },
     features: {
-      title: "Powerful Features for Financial Excellence",
+      title: "Product Features",
       subtitle: "Watson provides cutting-edge tools that transform how financial consultants work.",
       onboarding: {
         title: "Simplify and Automate Onboarding",
@@ -532,7 +532,7 @@ const resourcesIt = {
       }
     },
     features: {
-      title: "Potenti Funzionalità per l'Eccellenza Finanziaria",
+      title: "Funzionalità del Prodotto",
       subtitle: "Watson fornisce strumenti all'avanguardia che trasformano il modo di lavorare dei consulenti finanziari.",
       onboarding: {
         title: "Semplifica e Automatizza l'Onboarding",

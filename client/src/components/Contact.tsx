@@ -167,7 +167,7 @@ export default function Contact() {
                         />
                       </FormControl>
                       <div className="space-y-1 leading-none">
-                        <FormLabel>
+                        <FormLabel className="text-black font-medium">
                           {t('contact.form.privacy')}
                         </FormLabel>
                         <FormMessage />
