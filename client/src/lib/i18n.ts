@@ -206,6 +206,9 @@ const resourcesIt = {
       equity: "Azioni e Titoli",
       bonds: "Obbligazioni e Reddito Fisso",
       cash: "Liquidità",
+      private_equity: "Private Equity",
+      venture_capital: "Venture Capital",
+      cryptocurrencies: "Criptovalute",
       other: "Altri Asset"
     },
     language: {
@@ -581,6 +584,9 @@ const resourcesEn = {
       equity: "Stocks & Equity",
       bonds: "Bonds & Fixed Income",
       cash: "Cash & Equivalents",
+      private_equity: "Private Equity",
+      venture_capital: "Venture Capital",
+      cryptocurrencies: "Cryptocurrencies",
       other: "Other Assets"
     },
     language: {

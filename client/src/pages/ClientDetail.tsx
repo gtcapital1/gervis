@@ -701,7 +701,7 @@ ${user?.name || ""}`
                                 
                                 // Convert to data format needed for pie chart
                                 const data = Object.entries(assetsByCategory).map(([category, value]) => ({
-                                  name: category.replace(/_/g, ' '),
+                                  name: t(`asset_categories.${category}`), // Utilizziamo le chiavi tradotte
                                   value,
                                   category
                                 }));
