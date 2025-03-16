@@ -307,7 +307,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Address</FormLabel>
+                      <FormLabel>{t('client_edit.address')}</FormLabel>
                       <FormControl>
                         <Textarea {...field} rows={3} />
                       </FormControl>
@@ -321,7 +321,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   name="taxCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tax Code / Identification Number</FormLabel>
+                      <FormLabel>{t('client_edit.tax_code')}</FormLabel>
                       <FormControl>
                         <Input {...field} />
                       </FormControl>
@@ -338,7 +338,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="employmentStatus"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Employment Status</FormLabel>
+                        <FormLabel>{t('client_edit.employment_status')}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -352,7 +352,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="dependents"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Number of Dependents</FormLabel>
+                        <FormLabel>{t('client_edit.dependents')}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -373,7 +373,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="annualIncome"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Annual Income ($)</FormLabel>
+                        <FormLabel>{t('client_edit.annual_income')}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -392,7 +392,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="monthlyExpenses"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Monthly Expenses ($)</FormLabel>
+                        <FormLabel>{t('client_edit.monthly_expenses')}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -411,7 +411,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="netWorth"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Net Worth ($)</FormLabel>
+                        <FormLabel>{t('client_edit.net_worth')}</FormLabel>
                         <FormControl>
                           <Input 
                             {...field} 
@@ -446,7 +446,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="riskProfile"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Risk Profile</FormLabel>
+                        <FormLabel>{t('client_edit.risk_profile')}</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
@@ -474,7 +474,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="investmentExperience"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Investment Experience</FormLabel>
+                        <FormLabel>{t('client_edit.investment_experience')}</FormLabel>
                         <Select 
                           onValueChange={field.onChange} 
                           defaultValue={field.value}
@@ -503,7 +503,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   name="investmentHorizon"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Investment Time Horizon</FormLabel>
+                      <FormLabel>{t('client_edit.investment_horizon')}</FormLabel>
                       <Select 
                         onValueChange={field.onChange} 
                         defaultValue={field.value}
