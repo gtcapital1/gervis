@@ -3,6 +3,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { 
   PlusCircle, 
   Trash2, 
@@ -96,6 +97,7 @@ interface ClientEditDialogProps {
 
 export function ClientEditDialog({ client, assets, open, onOpenChange, clientId, onAssetsUpdated }: ClientEditDialogProps) {
   const { toast } = useToast();
+  const { t } = useTranslation();
   
   // Convert enums to select options
   const riskProfileOptions = RISK_PROFILES as unknown as [string, ...string[]];
@@ -200,14 +202,14 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
       onOpenChange(false);
       
       toast({
-        title: "Client updated",
-        description: "Client information and assets have been updated successfully.",
+        title: t('client_edit.client_updated'),
+        description: t('client_edit.update_success'),
       });
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to update client information. Please try again.",
+        title: t('client_edit.error'),
+        description: t('client_edit.update_failure'),
         variant: "destructive",
       });
     },
