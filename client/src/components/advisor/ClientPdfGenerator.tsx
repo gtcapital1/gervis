@@ -611,8 +611,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       };
       
       // Send email
-      const response = await httpRequest('/api/clients/email', {
-        method: 'POST' as const,
+      const response = await fetch('/api/clients/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(emailData),
       });
       
@@ -661,142 +664,150 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     setLetterFieldsByLanguage(lang);
   };
 
+  const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
+
   return (
     <div className="space-y-4">
-      <Card>
-        <CardContent className="pt-6">
-          <Tabs defaultValue="generate" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="generate">{t('pdf.generatePdf')}</TabsTrigger>
-              <TabsTrigger value="customize">{t('pdf.customizeLetterContent')}</TabsTrigger>
-            </TabsList>
+      {/* Main button to open the customize dialog */}
+      <Button 
+        onClick={() => setShowCustomizeDialog(true)} 
+        className="w-full"
+        variant="default"
+        size="lg"
+      >
+        <FileText className="mr-2 h-5 w-5" />
+        {t('pdf.generatePdf')}
+      </Button>
+
+      {/* Customize dialog */}
+      <Dialog open={showCustomizeDialog} onOpenChange={setShowCustomizeDialog}>
+        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('pdf.customizeLetterContent')}</DialogTitle>
+            <DialogDescription>
+              {t('pdf.emailDialogDescription')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="flex justify-end space-x-2 mb-4">
+            <RadioGroup 
+              defaultValue={language}
+              className="flex space-x-2 border rounded-lg p-1"
+              onValueChange={handleLanguageChange}
+            >
+              <div className="flex items-center space-x-1">
+                <RadioGroupItem value="italian" id="italian" />
+                <Label htmlFor="italian">Italiano</Label>
+              </div>
+              <div className="flex items-center space-x-1">
+                <RadioGroupItem value="english" id="english" />
+                <Label htmlFor="english">English</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <div className="grid grid-cols-1 gap-4 py-2">
+            <div>
+              <Label htmlFor="greeting">{t('pdf.coverLetter.fields.greeting')}</Label>
+              <Input 
+                id="greeting" 
+                value={letterFields.greeting}
+                onChange={(e) => handleLetterFieldChange('greeting', e.target.value)}
+              />
+            </div>
             
-            <TabsContent value="generate" className="space-y-4 pt-4">
-              <div className="flex flex-col gap-4">
-                <div className="flex justify-end space-x-2">
-                  <RadioGroup 
-                    defaultValue={language}
-                    className="flex space-x-2 border rounded-lg p-1"
-                    onValueChange={handleLanguageChange}
-                  >
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="italian" id="italian" />
-                      <Label htmlFor="italian">Italiano</Label>
-                    </div>
-                    <div className="flex items-center space-x-1">
-                      <RadioGroupItem value="english" id="english" />
-                      <Label htmlFor="english">English</Label>
-                    </div>
-                  </RadioGroup>
+            <div>
+              <Label htmlFor="introduction">{t('pdf.coverLetter.fields.introduction')}</Label>
+              <Textarea 
+                id="introduction" 
+                rows={3}
+                value={letterFields.introduction}
+                onChange={(e) => handleLetterFieldChange('introduction', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="collaboration">{t('pdf.coverLetter.fields.collaboration')}</Label>
+              <Textarea 
+                id="collaboration" 
+                rows={3}
+                value={letterFields.collaboration}
+                onChange={(e) => handleLetterFieldChange('collaboration', e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>{t('pdf.coverLetter.fields.servicePoints')}</Label>
+              {letterFields.servicePoints.map((point, index) => (
+                <div key={index} className="flex items-start gap-2">
+                  <span className="mt-2 text-sm font-medium">{index + 1}.</span>
+                  <Input 
+                    value={point}
+                    onChange={(e) => handleServicePointChange(index, e.target.value)}
+                  />
                 </div>
+              ))}
+            </div>
+            
+            <div>
+              <Label htmlFor="process">{t('pdf.coverLetter.fields.process')}</Label>
+              <Textarea 
+                id="process" 
+                rows={3}
+                value={letterFields.process}
+                onChange={(e) => handleLetterFieldChange('process', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="contactInfo">{t('pdf.coverLetter.fields.contactInfo')}</Label>
+              <Textarea 
+                id="contactInfo" 
+                rows={2}
+                value={letterFields.contactInfo}
+                onChange={(e) => handleLetterFieldChange('contactInfo', e.target.value)}
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="closing">{t('pdf.coverLetter.fields.closing')}</Label>
+              <Input 
+                id="closing" 
+                value={letterFields.closing}
+                onChange={(e) => handleLetterFieldChange('closing', e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <DialogFooter className="mt-4 flex justify-between sm:justify-between">
+            <div className="flex space-x-2">
+              <Button 
+                onClick={generatePdf} 
+                disabled={isGenerating}
+                className="w-auto"
+              >
+                {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                <FileText className="mr-2 h-4 w-4" />
+                {t('pdf.generatePdf')}
+              </Button>
               
-                <div className="flex space-x-2">
-                  <Button 
-                    onClick={generatePdf} 
-                    className="w-full"
-                    disabled={isGenerating}
-                  >
-                    {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    <FileText className="mr-2 h-4 w-4" />
-                    {t('pdf.generatePdf')}
-                  </Button>
-                  
-                  <Button 
-                    onClick={() => setShowSendEmailDialog(true)} 
-                    className="w-full"
-                    disabled={!pdfGenerated || !client.email}
-                    variant="outline"
-                  >
-                    <Mail className="mr-2 h-4 w-4" />
-                    {t('pdf.sendByEmail')}
-                  </Button>
-                </div>
-                
-                {!client.email && (
-                  <div className="text-sm text-amber-600">
-                    {t('pdf.noEmailProvided')}
-                  </div>
-                )}
-              </div>
-            </TabsContent>
+              <Button 
+                onClick={() => setShowSendEmailDialog(true)} 
+                disabled={!pdfGenerated || !client.email}
+                variant="outline"
+                className="w-auto"
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                {t('pdf.sendByEmail')}
+              </Button>
+            </div>
             
-            <TabsContent value="customize" className="pt-4 space-y-4">
-              <div className="grid grid-cols-1 gap-4">
-                <div>
-                  <Label htmlFor="greeting">{t('pdf.coverLetter.fields.greeting')}</Label>
-                  <Input 
-                    id="greeting" 
-                    value={letterFields.greeting}
-                    onChange={(e) => handleLetterFieldChange('greeting', e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="introduction">{t('pdf.coverLetter.fields.introduction')}</Label>
-                  <Textarea 
-                    id="introduction" 
-                    rows={3}
-                    value={letterFields.introduction}
-                    onChange={(e) => handleLetterFieldChange('introduction', e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="collaboration">{t('pdf.coverLetter.fields.collaboration')}</Label>
-                  <Textarea 
-                    id="collaboration" 
-                    rows={3}
-                    value={letterFields.collaboration}
-                    onChange={(e) => handleLetterFieldChange('collaboration', e.target.value)}
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label>{t('pdf.coverLetter.fields.servicePoints')}</Label>
-                  {letterFields.servicePoints.map((point, index) => (
-                    <div key={index} className="flex items-start gap-2">
-                      <span className="mt-2 text-sm font-medium">{index + 1}.</span>
-                      <Input 
-                        value={point}
-                        onChange={(e) => handleServicePointChange(index, e.target.value)}
-                      />
-                    </div>
-                  ))}
-                </div>
-                
-                <div>
-                  <Label htmlFor="process">{t('pdf.coverLetter.fields.process')}</Label>
-                  <Textarea 
-                    id="process" 
-                    rows={3}
-                    value={letterFields.process}
-                    onChange={(e) => handleLetterFieldChange('process', e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="contactInfo">{t('pdf.coverLetter.fields.contactInfo')}</Label>
-                  <Textarea 
-                    id="contactInfo" 
-                    rows={2}
-                    value={letterFields.contactInfo}
-                    onChange={(e) => handleLetterFieldChange('contactInfo', e.target.value)}
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="closing">{t('pdf.coverLetter.fields.closing')}</Label>
-                  <Input 
-                    id="closing" 
-                    value={letterFields.closing}
-                    onChange={(e) => handleLetterFieldChange('closing', e.target.value)}
-                  />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+            <Button variant="secondary" onClick={() => setShowCustomizeDialog(false)}>
+              {t('dashboard.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Email Dialog */}
       <Dialog open={showSendEmailDialog} onOpenChange={setShowSendEmailDialog}>
