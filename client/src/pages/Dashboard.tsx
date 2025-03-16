@@ -290,117 +290,120 @@ export default function Dashboard() {
                 </Button>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('dashboard.name')}</TableHead>
-                    <TableHead>{t('dashboard.email')}</TableHead>
-                    <TableHead>{t('dashboard.phone')}</TableHead>
-                    <TableHead>{t('dashboard.status')}</TableHead>
-                    <TableHead>{t('dashboard.created')}</TableHead>
-                    <TableHead></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredClients.map((client: Client) => (
-                    <TableRow 
-                      key={client.id} 
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => handleViewClient(client.id)}
-                    >
-                      <TableCell className="font-medium">
-                        {client.lastName}, {client.firstName}
-                      </TableCell>
-                      <TableCell>{client.email}</TableCell>
-                      <TableCell>{client.phone || "—"}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={client.isOnboarded ? "default" : "outline"}
-                          className={client.isOnboarded ? "bg-green-600" : ""}
-                        >
-                          {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(client.createdAt)}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation(); // Previene la propagazione del click
-                              handleViewClient(client.id);
-                            }}
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="whitespace-nowrap">{t('dashboard.name')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('dashboard.email')}</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">{t('dashboard.phone')}</TableHead>
+                      <TableHead className="whitespace-nowrap">{t('dashboard.status')}</TableHead>
+                      <TableHead className="whitespace-nowrap hidden md:table-cell">{t('dashboard.created')}</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredClients.map((client: Client) => (
+                      <TableRow 
+                        key={client.id} 
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => handleViewClient(client.id)}
+                      >
+                        <TableCell className="font-medium whitespace-nowrap">
+                          {client.lastName}, {client.firstName}
+                        </TableCell>
+                        <TableCell className="max-w-[140px] truncate">{client.email}</TableCell>
+                        <TableCell className="whitespace-nowrap hidden md:table-cell">{client.phone || "—"}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={client.isOnboarded ? "default" : "outline"}
+                            className={client.isOnboarded ? "bg-green-600" : ""}
                           >
-                            <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">{t('dashboard.view')}</span>
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon"
-                                onClick={(e) => {
-                                  e.stopPropagation(); // Previene la propagazione del click
-                                }}
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">{t('dashboard.actions')}</span>
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem 
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleViewClient(client.id);
-                                }}
-                              >
-                                {t('dashboard.view_details')}
-                              </DropdownMenuItem>
-                              {client.isArchived ? (
+                            {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap hidden md:table-cell">{formatDate(client.createdAt)}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation(); // Previene la propagazione del click
+                                handleViewClient(client.id);
+                              }}
+                              className="hidden sm:flex"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                              <span className="sr-only">{t('dashboard.view')}</span>
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon"
+                                  onClick={(e) => {
+                                    e.stopPropagation(); // Previene la propagazione del click
+                                  }}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                  <span className="sr-only">{t('dashboard.actions')}</span>
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
                                 <DropdownMenuItem 
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    restoreClientMutation.mutate(client.id);
+                                    handleViewClient(client.id);
                                   }}
-                                  className="text-green-600"
                                 >
-                                  <RefreshCcw className="mr-2 h-4 w-4" />
-                                  {t('dashboard.restore_client')}
+                                  {t('dashboard.view_details')}
                                 </DropdownMenuItem>
-                              ) : (
-                                <>
+                                {client.isArchived ? (
                                   <DropdownMenuItem 
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleArchiveClient(client);
+                                      restoreClientMutation.mutate(client.id);
                                     }}
-                                    className="text-amber-600"
+                                    className="text-green-600"
                                   >
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    {t('dashboard.archive')}
+                                    <RefreshCcw className="mr-2 h-4 w-4" />
+                                    {t('dashboard.restore_client')}
                                   </DropdownMenuItem>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClient(client);
-                                    }}
-                                    className="text-red-600"
-                                  >
-                                    <UserX className="mr-2 h-4 w-4" />
-                                    {t('dashboard.delete_permanently')}
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                                ) : (
+                                  <>
+                                    <DropdownMenuItem 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleArchiveClient(client);
+                                      }}
+                                      className="text-amber-600"
+                                    >
+                                      <Archive className="mr-2 h-4 w-4" />
+                                      {t('dashboard.archive')}
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDeleteClient(client);
+                                      }}
+                                      className="text-red-600"
+                                    >
+                                      <UserX className="mr-2 h-4 w-4" />
+                                      {t('dashboard.delete_permanently')}
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>

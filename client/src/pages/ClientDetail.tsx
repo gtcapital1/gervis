@@ -294,51 +294,56 @@ ${user?.name || ""}`
   return (
     <>
       <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-6 border-b text-black">
-          <div className="flex items-center">
-            <Button variant="ghost" onClick={() => setLocation("/app")}>
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t('client.back')}
-            </Button>
-            <h1 className="ml-4 text-3xl font-bold tracking-tight text-black">{client.name}</h1>
-            <div className="ml-4 flex gap-2">
-              {client.isArchived && (
-                <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
-              )}
-              {client.isOnboarded ? (
-                <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
-              ) : (
-                <Badge variant="outline">{t('dashboard.not_onboarded')}</Badge>
-              )}
+        <div className="p-4 sm:p-6 border-b text-black">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
+            <div className="flex flex-col sm:flex-row sm:items-center mb-4 sm:mb-0">
+              <Button variant="ghost" onClick={() => setLocation("/app")} className="self-start">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                {t('client.back')}
+              </Button>
+              <div className="mt-2 sm:mt-0 sm:ml-4">
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">{client.name}</h1>
+                <div className="flex gap-2 mt-2">
+                  {client.isArchived && (
+                    <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
+                  )}
+                  {client.isOnboarded ? (
+                    <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
+                  ) : (
+                    <Badge variant="outline">{t('dashboard.not_onboarded')}</Badge>
+                  )}
+                </div>
+              </div>
             </div>
-          </div>
-          <div className="flex gap-4">
-            {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
-            {assets.length > 0 && (
-              <ClientPdfGenerator 
-                client={{
-                  ...client,
-                  birthDate: null, // Aggiungiamo la proprietà birthDate mancante
-                  isOnboarded: Boolean(client.isOnboarded), // Convertiamo in booleano
-                  // Garantiamo che i campi non siano null se non previsto nell'interfaccia
-                  riskProfile: client.riskProfile || null,
-                  investmentGoals: client.investmentGoals || [],
-                  investmentHorizon: client.investmentHorizon || null,
-                  investmentExperience: client.investmentExperience || null
-                }}
-                assets={assets}
-                advisorSignature={user?.signature || null}
-                companyLogo={user?.companyLogo || null}
-                companyInfo={user?.companyInfo || null}
-              />
-            )}
-            <Button 
-              className="bg-accent hover:bg-accent/90 flex items-center"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              {t('client.edit_client')}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
+              {assets.length > 0 && (
+                <ClientPdfGenerator 
+                  client={{
+                    ...client,
+                    birthDate: null, // Aggiungiamo la proprietà birthDate mancante
+                    isOnboarded: Boolean(client.isOnboarded), // Convertiamo in booleano
+                    // Garantiamo che i campi non siano null se non previsto nell'interfaccia
+                    riskProfile: client.riskProfile || null,
+                    investmentGoals: client.investmentGoals || [],
+                    investmentHorizon: client.investmentHorizon || null,
+                    investmentExperience: client.investmentExperience || null
+                  }}
+                  assets={assets}
+                  advisorSignature={user?.signature || null}
+                  companyLogo={user?.companyLogo || null}
+                  companyInfo={user?.companyInfo || null}
+                />
+              )}
+              <Button 
+                className="bg-accent hover:bg-accent/90 flex items-center"
+                onClick={() => setIsEditDialogOpen(true)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">{t('client.edit_client')}</span>
+                <span className="sm:hidden">Modifica</span>
+              </Button>
+            </div>
           </div>
         </div>
         
@@ -399,7 +404,7 @@ ${user?.name || ""}`
           
           <div className="space-y-6">
             {/* Top row: Personal Information and Investment Profile side by side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-x-auto">
               {/* First Box: Personal Information */}
               <Card>
                 <CardHeader className="pb-2">
@@ -640,7 +645,7 @@ ${user?.name || ""}`
                           <p className="text-muted-foreground">{t('client.no_assets')}</p>
                         </div>
                       ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Left side: Asset list */}
                           <div>
                             <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
@@ -676,7 +681,7 @@ ${user?.name || ""}`
                           {/* Right side: Pie chart */}
                           <div>
                             <h3 className="text-lg font-medium mb-3">{t('client.asset_split')}</h3>
-                            <div className="h-[220px] flex items-center justify-center">
+                            <div className="h-[280px] sm:h-[220px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
                                   equity: "#2563eb", // Medium dark blue
