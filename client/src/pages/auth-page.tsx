@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ChevronLeft } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Components
 import {
@@ -38,8 +39,8 @@ import { Separator } from "@/components/ui/separator";
 
 // Form schemas
 const loginSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters.",
+  email: z.string().email({
+    message: "Please enter a valid email address.",
   }),
   password: z.string().min(6, {
     message: "Password must be at least 6 characters.",
@@ -47,12 +48,18 @@ const loginSchema = z.object({
 });
 
 const registerSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters.",
+  firstName: z.string().min(1, {
+    message: "First name is required.",
   }),
+  lastName: z.string().min(1, {
+    message: "Last name is required.", 
+  }),
+  company: z.string().optional(),
+  isIndependent: z.boolean().default(false),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
+  phone: z.string().optional(),
   password: z.string().min(6, {
     message: "Password must be at least 6 characters.",
   }),
@@ -76,7 +83,7 @@ export default function AuthPage() {
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
@@ -85,8 +92,12 @@ export default function AuthPage() {
   const registerForm = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      username: "",
+      firstName: "",
+      lastName: "",
+      company: "",
+      isIndependent: false,
       email: "",
+      phone: "",
       password: "",
       confirmPassword: "",
     },
@@ -174,13 +185,14 @@ export default function AuthPage() {
                       >
                         <FormField
                           control={loginForm.control}
-                          name="username"
+                          name="email"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{t('auth.username')}</FormLabel>
+                              <FormLabel>Email</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder={`${t('auth.username')}...`}
+                                  type="email"
+                                  placeholder="Email..."
                                   {...field}
                                 />
                               </FormControl>
@@ -252,13 +264,65 @@ export default function AuthPage() {
                       >
                         <FormField
                           control={registerForm.control}
-                          name="username"
+                          name="firstName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>{t('auth.username')}</FormLabel>
+                              <FormLabel>Nome</FormLabel>
                               <FormControl>
                                 <Input
-                                  placeholder={`${t('auth.username')}...`}
+                                  placeholder="Nome..."
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="lastName"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Cognome</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Cognome..."
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="isIndependent"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
+                              </FormControl>
+                              <div className="space-y-1 leading-none">
+                                <FormLabel>
+                                  Sono un consulente finanziario indipendente
+                                </FormLabel>
+                              </div>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="company"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Società di consulenza</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Società..."
+                                  disabled={registerForm.watch("isIndependent")}
                                   {...field}
                                 />
                               </FormControl>
@@ -276,6 +340,22 @@ export default function AuthPage() {
                                 <Input
                                   type="email"
                                   placeholder="Email..."
+                                  {...field}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={registerForm.control}
+                          name="phone"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Telefono</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="Numero di telefono..."
                                   {...field}
                                 />
                               </FormControl>
