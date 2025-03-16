@@ -46,7 +46,8 @@ export async function sendCustomEmail(
   message: string,
   language: EmailLanguage = 'english',
   attachments?: any[],
-  advisorSignature?: string
+  advisorSignature?: string,
+  advisorEmail?: string
 ) {
   try {
     const content = language === 'english' ? englishContent : italianContent;
@@ -82,6 +83,7 @@ export async function sendCustomEmail(
     const mailOptions = {
       from: `"Watson Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: clientEmail,
+      cc: advisorEmail,
       subject: subject,
       html: emailHtml,
       attachments: attachments || []

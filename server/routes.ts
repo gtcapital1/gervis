@@ -310,7 +310,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           'gianmarco.trapasso@gmail.com',
           'Nuovo messaggio dal form di contatto Watson',
           emailMessage,
-          'italian'
+          'italian',
+          undefined,
+          undefined,
+          validatedData.email // include sender email in CC
         );
       } catch (emailError) {
         console.error('Failed to send contact form email:', emailError);
@@ -516,7 +519,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message,
         language as 'english' | 'italian',
         attachments,
-        advisorSignature
+        advisorSignature,
+        advisor?.email
       );
       
       res.json({ success: true, message: "Email sent successfully" });
