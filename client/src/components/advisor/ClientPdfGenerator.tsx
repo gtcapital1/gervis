@@ -1,20 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { FileText } from "lucide-react";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "react-i18next";
 import { formatCurrency } from "@/lib/utils";
 import { Client as ClientSchema } from "@shared/schema";
@@ -29,8 +21,6 @@ interface Asset {
   createdAt: string;
 }
 
-import { Label } from "@/components/ui/label";
-
 interface ClientPdfGeneratorProps {
   client: ClientSchema;
   assets: Asset[];
@@ -41,12 +31,33 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
   const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
   
+  // Testi predefiniti in inglese e italiano
+  const defaultEnglishText = "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.";
+  const defaultItalianText = "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.";
+
   const changeLanguage = (lang: string) => {
     setLanguage(lang);
     // Cambia immediatamente la lingua per il PDF
     i18n.changeLanguage(lang === "english" ? "en" : "it");
+    
+    // Aggiorna anche il testo personalizzato in base alla lingua selezionata
+    setCustomLetterText(lang === "english" ? defaultEnglishText : defaultItalianText);
     console.log("Language changed to:", lang, "i18n language:", i18n.language);
   };
+  
+  // Stato per il testo personalizzato della lettera
+  const [customLetterText, setCustomLetterText] = useState<string>(
+    language === "english" ? defaultEnglishText : defaultItalianText
+  );
+  
+  // Aggiorna il testo quando cambia la lingua
+  useEffect(() => {
+    if (language === "english") {
+      document.documentElement.lang = "en";
+    } else {
+      document.documentElement.lang = "it";
+    }
+  }, [language]);
   
   const generatePdf = () => {
     // Create new PDF document
@@ -81,15 +92,19 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // Mittente a sinistra in alto (nome, cognome, società, mail, telefono)
     doc.setFontSize(11);
-    doc.text(advisorName, 20, 25);
+    doc.setFont('helvetica', 'bold');
+    const fromLabel = language === "english" ? "From:" : "Da:";
+    doc.text(fromLabel, 20, 25);
+    doc.setFont('helvetica', 'normal');
+    doc.text(advisorName, 35, 25);
     if (advisorCompany) {
-      doc.text(advisorCompany, 20, 30);
+      doc.text(advisorCompany, 35, 30);
     }
     if (advisorEmail) {
-      doc.text(advisorEmail, 20, 35);
+      doc.text(advisorEmail, 35, 35);
     }
     if (advisorPhone) {
-      doc.text(advisorPhone, 20, 40);
+      doc.text(advisorPhone, 35, 40);
     }
     
     // Data in alto a destra
@@ -112,34 +127,35 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       doc.text(client.email, rightMargin, 60, { align: "right" });
     }
     
-    // Oggetto
+    // Oggetto - adatta in base alla lingua
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    doc.text("Oggetto:", 20, 75);
+    const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
+    doc.text(subjectLabel, 20, 75);
     doc.setFont('helvetica', 'normal');
-    doc.text("Avvio della nostra collaborazione", 65, 75);
+    const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
+    doc.text(subjectText, 65, 75);
     
     // Saluti
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
     const greetingText = `${t('pdf.coverLetter.greetings')} ${client.firstName},`;
-    doc.text(greetingText, 20, 95);
+    doc.text(greetingText, 20, 85);
     
-    // Corpo della lettera
-    const introText = t('pdf.coverLetter.intro');
-    const introLines = doc.splitTextToSize(introText, 170);
-    doc.text(introLines, 20, 105);
+    // Corpo della lettera - utilizziamo il testo personalizzato
+    const introLines = doc.splitTextToSize(customLetterText, 170);
+    doc.text(introLines, 20, 95);
     
     // Collaboration text
     const collaborationText = t('pdf.coverLetter.collaboration');
     doc.text(collaborationText, 20, 125);
     
-    // Bullet points
+    // Punti numerati
     const points = t('pdf.coverLetter.points', { returnObjects: true }) as string[];
     let bulletY = 132;
     
-    for (const point of points) {
-      const pointLines = doc.splitTextToSize(`• ${point}`, 160);
+    for (let i = 0; i < points.length; i++) {
+      const pointLines = doc.splitTextToSize(`${i+1}. ${points[i]}`, 160);
       doc.text(pointLines, 25, bulletY);
       bulletY += pointLines.length * 6;
     }
@@ -349,6 +365,20 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     doc.save(`${client.firstName}_${client.lastName}_Onboarding_Form.pdf`);
   };
   
+  // Funzione per aggiornare il testo della lettera personalizzata
+  const updateCustomLetterText = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setCustomLetterText(e.target.value);
+  };
+
+  // Ripristina il testo predefinito in base alla lingua
+  const resetToDefaultText = () => {
+    setCustomLetterText(
+      language === "english" 
+        ? "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations."
+        : "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti."
+    );
+  };
+
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -357,7 +387,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
           {t('pdf.generatePdf')}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-64">
+      <PopoverContent className="w-96">
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="language">{t('pdf.selectLanguage')}</Label>
@@ -371,6 +401,28 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
               </SelectContent>
             </Select>
           </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="customText">
+              {language === "english" ? "Custom letter text" : "Testo personalizzato della lettera"}
+            </Label>
+            <Textarea 
+              id="customText" 
+              value={customLetterText}
+              onChange={updateCustomLetterText}
+              rows={6}
+              className="resize-none"
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={resetToDefaultText}
+              className="text-xs w-full"
+            >
+              {language === "english" ? "Reset to default text" : "Ripristina testo predefinito"}
+            </Button>
+          </div>
+          
           <Button className="w-full" onClick={generatePdf}>
             {t('pdf.generate')}
           </Button>
