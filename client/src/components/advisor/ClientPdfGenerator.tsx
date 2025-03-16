@@ -69,7 +69,9 @@ interface LetterFields {
 export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
-  const language = i18n.language || "italian"; // Imposta l'italiano come lingua di default
+  
+  // Imposta l'italiano come lingua di default ma tiene traccia della lingua corrente con useState
+  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "italian");
   
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -84,8 +86,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   
   // Imposta i campi della lettera in base alla lingua corrente
   useEffect(() => {
-    setLetterFieldsByLanguage(language);
-  }, [language]);
+    setLetterFieldsByLanguage(currentLanguage);
+  }, [currentLanguage]);
   
   // Funzione per impostare i campi della lettera in base alla lingua
   const setLetterFieldsByLanguage = (lang: string) => {
@@ -596,11 +598,11 @@ ${closing}`;
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       
       // Construct email data with translated subject and message
-      const defaultSubject = t('pdf.emailDefaultSubject') || (language === "english" ? 
+      const defaultSubject = t('pdf.emailDefaultSubject') || (currentLanguage === "english" ? 
         "Welcome to our consultancy service" : 
         "Benvenuto nel nostro servizio di consulenza");
       
-      const defaultMessage = language === "english" ? 
+      const defaultMessage = currentLanguage === "english" ? 
         `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
         `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`;
       
@@ -651,11 +653,12 @@ ${closing}`;
   };
 
   // Function to handle language switch and update letter fields
-  const handleLanguageChange = (lang: string) => {
-    // Forza l'aggiornamento della lingua nell'interfaccia
-    const newLang = lang === "english" ? "english" : "italian";
+  const handleLanguageChange = () => {
+    // Alterna tra italiano e inglese
+    const newLang = currentLanguage === "english" ? "italian" : "english";
     console.log("Changing language to:", newLang);
     i18n.changeLanguage(newLang);
+    setCurrentLanguage(newLang); // Aggiorna lo stato locale
     setLetterFieldsByLanguage(newLang);
   };
 
@@ -686,13 +689,13 @@ ${closing}`;
           
           <div className="flex justify-end mb-4">
             <Button
-              variant={language === "english" ? "outline" : "default"}
+              variant={currentLanguage === "english" ? "outline" : "default"}
               size="sm"
-              onClick={() => handleLanguageChange(language === "english" ? "italian" : "english")}
+              onClick={handleLanguageChange}
               className="flex items-center gap-2"
             >
               <Globe className="h-4 w-4" />
-              {language === "english" ? "English" : "Italiano"}
+              {currentLanguage === "english" ? "English" : "Italiano"}
             </Button>
           </div>
           
@@ -757,7 +760,7 @@ ${closing}`;
               <Input
                 id="emailSubject"
                 className="col-span-3"
-                placeholder={language === "english" ? "Welcome to our consultancy service" : "Benvenuto nel nostro servizio di consulenza"}
+                placeholder={currentLanguage === "english" ? "Welcome to our consultancy service" : "Benvenuto nel nostro servizio di consulenza"}
                 value={emailSubject}
                 onChange={(e) => setEmailSubject(e.target.value)}
               />
@@ -770,7 +773,7 @@ ${closing}`;
                 id="emailMessage"
                 className="col-span-3"
                 rows={4}
-                placeholder={language === "english" ? 
+                placeholder={currentLanguage === "english" ? 
                   `Dear ${client.firstName} ${client.lastName},\n\nThank you for choosing our financial advisory service. Attached you will find your onboarding document.\n\nBest regards` : 
                   `Gentile ${client.firstName} ${client.lastName},\n\nGrazie per aver scelto il nostro servizio di consulenza finanziaria. In allegato troverà il documento di onboarding.\n\nCordiali saluti`}
                 value={emailCustomMessage}
