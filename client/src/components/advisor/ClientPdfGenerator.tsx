@@ -837,9 +837,12 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
-              <div className="border rounded-md p-6 bg-white shadow-sm divide-y max-h-[70vh] overflow-y-auto">
-                {/* Header con mittente e data */}
+              <div className="border rounded-md p-6 bg-white shadow-sm divide-y max-h-[70vh] overflow-y-auto text-gray-800">
+                {/* PAGINA 1: Lettera di Accompagnamento */}
                 <div className="pb-4">
+                  <h3 className="text-lg font-bold mb-4 text-blue-600 text-center">{language === "english" ? "Page 1: Cover Letter" : "Pagina 1: Lettera di Accompagnamento"}</h3>
+                  
+                  {/* Header con mittente e data */}
                   <div className="flex flex-row justify-between">
                     <div className="flex flex-col">
                       <div className="font-semibold mb-1">{language === "english" ? "From:" : "Da:"}</div>
@@ -856,34 +859,151 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
                       })}
                     </div>
                   </div>
-                </div>
-                
-                {/* Destinatario */}
-                <div className="py-4">
-                  <div className="text-right">
+                  
+                  {/* Destinatario */}
+                  <div className="text-right mt-6">
                     <div>{t('pdf.coverLetter.toClient')}:</div>
                     <div className="font-bold">{client.firstName} {client.lastName}</div>
                     <div>{client.email}</div>
                   </div>
-                </div>
-                
-                {/* Oggetto */}
-                <div className="py-4">
-                  <div>
+                  
+                  {/* Oggetto */}
+                  <div className="mt-4">
                     <span className="font-bold">{language === "english" ? "Subject: " : "Oggetto: "}</span>
                     <span>{emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione")}</span>
                   </div>
+                  
+                  {/* Contenuto lettera */}
+                  <div className="mt-4 pt-4 border-t">
+                    <pre className="font-sans whitespace-pre-wrap preview-content">{letterContent}</pre>
+                  </div>
                 </div>
                 
-                {/* Contenuto lettera */}
+                {/* PAGINA 2: Informazioni Personali e Profilo Investimento */}
                 <div className="py-4">
-                  <pre className="font-sans whitespace-pre-wrap preview-content">{letterContent}</pre>
+                  <h3 className="text-lg font-bold mb-4 text-blue-600 text-center">{language === "english" ? "Page 2: Client Information" : "Pagina 2: Informazioni Cliente"}</h3>
+                  
+                  {/* Titolo documento */}
+                  <div className="text-center font-bold mb-4">{t('pdf.clientSummaryReport')}</div>
+                  
+                  {/* Sezione 1: Informazioni Personali */}
+                  <div className="mb-4">
+                    <h4 className="font-bold border-b border-blue-500 pb-1 mb-2">{t('pdf.personalInformation')}</h4>
+                    
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div className="font-semibold">{t('pdf.name')}:</div>
+                      <div>{client.firstName} {client.lastName}</div>
+                      
+                      <div className="font-semibold">{t('pdf.email')}:</div>
+                      <div>{client.email}</div>
+                      
+                      <div className="font-semibold">{t('pdf.phone')}:</div>
+                      <div>{client.phone || t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.address')}:</div>
+                      <div>{client.address || t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('onboarding.dependent_count')}:</div>
+                      <div>{client.dependents?.toString() || t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('onboarding.income')}:</div>
+                      <div>{client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('onboarding.expenses')}:</div>
+                      <div>{client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.employmentStatus')}:</div>
+                      <div>{client.employmentStatus || t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.taxCode')}:</div>
+                      <div>{client.taxCode || t('pdf.notProvided')}</div>
+                    </div>
+                  </div>
+                  
+                  {/* Sezione 2: Profilo Investimento */}
+                  <div className="mt-6">
+                    <h4 className="font-bold border-b border-blue-500 pb-1 mb-2">{t('pdf.investmentProfile')}</h4>
+                    
+                    <div className="grid grid-cols-2 gap-2 mt-3">
+                      <div className="font-semibold">{t('pdf.riskProfile')}:</div>
+                      <div>{client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.investmentGoal')}:</div>
+                      <div>{client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.investmentHorizon')}:</div>
+                      <div>{client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')}</div>
+                      
+                      <div className="font-semibold">{t('pdf.experienceLevel')}:</div>
+                      <div>{client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')}</div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* PAGINA 3: Asset Allocation e Dichiarazione */}
+                <div className="py-4">
+                  <h3 className="text-lg font-bold mb-4 text-blue-600 text-center">{language === "english" ? "Page 3: Asset Allocation" : "Pagina 3: Allocazione Asset"}</h3>
+                  
+                  {/* Titolo documento */}
+                  <div className="text-center font-bold mb-4">{t('pdf.clientSummaryReport')}</div>
+                  
+                  {/* Asset allocation */}
+                  <div className="mb-6">
+                    <h4 className="font-bold border-b border-blue-500 pb-1 mb-3">{t('pdf.assetAllocation')}</h4>
+                    
+                    {assets && assets.length > 0 ? (
+                      <div className="mt-3">
+                        <div className="grid grid-cols-3 gap-2 font-bold bg-blue-600 text-white p-2 rounded-t">
+                          <div>{t('pdf.category')}</div>
+                          <div>{t('pdf.value')}</div>
+                          <div>%</div>
+                        </div>
+                        
+                        {(() => {
+                          const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+                          return (
+                            <>
+                              {assets.map((asset, index) => (
+                                <div 
+                                  key={asset.id} 
+                                  className={`grid grid-cols-3 gap-2 p-2 ${index % 2 === 0 ? 'bg-gray-100' : 'bg-gray-200'}`}
+                                >
+                                  <div>{t(`asset_categories.${asset.category}`)}</div>
+                                  <div>{formatCurrency(asset.value)} €</div>
+                                  <div>{Math.round((asset.value / totalValue) * 100)}%</div>
+                                </div>
+                              ))}
+                              <div className="grid grid-cols-3 gap-2 font-bold bg-gray-300 p-2 rounded-b">
+                                <div>{t('pdf.totalAssetsValue')}</div>
+                                <div>{formatCurrency(totalValue)} €</div>
+                                <div>100%</div>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <div className="text-center my-4 text-gray-500">{t('pdf.noAssetsFound')}</div>
+                    )}
+                  </div>
+                  
+                  {/* Dichiarazione cliente */}
+                  <div className="mt-6">
+                    <h4 className="font-bold mb-2">{t('pdf.clientDeclaration')}</h4>
+                    <p className="text-sm mt-2">{t('pdf.clientDeclarationText')}</p>
+                    
+                    <div className="mt-6">
+                      <p className="mb-1">{t('pdf.clientSignature')}</p>
+                      <div className="w-40 border-b border-gray-800 mt-6 mb-4"></div>
+                      <p>{t('pdf.date')}: ___/___/_____</p>
+                    </div>
+                  </div>
                 </div>
               </div>
               
               <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
                 <FileText className="h-4 w-4" />
-                <span>{language === "english" ? "A full PDF with client information will be generated and attached to the email" : "Un PDF completo con le informazioni del cliente verrà generato e allegato all'email"}</span>
+                <span>{language === "english" ? "A full PDF document will be generated and attached to the email" : "Un documento PDF completo verrà generato e allegato all'email"}</span>
               </div>
             </TabsContent>
           </Tabs>
