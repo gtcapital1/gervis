@@ -52,6 +52,9 @@ export async function sendCustomEmail(
     const content = language === 'english' ? englishContent : italianContent;
     const signature = advisorSignature || content.team;
     
+    // Verifica se il messaggio già contiene la firma dell'advisor
+    const containsSignature = advisorSignature && message.includes(advisorSignature.split('\n')[0]);
+    
     const emailHtml = `
     <!DOCTYPE html>
     <html>
@@ -66,9 +69,11 @@ export async function sendCustomEmail(
     <body>
       <div class="container">
         <div style="white-space: pre-line;">${message}</div>
+        ${containsSignature ? '' : `
         <div class="signature">
           ${signature}
         </div>
+        `}
       </div>
     </body>
     </html>

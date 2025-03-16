@@ -705,10 +705,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       // Ottieni il PDF come base64
       const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
       
-      // Prepara il corpo email senza la firma extra
-      const emailBodyParts = letterContent.split("\n\n");
-      const emailBodyWithoutSignature = emailBodyParts.slice(0, -4).join("\n\n"); // Rimuove le ultime 4 righe (firma)
-      
+      // Invia il testo completo della lettera, il server gestirà la firma nell'email
       // Invia email con il PDF allegato
       const response = await apiRequest(`/api/clients/${client.id}/send-email`, {
         method: 'POST',
@@ -717,7 +714,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         },
         body: JSON.stringify({
           subject: emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"),
-          message: emailBodyWithoutSignature,
+          message: letterContent,
           language: language === "english" ? "english" : "italian",
           attachment: {
             filename: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
