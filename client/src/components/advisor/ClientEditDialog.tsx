@@ -481,7 +481,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         >
                           <FormControl>
                             <SelectTrigger>
-                              <SelectValue placeholder="Select experience level" />
+                              <SelectValue placeholder={t('client_edit.select_experience_level')} />
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
@@ -510,7 +510,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Select investment horizon" />
+                            <SelectValue placeholder={t('client_edit.select_investment_horizon')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
