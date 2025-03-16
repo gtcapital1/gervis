@@ -358,8 +358,10 @@ const resourcesIt = {
       register_error: "Registrazione fallita! Riprova.",
       welcome: "Benvenuto su Watson, la tua piattaforma di consulenza finanziaria",
       welcome_back: "Bentornato",
+      register_title: "Crea Account",
       description: "La piattaforma intelligente che aiuta i consulenti finanziari a fornire una gestione patrimoniale personalizzata e una guida finanziaria intuitiva.",
       login_description: "Accedi per entrare nella dashboard del consulente.",
+      register_description: "Registrati per iniziare a gestire i tuoi clienti in modo efficiente.",
       creating_account: "Creazione account in corso...",
       back_to_home: "Torna alla Home",
       independent_advisor: "Sono un consulente finanziario indipendente"
