@@ -179,36 +179,45 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         author: 'Financial Advisor'
       });
       
-      // Add company logo as a watermark if available
-      if (companyLogo) {
-        const pageCount = doc.getNumberOfPages();
-        // Add the logo to each page as a watermark in the header area
+      // Add company logo as a watermark and company info if available
+      // Function to add logo and company info to a page
+      const addHeaderToPage = (pageNumber: number) => {
+        doc.setPage(pageNumber);
         
-        // Function to add logo to a page
-        const addLogoToPage = (pageNumber: number) => {
-          doc.setPage(pageNumber);
-          
+        // Add the logo in black and white in the top-left corner
+        if (companyLogo) {
           // Calculate logo dimensions to fit well in the header
-          // Assuming logo is in base64 format, add it as an image
-          // Position the logo in the top-right corner
           doc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
-            150,   // x position - right side
-            5,     // y position - top
-            40,    // width - adjust as needed
-            15,    // height - adjust as needed
+            15,    // x position - left side
+            10,    // y position - top
+            40,    // width
+            15,    // height
             'company_logo', // alias
             'FAST'  // compression
           );
-        };
+        }
         
-        // Add logo to first page
-        addLogoToPage(1);
-        
-        // After adding pages, add logo to those pages too
-        doc.setPage(1); // Reset to first page to continue with content
-      }
+        // Add company info in gray text below the logo if available
+        if (companyInfo) {
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128); // Gray color
+          
+          const companyInfoLines = doc.splitTextToSize(companyInfo, 80);
+          doc.text(companyInfoLines, 15, 30); // Position below the logo
+          
+          // Reset text color for the rest of the content
+          doc.setTextColor(0, 0, 0); // Back to black
+        }
+      };
+      
+      // Apply header to first page
+      addHeaderToPage(1);
+      
+      // After adding other pages, we'll add the header to those pages too
+      // For now, reset to first page to continue with content
+      doc.setPage(1);
       
       // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
       
@@ -506,35 +515,45 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         author: 'Financial Advisor'
       });
       
-      // Add company logo as a watermark if available
-      if (companyLogo) {
-        const pageCount = pdfDoc.getNumberOfPages();
-        // Add the logo to each page as a watermark in the header area
+      // Add company logo as a watermark and company info if available
+      // Function to add logo and company info to a page
+      const addHeaderToPage = (pageNumber: number) => {
+        pdfDoc.setPage(pageNumber);
         
-        // Function to add logo to a page
-        const addLogoToPage = (pageNumber: number) => {
-          pdfDoc.setPage(pageNumber);
-          
+        // Add the logo in black and white in the top-left corner
+        if (companyLogo) {
           // Calculate logo dimensions to fit well in the header
-          // Position the logo in the top-right corner
           pdfDoc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
-            150,   // x position - right side
-            5,     // y position - top
-            40,    // width - adjust as needed
-            15,    // height - adjust as needed
+            15,    // x position - left side
+            10,    // y position - top
+            40,    // width
+            15,    // height
             'company_logo', // alias
             'FAST'  // compression
           );
-        };
+        }
         
-        // Add logo to first page
-        addLogoToPage(1);
-        
-        // After adding pages, add logo to those pages too
-        pdfDoc.setPage(1); // Reset to first page to continue with content
-      }
+        // Add company info in gray text below the logo if available
+        if (companyInfo) {
+          pdfDoc.setFontSize(8);
+          pdfDoc.setTextColor(128, 128, 128); // Gray color
+          
+          const companyInfoLines = pdfDoc.splitTextToSize(companyInfo, 80);
+          pdfDoc.text(companyInfoLines, 15, 30); // Position below the logo
+          
+          // Reset text color for the rest of the content
+          pdfDoc.setTextColor(0, 0, 0); // Back to black
+        }
+      };
+      
+      // Apply header to first page
+      addHeaderToPage(1);
+      
+      // After adding other pages, we'll add the header to those pages too
+      // For now, reset to first page to continue with content
+      pdfDoc.setPage(1);
       
       // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
       
