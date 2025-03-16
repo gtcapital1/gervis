@@ -1,4 +1,4 @@
-import { ArrowRight, LineChart, LayoutDashboard, MessageCircle } from "lucide-react";
+import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface FeatureCardProps {
@@ -6,12 +6,18 @@ interface FeatureCardProps {
   title: string;
   description: string;
   learnMoreColor: string;
+  isComingSoon?: boolean;
 }
 
-function FeatureCard({ icon, title, description, learnMoreColor }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }: FeatureCardProps) {
   const { t } = useTranslation();
   return (
-    <div className="bg-black rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl">
+    <div className="bg-black rounded-2xl shadow-lg p-8 card-hover border border-gray-800 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative">
+      {isComingSoon && (
+        <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full">
+          Watson Pro
+        </div>
+      )}
       <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
         {icon}
       </div>
@@ -32,22 +38,32 @@ export default function Features() {
   
   const features = [
     {
+      icon: <Users className="h-7 w-7 text-secondary" />,
+      title: t('features.onboarding.title'),
+      description: t('features.onboarding.description'),
+      learnMoreColor: "text-secondary",
+      isComingSoon: false
+    },
+    {
+      icon: <LayoutDashboard className="h-7 w-7 text-accent" />,
+      title: t('features.client_management.title'),
+      description: t('features.client_management.description'),
+      learnMoreColor: "text-accent",
+      isComingSoon: false
+    },
+    {
       icon: <LineChart className="h-7 w-7 text-secondary" />,
       title: t('features.wealth_assessment.title'),
       description: t('features.wealth_assessment.description'),
       learnMoreColor: "text-secondary",
+      isComingSoon: true
     },
     {
-      icon: <LayoutDashboard className="h-7 w-7 text-accent" />,
+      icon: <BarChart className="h-7 w-7 text-accent" />,
       title: t('features.ai_allocation.title'),
       description: t('features.ai_allocation.description'),
       learnMoreColor: "text-accent",
-    },
-    {
-      icon: <MessageCircle className="h-7 w-7 text-accent" />,
-      title: t('features.intelligent_assistant.title'),
-      description: t('features.intelligent_assistant.description'),
-      learnMoreColor: "text-accent",
+      isComingSoon: true
     },
   ];
 

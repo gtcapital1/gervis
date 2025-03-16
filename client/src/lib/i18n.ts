@@ -223,17 +223,21 @@ const resourcesEn = {
     features: {
       title: "Powerful Features for Financial Excellence",
       subtitle: "Watson provides cutting-edge tools that transform how financial consultants work.",
+      onboarding: {
+        title: "Simplify and Automate Onboarding",
+        description: "Streamline client onboarding with digital forms, automated data collection, and instant document generation."
+      },
+      client_management: {
+        title: "Streamline Client Management",
+        description: "Keep track of all your clients' information, assets, and recommendations in one organized dashboard."
+      },
       wealth_assessment: {
-        title: "Wealth Assessment",
-        description: "Comprehensive analysis of client portfolios with detailed risk assessments and opportunity identification."
+        title: "AI-Powered Wealth Assessment (Coming Soon)",
+        description: "Comprehensive analysis of client portfolios with detailed risk assessments and opportunity identification. Available with Watson Pro."
       },
       ai_allocation: {
-        title: "AI-Powered Allocation",
-        description: "Advanced algorithms that analyze market trends and optimize client portfolios for maximum returns."
-      },
-      intelligent_assistant: {
-        title: "Intelligent Assistant",
-        description: "Automatically track client conversations and generate compliance-ready documentation with AI."
+        title: "AI-Powered Asset Allocation (Coming Soon)",
+        description: "Advanced algorithms that analyze market trends and optimize client portfolios for maximum returns. Available with Watson Pro."
       },
       learn_more: "Learn more"
     },
@@ -536,17 +540,21 @@ const resourcesIt = {
     features: {
       title: "Potenti Funzionalità per l'Eccellenza Finanziaria",
       subtitle: "Watson fornisce strumenti all'avanguardia che trasformano il modo di lavorare dei consulenti finanziari.",
+      onboarding: {
+        title: "Semplifica e Automatizza l'Onboarding",
+        description: "Snellisci l'onboarding dei clienti con moduli digitali, raccolta dati automatizzata e generazione istantanea di documenti."
+      },
+      client_management: {
+        title: "Ottimizza la Gestione dei Clienti",
+        description: "Tieni traccia di tutte le informazioni, gli asset e le raccomandazioni dei tuoi clienti in un'unica dashboard organizzata."
+      },
       wealth_assessment: {
-        title: "Valutazione Patrimoniale",
-        description: "Analisi completa dei portafogli dei clienti con valutazioni dettagliate del rischio e identificazione delle opportunità."
+        title: "Valutazione Patrimoniale basata su IA (Prossimamente)",
+        description: "Analisi completa dei portafogli dei clienti con valutazioni dettagliate del rischio e identificazione delle opportunità. Disponibile con Watson Pro."
       },
       ai_allocation: {
-        title: "Allocazione basata su IA",
-        description: "Algoritmi avanzati che analizzano le tendenze di mercato e ottimizzano i portafogli dei clienti per massimizzare i rendimenti."
-      },
-      intelligent_assistant: {
-        title: "Assistente Intelligente",
-        description: "Traccia automaticamente le conversazioni con i clienti e genera documentazione conforme alle normative con l'aiuto dell'IA."
+        title: "Allocazione degli Asset basata su IA (Prossimamente)",
+        description: "Algoritmi avanzati che analizzano le tendenze di mercato e ottimizzano i portafogli dei clienti per massimizzare i rendimenti. Disponibile con Watson Pro."
       },
       learn_more: "Scopri di più"
     },
