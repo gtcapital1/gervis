@@ -167,7 +167,8 @@ const resourcesEn = {
           servicePoints: "Service Points",
           process: "Process",
           contactInfo: "Contact Information",
-          closing: "Closing"
+          closing: "Closing",
+          fullContent: "Letter Content"
         },
         points: [
           "Optimize the composition of your portfolio based on your objectives and risk profile.",
@@ -500,7 +501,8 @@ const resourcesIt = {
           servicePoints: "Punti di servizio",
           process: "Processo",
           contactInfo: "Informazioni di contatto",
-          closing: "Chiusura"
+          closing: "Chiusura",
+          fullContent: "Contenuto della Lettera"
         },
         points: [
           "Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.",
