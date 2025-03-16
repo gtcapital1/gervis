@@ -317,6 +317,7 @@ ${user?.name || ""}`
                 assets={assets}
                 advisorSignature={user?.signature || null}
                 companyLogo={user?.companyLogo || null}
+                companyInfo={user?.companyInfo || null}
               />
             )}
             <Button 
