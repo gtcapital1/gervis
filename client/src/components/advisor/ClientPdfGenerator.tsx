@@ -83,7 +83,7 @@ ${advisorSignature?.split('\n')?.[2] || "email@esempio.com"}
 ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`;
 
   // Stato per la lettera completamente personalizzabile
-  const [letterContent, setLetterContent] = useState(defaultLetterTemplate);
+  const [letterContent, setLetterContent] = useState<string>(defaultLetterTemplate);
 
   // Function to handle language change
   const changeLanguage = (lang: string) => {
