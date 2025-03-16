@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -47,10 +47,8 @@ interface LetterFields {
 export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
   const { t, i18n } = useTranslation();
-  // Utilizziamo la lingua corrente dell'i18n come default
-  const [language, setLanguage] = useState<string>(() => {
-    return i18n.language === "it" ? "italian" : "english";
-  });
+  // Utilizziamo italiano come lingua predefinita per il PDF, indipendentemente dalla lingua UI
+  const [language, setLanguage] = useState<string>("italian");
   const { toast } = useToast();
   const [emailSubject, setEmailSubject] = useState("");
   const [emailCustomMessage, setEmailCustomMessage] = useState("");
@@ -73,14 +71,26 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   // State for fully customizable letter
   const [letterFields, setLetterFields] = useState<LetterFields>(defaultLetterFields);
 
-  // Function to handle language change
+  // Funzione per gestire il cambio lingua 
+  // Nota: All'apertura del modulo impostiamo la lingua del PDF in italiano di default
   const changeLanguage = (lang: string) => {
     setLanguage(lang);
+    
+    // Cambiamo anche la lingua dell'interfaccia in base alla selezione
     i18n.changeLanguage(lang === "english" ? "en" : "it");
     
-    // Reset all fields to defaults in the new language
+    // Reimpostiamo i campi di testo di default nella nuova lingua selezionata
     resetToDefaults();
   };
+  
+  // Quando il componente viene montato, se la lingua è italiana,
+  // traduciamo l'interfaccia
+  useEffect(() => {
+    if (language === "italian" && i18n.language !== "it") {
+      i18n.changeLanguage("it");
+      resetToDefaults();
+    }
+  }, []);
 
   // Reset all fields to defaults based on current language
   const resetToDefaults = () => {
@@ -649,7 +659,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                   <Label htmlFor="language" className="font-semibold">
                     {language === "english" ? "Language:" : "Lingua:"}
                   </Label>
-                  <Select onValueChange={changeLanguage} defaultValue={language}>
+                  <Select onValueChange={changeLanguage} value={language}>
                     <SelectTrigger id="language" className="w-32">
                       <SelectValue />
                     </SelectTrigger>
