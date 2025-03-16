@@ -59,9 +59,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   // Default letter texts
   const defaultLetterFields: LetterFields = {
     greeting: `${t('pdf.coverLetter.greetings')} ${client.firstName},`,
-    introduction: language === "english" 
-      ? "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations."
-      : "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
+    introduction: t('pdf.coverLetter.intro'),
     collaboration: t('pdf.coverLetter.collaboration'),
     servicePoints: t('pdf.coverLetter.points', { returnObjects: true }) as string[],
     process: t('pdf.coverLetter.process'),
@@ -85,9 +83,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const resetToDefaults = () => {
     setLetterFields({
       greeting: `${t('pdf.coverLetter.greetings')} ${client.firstName},`,
-      introduction: language === "english" 
-        ? "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations."
-        : "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
+      introduction: t('pdf.coverLetter.intro'),
       collaboration: t('pdf.coverLetter.collaboration'),
       servicePoints: t('pdf.coverLetter.points', { returnObjects: true }) as string[],
       process: t('pdf.coverLetter.process'),
