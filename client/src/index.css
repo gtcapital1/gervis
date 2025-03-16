@@ -51,6 +51,21 @@
   background: #555;
 }
 
+/* Classe per il logo dell'azienda nell'anteprima */
+.preview-company-logo {
+  max-height: 1.75rem !important; /* 7 in tailwind */
+  max-width: 90px !important;
+  object-fit: contain;
+  position: absolute;
+  top: 1.25rem; /* 5 in tailwind */
+  right: 2.5rem; /* 10 in tailwind */
+}
+
+/* Aumentare lo spazio per impedire sovrapposizione del logo con il testo */
+.preview-header {
+  margin-bottom: 4rem !important; /* 16 in tailwind */
+}
+
 @layer base {
   * {
     @apply border-border;

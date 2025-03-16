@@ -760,7 +760,7 @@ ${letterFields.closing}`}
                 <div className="space-y-8">
                   {/* Header with company info and logo (simulated) */}
                   <div className="border rounded-md p-5 bg-white text-black relative">
-                    <div className="border-b pb-2 preview-header">
+                    <div className="border-b pb-2 mb-10">
                       {companyInfo && (
                         <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
                           {companyInfo}
@@ -772,7 +772,7 @@ ${letterFields.closing}`}
                           <img 
                             src={companyLogo} 
                             alt="Company Logo" 
-                            className="preview-company-logo" 
+                            className="max-h-10 max-w-[120px] object-contain" 
                           />
                         </div>
                       )}
@@ -850,7 +850,7 @@ ${letterFields.closing}`}
 
                   {/* Page 2 - Client Summary Report */}
                   <div className="border rounded-md p-5 bg-white text-black relative">
-                    <div className="border-b pb-2 preview-header">
+                    <div className="border-b pb-2 mb-10">
                       {companyInfo && (
                         <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
                           {companyInfo}
@@ -862,7 +862,7 @@ ${letterFields.closing}`}
                           <img 
                             src={companyLogo} 
                             alt="Company Logo" 
-                            className="preview-company-logo" 
+                            className="max-h-10 max-w-[120px] object-contain" 
                           />
                         </div>
                       )}
