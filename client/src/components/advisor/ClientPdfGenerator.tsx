@@ -431,9 +431,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       // Asset allocation section
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(t('pdf.assetAllocation'), 15, 40);
+      doc.text(t('pdf.assetAllocation'), 15, 60);
       doc.setDrawColor(41, 98, 255);
-      doc.line(15, 43, 195, 43);
+      doc.line(15, 63, 195, 63);
       
       // Assets table
       if (assets && assets.length > 0) {
@@ -442,7 +442,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         
         // Crea la tabella degli asset con la percentuale
         autoTable(doc, {
-          startY: 50,
+          startY: 70,
           head: [[
             t('pdf.category'),
             t('pdf.value'),
@@ -485,7 +485,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       } else {
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        doc.text(t('pdf.noAssetsFound'), 15, 55);
+        doc.text(t('pdf.noAssetsFound'), 15, 75);
       }
       
       // Add client declaration
