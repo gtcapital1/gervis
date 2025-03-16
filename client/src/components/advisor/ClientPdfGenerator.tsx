@@ -783,7 +783,7 @@ ${letterFields.closing}`}
                     </div>
                     
                     {/* Page 1 - Cover Letter */}
-                    <div className="space-y-4">
+                    <div className="space-y-4 mt-6">
                       <div className="flex justify-between">
                         <div>
                           <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
