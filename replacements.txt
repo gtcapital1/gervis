@@ -1,0 +1,8 @@
+title: language === "english" ? "Success" : "Successo",
+description: language === "english" ? "PDF generated successfully" : "PDF generato con successo",
+title: language === "english" ? "Error" : "Errore",
+description: language === "english" ? "Failed to generate PDF" : "Impossibile generare il PDF",
+title: language === "english" ? "Success" : "Successo",
+description: language === "english" ? "Email sent successfully" : "Email inviata con successo",
+title: language === "english" ? "Error" : "Errore",
+description: language === "english" ? "Failed to send email" : "Impossibile inviare l'email",

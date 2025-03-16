@@ -273,7 +273,7 @@ ${closing}`;
     // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dopo l'intestazione
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    const fromLabel = language === "english" ? "From:" : "Da:";
+    const fromLabel = currentLanguage === "english" ? "From:" : "Da:";
     doc.text(fromLabel, 20, headerHeight + 15);
     doc.setFont('helvetica', 'normal');
     doc.text(advisorName, 35, headerHeight + 15);
@@ -289,7 +289,7 @@ ${closing}`;
     
     // Data a destra
     const now = new Date();
-    const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
+    const dateStr = now.toLocaleDateString(currentLanguage === "english" ? "en-US" : "it-IT", {
       year: "numeric",
       month: "long",
       day: "numeric",
@@ -310,10 +310,10 @@ ${closing}`;
     // Oggetto - adatta in base alla lingua
     doc.setFontSize(11);
     doc.setFont('helvetica', 'bold');
-    const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
+    const subjectLabel = currentLanguage === "english" ? "Subject:" : "Oggetto:";
     doc.text(subjectLabel, 20, headerHeight + 60);
     doc.setFont('helvetica', 'normal');
-    const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
+    const subjectText = currentLanguage === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
     doc.text(subjectText, 65, headerHeight + 60);
     
     // Corpo della lettera completo - usando il contenuto pieno personalizzato
@@ -570,15 +570,15 @@ ${closing}`;
       // Set state to indicate PDF generation completed successfully
       setPdfGenerated(true);
       toast({
-        title: language === "english" ? "Success" : "Successo",
-        description: language === "english" ? "PDF generated successfully" : "PDF generato con successo",
+        title: currentLanguage === "english" ? "Success" : "Successo",
+        description: currentLanguage === "english" ? "PDF generated successfully" : "PDF generato con successo",
         variant: "default",
       });
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast({
-        title: language === "english" ? "Error" : "Errore",
-        description: language === "english" ? "Failed to generate PDF" : "Impossibile generare il PDF",
+        title: currentLanguage === "english" ? "Error" : "Errore",
+        description: currentLanguage === "english" ? "Failed to generate PDF" : "Impossibile generare il PDF",
         variant: "destructive",
       });
     } finally {
