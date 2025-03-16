@@ -8,6 +8,7 @@ import { Loader2, ChevronLeft } from "lucide-react";
 import { useLocation, Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 // Components
 import {
@@ -150,14 +151,15 @@ export default function AuthPage() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      {/* Back button */}
-      <div className="p-4">
+      {/* Back button and Language Switcher */}
+      <div className="p-4 flex justify-between items-center">
         <Link href="/">
           <Button variant="ghost" className="flex items-center gap-1">
             <ChevronLeft className="h-4 w-4" />
             {t('auth.back_to_home')}
           </Button>
         </Link>
+        <LanguageSwitcher />
       </div>
       
       {/* Form Section */}
