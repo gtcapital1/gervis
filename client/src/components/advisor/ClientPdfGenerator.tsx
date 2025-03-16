@@ -47,21 +47,21 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
 
 It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.
 
-Our collaboration will include:
+Through in-depth analysis and advanced tools, we will work together to:
+1. Optimize the composition of your portfolio based on your objectives and risk profile.
+2. Identify tailored solutions for more effective and sustainable asset management over time.
+3. Ensure transparent advice in line with best industry practices.
 
-1. Comprehensive financial planning tailored to your specific needs and goals
-2. Regular portfolio reviews and adjustments
-3. Strategic advice on investment opportunities
-4. Tax optimization strategies
-5. Ongoing support and guidance whenever you need it
+To complete the onboarding process, I invite you to review and return the attached documents, signed. This step is necessary to formalize our collaboration and proceed with the planned activities.
 
-My process is designed to be straightforward and transparent, with regular check-ins to ensure we're making progress toward your financial goals.
+I remain available for any clarification or requirement. Thank you for your trust, and I am confident this will be the beginning of a valuable journey.
 
-Please feel free to contact me anytime at [your phone number] or [your email] if you have questions or concerns.
+Kind regards,
 
-Warm regards,
-
-${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
+${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}
+${advisorSignature?.split('\n')?.[1] || "Company"}
+${advisorSignature?.split('\n')?.[2] || "email@example.com"}
+${advisorSignature?.split('\n')?.[3] || "+1 123-456-7890"}`
     : `Gentile ${client.firstName},
 
 È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
@@ -77,7 +77,10 @@ Resto a disposizione per qualsiasi chiarimento o esigenza. Ti ringrazio per la f
 
 Un cordiale saluto,
 
-${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`;
+${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}
+${advisorSignature?.split('\n')?.[1] || "Società"}
+${advisorSignature?.split('\n')?.[2] || "email@esempio.com"}
+${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`;
 
   // Stato per la lettera completamente personalizzabile
   const [letterContent, setLetterContent] = useState(defaultLetterTemplate);
@@ -94,21 +97,21 @@ ${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`;
 
 It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.
 
-Our collaboration will include:
+Through in-depth analysis and advanced tools, we will work together to:
+1. Optimize the composition of your portfolio based on your objectives and risk profile.
+2. Identify tailored solutions for more effective and sustainable asset management over time.
+3. Ensure transparent advice in line with best industry practices.
 
-1. Comprehensive financial planning tailored to your specific needs and goals
-2. Regular portfolio reviews and adjustments
-3. Strategic advice on investment opportunities
-4. Tax optimization strategies
-5. Ongoing support and guidance whenever you need it
+To complete the onboarding process, I invite you to review and return the attached documents, signed. This step is necessary to formalize our collaboration and proceed with the planned activities.
 
-My process is designed to be straightforward and transparent, with regular check-ins to ensure we're making progress toward your financial goals.
+I remain available for any clarification or requirement. Thank you for your trust, and I am confident this will be the beginning of a valuable journey.
 
-Please feel free to contact me anytime at [your phone number] or [your email] if you have questions or concerns.
+Kind regards,
 
-Warm regards,
-
-${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
+${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}
+${advisorSignature?.split('\n')?.[1] || "Company"}
+${advisorSignature?.split('\n')?.[2] || "email@example.com"}
+${advisorSignature?.split('\n')?.[3] || "+1 123-456-7890"}`
         : `Gentile ${client.firstName},
 
 È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
@@ -124,7 +127,10 @@ Resto a disposizione per qualsiasi chiarimento o esigenza. Ti ringrazio per la f
 
 Un cordiale saluto,
 
-${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`
+${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}
+${advisorSignature?.split('\n')?.[1] || "Società"}
+${advisorSignature?.split('\n')?.[2] || "email@esempio.com"}
+${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
     );
   };
 
