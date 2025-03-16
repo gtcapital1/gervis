@@ -29,6 +29,8 @@ interface ClientPdfGeneratorProps {
   client: ClientSchema;
   assets: Asset[];
   advisorSignature?: string | null;
+  companyLogo?: string | null;
+  companyInfo?: string | null;
 }
 
 // Tipo per i campi della lettera completamente personalizzabile
@@ -42,7 +44,7 @@ interface LetterFields {
   closing: string;
 }
 
-export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientPdfGeneratorProps) {
+export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
@@ -114,6 +116,125 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
         author: 'Financial Advisor'
       });
       
+      // Aggiungi intestazione con logo e informazioni aziendali
+      let headerHeight = 0;
+      
+      // Function to add header to all pages - returns header height
+      const addHeaderToPage = (pageNum: number) => {
+        doc.setPage(pageNum);
+        
+        // Variables to track the height needed for the header
+        let headerHeight = 0;
+        const logoHeight = 25; // Altezza fissa del logo in mm
+        let companyInfoHeight = 0;
+        
+        // Add company info in gray text in the top-left corner
+        if (companyInfo) {
+          doc.setFontSize(8);
+          doc.setTextColor(128, 128, 128); // Gray color
+          
+          // Gestione avanzata dei ritorni a capo nei dati della company info
+          const companyInfoLines = doc.splitTextToSize(companyInfo.trim(), 100);
+          companyInfoHeight = companyInfoLines.length * 3.5;
+          doc.text(companyInfoLines, 15, 15); // Position to the left
+          
+          // Reset text color for the rest of the content
+          doc.setTextColor(0, 0, 0); // Back to black
+        }
+        
+        // Add the logo in the top-right corner with correct proportions
+        if (companyLogo) {
+          try {
+            // Impostiamo un'altezza fissa
+            const FIXED_HEIGHT = 25; // Altezza fissa in mm
+            
+            // Posizione in alto a destra
+            const x = 125; // Coordinate X (destra del foglio)
+            const y = 5;   // Coordinate Y (alto del foglio)
+            
+            // First, we create a new Image to calculate the original dimensions
+            const img = new Image();
+            img.onload = function() {
+              // Once the image is loaded, calculate width-to-height ratio
+              const widthHeightRatio = img.width / img.height;
+              
+              // Calculate proportional width based on fixed height
+              const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
+              
+              console.log("Logo dimensions:", { width: img.width, height: img.height });
+              console.log("Calculated ratio:", widthHeightRatio);
+              
+              // Clean the area before drawing
+              doc.setFillColor(255, 255, 255);
+              doc.rect(x - 1, y - 1, proportionalWidth + 2, FIXED_HEIGHT + 2, 'F');
+              
+              // Draw the image with correct proportions
+              doc.addImage(
+                companyLogo,
+                x,
+                y,
+                proportionalWidth,
+                FIXED_HEIGHT
+              );
+            };
+            
+            // Handle any errors
+            img.onerror = function() {
+              console.error("Errore nel caricamento dell'immagine per il calcolo delle proporzioni");
+            };
+            
+            // Start loading the image 
+            img.src = companyLogo;
+            
+            // As a fallback, we add the image with a default ratio
+            // This ensures something is displayed even if the onload event doesn't execute in time
+            const defaultRatio = 1.5; // Assume a default 3:2 ratio
+            const defaultWidth = FIXED_HEIGHT * defaultRatio;
+            
+            // Clean the area before drawing
+            doc.setFillColor(255, 255, 255);
+            doc.rect(x - 1, y - 1, defaultWidth + 2, FIXED_HEIGHT + 2, 'F');
+            
+            // Draw the image with default proportions
+            doc.addImage(
+              companyLogo,
+              x,
+              y,
+              defaultWidth,
+              FIXED_HEIGHT
+            );
+          } catch (err) {
+            console.error("Errore nel caricamento del logo:", err);
+            
+            // In caso di errore, usiamo dimensioni ridotte di fallback
+            try {
+              doc.addImage(
+                companyLogo, 
+                125,    
+                5,      
+                35,     // larghezza ridotta
+                20      // altezza ridotta
+              );
+            } catch (e) {
+              console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
+            }
+          }
+        }
+        
+        // Determina l'altezza necessaria per l'intestazione
+        headerHeight = Math.max(logoHeight + 10, companyInfoHeight + 15);
+        
+        // Aggiungi linea di separazione sotto il logo e le informazioni societarie
+        doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
+        doc.setLineWidth(0.5);
+        doc.line(15, headerHeight, 195, headerHeight); // Linea orizzontale da sinistra a destra
+        
+        return headerHeight;
+      };
+      
+      // Apply header to first page and get its height
+      headerHeight = addHeaderToPage(1);
+      
       // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
       
       // Estrai informazioni del consulente
@@ -129,67 +250,67 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       // Creo un margine destro per allineare correttamente
       const rightMargin = 190;
       
-      // Mittente a sinistra in alto (nome, cognome, società, mail, telefono)
+      // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dopo l'intestazione
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       const fromLabel = language === "english" ? "From:" : "Da:";
-      doc.text(fromLabel, 20, 25);
+      doc.text(fromLabel, 20, headerHeight + 15);
       doc.setFont('helvetica', 'normal');
-      doc.text(advisorName, 35, 25);
+      doc.text(advisorName, 35, headerHeight + 15);
       if (advisorCompany) {
-        doc.text(advisorCompany, 35, 30);
+        doc.text(advisorCompany, 35, headerHeight + 20);
       }
       if (advisorEmail) {
-        doc.text(advisorEmail, 35, 35);
+        doc.text(advisorEmail, 35, headerHeight + 25);
       }
       if (advisorPhone) {
-        doc.text(advisorPhone, 35, 40);
+        doc.text(advisorPhone, 35, headerHeight + 30);
       }
       
-      // Data in alto a destra
+      // Data a destra
       const now = new Date();
       const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
-      doc.text(dateStr, rightMargin, 25, { align: "right" });
+      doc.text(dateStr, rightMargin, headerHeight + 15, { align: "right" });
       
-      // Destinatario veramente a destra (allineato correttamente)
+      // Destinatario a destra (allineato correttamente)
       const toClientText = `${t('pdf.coverLetter.toClient')}:`;
-      doc.text(toClientText, rightMargin, 50, { align: "right" });
+      doc.text(toClientText, rightMargin, headerHeight + 35, { align: "right" });
       
       doc.setFont('helvetica', 'bold');
-      doc.text(`${client.firstName} ${client.lastName}`, rightMargin, 55, { align: "right" });
+      doc.text(`${client.firstName} ${client.lastName}`, rightMargin, headerHeight + 40, { align: "right" });
       doc.setFont('helvetica', 'normal');
       if (client.email) {
-        doc.text(client.email, rightMargin, 60, { align: "right" });
+        doc.text(client.email, rightMargin, headerHeight + 45, { align: "right" });
       }
       
       // Oggetto - adatta in base alla lingua
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
-      doc.text(subjectLabel, 20, 75);
+      doc.text(subjectLabel, 20, headerHeight + 60);
       doc.setFont('helvetica', 'normal');
       const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
-      doc.text(subjectText, 65, 75);
+      doc.text(subjectText, 65, headerHeight + 60);
       
       // Saluti
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(letterFields.greeting, 20, 85);
+      doc.text(letterFields.greeting, 20, headerHeight + 70);
       
       // Corpo della lettera - introduzione personalizzata
       const introLines = doc.splitTextToSize(letterFields.introduction, 170);
-      doc.text(introLines, 20, 95);
+      doc.text(introLines, 20, headerHeight + 80);
       
       // Testo collaborazione
       const collaborationLines = doc.splitTextToSize(letterFields.collaboration, 170);
-      doc.text(collaborationLines, 20, 125);
+      doc.text(collaborationLines, 20, headerHeight + 110);
       
       // Punti numerati personalizzati
-      let bulletY = 132;
+      let bulletY = headerHeight + 120;
       
       for (let i = 0; i < letterFields.servicePoints.length; i++) {
         const pointLines = doc.splitTextToSize(`${i+1}. ${letterFields.servicePoints[i]}`, 160);
@@ -219,16 +340,19 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
       doc.addPage();
       
+      // Aggiungi intestazione alla pagina 2
+      addHeaderToPage(2);
+      
       // Titolo documento
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
+      doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
       
       // SECTION 1: Personal Information
       doc.setFontSize(14);
-      doc.text(t('pdf.personalInformation'), 15, 40);
+      doc.text(t('pdf.personalInformation'), 15, 60);
       doc.setDrawColor(41, 98, 255);
-      doc.line(15, 43, 195, 43);
+      doc.line(15, 63, 195, 63);
       
       // Client personal details
       doc.setFontSize(11);
@@ -247,7 +371,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       ];
       
       autoTable(doc, {
-        startY: 50,
+        startY: 70,
         head: [],
         body: personalInfo,
         theme: 'plain',
@@ -296,10 +420,13 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       // ======== PAGINA 3 - ASSET ALLOCATION E DICHIARAZIONE ========
       doc.addPage();
       
+      // Aggiungi intestazione alla pagina 3
+      addHeaderToPage(3);
+      
       // Titolo documento
       doc.setFontSize(18);
       doc.setFont('helvetica', 'bold');
-      doc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
+      doc.text(t('pdf.clientSummaryReport'), 105, 40, { align: "center" });
       
       // Asset allocation section
       doc.setFontSize(14);
