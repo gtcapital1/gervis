@@ -105,6 +105,395 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     });
   };
 
+  // Funzione per generare il contenuto del PDF senza salvarlo
+  const generatePdfContent = () => {
+    // Create new PDF document
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "mm",
+      format: "a4",
+    });
+    
+    // Set PDF document properties
+    doc.setProperties({
+      title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
+      subject: t('pdf.subject'),
+      creator: 'Financial Advisor Platform',
+      author: 'Financial Advisor'
+    });
+    
+    // Aggiungi intestazione con logo e informazioni aziendali
+    let headerHeight = 0;
+    
+    // Function to add header to all pages - returns header height
+    const addHeaderToPage = (pageNum: number) => {
+      doc.setPage(pageNum);
+      
+      // Variables to track the height needed for the header
+      let headerHeight = 0;
+      // Altezza fissa del logo in mm (definita qui per essere visibile in tutto il metodo)
+      const LOGO_HEIGHT = 25;
+      let companyInfoHeight = 0;
+      
+      // Add company info in gray text in the top-left corner
+      if (companyInfo) {
+        doc.setFontSize(8);
+        doc.setTextColor(128, 128, 128); // Gray color
+        doc.setFont('helvetica', 'normal'); // Assicuriamo che il testo non sia in grassetto
+        
+        // Manteniamo i ritorni a capo originali delle settings
+        const trimmedCompanyInfo = companyInfo.trim();
+        
+        // Sostituiamo i newline con specifici caratteri per l'allineamento a sinistra
+        // preservando i ritorni a capo originali
+        const companyInfoLines = trimmedCompanyInfo.split('\n').map(line => line.trim());
+        
+        // Calcoliamo l'altezza in base al numero di righe
+        companyInfoHeight = companyInfoLines.length * 3.5;
+        
+        // Aggiunge il testo giustificato a sinistra, riga per riga
+        companyInfoLines.forEach((line, index) => {
+          doc.text(line, 15, 15 + (index * 3.5), { align: "left" });
+        });
+        
+        // Reset text color for the rest of the content
+        doc.setTextColor(0, 0, 0); // Back to black
+      }
+      
+      // Add the logo in the top-right corner with correct proportions
+      if (companyLogo) {
+        try {
+          // Posizione in alto ancora più a destra come richiesto
+          const x = 150; // Coordinate X (spostato più a destra)
+          const y = 5;   // Coordinate Y (alto del foglio)
+          
+          // Calcoliamo le dimensioni effettive del logo e le proporzioni
+          // utilizzando un oggetto Image
+          const img = new Image();
+          img.src = companyLogo;
+          
+          // Usiamo un rapporto di default di base pari a 2:1
+          let logoWidth = LOGO_HEIGHT * 2;
+          
+          // Quando l'immagine sarà caricata, applicheremo il rapporto corretto
+          // ma intanto visualizziamo il logo con un rapporto provvisorio
+          
+          // Calcoliamo il logo usando un rapporto di aspetto temporaneo
+          // Clean the area before drawing
+          doc.setFillColor(255, 255, 255);
+          doc.rect(x - 1, y - 1, logoWidth + 2, LOGO_HEIGHT + 2, 'F');
+          
+          // Draw the image with maintained aspect ratio
+          doc.addImage(
+            companyLogo,
+            'JPEG', // formato automatico
+            x,
+            y,
+            logoWidth,
+            LOGO_HEIGHT,
+            undefined, // alias
+            'FAST' // compression 
+          );
+          
+          // Prepariamo il calcolo preciso delle dimensioni per usi futuri
+          img.onload = function() {
+            const actualRatio = img.width / img.height;
+            console.log("Logo actual dimensions:", { 
+              width: img.width, 
+              height: img.height, 
+              ratio: actualRatio 
+            });
+          };
+        } catch (err) {
+          console.error("Errore nel caricamento del logo:", err);
+          
+          // In caso di errore, usiamo dimensioni standard di fallback
+          try {
+            doc.addImage(
+              companyLogo, 
+              'JPEG',
+              150,    // Spostato più a destra anche nel fallback
+              5,      
+              LOGO_HEIGHT * 2,   // larghezza standard (rapporto 2:1)
+              LOGO_HEIGHT        // altezza standard (come richiesto)
+            );
+          } catch (e) {
+            console.error("Impossibile caricare il logo anche con dimensioni standard:", e);
+          }
+        }
+      }
+      
+      // Determina l'altezza necessaria per l'intestazione
+      headerHeight = Math.max(LOGO_HEIGHT + 10, companyInfoHeight + 15);
+      
+      // Aggiungi linea di separazione sotto il logo e le informazioni societarie
+      doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
+      doc.setLineWidth(0.5);
+      doc.line(15, headerHeight, 195, headerHeight); // Linea orizzontale da sinistra a destra
+      
+      return headerHeight;
+    };
+    
+    // Apply header to first page and get its height
+    headerHeight = addHeaderToPage(1);
+    
+    // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
+    
+    // Estrai informazioni del consulente dal campo firma con corretta gestione dei newline
+    const advisorLines = advisorSignature ? advisorSignature.split('\n').filter(line => line.trim() !== '') : [];
+    const advisorName = advisorLines[0] || "Financial Advisor";
+    const advisorCompany = advisorLines[1] || "";
+    const advisorEmail = advisorLines[2] || "";
+    const advisorPhone = advisorLines[3] || "";
+    
+    // Usa Calibri (sans-serif) per la lettera
+    doc.setFont('helvetica', 'normal'); // JSPDF non ha Calibri, helvetica è il più simile
+
+    // Creo un margine destro per allineare correttamente
+    const rightMargin = 190;
+    
+    // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dopo l'intestazione
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    const fromLabel = language === "english" ? "From:" : "Da:";
+    doc.text(fromLabel, 20, headerHeight + 15);
+    doc.setFont('helvetica', 'normal');
+    doc.text(advisorName, 35, headerHeight + 15);
+    if (advisorCompany) {
+      doc.text(advisorCompany, 35, headerHeight + 20);
+    }
+    if (advisorEmail) {
+      doc.text(advisorEmail, 35, headerHeight + 25);
+    }
+    if (advisorPhone) {
+      doc.text(advisorPhone, 35, headerHeight + 30);
+    }
+    
+    // Data a destra
+    const now = new Date();
+    const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+    doc.text(dateStr, rightMargin, headerHeight + 15, { align: "right" });
+    
+    // Destinatario a destra (allineato correttamente)
+    const toClientText = `${t('pdf.coverLetter.toClient')}:`;
+    doc.text(toClientText, rightMargin, headerHeight + 35, { align: "right" });
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${client.firstName} ${client.lastName}`, rightMargin, headerHeight + 40, { align: "right" });
+    doc.setFont('helvetica', 'normal');
+    if (client.email) {
+      doc.text(client.email, rightMargin, headerHeight + 45, { align: "right" });
+    }
+    
+    // Oggetto - adatta in base alla lingua
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
+    doc.text(subjectLabel, 20, headerHeight + 60);
+    doc.setFont('helvetica', 'normal');
+    const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
+    doc.text(subjectText, 65, headerHeight + 60);
+    
+    // Saluti
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(letterFields.greeting, 20, headerHeight + 70);
+    
+    // Corpo della lettera - introduzione personalizzata
+    const introLines = doc.splitTextToSize(letterFields.introduction, 170);
+    doc.text(introLines, 20, headerHeight + 80);
+    
+    // Testo collaborazione
+    const collaborationLines = doc.splitTextToSize(letterFields.collaboration, 170);
+    doc.text(collaborationLines, 20, headerHeight + 110);
+    
+    // Punti numerati personalizzati
+    let bulletY = headerHeight + 120;
+    
+    for (let i = 0; i < letterFields.servicePoints.length; i++) {
+      const pointLines = doc.splitTextToSize(`${i+1}. ${letterFields.servicePoints[i]}`, 160);
+      doc.text(pointLines, 25, bulletY);
+      bulletY += pointLines.length * 6;
+    }
+    
+    // Testo processo
+    const processLines = doc.splitTextToSize(letterFields.process, 170);
+    doc.text(processLines, 20, bulletY + 5);
+    
+    // Informazioni di contatto
+    const contactLines = doc.splitTextToSize(letterFields.contactInfo, 170);
+    doc.text(contactLines, 20, bulletY + 20);
+    
+    // Chiusura e firma
+    doc.text(letterFields.closing, 20, bulletY + 40);
+    
+    // Nome, cognome e società nella firma
+    doc.setFont('helvetica', 'bold');
+    doc.text(advisorName, 20, bulletY + 50);
+    doc.setFont('helvetica', 'normal');
+    if (advisorCompany) {
+      doc.text(advisorCompany, 20, bulletY + 56);
+    }
+    
+    // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
+    doc.addPage();
+    
+    // Aggiungi intestazione alla pagina 2
+    addHeaderToPage(2);
+    
+    // Titolo documento - posizionato più in basso su richiesta dell'utente
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.clientSummaryReport'), 105, 50, { align: "center" });
+    
+    // SECTION 1: Personal Information
+    doc.setFontSize(14);
+    doc.text(t('pdf.personalInformation'), 15, 60);
+    doc.setDrawColor(41, 98, 255);
+    doc.line(15, 63, 195, 63);
+    
+    // Client personal details
+    doc.setFontSize(11);
+    
+    // Gather all available personal information from client
+    const personalInfo = [
+      [`${t('pdf.name')}:`, `${client.firstName} ${client.lastName}`],
+      [`${t('pdf.email')}:`, client.email],
+      [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
+      [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
+      [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
+      [`${t('onboarding.income')}:`, client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : t('pdf.notProvided')],
+      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : t('pdf.notProvided')],
+      [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
+      [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
+    ];
+    
+    autoTable(doc, {
+      startY: 70,
+      head: [],
+      body: personalInfo,
+      theme: 'plain',
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100 }
+      },
+      styles: {
+        fontSize: 11,
+        cellPadding: 3,
+      },
+    });
+    
+    // SECTION 2: Investment Profile
+    const section2Y = (doc as any).lastAutoTable.finalY + 20;
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.investmentProfile'), 15, section2Y);
+    doc.setDrawColor(41, 98, 255);
+    doc.line(15, section2Y + 3, 195, section2Y + 3);
+    
+    // Investment profile details
+    const investmentProfile = [
+      [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`riskProfiles.${client.riskProfile}`) : t('pdf.notProvided')],
+      [`${t('pdf.investmentGoals')}:`, client.investmentGoals ? t(`investmentGoals.${client.investmentGoals}`) : t('pdf.notProvided')],
+      [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investmentHorizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
+      [`${t('pdf.experienceLevel')}:`, client.experienceLevel ? t(`experienceLevels.${client.experienceLevel}`) : t('pdf.notProvided')],
+    ];
+    
+    autoTable(doc, {
+      startY: section2Y + 8,
+      head: [],
+      body: investmentProfile,
+      theme: 'plain',
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100 }
+      },
+      styles: {
+        fontSize: 11,
+        cellPadding: 3,
+      },
+    });
+    
+    // SECTION 3: Assets
+    const section3Y = (doc as any).lastAutoTable.finalY + 20;
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(t('pdf.assets'), 15, section3Y);
+    doc.setDrawColor(41, 98, 255);
+    doc.line(15, section3Y + 3, 195, section3Y + 3);
+    
+    // Only if there are assets
+    if (assets && assets.length > 0) {
+      // Headers
+      const assetHeaders = [
+        [
+          t('pdf.category'),
+          t('pdf.value'),
+          t('pdf.description')
+        ]
+      ];
+      
+      // Asset data
+      const assetData = assets.map(asset => [
+        t(`assetCategories.${asset.category}`),
+        `${formatCurrency(asset.value)} €`,
+        asset.description || (language === "english" ? "No description" : "Nessuna descrizione")
+      ]);
+      
+      // Total value
+      const totalValue = assets.reduce((total, asset) => total + asset.value, 0);
+      assetData.push([
+        { content: t('pdf.total'), colSpan: 1, styles: { fontStyle: 'bold' } },
+        { content: `${formatCurrency(totalValue)} €`, colSpan: 1, styles: { fontStyle: 'bold' } },
+        { content: "", colSpan: 1 }
+      ]);
+      
+      autoTable(doc, {
+        startY: section3Y + 8,
+        head: assetHeaders,
+        body: assetData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [41, 98, 255],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+        },
+        columnStyles: {
+          0: { cellWidth: 40 },
+          1: { cellWidth: 40, halign: 'right' },
+          2: { cellWidth: 100 }
+        },
+        styles: {
+          fontSize: 10,
+          cellPadding: 3,
+        },
+      });
+    } else {
+      // No assets message
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'italic');
+      doc.text(t('pdf.noAssets'), 15, section3Y + 10);
+    }
+    
+    // Add page number to the footer of all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(128, 128, 128);
+      const pageStr = `${language === "english" ? "Page" : "Pagina"} ${i} ${language === "english" ? "of" : "di"} ${totalPages}`;
+      doc.text(pageStr, 195, 287, { align: "right" });
+    }
+    
+    return doc;
+  };
+
   // Generate PDF document
   const generatePdf = () => {
     setIsGenerating(true);
