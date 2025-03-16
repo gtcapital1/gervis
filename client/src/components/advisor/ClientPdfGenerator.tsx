@@ -570,7 +570,10 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           pdfDoc.setFontSize(8);
           pdfDoc.setTextColor(128, 128, 128); // Gray color
           
-          const companyInfoLines = pdfDoc.splitTextToSize(companyInfo, 80);
+          // Assicurati che le informazioni siano in un formato che preserva i ritorni a capo originali
+          // ma elimina i ritorni a capo non voluti che potrebbero essere stati aggiunti
+          const sanitizedCompanyInfo = companyInfo.replace(/\r\n/g, '\n'); // Normalizza tutti i ritorni a capo
+          const companyInfoLines = pdfDoc.splitTextToSize(sanitizedCompanyInfo, 80);
           companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           pdfDoc.text(companyInfoLines, 15, 15); // Position to the left
           
