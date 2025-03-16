@@ -215,59 +215,34 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Per mantenere le proporzioni originali, usiamo una tecnica diversa
-          // invece di cercare di leggere le dimensioni direttamente dall'immagine
+          // Dimensioni specifiche per garantire che non si distorca l'immagine
+          const MAX_WIDTH = 50;    // Larghezza ridotta rispetto al valore precedente
+          const MAX_HEIGHT = 30;   // Altezza ridotta rispetto al valore precedente
           
           try {
-            // Massima dimensione permessa
-            const maxHeight = logoHeight;
-            const maxWidth = 70;
-            
-            // Imposta dimensioni standard con aspect ratio di base
-            let imgWidth = maxWidth;
-            let imgHeight = maxHeight;
-            
-            // Determina le dimensioni in modo proporzionato
-            const b64Data = companyLogo.split(',')[1];
-            if (b64Data) {
-              // Se l'immagine è in base64, possiamo estrarre la dimensione dall'intestazione
-              // Per semplicità, usiamo dimensioni fisse con proporzioni 3:2 come compromesso
-              // (tipico per molti loghi aziendali)
-              const aspectRatio = 3/2; // proporzione tipica per loghi
-              
-              if (aspectRatio > 1) { 
-                // Se più largo che alto
-                imgHeight = maxWidth / aspectRatio;
-                imgWidth = maxWidth;
-              } else {
-                // Se più alto che largo o quadrato
-                imgWidth = maxHeight * aspectRatio;
-                imgHeight = maxHeight;
-              }
-            }
-            
-            // Aggiungi l'immagine con le dimensioni calcolate
+            // Per un approccio che preservi meglio le proporzioni, utilizziamo dimensioni
+            // più piccole ma ben proporzionate
             doc.addImage(
-              companyLogo,
-              'NONE', // jsPDF rileva automaticamente il formato
-              125,     // x position - lato destro
-              5,      // y position - in alto
-              imgWidth, 
-              imgHeight,
-              'company_logo',
-              'FAST'  // compressione
+              companyLogo, 
+              'NONE',  // formato automatico
+              125,     // posizione x (destra) - stessa posizione
+              5,       // posizione y (alto) - stessa posizione
+              MAX_WIDTH,
+              MAX_HEIGHT,
+              'company_logo', 
+              'FAST'   // compressione - mantiene la qualità
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // Fallback - carica comunque l'immagine con dimensioni fisse
+            // In caso di errore, usiamo dimensioni ancora più piccole per sicurezza
             doc.addImage(
               companyLogo, 
               'NONE',
               125,    
               5,      
-              70,    // larghezza fissa
-              35,    // altezza fissa
+              40,    // larghezza ancora più ridotta
+              20,    // altezza ancora più ridotta
               'company_logo', 
               'FAST'
             );
@@ -631,59 +606,34 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
-          // Per mantenere le proporzioni originali, usiamo una tecnica diversa
-          // invece di cercare di leggere le dimensioni direttamente dall'immagine
+          // Dimensioni specifiche per garantire che non si distorca l'immagine
+          const MAX_WIDTH = 50;    // Larghezza ridotta rispetto al valore precedente
+          const MAX_HEIGHT = 30;   // Altezza ridotta rispetto al valore precedente
           
           try {
-            // Massima dimensione permessa
-            const maxHeight = logoHeight;
-            const maxWidth = 70;
-            
-            // Imposta dimensioni standard con aspect ratio di base
-            let imgWidth = maxWidth;
-            let imgHeight = maxHeight;
-            
-            // Determina le dimensioni in modo proporzionato
-            const b64Data = companyLogo.split(',')[1];
-            if (b64Data) {
-              // Se l'immagine è in base64, possiamo estrarre la dimensione dall'intestazione
-              // Per semplicità, usiamo dimensioni fisse con proporzioni 3:2 come compromesso
-              // (tipico per molti loghi aziendali)
-              const aspectRatio = 3/2; // proporzione tipica per loghi
-              
-              if (aspectRatio > 1) { 
-                // Se più largo che alto
-                imgHeight = maxWidth / aspectRatio;
-                imgWidth = maxWidth;
-              } else {
-                // Se più alto che largo o quadrato
-                imgWidth = maxHeight * aspectRatio;
-                imgHeight = maxHeight;
-              }
-            }
-            
-            // Aggiungi l'immagine con le dimensioni calcolate
+            // Per un approccio che preservi meglio le proporzioni, utilizziamo dimensioni
+            // più piccole ma ben proporzionate
             pdfDoc.addImage(
-              companyLogo,
-              'NONE', // jsPDF rileva automaticamente il formato
-              125,     // x position - lato destro
-              5,      // y position - in alto
-              imgWidth, 
-              imgHeight,
-              'company_logo',
-              'FAST'  // compressione
+              companyLogo, 
+              'NONE',  // formato automatico
+              125,     // posizione x (destra) - stessa posizione
+              5,       // posizione y (alto) - stessa posizione
+              MAX_WIDTH,
+              MAX_HEIGHT,
+              'company_logo', 
+              'FAST'   // compressione - mantiene la qualità
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // Fallback - carica comunque l'immagine con dimensioni fisse
+            // In caso di errore, usiamo dimensioni ancora più piccole per sicurezza
             pdfDoc.addImage(
               companyLogo, 
               'NONE',
               125,    
               5,      
-              70,    // larghezza fissa
-              35,    // altezza fissa
+              40,    // larghezza ancora più ridotta
+              20,    // altezza ancora più ridotta
               'company_logo', 
               'FAST'
             );
