@@ -64,17 +64,11 @@ export async function sendCustomEmail(
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .signature { margin-top: 20px; font-weight: bold; }
       </style>
     </head>
     <body>
       <div class="container">
         <div style="white-space: pre-line;">${message}</div>
-        ${containsSignature ? '' : `
-        <div class="signature">
-          ${signature}
-        </div>
-        `}
       </div>
     </body>
     </html>
