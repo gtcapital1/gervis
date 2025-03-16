@@ -223,44 +223,29 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             const x = 125; // Coordinate X (destra del foglio)
             const y = 5;   // Coordinate Y (alto del foglio)
             
-            // Create a new Image object and load the companyLogo
+            // Create a new Image object and load the companyLogo synchronously
             const img = new Image();
-            
-            // Calcolo asincrono delle dimensioni dell'immagine
-            img.onload = function() {
-              // Una volta caricata l'immagine, calcoliamo il rapporto tra larghezza e altezza
-              const widthHeightRatio = img.width / img.height;
-              console.log("Proporzioni originali dell'immagine:", widthHeightRatio);
-              
-              // Calcoliamo la larghezza proporzionale in base all'altezza fissa
-              const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
-              console.log("Larghezza proporzionale calcolata:", proportionalWidth);
-              
-              // Ripuliamo l'area precedente (se necessario)
-              doc.setFillColor(255, 255, 255);
-              doc.rect(x - 1, y - 1, 50 + 2, FIXED_HEIGHT + 2, 'F');
-              
-              // Disegniamo l'immagine con le proporzioni corrette
-              doc.addImage(
-                companyLogo,
-                x,
-                y,
-                proportionalWidth,
-                FIXED_HEIGHT
-              );
-            };
-            
-            // Gestione errori
-            img.onerror = function() {
-              console.error("Errore nel caricamento dell'immagine per il calcolo delle proporzioni");
-            };
-            
-            // Inizia il caricamento dell'immagine
             img.src = companyLogo;
             
-            // Nel frattempo, disegniamo l'immagine con un rapporto predefinito
-            // In modo che ci sia comunque qualcosa nel PDF se l'evento onload non viene eseguito in tempo
-            const initialWidth = FIXED_HEIGHT * 1.5; // Rapporto predefinito 3:2
+            // Calculate image proportions
+            const widthHeightRatio = img.width / img.height || 1.5;
+            const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
+            
+            console.log("Proporzioni originali dell'immagine:", widthHeightRatio);
+            console.log("Larghezza proporzionale calcolata:", proportionalWidth);
+            
+            // Clean the area before drawing
+            doc.setFillColor(255, 255, 255);
+            doc.rect(x - 1, y - 1, 50 + 2, FIXED_HEIGHT + 2, 'F');
+            
+            // Draw the image with correct proportions
+            doc.addImage(
+              companyLogo,
+              x,
+              y,
+              proportionalWidth,
+              FIXED_HEIGHT
+            );
             doc.addImage(
               companyLogo, 
               x,
