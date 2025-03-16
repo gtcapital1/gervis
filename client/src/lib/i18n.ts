@@ -31,6 +31,57 @@ const resourcesIt = {
         description: "Sviluppato con attenzione alla sicurezza e alla conformità normativa, incluse le normative finanziarie italiane."
       }
     },
+    features: {
+      title: "Soluzioni Potenti per Consulenti Finanziari",
+      subtitle: "Strumenti completi per migliorare il tuo servizio di consulenza e offrire valore aggiunto ai tuoi clienti.",
+      learn_more: "Scopri di Più",
+      onboarding: {
+        title: "Onboarding Cliente Digitalizzato",
+        description: "Semplifica e accelera il processo di onboarding dei clienti con moduli digitali e raccolta dati automatizzata."
+      },
+      client_management: {
+        title: "Gestione Clienti Centralizzata",
+        description: "Organizza e gestisci facilmente i profili dei clienti, i documenti e le comunicazioni in un'unica piattaforma."
+      },
+      wealth_assessment: {
+        title: "Valutazione Patrimoniale",
+        description: "Analisi dettagliata del patrimonio dei clienti con visualizzazioni intuitive e reportistica completa."
+      },
+      ai_allocation: {
+        title: "Allocazione con IA",
+        description: "Suggerimenti di allocazione degli asset basati su algoritmi avanzati di intelligenza artificiale."
+      }
+    },
+    benefits: {
+      title: "Perché Scegliere Watson?",
+      subtitle: "Vantaggi concreti per la tua attività di consulenza finanziaria",
+      items: {
+        save_time: {
+          title: "Risparmia Tempo",
+          description: "Riduci il tempo dedicato alle attività amministrative e concentrati sulla consulenza di valore per i tuoi clienti."
+        },
+        reduce_errors: {
+          title: "Riduci gli Errori",
+          description: "Minimizza gli errori manuali con processi digitalizzati e automatizzati per la documentazione dei clienti."
+        },
+        grow_aum: {
+          title: "Aumenta gli Asset in Gestione",
+          description: "Attrai e fidelizza più clienti grazie a un'esperienza professionale e tecnologicamente avanzata."
+        },
+        improve_satisfaction: {
+          title: "Migliora la Soddisfazione",
+          description: "Offri un servizio più reattivo e personalizzato per aumentare la soddisfazione e la fidelizzazione dei clienti."
+        },
+        compliance: {
+          title: "Conformità Normativa",
+          description: "Mantieni facilmente la conformità con le normative finanziarie italiane ed europee con documentazione sempre aggiornata."
+        },
+        insights: {
+          title: "Insights Approfonditi",
+          description: "Ottieni analisi dettagliate sui portafogli dei clienti per fornire consigli più informati e strategici."
+        }
+      }
+    },
     auth: {
       login: "Accedi",
       register: "Registrati",
@@ -277,6 +328,12 @@ const resourcesIt = {
       pro_version: "Watson Pro",
       coming_soon: "PROSSIMAMENTE"
     },
+    about: {
+      title: "Chi Siamo",
+      description1: "Watson è una piattaforma digitale innovativa progettata per consulenti finanziari che vogliono migliorare i loro servizi e offrire un'esperienza di consulenza di livello superiore.",
+      description2: "La nostra missione è rendere la tecnologia avanzata accessibile ai consulenti finanziari indipendenti, aiutandoli a competere efficacemente con le grandi istituzioni finanziarie.",
+      description3: "Watson è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive."
+    },
     languages: {
       english: "Inglese",
       italian: "Italiano"
@@ -390,6 +447,57 @@ const resourcesEn = {
         description: "Built with security and regulatory compliance in mind, including Italian financial regulations."
       }
     },
+    features: {
+      title: "Powerful Solutions for Financial Advisors",
+      subtitle: "Comprehensive tools to enhance your consulting service and provide added value to your clients.",
+      learn_more: "Learn More",
+      onboarding: {
+        title: "Digitized Client Onboarding",
+        description: "Simplify and accelerate client onboarding with digital forms and automated data collection."
+      },
+      client_management: {
+        title: "Centralized Client Management",
+        description: "Easily organize and manage client profiles, documents, and communications in a single platform."
+      },
+      wealth_assessment: {
+        title: "Wealth Assessment",
+        description: "Detailed analysis of client assets with intuitive visualizations and comprehensive reporting."
+      },
+      ai_allocation: {
+        title: "AI-Powered Allocation",
+        description: "Asset allocation suggestions based on advanced artificial intelligence algorithms."
+      }
+    },
+    benefits: {
+      title: "Why Choose Watson?",
+      subtitle: "Tangible benefits for your financial advisory business",
+      items: {
+        save_time: {
+          title: "Save Time",
+          description: "Reduce time spent on administrative tasks and focus on valuable consulting for your clients."
+        },
+        reduce_errors: {
+          title: "Reduce Errors",
+          description: "Minimize manual errors with digitized and automated processes for client documentation."
+        },
+        grow_aum: {
+          title: "Grow Assets Under Management",
+          description: "Attract and retain more clients with a professional and technologically advanced experience."
+        },
+        improve_satisfaction: {
+          title: "Improve Satisfaction",
+          description: "Provide a more responsive and personalized service to increase client satisfaction and loyalty."
+        },
+        compliance: {
+          title: "Regulatory Compliance",
+          description: "Easily maintain compliance with Italian and European financial regulations with up-to-date documentation."
+        },
+        insights: {
+          title: "In-Depth Insights",
+          description: "Get detailed analysis of client portfolios to provide more informed and strategic advice."
+        }
+      }
+    },
     auth: {
       login: "Login",
       register: "Register",
@@ -486,6 +594,43 @@ const resourcesEn = {
       app_name: "Watson",
       pro_version: "Watson Pro",
       coming_soon: "COMING SOON"
+    },
+    about: {
+      title: "About Us",
+      description1: "Watson is an innovative digital platform designed for financial advisors who want to improve their services and offer a superior consulting experience.",
+      description2: "Our mission is to make advanced technology accessible to independent financial advisors, helping them compete effectively with large financial institutions.",
+      description3: "Watson is designed to support financial advisors in optimizing their business processes, allowing them to focus on client relationships rather than document management and repetitive tasks."
+    },
+    contact: {
+      title: "Contact Us",
+      subtitle: "Have questions? We'd love to hear from you.",
+      error: "There was an error sending your message. Please try again.",
+      form: {
+        firstName: "First Name",
+        lastName: "Last Name",
+        email: "Email",
+        company: "Company (Optional)",
+        message: "Message",
+        privacy: "I agree to the processing of my data for the purpose of receiving a response to my inquiry.",
+        submit: "Send Message",
+        submitting: "Sending...",
+        success: "Message Sent Successfully!",
+        success_message: "Thank you for contacting us. We will get back to you shortly.",
+        placeholders: {
+          firstName: "Enter your first name",
+          lastName: "Enter your last name",
+          email: "Enter your email address",
+          company: "Enter your company name",
+          message: "How can we help you?"
+        }
+      },
+      validation: {
+        firstName: "First name is required",
+        lastName: "Last name is required",
+        email: "Please enter a valid email address",
+        message: "Please enter your message",
+        privacy: "You must agree to the privacy terms"
+      }
     }
   }
 };
