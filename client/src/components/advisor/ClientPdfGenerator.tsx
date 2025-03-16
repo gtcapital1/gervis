@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
 import { FileText, Mail } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -31,67 +31,112 @@ interface ClientPdfGeneratorProps {
   advisorSignature?: string | null;
 }
 
-// Tipo per i campi della lettera completamente personalizzabile
-interface LetterFields {
-  greeting: string;
-  introduction: string;
-  collaboration: string;
-  servicePoints: string[];
-  process: string;
-  contactInfo: string;
-  closing: string;
-}
-
 export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientPdfGeneratorProps) {
   const [open, setOpen] = useState(false);
   const [language, setLanguage] = useState<string>("english");
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
   const [emailSubject, setEmailSubject] = useState("");
-  const [emailCustomMessage, setEmailCustomMessage] = useState("");
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [pdfGenerated, setPdfGenerated] = useState(false);
+  
+  // Formato predefinito della lettera
+  const defaultLetterTemplate = language === "english" 
+    ? `Dear ${client.firstName},
 
-  // Default letter texts
-  const defaultLetterFields: LetterFields = {
-    greeting: `${t('pdf.coverLetter.greetings')} ${client.firstName},`,
-    introduction: language === "english" 
-      ? "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations."
-      : "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
-    collaboration: t('pdf.coverLetter.collaboration'),
-    servicePoints: t('pdf.coverLetter.points', { returnObjects: true }) as string[],
-    process: t('pdf.coverLetter.process'),
-    contactInfo: t('pdf.coverLetter.contactInfo'),
-    closing: t('pdf.coverLetter.closing')
-  };
+It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.
 
-  // State for fully customizable letter
-  const [letterFields, setLetterFields] = useState<LetterFields>(defaultLetterFields);
+Our collaboration will include:
+
+1. Comprehensive financial planning tailored to your specific needs and goals
+2. Regular portfolio reviews and adjustments
+3. Strategic advice on investment opportunities
+4. Tax optimization strategies
+5. Ongoing support and guidance whenever you need it
+
+My process is designed to be straightforward and transparent, with regular check-ins to ensure we're making progress toward your financial goals.
+
+Please feel free to contact me anytime at [your phone number] or [your email] if you have questions or concerns.
+
+Warm regards,
+
+${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
+    : `Gentile ${client.firstName},
+
+È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
+
+La nostra collaborazione comprenderà:
+
+1. Pianificazione finanziaria completa e personalizzata in base alle tue esigenze e obiettivi
+2. Revisioni e adeguamenti regolari del portafoglio
+3. Consulenza strategica sulle opportunità di investimento
+4. Strategie di ottimizzazione fiscale
+5. Supporto e guida continui quando ne hai bisogno
+
+Il mio processo è progettato per essere semplice e trasparente, con controlli regolari per assicurare che stiamo facendo progressi verso i tuoi obiettivi finanziari.
+
+Non esitare a contattarmi in qualsiasi momento al [tuo numero di telefono] o [tua email] se hai domande o dubbi.
+
+Cordiali saluti,
+
+${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`;
+
+  // Stato per la lettera completamente personalizzabile
+  const [letterContent, setLetterContent] = useState(defaultLetterTemplate);
 
   // Function to handle language change
   const changeLanguage = (lang: string) => {
     setLanguage(lang);
     i18n.changeLanguage(lang === "english" ? "en" : "it");
     
-    // Reset all fields to defaults in the new language
-    resetToDefaults();
+    // Aggiorna il template della lettera quando cambia la lingua
+    setLetterContent(
+      lang === "english" 
+        ? `Dear ${client.firstName},
+
+It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.
+
+Our collaboration will include:
+
+1. Comprehensive financial planning tailored to your specific needs and goals
+2. Regular portfolio reviews and adjustments
+3. Strategic advice on investment opportunities
+4. Tax optimization strategies
+5. Ongoing support and guidance whenever you need it
+
+My process is designed to be straightforward and transparent, with regular check-ins to ensure we're making progress toward your financial goals.
+
+Please feel free to contact me anytime at [your phone number] or [your email] if you have questions or concerns.
+
+Warm regards,
+
+${advisorSignature?.split('\n')?.[0] || "Financial Advisor"}`
+        : `Gentile ${client.firstName},
+
+È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.
+
+La nostra collaborazione comprenderà:
+
+1. Pianificazione finanziaria completa e personalizzata in base alle tue esigenze e obiettivi
+2. Revisioni e adeguamenti regolari del portafoglio
+3. Consulenza strategica sulle opportunità di investimento
+4. Strategie di ottimizzazione fiscale
+5. Supporto e guida continui quando ne hai bisogno
+
+Il mio processo è progettato per essere semplice e trasparente, con controlli regolari per assicurare che stiamo facendo progressi verso i tuoi obiettivi finanziari.
+
+Non esitare a contattarmi in qualsiasi momento al [tuo numero di telefono] o [tua email] se hai domande o dubbi.
+
+Cordiali saluti,
+
+${advisorSignature?.split('\n')?.[0] || "Consulente Finanziario"}`
+    );
   };
 
-  // Reset all fields to defaults based on current language
+  // Reset to default template
   const resetToDefaults = () => {
-    setLetterFields({
-      greeting: `${t('pdf.coverLetter.greetings')} ${client.firstName},`,
-      introduction: language === "english" 
-        ? "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations."
-        : "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
-      collaboration: t('pdf.coverLetter.collaboration'),
-      servicePoints: t('pdf.coverLetter.points', { returnObjects: true }) as string[],
-      process: t('pdf.coverLetter.process'),
-      contactInfo: t('pdf.coverLetter.contactInfo'),
-      closing: t('pdf.coverLetter.closing')
-    });
+    setLetterContent(defaultLetterTemplate);
   };
 
   // Generate PDF document
@@ -175,46 +220,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
       doc.text(subjectText, 65, 75);
       
-      // Saluti
+      // Testo della lettera - tutto da letterContent
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
-      doc.text(letterFields.greeting, 20, 85);
-      
-      // Corpo della lettera - introduzione personalizzata
-      const introLines = doc.splitTextToSize(letterFields.introduction, 170);
-      doc.text(introLines, 20, 95);
-      
-      // Testo collaborazione
-      const collaborationLines = doc.splitTextToSize(letterFields.collaboration, 170);
-      doc.text(collaborationLines, 20, 125);
-      
-      // Punti numerati personalizzati
-      let bulletY = 132;
-      
-      for (let i = 0; i < letterFields.servicePoints.length; i++) {
-        const pointLines = doc.splitTextToSize(`${i+1}. ${letterFields.servicePoints[i]}`, 160);
-        doc.text(pointLines, 25, bulletY);
-        bulletY += pointLines.length * 6;
-      }
-      
-      // Testo processo
-      const processLines = doc.splitTextToSize(letterFields.process, 170);
-      doc.text(processLines, 20, bulletY + 5);
-      
-      // Informazioni di contatto
-      const contactLines = doc.splitTextToSize(letterFields.contactInfo, 170);
-      doc.text(contactLines, 20, bulletY + 20);
-      
-      // Chiusura e firma
-      doc.text(letterFields.closing, 20, bulletY + 40);
-      
-      // Nome, cognome e società nella firma
-      doc.setFont('helvetica', 'bold');
-      doc.text(advisorName, 20, bulletY + 50);
-      doc.setFont('helvetica', 'normal');
-      if (advisorCompany) {
-        doc.text(advisorCompany, 20, bulletY + 56);
-      }
+      const letterContentLines = doc.splitTextToSize(letterContent, 170);
+      doc.text(letterContentLines, 20, 85);
       
       // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
       doc.addPage();
@@ -399,8 +409,6 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
       // Save the PDF
       doc.save(`${client.firstName}_${client.lastName}_Onboarding_Form.pdf`);
       
-      // Set state to indicate PDF generation completed successfully
-      setPdfGenerated(true);
       toast({
         title: language === "english" ? "Success" : "Successo",
         description: language === "english" ? "PDF generated successfully" : "PDF generato con successo",
@@ -432,9 +440,6 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     setIsSending(true);
 
     try {
-      // Crea il corpo della mail composto solo dal testo della lettera (senza intestazioni)
-      const emailBody = `${letterFields.greeting}\n\n${letterFields.introduction}\n\n${letterFields.collaboration}\n\n${letterFields.servicePoints.map((p, i) => `${i+1}. ${p}`).join('\n')}\n\n${letterFields.process}\n\n${letterFields.contactInfo}\n\n${letterFields.closing}`;
-
       const response = await apiRequest(`/api/clients/${client.id}/send-email`, {
         method: 'POST',
         headers: {
@@ -442,7 +447,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
         },
         body: JSON.stringify({
           subject: emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"),
-          message: emailCustomMessage || emailBody,
+          message: letterContent,
           language: language === "english" ? "english" : "italian"
         }),
       });
@@ -467,34 +472,6 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     } finally {
       setIsSending(false);
     }
-  };
-
-  // Function to update service points
-  const updateServicePoint = (index: number, value: string) => {
-    const newPoints = [...letterFields.servicePoints];
-    newPoints[index] = value;
-    setLetterFields({
-      ...letterFields,
-      servicePoints: newPoints
-    });
-  };
-
-  // Function to add a service point
-  const addServicePoint = () => {
-    setLetterFields({
-      ...letterFields,
-      servicePoints: [...letterFields.servicePoints, ""]
-    });
-  };
-
-  // Function to remove a service point
-  const removeServicePoint = (index: number) => {
-    const newPoints = [...letterFields.servicePoints];
-    newPoints.splice(index, 1);
-    setLetterFields({
-      ...letterFields,
-      servicePoints: newPoints
-    });
   };
 
   return (
@@ -540,110 +517,15 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="greeting">
-                  {language === "english" ? "Greeting" : "Saluto"}
-                </Label>
-                <Input
-                  id="greeting"
-                  value={letterFields.greeting}
-                  onChange={(e) => setLetterFields({...letterFields, greeting: e.target.value})}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="introduction">
-                  {language === "english" ? "Introduction" : "Introduzione"}
+                <Label htmlFor="letterContent">
+                  {language === "english" ? "Letter Content" : "Contenuto della Lettera"}
                 </Label>
                 <Textarea
-                  id="introduction"
-                  value={letterFields.introduction}
-                  onChange={(e) => setLetterFields({...letterFields, introduction: e.target.value})}
-                  rows={4}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="collaboration">
-                  {language === "english" ? "Collaboration Text" : "Testo Collaborazione"}
-                </Label>
-                <Textarea
-                  id="collaboration"
-                  value={letterFields.collaboration}
-                  onChange={(e) => setLetterFields({...letterFields, collaboration: e.target.value})}
-                  rows={3}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>
-                    {language === "english" ? "Service Points" : "Punti del Servizio"}
-                  </Label>
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={addServicePoint}
-                  >
-                    {language === "english" ? "Add Point" : "Aggiungi Punto"}
-                  </Button>
-                </div>
-                
-                {letterFields.servicePoints.map((point, index) => (
-                  <div key={index} className="flex gap-2">
-                    <div className="flex-none w-8 text-center pt-2 font-bold">{index + 1}.</div>
-                    <Textarea
-                      value={point}
-                      onChange={(e) => updateServicePoint(index, e.target.value)}
-                      rows={2}
-                      className="flex-grow"
-                    />
-                    <Button 
-                      type="button" 
-                      size="sm" 
-                      variant="ghost" 
-                      className="flex-none h-10 mt-1"
-                      onClick={() => removeServicePoint(index)}
-                    >
-                      ✕
-                    </Button>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="process">
-                  {language === "english" ? "Process Text" : "Testo Processo"}
-                </Label>
-                <Textarea
-                  id="process"
-                  value={letterFields.process}
-                  onChange={(e) => setLetterFields({...letterFields, process: e.target.value})}
-                  rows={3}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="contactInfo">
-                  {language === "english" ? "Contact Information" : "Informazioni di Contatto"}
-                </Label>
-                <Textarea
-                  id="contactInfo"
-                  value={letterFields.contactInfo}
-                  onChange={(e) => setLetterFields({...letterFields, contactInfo: e.target.value})}
-                  rows={3}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="closing">
-                  {language === "english" ? "Closing" : "Chiusura"}
-                </Label>
-                <Textarea
-                  id="closing"
-                  value={letterFields.closing}
-                  onChange={(e) => setLetterFields({...letterFields, closing: e.target.value})}
-                  rows={2}
+                  id="letterContent"
+                  value={letterContent}
+                  onChange={(e) => setLetterContent(e.target.value)}
+                  rows={20}
+                  className="font-mono"
                 />
               </div>
               
@@ -686,36 +568,14 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
                   </p>
                 </div>
                 
-                <div className="mt-4">
-                  <p>{letterFields.greeting}</p>
-                  <p className="mt-2">{letterFields.introduction}</p>
-                  <p className="mt-4">{letterFields.collaboration}</p>
-                  
-                  <ul className="mt-2 pl-4">
-                    {letterFields.servicePoints.map((point, index) => (
-                      <li key={index} className="mt-1">
-                        <span className="font-bold">{index + 1}. </span>
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                  
-                  <p className="mt-4">{letterFields.process}</p>
-                  <p className="mt-4">{letterFields.contactInfo}</p>
-                  <p className="mt-4">{letterFields.closing}</p>
-                  
-                  <p className="mt-4 font-bold">
-                    {client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}
-                  </p>
-                  <p>
-                    {client.advisorId ? advisorSignature?.split('\n')[1] || "" : ""}
-                  </p>
+                <div className="mt-4 whitespace-pre-line">
+                  {letterContent}
                 </div>
               </div>
             </TabsContent>
           </Tabs>
           
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0">
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
             <Button
               variant="outline"
               onClick={() => setOpen(false)}
@@ -772,23 +632,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
               />
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="emailMessage">
-                {language === "english" ? "Email Message (Optional)" : "Messaggio Email (Opzionale)"}
-              </Label>
-              <Textarea
-                id="emailMessage"
-                placeholder={language === "english" ? "Leave blank to use cover letter text" : "Lascia vuoto per usare il testo della lettera"}
-                value={emailCustomMessage}
-                onChange={(e) => setEmailCustomMessage(e.target.value)}
-                rows={6}
-              />
-              <p className="text-sm text-gray-500">
-                {language === "english" 
-                  ? "If left blank, the cover letter text will be used as the email body." 
-                  : "Se lasciato vuoto, il testo della lettera di accompagnamento sarà usato come corpo dell'email."}
-              </p>
-            </div>
+            <p className="text-sm">
+              {language === "english" 
+                ? "The complete letter will be used as the email body." 
+                : "Il testo completo della lettera verrà utilizzato come corpo dell'email."}
+            </p>
           </div>
           
           <DialogFooter>
