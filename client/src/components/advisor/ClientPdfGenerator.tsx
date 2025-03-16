@@ -201,14 +201,19 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           doc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
-            150,   // x position - right side
-            10,    // y position - top
-            40,    // width - dimensione più ridotta per non distorcere
-            20,    // height - dimensione più ridotta per mantenere proporzioni 
+            125,   // x position - right side (spostato per più spazio)
+            5,     // y position - top (spostato più in alto)
+            70,    // width - dimensione aumentata
+            35,    // height - dimensione aumentata
             'company_logo', // alias
             'FAST'  // compression
           );
         }
+        
+        // Aggiungi linea di separazione sotto il logo e le informazioni societarie
+        doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
+        doc.setLineWidth(0.5);
+        doc.line(15, 40, 195, 40); // Linea orizzontale da sinistra a destra
       };
       
       // Apply header to first page
@@ -536,14 +541,19 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           pdfDoc.addImage(
             companyLogo, 
             'PNG', // or appropriate format
-            150,   // x position - right side
-            10,    // y position - top
-            40,    // width - dimensione più ridotta per non distorcere
-            20,    // height - dimensione più ridotta per mantenere proporzioni 
+            125,   // x position - right side (spostato per più spazio)
+            5,     // y position - top (spostato più in alto)
+            70,    // width - dimensione aumentata
+            35,    // height - dimensione aumentata
             'company_logo', // alias
             'FAST'  // compression
           );
         }
+        
+        // Aggiungi linea di separazione sotto il logo e le informazioni societarie
+        pdfDoc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
+        pdfDoc.setLineWidth(0.5);
+        pdfDoc.line(15, 40, 195, 40); // Linea orizzontale da sinistra a destra
       };
       
       // Apply header to first page
