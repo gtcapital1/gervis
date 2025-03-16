@@ -150,10 +150,17 @@ const resourcesEn = {
         toClient: "To",
         fromAdvisor: "From",
         subject: "Subject",
+        title: "Welcome – Starting Our Collaboration",
         greetings: "Dear",
-        intro: "Thank you for choosing our financial advisory services. This document provides a summary of the information you shared with us during the onboarding process, which will form the basis of our financial advice to you.",
-        purpose: "We will use this information to create a personalized financial plan tailored to your specific needs and goals. Please review the information in the following pages to ensure its accuracy.",
-        contactInfo: "If you have any questions or need to update any information, please don't hesitate to contact me directly.",
+        intro: "It's a genuine pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.",
+        collaboration: "Through in-depth analysis and advanced tools, we will work together to:",
+        points: [
+          "Optimize the composition of your portfolio based on your objectives and risk profile.",
+          "Identify tailored solutions for more effective and sustainable asset management over time.",
+          "Ensure transparent consulting in line with industry best practices."
+        ],
+        process: "As discussed, to complete the onboarding process, I invite you to verify and return the attached documents signed. This step is necessary to formalize our collaboration and proceed with the planned activities.",
+        contactInfo: "I remain available for any clarification or need. Thank you for your trust, and I am confident this will be the beginning of a valuable journey.",
         closing: "Regards,"
       },
       name: "Full Name",
@@ -456,10 +463,17 @@ const resourcesIt = {
         toClient: "A",
         fromAdvisor: "Da",
         subject: "Oggetto",
+        title: "Benvenuto – Avvio della Nostra Collaborazione",
         greetings: "Gentile",
-        intro: "Grazie per aver scelto i nostri servizi di consulenza finanziaria. Questo documento fornisce un riepilogo delle informazioni che ci hai condiviso durante il processo di onboarding, che costituiranno la base della nostra consulenza finanziaria per te.",
-        purpose: "Utilizzeremo queste informazioni per creare un piano finanziario personalizzato, adattato alle tue specifiche esigenze e obiettivi. Ti preghiamo di rivedere le informazioni nelle pagine seguenti per assicurarti della loro accuratezza.",
-        contactInfo: "Se hai domande o necessiti di aggiornare qualsiasi informazione, non esitare a contattarmi direttamente.",
+        intro: "È un vero piacere darti il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirti un servizio di consulenza altamente personalizzato, pensato per aiutarti a gestire il tuo patrimonio in modo strategico ed efficiente, con un approccio attento ai costi e nel pieno rispetto delle normative vigenti.",
+        collaboration: "Attraverso un'analisi approfondita e strumenti avanzati, lavoreremo insieme per:",
+        points: [
+          "Ottimizzare la composizione del tuo portafoglio in base ai tuoi obiettivi e al tuo profilo di rischio.",
+          "Individuare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo.",
+          "Assicurare una consulenza trasparente e in linea con le migliori pratiche di settore."
+        ],
+        process: "Come discusso, per completare il processo di onboarding, ti invito a verificare e restituire firmati i documenti allegati. Questo passaggio è necessario per formalizzare la nostra collaborazione e procedere con le attività pianificate.",
+        contactInfo: "Resto a disposizione per qualsiasi chiarimento o esigenza. Ti ringrazio per la fiducia e sono certo che sarà l'inizio di un percorso di valore.",
         closing: "Cordiali saluti,"
       },
       name: "Nome Completo",

@@ -76,7 +76,16 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     doc.setFont('helvetica', 'bold');
     doc.text(`${t('pdf.coverLetter.fromAdvisor')}:`, 15, 40);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}`, 45, 40);
+    
+    // Estrai nome, cognome e società dalla firma
+    const advisorInfo = client.advisorId ? (advisorSignature?.split('\n') || []) : [];
+    const advisorName = advisorInfo[0] || "Financial Advisor";
+    const advisorCompany = advisorInfo[1] || "";
+    
+    doc.text(advisorName, 45, 40);
+    if (advisorCompany) {
+      doc.text(advisorCompany, 45, 46);
+    }
     
     // Data
     doc.setFont('helvetica', 'bold');
@@ -92,40 +101,60 @@ export function ClientPdfGenerator({ client, assets, advisorSignature }: ClientP
     
     // Linea separatrice
     doc.setDrawColor(100, 100, 100);
-    doc.line(15, 45, 195, 45);
+    doc.line(15, 50, 195, 50);
     
     // Destinatario (Cliente)
     doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.toClient')}:`, 15, 55);
+    doc.text(`${t('pdf.coverLetter.toClient')}:`, 15, 60);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${client.firstName} ${client.lastName}`, 45, 55);
+    doc.text(`${client.firstName} ${client.lastName}`, 45, 60);
     
     // Oggetto
     doc.setFont('helvetica', 'bold');
-    doc.text(`${t('pdf.coverLetter.subject')}:`, 15, 65);
+    doc.text(`${t('pdf.coverLetter.subject')}:`, 15, 70);
     doc.setFont('helvetica', 'normal');
-    doc.text(t('pdf.title'), 45, 65);
+    doc.text(t('pdf.coverLetter.title'), 45, 70);
     
     // Spazio
     const greetingText = `${t('pdf.coverLetter.greetings')} ${client.firstName},`;
-    doc.text(greetingText, 15, 80);
+    doc.text(greetingText, 15, 85);
     
     // Corpo della lettera
     const introText = t('pdf.coverLetter.intro');
-    const purposeText = t('pdf.coverLetter.purpose');
-    const contactText = t('pdf.coverLetter.contactInfo');
-    
     const introLines = doc.splitTextToSize(introText, 180);
-    const purposeLines = doc.splitTextToSize(purposeText, 180);
-    const contactLines = doc.splitTextToSize(contactText, 180);
+    doc.text(introLines, 15, 95);
     
-    doc.text(introLines, 15, 90);
-    doc.text(purposeLines, 15, 110);
-    doc.text(contactLines, 15, 130);
+    // Collaboration text
+    const collaborationText = t('pdf.coverLetter.collaboration');
+    doc.text(collaborationText, 15, 115);
+    
+    // Bullet points
+    const points = t('pdf.coverLetter.points', { returnObjects: true }) as string[];
+    let bulletY = 122;
+    
+    for (const point of points) {
+      doc.text(`- ${point}`, 20, bulletY);
+      bulletY += 7;
+    }
+    
+    // Process text
+    const processText = t('pdf.coverLetter.process');
+    const processLines = doc.splitTextToSize(processText, 180);
+    doc.text(processLines, 15, bulletY + 5);
+    
+    // Contact info
+    const contactText = t('pdf.coverLetter.contactInfo');
+    const contactLines = doc.splitTextToSize(contactText, 180);
+    doc.text(contactLines, 15, bulletY + 20);
     
     // Chiusura e firma
-    doc.text(t('pdf.coverLetter.closing'), 15, 150);
-    doc.text(`${client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}`, 15, 165);
+    doc.text(t('pdf.coverLetter.closing'), 15, bulletY + 40);
+    
+    // Nome, cognome e società nella firma
+    doc.text(advisorName, 15, bulletY + 50);
+    if (advisorCompany) {
+      doc.text(advisorCompany, 15, bulletY + 56);
+    }
     
     // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
     doc.addPage();
