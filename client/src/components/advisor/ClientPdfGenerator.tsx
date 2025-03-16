@@ -166,8 +166,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         // Add the logo in the top-right corner with correct proportions
         if (companyLogo) {
           try {
-            // Posizione in alto a destra
-            const x = 135; // Coordinate X (più a destra)
+            // Posizione in alto ancora più a destra come richiesto
+            const x = 150; // Coordinate X (spostato più a destra)
             const y = 5;   // Coordinate Y (alto del foglio)
             
             // Calcoliamo le dimensioni effettive del logo e le proporzioni
@@ -215,7 +215,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
               doc.addImage(
                 companyLogo, 
                 'JPEG',
-                135,    
+                150,    // Spostato più a destra anche nel fallback
                 5,      
                 LOGO_HEIGHT * 2,   // larghezza standard (rapporto 2:1)
                 LOGO_HEIGHT        // altezza standard (come richiesto)
@@ -681,7 +681,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
                 </Button>
               </div>
               
-              <div className="border rounded-md p-4 bg-gray-50">
+              <div className="border rounded-md p-4 bg-white text-black">
                 <h3 className="font-bold mb-4">{language === "english" ? "Cover Letter Content" : "Contenuto della Lettera"}</h3>
                 
                 <Textarea
@@ -738,25 +738,6 @@ ${letterFields.closing}`}
                   rows={20}
                   className="w-full mb-4"
                 />
-                
-                <div className="flex justify-between items-center">
-                  <div className="text-xs text-gray-500">
-                    {language === "english" 
-                      ? "The text will be automatically formatted in the PDF. Press Enter twice to create paragraph breaks." 
-                      : "Il testo sarà formattato automaticamente nel PDF. Premi Invio due volte per creare interruzioni di paragrafo."}
-                  </div>
-                  
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={resetToDefaults}
-                    className="mt-2"
-                  >
-                    <FileText className="h-4 w-4 mr-1" />
-                    {language === "english" ? "Reset Default Text" : "Ripristina Testo Predefinito"}
-                  </Button>
-                </div>
               </div>
             </TabsContent>
             
@@ -1043,7 +1024,7 @@ ${letterFields.closing}`}
                   value={emailCustomMessage}
                   onChange={(e) => setEmailCustomMessage(e.target.value)}
                   rows={8}
-                  className="w-full"
+                  className="w-full bg-white text-black"
                 />
                 <p className="text-xs text-gray-500 mt-1 italic">
                   {language === "english" 

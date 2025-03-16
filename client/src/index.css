@@ -58,7 +58,7 @@
   object-fit: contain;
   position: absolute;
   top: 1.25rem; /* 5 in tailwind */
-  right: 2.5rem; /* 10 in tailwind */
+  right: 1rem; /* spostato più a destra */
 }
 
 /* Aumentare lo spazio per impedire sovrapposizione del logo con il testo */
