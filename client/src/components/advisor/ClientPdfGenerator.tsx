@@ -625,8 +625,8 @@ ${closing}`;
       });
       
       toast({
-        title: language === "english" ? "Success" : "Successo",
-        description: language === "english" ? "Email sent successfully" : "Email inviata con successo",
+        title: currentLanguage === "english" ? "Success" : "Successo",
+        description: currentLanguage === "english" ? "Email sent successfully" : "Email inviata con successo",
         variant: "default",
       });
       
@@ -635,8 +635,8 @@ ${closing}`;
     } catch (error) {
       console.error("Error sending email:", error);
       toast({
-        title: language === "english" ? "Error" : "Errore",
-        description: language === "english" ? "Failed to send email" : "Impossibile inviare l'email",
+        title: currentLanguage === "english" ? "Error" : "Errore",
+        description: currentLanguage === "english" ? "Failed to send email" : "Impossibile inviare l'email",
         variant: "destructive",
       });
     } finally {
