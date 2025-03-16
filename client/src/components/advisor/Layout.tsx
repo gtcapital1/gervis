@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
@@ -9,6 +9,7 @@ import {
   X,
   User,
   ArrowLeft,
+  Globe,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
+import { useTranslation } from "react-i18next";
 
 interface LayoutProps {
   children: ReactNode;
@@ -27,6 +29,18 @@ export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
+  const { t, i18n } = useTranslation();
+  
+  // Keep track of current language
+  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
+  
+  // Handle language change
+  const toggleLanguage = () => {
+    const newLang = currentLanguage === "en" ? "it" : "en";
+    i18n.changeLanguage(newLang);
+    setCurrentLanguage(newLang);
+    console.log("Lingua cambiata a:", newLang);
+  };
   
   // Handle logout
   function handleLogout() {
@@ -80,7 +94,7 @@ export function Layout({ children }: LayoutProps) {
                   }}
                 >
                   <Icon className="mr-3 h-5 w-5" />
-                  {item.name}
+                  {t(`dashboard.${item.name.toLowerCase()}`)}
                 </div>
               </Link>
             </div>
@@ -99,17 +113,25 @@ export function Layout({ children }: LayoutProps) {
             </div>
           </div>
         </div>
+        {/* Language toggle button */}
+        <div 
+          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer mb-2"
+          onClick={toggleLanguage}
+        >
+          <Globe className="mr-3 h-5 w-5 text-green-500" />
+          {currentLanguage === "en" ? "Switch to Italian" : "Passa all'inglese"}
+        </div>
         <div 
           className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer"
           onClick={handleLogout}
         >
           <LogOut className="mr-3 h-5 w-5" />
-          Logout
+          {t('dashboard.logout')}
         </div>
         <Link href="/">
           <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
             <ArrowLeft className="mr-3 h-5 w-5" />
-            Return to Home
+            {t('dashboard.return_to_home')}
           </div>
         </Link>
       </div>
