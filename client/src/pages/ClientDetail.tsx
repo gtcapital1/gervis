@@ -483,12 +483,12 @@ ${user?.name || ""}`
               {/* Second Box: Investment Profile */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">Investment Profile</CardTitle>
+                  <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 gap-4">
                     <div>
-                      <span className="text-sm text-muted-foreground block mb-2">Risk Profile:</span>
+                      <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
                       {client.riskProfile ? (
                         <Badge 
                           className="capitalize"
@@ -503,17 +503,17 @@ ${user?.name || ""}`
                             color: "#ffffff"
                           }}
                         >
-                          {client.riskProfile.replace(/_/g, ' ')}
+                          {t(`risk_profiles.${client.riskProfile}`)}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
-                          Not Assessed
+                          {t('client.not_assessed')}
                         </Badge>
                       )}
                     </div>
                     
                     <div>
-                      <span className="text-sm text-muted-foreground block mb-2">Investment Experience:</span>
+                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
                       {client.investmentExperience ? (
                         <Badge 
                           className="capitalize"
@@ -528,17 +528,17 @@ ${user?.name || ""}`
                             color: client.investmentExperience === "none" || client.investmentExperience === "beginner" ? "#1e3a8a" : "#ffffff"
                           }}
                         >
-                          {client.investmentExperience.replace(/_/g, ' ')}
+                          {t(`experience_levels.${client.investmentExperience}`)}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
-                          Not Specified
+                          {t('client.not_specified')}
                         </Badge>
                       )}
                     </div>
                     
                     <div>
-                      <span className="text-sm text-muted-foreground block mb-2">Investment Horizon:</span>
+                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
                       {client.investmentHorizon ? (
                         <Badge 
                           className="capitalize"
@@ -551,17 +551,17 @@ ${user?.name || ""}`
                             color: client.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
                           }}
                         >
-                          {client.investmentHorizon.replace(/_/g, ' ')}
+                          {t(`investment_horizons.${client.investmentHorizon}`)}
                         </Badge>
                       ) : (
                         <Badge variant="outline">
-                          Not Specified
+                          {t('client.not_specified')}
                         </Badge>
                       )}
                     </div>
                     
                     <div>
-                      <span className="text-sm text-muted-foreground block mb-2">Investment Goals:</span>
+                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
                       {client.investmentGoals && client.investmentGoals.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {client.investmentGoals.map(goal => (
@@ -581,13 +581,13 @@ ${user?.name || ""}`
                                     ? "#1e3a8a" : "#ffffff"
                               }}
                             >
-                              {goal.replace(/_/g, ' ')}
+                              {t(`investment_goals.${goal}`)}
                             </Badge>
                           ))}
                         </div>
                       ) : (
                         <Badge variant="outline">
-                          Not Specified
+                          {t('client.not_specified')}
                         </Badge>
                       )}
                     </div>
@@ -600,9 +600,9 @@ ${user?.name || ""}`
             {client.isOnboarded ? (
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">Asset Allocation</CardTitle>
+                  <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
                   <CardDescription>
-                    Snapshot of client's current portfolio
+                    {t('client.portfolio_snapshot')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -610,11 +610,11 @@ ${user?.name || ""}`
                     <TabsList className="mb-4">
                       <TabsTrigger value="portfolio">
                         <PieChart className="mr-2 h-4 w-4" />
-                        Portfolio Overview
+                        {t('client.portfolio_overview')}
                       </TabsTrigger>
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
-                        Recommendations
+                        {t('client.recommendations')}
                       </TabsTrigger>
 
                     </TabsList>
@@ -622,17 +622,17 @@ ${user?.name || ""}`
                     <TabsContent value="portfolio" className="space-y-6">
                       {isLoadingAssets ? (
                         <div className="flex justify-center items-center h-32">
-                          <p>Loading assets...</p>
+                          <p>{t('client.loading_assets')}</p>
                         </div>
                       ) : assets.length === 0 ? (
                         <div className="flex flex-col justify-center items-center h-32 space-y-4">
-                          <p className="text-muted-foreground">No assets found for this client.</p>
+                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           {/* Left side: Asset list */}
                           <div>
-                            <h3 className="text-lg font-medium mb-3">Asset Details</h3>
+                            <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
                             <div className="space-y-2">
                               {assets.map((asset) => (
                                 <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
@@ -650,13 +650,13 @@ ${user?.name || ""}`
                                           "#bfdbfe" // Very light blue
                                       }}
                                     />
-                                    <span className="font-medium capitalize">{asset.category.replace(/_/g, ' ')}</span>
+                                    <span className="font-medium capitalize">{t(`asset_categories.${asset.category}`)}</span>
                                   </div>
                                   <div className="font-semibold">€{asset.value.toLocaleString()}</div>
                                 </div>
                               ))}
                               <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
-                                <div className="font-semibold">Total</div>
+                                <div className="font-semibold">{t('client.total')}</div>
                                 <div className="font-bold">€{totalValue.toLocaleString()}</div>
                               </div>
                             </div>
@@ -664,7 +664,7 @@ ${user?.name || ""}`
                           
                           {/* Right side: Pie chart */}
                           <div>
-                            <h3 className="text-lg font-medium mb-3">Asset Split</h3>
+                            <h3 className="text-lg font-medium mb-3">{t('client.asset_split')}</h3>
                             <div className="h-[220px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
@@ -732,37 +732,37 @@ ${user?.name || ""}`
                     <TabsContent value="recommendations" className="space-y-4">
                       {user?.isPro ? (
                         <>
-                          <p>Recommendations and financial advice will appear here.</p>
+                          <p>{t('client.recommendations_advice')}</p>
                           <Button variant="outline" size="sm">
                             <PlusCircle className="mr-2 h-4 w-4" />
-                            Add Recommendation
+                            {t('client.add_recommendation')}
                           </Button>
                         </>
                       ) : (
                         <Card>
                           <CardHeader>
-                            <CardTitle>Upgrade to PRO</CardTitle>
+                            <CardTitle>{t('client.upgrade_pro')}</CardTitle>
                             <CardDescription>
-                              Unlock premium features including advanced financial recommendations
+                              {t('client.upgrade_pro_desc')}
                             </CardDescription>
                           </CardHeader>
                           <CardContent>
                             <div className="space-y-4">
                               <div className="space-y-2">
-                                <p>With a PRO account, you gain access to:</p>
+                                <p>{t('client.pro_account_access')}:</p>
                                 <ul className="ml-6 list-disc space-y-1">
-                                  <li>Advanced portfolio analysis and optimization</li>
-                                  <li>Personalized investment recommendations</li>
-                                  <li>Risk assessment and mitigation strategies</li>
-                                  <li>Tax optimization suggestions</li>
-                                  <li>AI-powered financial planning tools</li>
+                                  <li>{t('client.pro_feature_1')}</li>
+                                  <li>{t('client.pro_feature_2')}</li>
+                                  <li>{t('client.pro_feature_3')}</li>
+                                  <li>{t('client.pro_feature_4')}</li>
+                                  <li>{t('client.pro_feature_5')}</li>
                                 </ul>
                               </div>
                               <Button 
                                 onClick={() => setIsUpgradeOpen(true)} 
                                 className="bg-accent hover:bg-accent/90"
                               >
-                                Upgrade to PRO
+                                {t('client.upgrade_button')}
                               </Button>
                             </div>
                           </CardContent>
@@ -800,14 +800,14 @@ ${user?.name || ""}`
       <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>Customize Onboarding Email</DialogTitle>
+            <DialogTitle>{t('client.customize_email')}</DialogTitle>
             <DialogDescription>
-              Customize the email that will be sent to {client?.name}.
+              {t('client.customize_email_desc', { clientName: client?.name })}
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-6">
             <div>
-              <Label htmlFor="email-language">Email Language</Label>
+              <Label htmlFor="email-language">{t('client.email_language')}</Label>
               <RadioGroup 
                 id="email-language"
                 value={emailLanguage} 
@@ -816,26 +816,26 @@ ${user?.name || ""}`
               >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="english" id="english" />
-                  <Label htmlFor="english">English</Label>
+                  <Label htmlFor="english">{t('languages.english')}</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="italian" id="italian" />
-                  <Label htmlFor="italian">Italian (Italiano)</Label>
+                  <Label htmlFor="italian">{t('languages.italian')}</Label>
                 </div>
               </RadioGroup>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email-content">Email Content</Label>
+              <Label htmlFor="email-content">{t('client.email_content')}</Label>
               <Textarea 
                 id="email-content"
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
                 className="min-h-[200px] font-mono text-sm"
-                placeholder="Enter your personalized message here..."
+                placeholder={t('client.email_placeholder')}
               />
               <p className="text-xs text-muted-foreground">
-                Customize the message to include personalized details. The onboarding link will be automatically included in the email.
+                {t('client.email_personalization_tip')}
               </p>
             </div>
           </div>
@@ -845,14 +845,14 @@ ${user?.name || ""}`
               variant="outline"
               onClick={() => setIsEmailDialogOpen(false)}
             >
-              Cancel
+              {t('common.cancel')}
             </Button>
             <Button
               type="button"
               disabled={sendOnboardingMutation.isPending}
               onClick={handleSendEmail}
             >
-              {sendOnboardingMutation.isPending ? "Sending..." : "Send Email"}
+              {sendOnboardingMutation.isPending ? t('client.sending') : t('client.send_email')}
             </Button>
           </DialogFooter>
         </DialogContent>
