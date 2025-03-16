@@ -224,9 +224,9 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Edit Client Information</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">{t('client_edit.title')}</DialogTitle>
           <DialogDescription>
-            Update {client.firstName} {client.lastName}'s complete profile
+            {t('client_edit.subtitle')}
           </DialogDescription>
         </DialogHeader>
         

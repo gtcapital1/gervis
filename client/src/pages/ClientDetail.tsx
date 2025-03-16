@@ -317,7 +317,13 @@ ${user?.name || ""}`
               <ClientPdfGenerator 
                 client={{
                   ...client,
-                  birthDate: null // Aggiungiamo la proprietà birthDate mancante
+                  birthDate: null, // Aggiungiamo la proprietà birthDate mancante
+                  isOnboarded: Boolean(client.isOnboarded), // Convertiamo in booleano
+                  // Garantiamo che i campi non siano null se non previsto nell'interfaccia
+                  riskProfile: client.riskProfile || null,
+                  investmentGoals: client.investmentGoals || [],
+                  investmentHorizon: client.investmentHorizon || null,
+                  investmentExperience: client.investmentExperience || null
                 }}
                 assets={assets}
                 advisorSignature={user?.signature || null}

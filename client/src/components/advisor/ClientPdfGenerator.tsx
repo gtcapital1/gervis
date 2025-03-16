@@ -32,11 +32,11 @@ interface ClientSchema {
   phone: string | null;
   address: string | null;
   taxCode: string | null;
-  isOnboarded: boolean;
-  riskProfile: string;
-  investmentGoals: string[];
-  investmentHorizon: string;
-  investmentExperience: string;
+  isOnboarded: boolean | null;
+  riskProfile: string | null;
+  investmentGoals: string[] | null;
+  investmentHorizon: string | null;
+  investmentExperience: string | null;
   birthDate: string | null;
   employmentStatus: string | null;
   annualIncome: number | null;
