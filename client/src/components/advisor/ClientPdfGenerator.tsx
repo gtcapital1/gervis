@@ -651,138 +651,127 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="letter" className="space-y-4">
-              <div className="flex justify-between mb-4">
-                <Label htmlFor="language" className="text-base font-semibold">
-                  {language === "english" ? "Language" : "Lingua"}
-                </Label>
-                <Select onValueChange={changeLanguage} defaultValue={language}>
-                  <SelectTrigger id="language" className="w-40">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
-                    <SelectItem value="italian">Italiano</SelectItem>
-                  </SelectContent>
-                </Select>
+            <TabsContent value="letter" className="py-4">
+              <div className="flex justify-between mb-6">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="language" className="font-semibold">
+                    {language === "english" ? "Language:" : "Lingua:"}
+                  </Label>
+                  <Select onValueChange={changeLanguage} defaultValue={language}>
+                    <SelectTrigger id="language" className="w-32">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="english">English</SelectItem>
+                      <SelectItem value="italian">Italiano</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={resetToDefaults}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {language === "english" ? "Reset Text" : "Ripristina Testo"}
+                </Button>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="greeting">
-                  {language === "english" ? "Greeting" : "Saluto"}
-                </Label>
-                <Input
+              <div className="border rounded-md p-4 bg-gray-50">
+                <h3 className="font-bold mb-4">{language === "english" ? "Cover Letter Content" : "Contenuto della Lettera"}</h3>
+                
+                <Textarea
                   id="greeting"
                   value={letterFields.greeting}
                   onChange={(e) => setLetterFields({...letterFields, greeting: e.target.value})}
+                  placeholder={language === "english" ? "Greeting..." : "Saluto..."}
+                  rows={2}
+                  className="mb-4 w-full"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="introduction">
-                  {language === "english" ? "Introduction" : "Introduzione"}
-                </Label>
+                
                 <Textarea
                   id="introduction"
                   value={letterFields.introduction}
                   onChange={(e) => setLetterFields({...letterFields, introduction: e.target.value})}
-                  rows={4}
+                  placeholder={language === "english" ? "Introduction..." : "Introduzione..."}
+                  rows={3}
+                  className="mb-4 w-full"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="collaboration">
-                  {language === "english" ? "Collaboration Text" : "Testo Collaborazione"}
-                </Label>
+                
                 <Textarea
                   id="collaboration"
                   value={letterFields.collaboration}
                   onChange={(e) => setLetterFields({...letterFields, collaboration: e.target.value})}
+                  placeholder={language === "english" ? "Collaboration text..." : "Testo collaborazione..."}
                   rows={3}
+                  className="mb-4 w-full"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <Label>
-                    {language === "english" ? "Service Points" : "Punti del Servizio"}
-                  </Label>
-                  <Button 
-                    type="button" 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={addServicePoint}
-                  >
-                    {language === "english" ? "Add Point" : "Aggiungi Punto"}
-                  </Button>
-                </div>
                 
-                {letterFields.servicePoints.map((point, index) => (
-                  <div key={index} className="flex gap-2">
-                    <div className="flex-none w-8 text-center pt-2 font-bold">{index + 1}.</div>
-                    <Textarea
-                      value={point}
-                      onChange={(e) => updateServicePoint(index, e.target.value)}
-                      rows={2}
-                      className="flex-grow"
-                    />
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="font-medium">{language === "english" ? "Service Points:" : "Punti del Servizio:"}</span>
                     <Button 
                       type="button" 
                       size="sm" 
-                      variant="ghost" 
-                      className="flex-none h-10 mt-1"
-                      onClick={() => removeServicePoint(index)}
+                      variant="outline" 
+                      onClick={addServicePoint}
                     >
-                      ✕
+                      <Plus className="h-4 w-4 mr-1" />
+                      {language === "english" ? "Add" : "Aggiungi"}
                     </Button>
                   </div>
-                ))}
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="process">
-                  {language === "english" ? "Process Text" : "Testo Processo"}
-                </Label>
+                  
+                  {letterFields.servicePoints.map((point, index) => (
+                    <div key={index} className="flex gap-2 mb-2">
+                      <div className="flex-none w-8 text-center pt-2 font-bold">{index + 1}.</div>
+                      <Textarea
+                        value={point}
+                        onChange={(e) => updateServicePoint(index, e.target.value)}
+                        rows={2}
+                        className="flex-grow"
+                      />
+                      <Button 
+                        type="button" 
+                        size="icon"
+                        variant="ghost" 
+                        className="flex-none h-10 mt-1"
+                        onClick={() => removeServicePoint(index)}
+                      >
+                        <Trash className="h-4 w-4 text-red-500" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                
                 <Textarea
                   id="process"
                   value={letterFields.process}
                   onChange={(e) => setLetterFields({...letterFields, process: e.target.value})}
+                  placeholder={language === "english" ? "Process description..." : "Descrizione del processo..."}
                   rows={3}
+                  className="mb-4 w-full"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="contactInfo">
-                  {language === "english" ? "Contact Information" : "Informazioni di Contatto"}
-                </Label>
+                
                 <Textarea
                   id="contactInfo"
                   value={letterFields.contactInfo}
                   onChange={(e) => setLetterFields({...letterFields, contactInfo: e.target.value})}
+                  placeholder={language === "english" ? "Contact information..." : "Informazioni di contatto..."}
                   rows={3}
+                  className="mb-4 w-full"
                 />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="closing">
-                  {language === "english" ? "Closing" : "Chiusura"}
-                </Label>
+                
                 <Textarea
                   id="closing"
                   value={letterFields.closing}
                   onChange={(e) => setLetterFields({...letterFields, closing: e.target.value})}
+                  placeholder={language === "english" ? "Closing remarks..." : "Osservazioni finali..."}
                   rows={2}
+                  className="w-full"
                 />
               </div>
-              
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={resetToDefaults}
-                className="w-full"
-              >
-                {language === "english" ? "Reset to Default Text" : "Ripristina Testo Predefinito"}
-              </Button>
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
