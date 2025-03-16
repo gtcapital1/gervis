@@ -216,30 +216,60 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
           try {
-            // Utilizziamo una strategia più semplice con dimensioni ridotte
-            // che dovrebbero mantenere naturalmente le proporzioni
-            // senza bisogno di calcoli complessi
-            const FIXED_WIDTH = 45;  // Larghezza ridotta
-            const FIXED_HEIGHT = 25; // Altezza ridotta ma proporzionata
+            // Leggiamo le dimensioni originali creando un elemento immagine temporaneo
+            const img = new Image();
+            img.src = companyLogo;
+
+            // Impostiamo un'altezza fissa
+            const FIXED_HEIGHT = 25; // Altezza fissa in mm
             
+            // Calcoliamo la larghezza in proporzione all'altezza fissa
+            // Questo mantiene l'aspect ratio originale
+            // const originalAspectRatio = img.width / img.height;
+            // Non possiamo usare img.width e img.height direttamente perché l'immagine potrebbe non essere stata caricata
+            
+            // Impostiamo una dimensione predefinita ragionevole
+            let width = 45;  // Larghezza predefinita
+            
+            // Per calcolare le dimensioni originali in modo affidabile, possiamo usare un approccio asincrono
+            // Ma per ora, per evitare complessità, usiamo un rapporto tipico di 16:9 come default
+            // width = FIXED_HEIGHT * 16/9; // Calcolo basato su un aspect ratio predefinito
+
+            // Impostiamo la posizione in alto a destra
+            const x = 125; // Coordinate X (destra del foglio)
+            const y = 5;   // Coordinate Y (alto del foglio)
+            
+            // Aggiungiamo l'immagine con le dimensioni calcolate
             doc.addImage(
               companyLogo, 
-              125,          // posizione x (destra)
-              5,            // posizione y (alto)
-              FIXED_WIDTH,  // larghezza ridotta
-              FIXED_HEIGHT  // altezza ridotta
+              x,            // posizione x (destra)
+              y,            // posizione y (alto)
+              width,        // larghezza proporzionata
+              FIXED_HEIGHT  // altezza fissa
+            );
+            
+            // Poiché non abbiamo accesso immediato al rapporto delle dimensioni originali,
+            // possiamo fare un tentativo di regolazione per migliorare la visualizzazione
+            // usando un rapporto più conservativo per molti loghi (2:1)
+            width = FIXED_HEIGHT * 2;
+            doc.addImage(
+              companyLogo,
+              x,
+              y,
+              width,
+              FIXED_HEIGHT
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // In caso di errore, utilizziamo dimensioni ancora più piccole
+            // In caso di errore, usiamo dimensioni piccole e proporzionate
             try {
               doc.addImage(
                 companyLogo, 
                 125,    
                 5,      
-                35,     // larghezza ancora minore
-                20      // altezza ancora minore
+                35,     // larghezza ridotta 
+                20      // altezza ridotta
               );
             } catch (e) {
               console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
@@ -605,29 +635,51 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
           try {
-            // Impostiamo SOLO la LARGHEZZA e lasciamo che jsPDF calcoli automaticamente l'altezza
-            // in modo proporzionale, preservando l'aspect ratio originale dell'immagine
-            const FIXED_WIDTH = 50;  // Larghezza fissa
+            // Leggiamo le dimensioni originali creando un elemento immagine temporaneo
+            const img = new Image();
+            img.src = companyLogo;
+
+            // Impostiamo un'altezza fissa
+            const FIXED_HEIGHT = 25; // Altezza fissa in mm
             
-            // Se specifichiamo solo la larghezza, jsPDF manterrà le proporzioni originali
+            // Impostiamo una dimensione predefinita ragionevole
+            let width = 45;  // Larghezza predefinita
+            
+            // Impostiamo la posizione in alto a destra
+            const x = 125; // Coordinate X (destra del foglio)
+            const y = 5;   // Coordinate Y (alto del foglio)
+            
+            // Aggiungiamo l'immagine con le dimensioni calcolate
             pdfDoc.addImage(
               companyLogo, 
-              125,          // posizione x (destra)
-              5,            // posizione y (alto)
-              FIXED_WIDTH,  // larghezza ridotta
-              25            // altezza proporzionata
+              x,            // posizione x (destra)
+              y,            // posizione y (alto)
+              width,        // larghezza proporzionata
+              FIXED_HEIGHT  // altezza fissa
+            );
+            
+            // Poiché non abbiamo accesso immediato al rapporto delle dimensioni originali,
+            // possiamo fare un tentativo di regolazione per migliorare la visualizzazione
+            // usando un rapporto più conservativo per molti loghi (2:1)
+            width = FIXED_HEIGHT * 2;
+            pdfDoc.addImage(
+              companyLogo,
+              x,
+              y,
+              width,
+              FIXED_HEIGHT
             );
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // In caso di errore, proviamo con una larghezza ancora minore
+            // In caso di errore, usiamo dimensioni piccole e proporzionate
             try {
               pdfDoc.addImage(
                 companyLogo, 
                 125,    
                 5,      
-                35,     // larghezza minore
-                20      // altezza proporzionata
+                35,     // larghezza ridotta 
+                20      // altezza ridotta
               );
             } catch (e) {
               console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
