@@ -502,7 +502,7 @@ const resourcesIt = {
       page: "Pagina",
       of: "di",
       selectLanguage: "Seleziona Lingua",
-      generatePdf: "Genera Report PDF",
+      generatePdf: "Generate Onboarding Form",
       generate: "Genera PDF"
     },
     benefits: {

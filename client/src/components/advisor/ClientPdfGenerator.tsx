@@ -194,7 +194,10 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           doc.setFontSize(8);
           doc.setTextColor(128, 128, 128); // Gray color
           
-          const companyInfoLines = doc.splitTextToSize(companyInfo, 80);
+          // Assicurati che le informazioni siano in un formato che preserva i ritorni a capo originali
+          // ma elimina i ritorni a capo non voluti che potrebbero essere stati aggiunti
+          const sanitizedCompanyInfo = companyInfo.replace(/\r\n/g, '\n'); // Normalizza tutti i ritorni a capo
+          const companyInfoLines = doc.splitTextToSize(sanitizedCompanyInfo, 80);
           companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           doc.text(companyInfoLines, 15, 15); // Position to the left
           
@@ -202,15 +205,30 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           doc.setTextColor(0, 0, 0); // Back to black
         }
         
-        // Add the logo in the top-right corner con dimensioni proporzionate
+        // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
+          // Calcola le dimensioni proporzionate
+          const img = new Image();
+          img.src = companyLogo;
+          
+          // Default dimensions
+          let imgWidth = 70;
+          let imgHeight = logoHeight;
+          
+          // Maintain aspect ratio if the image is loaded
+          if (img.width && img.height) {
+            const aspectRatio = img.width / img.height;
+            imgHeight = Math.min(logoHeight, 70 / aspectRatio);
+            imgWidth = imgHeight * aspectRatio;
+          }
+          
           doc.addImage(
             companyLogo, 
-            'PNG', // or appropriate format
-            125,   // x position - right side (spostato per più spazio)
-            5,     // y position - top (spostato più in alto)
-            70,    // width - dimensione aumentata
-            logoHeight, // height - dimensione aumentata
+            'NONE', // let jsPDF detect format automatically
+            125,    // x position - right side
+            5,      // y position - top
+            imgWidth,  // width - preserving aspect ratio
+            imgHeight, // height - preserving aspect ratio
             'company_logo', // alias
             'FAST'  // compression
           );
@@ -560,15 +578,30 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           pdfDoc.setTextColor(0, 0, 0); // Back to black
         }
         
-        // Add the logo in the top-right corner con dimensioni proporzionate
+        // Add the logo in the top-right corner mantenendo le proporzioni originali
         if (companyLogo) {
+          // Calcola le dimensioni proporzionate
+          const img = new Image();
+          img.src = companyLogo;
+          
+          // Default dimensions
+          let imgWidth = 70;
+          let imgHeight = logoHeight;
+          
+          // Maintain aspect ratio if the image is loaded
+          if (img.width && img.height) {
+            const aspectRatio = img.width / img.height;
+            imgHeight = Math.min(logoHeight, 70 / aspectRatio);
+            imgWidth = imgHeight * aspectRatio;
+          }
+          
           pdfDoc.addImage(
             companyLogo, 
-            'PNG', // or appropriate format
-            125,   // x position - right side (spostato per più spazio)
-            5,     // y position - top (spostato più in alto)
-            70,    // width - dimensione aumentata
-            logoHeight, // height - dimensione aumentata
+            'NONE', // let jsPDF detect format automatically
+            125,    // x position - right side
+            5,      // y position - top
+            imgWidth,  // width - preserving aspect ratio
+            imgHeight, // height - preserving aspect ratio
             'company_logo', // alias
             'FAST'  // compression
           );
