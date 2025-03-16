@@ -97,8 +97,8 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   
   // Funzione per impostare i campi della lettera in base alla lingua
   const setLetterFieldsByLanguage = (lang: string) => {
-    // Crea un contenuto completo basato sulle traduzioni
-    const greeting = t('pdf.coverLetter.greeting');
+    // Crea un contenuto completo basato sulle traduzioni con il nome del cliente
+    const greeting = t('pdf.coverLetter.greeting', { firstName: client.firstName, lastName: client.lastName });
     const introduction = t('pdf.coverLetter.introduction', { firstName: client.firstName, lastName: client.lastName });
     const collaboration = t('pdf.coverLetter.collaboration');
     const servicePoint1 = t('pdf.coverLetter.servicePoint1');
@@ -109,7 +109,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     const contactInfo = t('pdf.coverLetter.contactInfo');
     const closing = t('pdf.coverLetter.closing');
     
-    // Crea il testo completo formattato come vorrebbe essere nella lettera
+    // Estrai informazioni per la firma
+    const advisorInfo = advisorSignature ? advisorSignature.split('\n') : [];
+    const advisorName = advisorInfo[0] || "Consulente Finanziario";
+    
+    // Crea il testo completo formattato con spazio per la firma incluso nel corpo
     const fullContent = `${greeting}
 
 ${introduction}
@@ -124,7 +128,10 @@ ${process}
 
 ${contactInfo}
 
-${closing}`;
+${closing}
+
+${advisorName}
+Consulente Finanziario`;
     
     setLetterFields({ fullContent });
   };
@@ -350,16 +357,7 @@ ${closing}`;
       yPosition += formattedLines.length * 6;
     });
     
-    // Imposta la posizione finale per la firma (è un po' più in basso)
-    const bulletY = yPosition + 10;
-    
-    // Nome, cognome e società nella firma
-    doc.setFont('helvetica', 'bold');
-    doc.text(advisorName, 20, bulletY + 50);
-    doc.setFont('helvetica', 'normal');
-    if (advisorCompany) {
-      doc.text(advisorCompany, 20, bulletY + 56);
-    }
+    // Non aggiungiamo più la firma qui, poiché la includiamo direttamente nel testo della lettera
     
     // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
     doc.addPage();
