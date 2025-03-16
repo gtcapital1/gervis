@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import { 
   PlusCircle, 
   Trash2, 
@@ -76,6 +77,7 @@ export default function OnboardingForm() {
   const { token } = useParams();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t, i18n } = useTranslation();
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
   
@@ -103,6 +105,14 @@ export default function OnboardingForm() {
   } = useQuery<ClientResponse>({
     queryKey: [`/api/onboarding/${token}`],
     enabled: !!token,
+    onSuccess: (data) => {
+      // Ottieni la lingua dal parametro token nell'URL
+      if (window.location.href.includes('language=italian')) {
+        i18n.changeLanguage('it');
+      } else if (window.location.href.includes('language=english')) {
+        i18n.changeLanguage('en');
+      }
+    }
   });
   
   // Form setup
