@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
+import { insertClientSchema, insertAssetSchema, insertRecommendationSchema, ASSET_CATEGORIES } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword } from "./auth";
 import { sendCustomEmail } from "./email";
 
@@ -811,7 +811,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Assets
         assets: z.array(z.object({
-          category: z.enum(['real_estate', 'equity', 'bonds', 'cash', 'other']),
+          category: z.enum(ASSET_CATEGORIES),
           value: z.number().min(0),
           description: z.string().optional()
         })).min(1, "At least one asset is required")
