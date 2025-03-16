@@ -180,9 +180,14 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       });
       
       // Add company logo as a watermark and company info if available
-      // Function to add logo and company info to a page
+      // Function to add logo and company info to a page and return the height of the header
       const addHeaderToPage = (pageNumber: number) => {
         doc.setPage(pageNumber);
+        
+        // Variables to track the height needed for the header
+        let headerHeight = 0;
+        const logoHeight = 35; // Altezza del logo
+        let companyInfoHeight = 0;
         
         // Add company info in gray text in the top-left corner
         if (companyInfo) {
@@ -190,6 +195,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           doc.setTextColor(128, 128, 128); // Gray color
           
           const companyInfoLines = doc.splitTextToSize(companyInfo, 80);
+          companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           doc.text(companyInfoLines, 15, 15); // Position to the left
           
           // Reset text color for the rest of the content
@@ -204,20 +210,26 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             125,   // x position - right side (spostato per più spazio)
             5,     // y position - top (spostato più in alto)
             70,    // width - dimensione aumentata
-            35,    // height - dimensione aumentata
+            logoHeight, // height - dimensione aumentata
             'company_logo', // alias
             'FAST'  // compression
           );
         }
         
+        // Determina l'altezza necessaria per l'intestazione
+        headerHeight = Math.max(logoHeight + 10, companyInfoHeight + 15);
+        
         // Aggiungi linea di separazione sotto il logo e le informazioni societarie
         doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
         doc.setLineWidth(0.5);
-        doc.line(15, 40, 195, 40); // Linea orizzontale da sinistra a destra
+        doc.line(15, headerHeight, 195, headerHeight); // Linea orizzontale da sinistra a destra
+        
+        // Ritorna l'altezza dell'intestazione per posizionare il contenuto seguente
+        return headerHeight;
       };
       
-      // Apply header to first page
-      addHeaderToPage(1);
+      // Apply header to first page and get its height
+      const headerHeight = addHeaderToPage(1);
       
       // After adding other pages, we'll add the header to those pages too
       // For now, reset to first page to continue with content
@@ -238,57 +250,63 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       // Creo un margine destro per allineare correttamente
       const rightMargin = 190;
       
-      // Mittente a sinistra (nome, cognome, società, mail, telefono) - spostato più in basso
+      // Calcola lo spostamento verticale in base all'altezza dell'intestazione
+      const baseOffset = headerHeight + 15; // Spazio dopo l'intestazione
+      
+      // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dinamicamente
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       const fromLabel = language === "english" ? "From:" : "Da:";
-      doc.text(fromLabel, 20, 45);  // Spostato in basso da 25 a 45
+      doc.text(fromLabel, 20, baseOffset);
       doc.setFont('helvetica', 'normal');
-      doc.text(advisorName, 35, 45); // Spostato in basso da 25 a 45
+      doc.text(advisorName, 35, baseOffset);
       if (advisorCompany) {
-        doc.text(advisorCompany, 35, 50); // Spostato in basso da 30 a 50
+        doc.text(advisorCompany, 35, baseOffset + 5);
       }
       if (advisorEmail) {
-        doc.text(advisorEmail, 35, 55); // Spostato in basso da 35 a 55
+        doc.text(advisorEmail, 35, baseOffset + 10);
       }
       if (advisorPhone) {
-        doc.text(advisorPhone, 35, 60); // Spostato in basso da 40 a 60
+        doc.text(advisorPhone, 35, baseOffset + 15);
       }
       
-      // Data in alto a destra
+      // Data a destra dello stesso blocco
       const now = new Date();
       const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
-      doc.text(dateStr, rightMargin, 45, { align: "right" }); // Spostato in basso da 25 a 45
+      doc.text(dateStr, rightMargin, baseOffset, { align: "right" });
       
       // Destinatario veramente a destra (allineato correttamente)
       const toClientText = `${t('pdf.coverLetter.toClient')}:`;
-      doc.text(toClientText, rightMargin, 65, { align: "right" }); // Spostato in basso da 50 a 65
+      doc.text(toClientText, rightMargin, baseOffset + 20, { align: "right" });
       
       doc.setFont('helvetica', 'bold');
-      doc.text(`${client.firstName} ${client.lastName}`, rightMargin, 70, { align: "right" }); // Spostato in basso da 55 a 70
+      doc.text(`${client.firstName} ${client.lastName}`, rightMargin, baseOffset + 25, { align: "right" });
       doc.setFont('helvetica', 'normal');
       if (client.email) {
-        doc.text(client.email, rightMargin, 75, { align: "right" }); // Spostato in basso da 60 a 75
+        doc.text(client.email, rightMargin, baseOffset + 30, { align: "right" });
       }
+      
+      // Calcolo offset per l'oggetto
+      const objectOffset = baseOffset + 45;
       
       // Oggetto - adatta in base alla lingua
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
-      doc.text(subjectLabel, 20, 90); // Spostato in basso da 75 a 90
+      doc.text(subjectLabel, 20, objectOffset);
       doc.setFont('helvetica', 'normal');
       const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
-      doc.text(subjectText, 65, 90); // Spostato in basso da 75 a 90
+      doc.text(subjectText, 65, objectOffset);
       
-      // Testo della lettera - tutto da letterContent (spostato più in basso)
+      // Testo della lettera - tutto da letterContent (posizionato dopo l'oggetto)
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       const letterContentLines = doc.splitTextToSize(letterContent, 170);
-      doc.text(letterContentLines, 20, 105); // Spostato da 85 a 105
+      doc.text(letterContentLines, 20, objectOffset + 15);
       
       // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
       doc.addPage();
@@ -520,9 +538,14 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       });
       
       // Add company logo as a watermark and company info if available
-      // Function to add logo and company info to a page
+      // Function to add logo and company info to a page and return the height of the header
       const addHeaderToPage = (pageNumber: number) => {
         pdfDoc.setPage(pageNumber);
+        
+        // Variables to track the height needed for the header
+        let headerHeight = 0;
+        const logoHeight = 35; // Altezza del logo
+        let companyInfoHeight = 0;
         
         // Add company info in gray text in the top-left corner
         if (companyInfo) {
@@ -530,6 +553,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
           pdfDoc.setTextColor(128, 128, 128); // Gray color
           
           const companyInfoLines = pdfDoc.splitTextToSize(companyInfo, 80);
+          companyInfoHeight = companyInfoLines.length * 3.5; // Stima dell'altezza basata sul numero di righe
           pdfDoc.text(companyInfoLines, 15, 15); // Position to the left
           
           // Reset text color for the rest of the content
@@ -544,20 +568,26 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             125,   // x position - right side (spostato per più spazio)
             5,     // y position - top (spostato più in alto)
             70,    // width - dimensione aumentata
-            35,    // height - dimensione aumentata
+            logoHeight, // height - dimensione aumentata
             'company_logo', // alias
             'FAST'  // compression
           );
         }
         
+        // Determina l'altezza necessaria per l'intestazione
+        headerHeight = Math.max(logoHeight + 10, companyInfoHeight + 15);
+        
         // Aggiungi linea di separazione sotto il logo e le informazioni societarie
         pdfDoc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
         pdfDoc.setLineWidth(0.5);
-        pdfDoc.line(15, 40, 195, 40); // Linea orizzontale da sinistra a destra
+        pdfDoc.line(15, headerHeight, 195, headerHeight); // Linea orizzontale da sinistra a destra
+        
+        // Ritorna l'altezza dell'intestazione per posizionare il contenuto seguente
+        return headerHeight;
       };
       
-      // Apply header to first page
-      addHeaderToPage(1);
+      // Apply header to first page and get its height
+      const headerHeight = addHeaderToPage(1);
       
       // After adding other pages, we'll add the header to those pages too
       // For now, reset to first page to continue with content
@@ -578,57 +608,63 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
       // Creo un margine destro per allineare correttamente
       const rightMargin = 190;
       
-      // Mittente a sinistra (nome, cognome, società, mail, telefono) - spostato più in basso
+      // Calcola lo spostamento verticale in base all'altezza dell'intestazione
+      const baseOffset = headerHeight + 15; // Spazio dopo l'intestazione
+      
+      // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dinamicamente
       pdfDoc.setFontSize(11);
       pdfDoc.setFont('helvetica', 'bold');
       const fromLabel = language === "english" ? "From:" : "Da:";
-      pdfDoc.text(fromLabel, 20, 45);  // Spostato in basso da 25 a 45
+      pdfDoc.text(fromLabel, 20, baseOffset);
       pdfDoc.setFont('helvetica', 'normal');
-      pdfDoc.text(advisorName, 35, 45); // Spostato in basso da 25 a 45
+      pdfDoc.text(advisorName, 35, baseOffset);
       if (advisorCompany) {
-        pdfDoc.text(advisorCompany, 35, 50); // Spostato in basso da 30 a 50
+        pdfDoc.text(advisorCompany, 35, baseOffset + 5);
       }
       if (advisorEmail) {
-        pdfDoc.text(advisorEmail, 35, 55); // Spostato in basso da 35 a 55
+        pdfDoc.text(advisorEmail, 35, baseOffset + 10);
       }
       if (advisorPhone) {
-        pdfDoc.text(advisorPhone, 35, 60); // Spostato in basso da 40 a 60
+        pdfDoc.text(advisorPhone, 35, baseOffset + 15);
       }
       
-      // Data in alto a destra
+      // Data a destra dello stesso blocco
       const now = new Date();
       const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
         year: "numeric",
         month: "long",
         day: "numeric",
       });
-      pdfDoc.text(dateStr, rightMargin, 45, { align: "right" }); // Spostato in basso da 25 a 45
+      pdfDoc.text(dateStr, rightMargin, baseOffset, { align: "right" });
       
       // Destinatario veramente a destra (allineato correttamente)
       const toClientText = `${t('pdf.coverLetter.toClient')}:`;
-      pdfDoc.text(toClientText, rightMargin, 65, { align: "right" }); // Spostato in basso da 50 a 65
+      pdfDoc.text(toClientText, rightMargin, baseOffset + 20, { align: "right" });
       
       pdfDoc.setFont('helvetica', 'bold');
-      pdfDoc.text(`${client.firstName} ${client.lastName}`, rightMargin, 70, { align: "right" }); // Spostato in basso da 55 a 70
+      pdfDoc.text(`${client.firstName} ${client.lastName}`, rightMargin, baseOffset + 25, { align: "right" });
       pdfDoc.setFont('helvetica', 'normal');
       if (client.email) {
-        pdfDoc.text(client.email, rightMargin, 75, { align: "right" }); // Spostato in basso da 60 a 75
+        pdfDoc.text(client.email, rightMargin, baseOffset + 30, { align: "right" });
       }
+      
+      // Calcolo offset per l'oggetto
+      const objectOffset = baseOffset + 45;
       
       // Oggetto - adatta in base alla lingua
       pdfDoc.setFontSize(11);
       pdfDoc.setFont('helvetica', 'bold');
       const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
-      pdfDoc.text(subjectLabel, 20, 90); // Spostato in basso da 75 a 90
+      pdfDoc.text(subjectLabel, 20, objectOffset);
       pdfDoc.setFont('helvetica', 'normal');
       const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
-      pdfDoc.text(subjectText, 65, 90); // Spostato in basso da 75 a 90
+      pdfDoc.text(subjectText, 65, objectOffset);
       
-      // Testo della lettera - tutto da letterContent (spostato più in basso)
+      // Testo della lettera - tutto da letterContent (posizionato dopo l'oggetto)
       pdfDoc.setFontSize(11);
       pdfDoc.setFont('helvetica', 'normal');
       const letterContentLines = pdfDoc.splitTextToSize(letterContent, 170);
-      pdfDoc.text(letterContentLines, 20, 105); // Spostato da 85 a 105
+      pdfDoc.text(letterContentLines, 20, objectOffset + 15);
       
       // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
       pdfDoc.addPage();
