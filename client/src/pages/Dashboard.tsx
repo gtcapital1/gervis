@@ -303,7 +303,11 @@ export default function Dashboard() {
                 </TableHeader>
                 <TableBody>
                   {filteredClients.map((client: Client) => (
-                    <TableRow key={client.id}>
+                    <TableRow 
+                      key={client.id} 
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => handleViewClient(client.id)}
+                    >
                       <TableCell className="font-medium">
                         {client.lastName}, {client.firstName}
                       </TableCell>
@@ -323,27 +327,42 @@ export default function Dashboard() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            onClick={() => handleViewClient(client.id)}
+                            onClick={(e) => {
+                              e.stopPropagation(); // Previene la propagazione del click
+                              handleViewClient(client.id);
+                            }}
                           >
                             <ChevronRight className="h-4 w-4" />
                             <span className="sr-only">{t('dashboard.view')}</span>
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button 
+                                variant="ghost" 
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Previene la propagazione del click
+                                }}
+                              >
                                 <MoreHorizontal className="h-4 w-4" />
                                 <span className="sr-only">{t('dashboard.actions')}</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem 
-                                onClick={() => handleViewClient(client.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleViewClient(client.id);
+                                }}
                               >
                                 {t('dashboard.view_details')}
                               </DropdownMenuItem>
                               {client.isArchived ? (
                                 <DropdownMenuItem 
-                                  onClick={() => restoreClientMutation.mutate(client.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    restoreClientMutation.mutate(client.id);
+                                  }}
                                   className="text-green-600"
                                 >
                                   <RefreshCcw className="mr-2 h-4 w-4" />
@@ -352,7 +371,10 @@ export default function Dashboard() {
                               ) : (
                                 <>
                                   <DropdownMenuItem 
-                                    onClick={() => handleArchiveClient(client)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleArchiveClient(client);
+                                    }}
                                     className="text-amber-600"
                                   >
                                     <Archive className="mr-2 h-4 w-4" />
@@ -360,7 +382,10 @@ export default function Dashboard() {
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
-                                    onClick={() => handleDeleteClient(client)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClient(client);
+                                    }}
                                     className="text-red-600"
                                   >
                                     <UserX className="mr-2 h-4 w-4" />
