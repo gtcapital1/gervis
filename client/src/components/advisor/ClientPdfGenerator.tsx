@@ -611,13 +611,17 @@ ${closing}`;
       // Usa il contenuto della lettera come corpo dell'email
       const emailMessage = letterFields.fullContent;
       
+      // Formato dati che corrisponde a quello atteso dal server
       const emailData = {
-        to: client.email,
         subject: emailSubject || defaultSubject,
         message: emailMessage,
-        includeAttachment: true,
-        pdfBase64,
-        fileName: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
+        language: currentLanguage,
+        attachment: {
+          filename: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
+          content: pdfBase64,
+          encoding: 'base64',
+          contentType: 'application/pdf'
+        }
       };
       
       // Send email
@@ -629,6 +633,11 @@ ${closing}`;
         body: JSON.stringify(emailData),
       });
       
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Si è verificato un errore durante l'invio dell'email");
+      }
+      
       toast({
         title: currentLanguage === "english" ? "Success" : "Successo",
         description: currentLanguage === "english" ? "Email sent successfully" : "Email inviata con successo",
@@ -639,9 +648,17 @@ ${closing}`;
       
     } catch (error) {
       console.error("Error sending email:", error);
+      let errorMessage = currentLanguage === "english" 
+        ? "Failed to send email" 
+        : "Impossibile inviare l'email";
+      
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: currentLanguage === "english" ? "Error" : "Errore",
-        description: currentLanguage === "english" ? "Failed to send email" : "Impossibile inviare l'email",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
