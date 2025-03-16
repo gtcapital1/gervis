@@ -86,12 +86,16 @@ export function setupAuth(app: Express) {
       // Generate a username based on firstName and lastName
       const username = `${req.body.firstName.toLowerCase()}.${req.body.lastName.toLowerCase()}`;
       
+      // Create the name from firstName and lastName
+      const name = `${req.body.firstName} ${req.body.lastName}`;
+      
       // Set default signature format
       const signature = `${req.body.firstName} ${req.body.lastName},\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
       
       const user = await storage.createUser({
         ...req.body,
         username,
+        name,
         signature,
         password: await hashPassword(req.body.password),
       });
