@@ -237,10 +237,10 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <HomeIcon className="mr-2 h-5 w-5 text-primary" />
-                  Personal Information
+                  {t('client_edit.personal_info')}
                 </CardTitle>
                 <CardDescription>
-                  Basic contact and identification details
+                  {t('client_edit.personal_info_desc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -250,7 +250,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="firstName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>First Name</FormLabel>
+                        <FormLabel>{t('client_edit.first_name')}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -264,7 +264,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     name="lastName"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Last Name</FormLabel>
+                        <FormLabel>{t('client_edit.last_name')}</FormLabel>
                         <FormControl>
                           <Input {...field} />
                         </FormControl>
@@ -279,7 +279,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>{t('client_edit.email')}</FormLabel>
                       <FormControl>
                         <Input {...field} type="email" />
                       </FormControl>
@@ -293,7 +293,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
+                      <FormLabel>{t('client_edit.phone')}</FormLabel>
                       <FormControl>
                         <Input {...field} type="tel" />
                       </FormControl>
@@ -433,10 +433,10 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <ArrowRight className="mr-2 h-5 w-5 text-primary" />
-                  Investment Profile
+                  {t('client_edit.investment_profile')}
                 </CardTitle>
                 <CardDescription>
-                  Information about investment preferences and experience
+                  {t('client_edit.investment_profile_desc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
@@ -581,10 +581,10 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <ArrowRight className="mr-2 h-5 w-5 text-primary" />
-                  Assets
+                  {t('client_edit.assets')}
                 </CardTitle>
                 <CardDescription>
-                  Information about current assets
+                  {t('client_edit.assets_desc')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-5">
