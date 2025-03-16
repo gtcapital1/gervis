@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Button } from "@/components/ui/button";
@@ -90,6 +90,18 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`;
   const handleTabChange = (value: string) => {
     setActiveTab(value);
   };
+  
+  // Aggiorna la preview quando cambia la tab o il contenuto della lettera
+  useEffect(() => {
+    // Questo codice viene eseguito quando activeTab, letterContent o language cambiano
+    if (activeTab === "preview") {
+      // Forza un aggiornamento della preview
+      const previewElement = document.querySelector('.preview-content');
+      if (previewElement) {
+        previewElement.textContent = letterContent;
+      }
+    }
+  }, [activeTab, letterContent, language]);
 
   // Function to handle language change
   const changeLanguage = (lang: string) => {
@@ -825,45 +837,47 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             </TabsContent>
             
             <TabsContent value="preview" className="space-y-4">
-              <div className="border rounded-md p-6 bg-white shadow-sm space-y-4 max-h-[70vh] overflow-y-auto">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-bold">{language === "english" ? "From:" : "Da:"}</p>
-                    <p>{client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}</p>
-                    {client.advisorId && advisorSignature?.split('\n')[1] && (
-                      <p>{advisorSignature?.split('\n')[1]}</p>
-                    )}
-                    {client.advisorId && advisorSignature?.split('\n')[2] && (
-                      <p>{advisorSignature?.split('\n')[2]}</p>
-                    )}
-                    {client.advisorId && advisorSignature?.split('\n')[3] && (
-                      <p>{advisorSignature?.split('\n')[3]}</p>
-                    )}
+              <div className="border rounded-md p-6 bg-white shadow-sm divide-y max-h-[70vh] overflow-y-auto">
+                {/* Header con mittente e data */}
+                <div className="pb-4">
+                  <div className="flex flex-row justify-between">
+                    <div className="flex flex-col">
+                      <div className="font-semibold mb-1">{language === "english" ? "From:" : "Da:"}</div>
+                      <div>{client.advisorId ? advisorSignature?.split('\n')[0] || "Financial Advisor" : "Financial Advisor"}</div>
+                      {client.advisorId && advisorSignature?.split('\n')[1] && <div>{advisorSignature?.split('\n')[1]}</div>}
+                      {client.advisorId && advisorSignature?.split('\n')[2] && <div>{advisorSignature?.split('\n')[2]}</div>}
+                      {client.advisorId && advisorSignature?.split('\n')[3] && <div>{advisorSignature?.split('\n')[3]}</div>}
+                    </div>
+                    <div className="text-right">
+                      {new Date().toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </div>
                   </div>
+                </div>
+                
+                {/* Destinatario */}
+                <div className="py-4">
                   <div className="text-right">
-                    <p>{new Date().toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
-                      year: "numeric",
-                      month: "long",
-                      day: "numeric",
-                    })}</p>
+                    <div>{t('pdf.coverLetter.toClient')}:</div>
+                    <div className="font-bold">{client.firstName} {client.lastName}</div>
+                    <div>{client.email}</div>
                   </div>
                 </div>
                 
-                <div className="text-right mt-6">
-                  <p>{t('pdf.coverLetter.toClient')}:</p>
-                  <p className="font-bold">{client.firstName} {client.lastName}</p>
-                  <p>{client.email}</p>
-                </div>
-                
-                <div className="mt-4">
-                  <p>
+                {/* Oggetto */}
+                <div className="py-4">
+                  <div>
                     <span className="font-bold">{language === "english" ? "Subject: " : "Oggetto: "}</span>
                     <span>{emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione")}</span>
-                  </p>
+                  </div>
                 </div>
                 
-                <div className="mt-4 whitespace-pre-line border-t pt-4">
-                  {letterContent}
+                {/* Contenuto lettera */}
+                <div className="py-4">
+                  <pre className="font-sans whitespace-pre-wrap preview-content">{letterContent}</pre>
                 </div>
               </div>
               
