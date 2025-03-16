@@ -223,13 +223,38 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
             const x = 125; // Coordinate X (destra del foglio)
             const y = 5;   // Coordinate Y (alto del foglio)
             
-            // Create a new Image object and load the companyLogo synchronously
-            const img = new Image();
-            img.src = companyLogo;
-            
-            // Calculate image proportions
-            const widthHeightRatio = img.width / img.height || 1.5;
-            const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
+            // Create a Promise to handle image loading
+            await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => {
+                const widthHeightRatio = img.width / img.height;
+                const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
+                
+                console.log("Logo dimensions:", { width: img.width, height: img.height });
+                console.log("Calculated ratio:", widthHeightRatio);
+                
+                // Clean the area before drawing
+                doc.setFillColor(255, 255, 255);
+                doc.rect(x - 1, y - 1, 50 + 2, FIXED_HEIGHT + 2, 'F');
+                
+                // Draw the image with correct proportions
+                doc.addImage(
+                  companyLogo,
+                  x,
+                  y,
+                  proportionalWidth,
+                  FIXED_HEIGHT
+                );
+                resolve(true);
+              };
+              
+              img.onerror = () => {
+                console.error("Error loading logo image");
+                reject(new Error("Failed to load logo"));
+              };
+              
+              img.src = companyLogo;
+            });
             
             console.log("Proporzioni originali dell'immagine:", widthHeightRatio);
             console.log("Larghezza proporzionale calcolata:", proportionalWidth);
