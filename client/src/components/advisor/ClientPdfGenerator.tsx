@@ -564,6 +564,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
       // Create email body from letter text only (without headers)
       const emailBody = `${letterFields.greeting}\n\n${letterFields.introduction}\n\n${letterFields.collaboration}\n\n${letterFields.servicePoints.map((p, i) => `${i+1}. ${p}`).join('\n')}\n\n${letterFields.process}\n\n${letterFields.contactInfo}\n\n${letterFields.closing}`;
 
+      // Generate PDF data for attachment
+      const doc = generatePdfContent();
+      const pdfDataUri = doc.output('datauristring');
+      
       const response = await apiRequest(`/api/clients/${client.id}/send-email`, {
         method: 'POST',
         headers: {
@@ -573,7 +577,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
           subject: emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"),
           message: emailCustomMessage || emailBody,
           language: language === "english" ? "english" : "italian",
-          includeAttachment: true
+          attachment: {
+            filename: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
+            content: pdfDataUri,
+            contentType: 'application/pdf'
+          }
         }),
       });
 
