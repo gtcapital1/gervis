@@ -489,6 +489,9 @@ i18n
     lng: "it", // default language
     interpolation: {
       escapeValue: false
+    },
+    fallbackLng: {
+      default: ['it']
     }
   });
 
