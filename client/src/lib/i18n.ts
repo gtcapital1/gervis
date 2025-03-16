@@ -365,6 +365,7 @@ const resourcesEn = {
       preview: "Preview",
       pdfPreview: "PDF Preview",
       close: "Close",
+      backToEdit: "Back to Edit",
       noEmailProvided: "Client email is not provided"
     },
     benefits: {
@@ -853,6 +854,7 @@ const resourcesIt = {
       preview: "Anteprima",
       pdfPreview: "Anteprima PDF",
       close: "Chiudi",
+      backToEdit: "Torna alla Modifica",
       noEmailProvided: "Email del cliente non fornita"
     },
     benefits: {

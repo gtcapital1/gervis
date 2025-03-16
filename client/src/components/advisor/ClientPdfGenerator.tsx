@@ -19,7 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, ArrowRight, Mail, Globe } from 'lucide-react';
+import { Loader2, FileText, ArrowRight, ArrowLeft, Mail, Globe } from 'lucide-react';
 import { httpRequest } from '@/lib/queryClient';
 import z from 'zod';
 
@@ -87,8 +87,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const [emailCustomMessage, setEmailCustomMessage] = useState('');
   
   // Stato per l'anteprima PDF
-  const [showPreview, setShowPreview] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
+  // Stato per controllare quale vista mostrare (personalizzazione o anteprima)
+  const [activeView, setActiveView] = useState<'customize' | 'preview'>('customize');
   
   const [letterFields, setLetterFields] = useState<LetterFields>({
     fullContent: ''
@@ -577,7 +579,7 @@ ${advisorPhone}`;
       // Genera l'URL per l'anteprima
       const previewDataUrl = doc.output('datauristring');
       setPreviewUrl(previewDataUrl);
-      setShowPreview(true);
+      setActiveView('preview');
       
       // Set state to indicate PDF generation completed successfully
       setPdfGenerated(true);
@@ -734,35 +736,42 @@ ${advisorPhone}`;
           
           {/* Rimosso il pulsante di cambio lingua perché ora la lingua viene ereditata dalla pagina */}
           
-          <div className="grid grid-cols-1 gap-4 py-2">
-            <div>
-              <Textarea 
-                id="fullContent" 
-                rows={20}
-                className="font-mono text-sm bg-white text-black"
-                value={letterFields.fullContent}
-                onChange={(e) => handleLetterFieldChange('fullContent', e.target.value)}
-              />
+          {/* Vista di personalizzazione */}
+          {activeView === 'customize' && (
+            <div className="grid grid-cols-1 gap-4 py-2">
+              <div>
+                <Textarea 
+                  id="fullContent" 
+                  rows={20}
+                  className="font-mono text-sm bg-white text-black"
+                  value={letterFields.fullContent}
+                  onChange={(e) => handleLetterFieldChange('fullContent', e.target.value)}
+                />
+              </div>
             </div>
-          </div>
+          )}
           
-          {showPreview && previewUrl && (
-            <div className="mt-4 border rounded-lg overflow-hidden">
-              <div className="bg-gray-100 p-2 border-b flex justify-between items-center">
-                <h4 className="text-sm font-medium">{t('pdf.pdfPreview')}</h4>
+          {/* Vista di anteprima */}
+          {activeView === 'preview' && previewUrl && (
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="text-lg font-medium">{t('pdf.pdfPreview')}</h4>
                 <Button 
                   size="sm" 
-                  variant="ghost" 
-                  onClick={() => setShowPreview(false)}
+                  variant="outline" 
+                  onClick={() => setActiveView('customize')}
                 >
-                  {t('pdf.close')}
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {t('pdf.backToEdit')}
                 </Button>
               </div>
-              <iframe 
-                src={previewUrl} 
-                className="w-full h-[600px]" 
-                title="PDF Preview"
-              />
+              <div className="border rounded-lg overflow-hidden">
+                <iframe 
+                  src={previewUrl} 
+                  className="w-full h-[600px]" 
+                  title="PDF Preview"
+                />
+              </div>
             </div>
           )}
           
