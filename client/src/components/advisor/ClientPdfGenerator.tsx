@@ -559,7 +559,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     setIsSending(true);
 
     try {
-      // Crea il corpo della mail composto solo dal testo della lettera (senza intestazioni)
+      // Create email body from letter text only (without headers)
       const emailBody = `${letterFields.greeting}\n\n${letterFields.introduction}\n\n${letterFields.collaboration}\n\n${letterFields.servicePoints.map((p, i) => `${i+1}. ${p}`).join('\n')}\n\n${letterFields.process}\n\n${letterFields.contactInfo}\n\n${letterFields.closing}`;
 
       const response = await apiRequest(`/api/clients/${client.id}/send-email`, {
@@ -764,7 +764,7 @@ ${letterFields.closing}`}
                 <div className="space-y-8">
                   {/* Header with company info and logo (simulated) */}
                   <div className="border rounded-md p-5 bg-white text-black relative">
-                    <div className="border-b pb-2 mb-4">
+                    <div className="border-b pb-2 mb-10">
                       {companyInfo && (
                         <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
                           {companyInfo}
@@ -776,7 +776,7 @@ ${letterFields.closing}`}
                           <img 
                             src={companyLogo} 
                             alt="Company Logo" 
-                            className="max-h-12 max-w-[200px] object-contain"
+                            className="max-h-10 max-w-[120px] object-contain" 
                           />
                         </div>
                       )}
@@ -853,8 +853,8 @@ ${letterFields.closing}`}
                   </div>
 
                   {/* Page 2 - Client Summary Report */}
-                  <div className="border rounded-md p-5 bg-white text-black">
-                    <div className="border-b pb-2 mb-4">
+                  <div className="border rounded-md p-5 bg-white text-black relative">
+                    <div className="border-b pb-2 mb-10">
                       {companyInfo && (
                         <div className="text-gray-500 text-xs mb-2 max-w-[60%]">
                           {companyInfo}
@@ -866,7 +866,7 @@ ${letterFields.closing}`}
                           <img 
                             src={companyLogo} 
                             alt="Company Logo" 
-                            className="max-h-12 max-w-[200px] object-contain"
+                            className="max-h-10 max-w-[120px] object-contain" 
                           />
                         </div>
                       )}
