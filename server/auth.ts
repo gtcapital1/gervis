@@ -83,14 +83,18 @@ export function setupAuth(app: Express) {
         });
       }
       
+      // Format firstName and lastName with first letter uppercase and rest lowercase
+      const formattedFirstName = req.body.firstName.charAt(0).toUpperCase() + req.body.firstName.slice(1).toLowerCase();
+      const formattedLastName = req.body.lastName.charAt(0).toUpperCase() + req.body.lastName.slice(1).toLowerCase();
+      
       // Generate a username based on firstName and lastName
-      const username = `${req.body.firstName.toLowerCase()}.${req.body.lastName.toLowerCase()}`;
+      const username = `${formattedFirstName.toLowerCase()}.${formattedLastName.toLowerCase()}`;
       
       // Create the name from firstName and lastName
-      const name = `${req.body.firstName} ${req.body.lastName}`;
+      const name = `${formattedFirstName} ${formattedLastName}`;
       
-      // Set default signature format
-      const signature = `${req.body.firstName} ${req.body.lastName},\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
+      // Set default signature format (without comma)
+      const signature = `${formattedFirstName} ${formattedLastName}\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
       
       const user = await storage.createUser({
         ...req.body,
