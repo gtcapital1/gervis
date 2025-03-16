@@ -275,7 +275,7 @@ export default function OnboardingForm() {
   }
   
   return (
-    <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
+    <div className="container max-w-4xl mx-auto py-32 px-4 sm:px-6">
       <Card className="mb-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">Welcome, {client?.name}</CardTitle>

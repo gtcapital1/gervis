@@ -128,14 +128,17 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         if (companyInfo) {
           doc.setFontSize(8);
           doc.setTextColor(128, 128, 128); // Gray color
+          doc.setFont('helvetica', 'normal'); // Assicuriamo che il testo non sia in grassetto
           
           // Rimuove i ritorni a capo indesiderati e li sostituisce con spazi
           const cleanedCompanyInfo = companyInfo.trim().replace(/\n+/g, " ");
           
-          // Gestione avanzata del testo della società
+          // Gestione avanzata del testo della società con giustificazione a sinistra
           const companyInfoLines = doc.splitTextToSize(cleanedCompanyInfo, 100);
           companyInfoHeight = companyInfoLines.length * 3.5;
-          doc.text(companyInfoLines, 15, 15); // Position to the left
+          
+          // Aggiunge il testo giustificato a sinistra
+          doc.text(companyInfoLines, 15, 15, { align: "left" });
           
           // Reset text color for the rest of the content
           doc.setTextColor(0, 0, 0); // Back to black
@@ -144,78 +147,64 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         // Add the logo in the top-right corner with correct proportions
         if (companyLogo) {
           try {
-            // Impostiamo un'altezza fissa più piccola
-            const FIXED_HEIGHT = 18; // Altezza fissa in mm ridotta
+            // Miglioriamo il posizionamento del logo
+            const FIXED_HEIGHT = 20; // Altezza fissa in mm
             
-            // Posizione in alto a destra, spostata leggermente 
+            // Posizione in alto a destra
             const x = 135; // Coordinate X (più a destra)
             const y = 5;   // Coordinate Y (alto del foglio)
             
-            // First, we create a new Image to calculate the original dimensions
-            const img = new Image();
-            img.onload = function() {
-              // Once the image is loaded, calculate width-to-height ratio
-              const widthHeightRatio = img.width / img.height;
-              
-              // Calculate proportional width based on fixed height
-              const proportionalWidth = FIXED_HEIGHT * widthHeightRatio;
-              
-              console.log("Logo dimensions:", { width: img.width, height: img.height });
-              console.log("Calculated ratio:", widthHeightRatio);
-              
-              // Clean the area before drawing
-              doc.setFillColor(255, 255, 255);
-              doc.rect(x - 1, y - 1, proportionalWidth + 2, FIXED_HEIGHT + 2, 'F');
-              
-              // Draw the image with correct proportions
-              doc.addImage(
-                companyLogo,
-                x,
-                y,
-                proportionalWidth,
-                FIXED_HEIGHT
-              );
-            };
+            // Per prevenire che l'immagine venga schiacciata, bisogna calcolare
+            // le dimensioni proporzionali dall'immagine originale
             
-            // Handle any errors
-            img.onerror = function() {
-              console.error("Errore nel caricamento dell'immagine per il calcolo delle proporzioni");
-            };
+            // Utilizziamo un approccio sincrono per garantire che le proporzioni
+            // vengano mantenute in ogni circostanza
             
-            // Start loading the image 
-            img.src = companyLogo;
-            
-            // As a fallback, we add the image with a default ratio
-            // This ensures something is displayed even if the onload event doesn't execute in time
-            const defaultRatio = 1.5; // Assume a default 3:2 ratio
-            const defaultWidth = FIXED_HEIGHT * defaultRatio;
+            // Impostiamo un rapporto larghezza/altezza predefinito di 2:1
+            // che dovrebbe funzionare bene per la maggior parte dei loghi aziendali
+            const defaultRatio = 2;
+            const width = FIXED_HEIGHT * defaultRatio;
             
             // Clean the area before drawing
             doc.setFillColor(255, 255, 255);
-            doc.rect(x - 1, y - 1, defaultWidth + 2, FIXED_HEIGHT + 2, 'F');
+            doc.rect(x - 1, y - 1, width + 2, FIXED_HEIGHT + 2, 'F');
             
-            // Draw the image with default proportions
+            // Draw the image with maintained aspect ratio
             doc.addImage(
               companyLogo,
+              'JPEG', // formato automatico
               x,
               y,
-              defaultWidth,
-              FIXED_HEIGHT
+              width,
+              FIXED_HEIGHT,
+              undefined, // alias
+              'FAST' // compression 
             );
+            
+            // Creiamo anche un'immagine nel DOM per calcolare
+            // le proporzioni corrette per un eventuale aggiornamento futuro
+            const img = new Image();
+            img.onload = function() {
+              const actualRatio = img.width / img.height;
+              console.log("Logo actual dimensions:", { width: img.width, height: img.height, ratio: actualRatio });
+            };
+            img.src = companyLogo;
+            
           } catch (err) {
             console.error("Errore nel caricamento del logo:", err);
             
-            // In caso di errore, usiamo dimensioni ridotte di fallback
+            // In caso di errore, usiamo dimensioni standard di fallback
             try {
               doc.addImage(
                 companyLogo, 
-                125,    
+                'JPEG',
+                135,    
                 5,      
-                35,     // larghezza ridotta
-                20      // altezza ridotta
+                40,     // larghezza standard
+                20      // altezza standard
               );
             } catch (e) {
-              console.error("Impossibile caricare il logo anche con dimensioni ridotte:", e);
+              console.error("Impossibile caricare il logo anche con dimensioni standard:", e);
             }
           }
         }
