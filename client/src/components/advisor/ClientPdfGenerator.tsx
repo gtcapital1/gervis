@@ -86,6 +86,10 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const [emailSubject, setEmailSubject] = useState('');
   const [emailCustomMessage, setEmailCustomMessage] = useState('');
   
+  // Stato per l'anteprima PDF
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  
   const [letterFields, setLetterFields] = useState<LetterFields>({
     fullContent: ''
   });
@@ -112,6 +116,9 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     // Estrai informazioni per la firma
     const advisorInfo = advisorSignature ? advisorSignature.split('\n') : [];
     const advisorName = advisorInfo[0] || "Consulente Finanziario";
+    const advisorCompany = advisorInfo[1] || "";
+    const advisorEmail = advisorInfo[2] || "";
+    const advisorPhone = advisorInfo[3] || "";
     
     // Crea il testo completo formattato con spazio per la firma incluso nel corpo
     const fullContent = `${greeting}
@@ -131,7 +138,9 @@ ${contactInfo}
 ${closing}
 
 ${advisorName}
-Consulente Finanziario`;
+${advisorCompany}
+${advisorEmail}
+${advisorPhone}`;
     
     setLetterFields({ fullContent });
   };
@@ -559,6 +568,29 @@ Consulente Finanziario`;
     return doc;
   };
 
+  // Funzione per generare l'anteprima del PDF
+  const generatePreview = () => {
+    try {
+      // Utilizza la funzione condivisa per generare il PDF
+      const doc = generatePdfContent();
+      
+      // Genera l'URL per l'anteprima
+      const previewDataUrl = doc.output('datauristring');
+      setPreviewUrl(previewDataUrl);
+      setShowPreview(true);
+      
+      // Set state to indicate PDF generation completed successfully
+      setPdfGenerated(true);
+    } catch (error) {
+      console.error("Error generating PDF preview:", error);
+      toast({
+        title: currentLanguage === "english" ? "Error" : "Errore",
+        description: currentLanguage === "english" ? "Failed to generate PDF preview" : "Impossibile generare l'anteprima del PDF",
+        variant: "destructive",
+      });
+    }
+  };
+  
   // Generate PDF document
   const generatePdf = () => {
     setIsGenerating(true);
@@ -704,7 +736,6 @@ Consulente Finanziario`;
           
           <div className="grid grid-cols-1 gap-4 py-2">
             <div>
-              <Label htmlFor="fullContent">{t('pdf.coverLetter.fields.fullContent')}</Label>
               <Textarea 
                 id="fullContent" 
                 rows={20}
@@ -715,8 +746,37 @@ Consulente Finanziario`;
             </div>
           </div>
           
+          {showPreview && previewUrl && (
+            <div className="mt-4 border rounded-lg overflow-hidden">
+              <div className="bg-gray-100 p-2 border-b flex justify-between items-center">
+                <h4 className="text-sm font-medium">{currentLanguage === "english" ? "PDF Preview" : "Anteprima PDF"}</h4>
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  onClick={() => setShowPreview(false)}
+                >
+                  {currentLanguage === "english" ? "Close" : "Chiudi"}
+                </Button>
+              </div>
+              <iframe 
+                src={previewUrl} 
+                className="w-full h-[600px]" 
+                title="PDF Preview"
+              />
+            </div>
+          )}
+          
           <DialogFooter className="mt-4 flex justify-between sm:justify-between">
             <div className="flex space-x-2">
+              <Button 
+                onClick={generatePreview}
+                variant="outline"
+                className="w-auto"
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                {currentLanguage === "english" ? "Preview" : "Anteprima"}
+              </Button>
+              
               <Button 
                 onClick={generatePdf} 
                 disabled={isGenerating}

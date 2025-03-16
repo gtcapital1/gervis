@@ -362,6 +362,9 @@ const resourcesEn = {
       emailBodyInfoMessage: "The letter content will be used as the email body",
       emailDefaultSubject: "Welcome to our consultancy service",
       send: "Send",
+      preview: "Preview",
+      pdfPreview: "PDF Preview",
+      close: "Close",
       noEmailProvided: "Client email is not provided"
     },
     benefits: {
