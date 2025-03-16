@@ -213,16 +213,7 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex gap-3">
-          {!user?.isPro && (
-            <Button
-              variant="outline"
-              className="border-amber-500 text-amber-600 hover:bg-amber-50"
-              onClick={() => setIsUpgradeDialogOpen(true)}
-            >
-              <Star className="mr-2 h-4 w-4 text-amber-500" />
-              {t('dashboard.upgrade_to_pro')}
-            </Button>
-          )}
+          {/* Rimosso il pulsante "Passa a PRO" dalla dashboard come richiesto */}
           <Button 
             className="bg-accent hover:bg-accent/90" 
             onClick={() => setIsClientDialogOpen(true)}

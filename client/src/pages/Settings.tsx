@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useTranslation } from "react-i18next";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -389,9 +390,11 @@ export default function Settings() {
                     </div>
                     {!user?.isPro && (
                       <Button 
-                        onClick={() => setIsUpgradeOpen(true)}
-                        className="bg-accent hover:bg-accent/90"
+                        disabled={true}
+                        variant="outline"
+                        className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
                       >
+                        <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
                         Upgrade to Watson PRO
                       </Button>
                     )}

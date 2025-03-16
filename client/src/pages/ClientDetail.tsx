@@ -770,9 +770,11 @@ ${user?.name || ""}`
                                 </ul>
                               </div>
                               <Button 
-                                onClick={() => setIsUpgradeOpen(true)} 
-                                className="bg-accent hover:bg-accent/90"
+                                disabled={true}
+                                variant="outline"
+                                className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
                               >
+                                <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
                                 {t('client.upgrade_button')}
                               </Button>
                             </div>
