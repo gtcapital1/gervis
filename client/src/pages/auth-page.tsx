@@ -180,9 +180,6 @@ export default function AuthPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>{t('auth.welcome')}</CardTitle>
-                    <CardDescription>
-                      {t('auth.description')}
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Form {...loginForm}>
@@ -259,9 +256,6 @@ export default function AuthPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>{t('auth.welcome')}</CardTitle>
-                    <CardDescription>
-                      {t('auth.description')}
-                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <Form {...registerForm}>
@@ -421,7 +415,7 @@ export default function AuthPage() {
                           {registerMutation.isPending ? (
                             <>
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              {t('auth.creating_account')}
+                              {t('auth.register')}...
                             </>
                           ) : (
                             t('auth.register')
@@ -446,95 +440,6 @@ export default function AuthPage() {
               </TabsContent>
             </div>
           </Tabs>
-        </div>
-      </div>
-
-      {/* Hero Section */}
-      <div className="hidden lg:flex flex-1 bg-primary/5 p-12 items-center">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-4xl font-bold tracking-tight text-primary mb-6">
-            {t('hero.title')}
-          </h1>
-          <p className="text-lg mb-8 text-muted-foreground">
-            {t('hero.description')}
-          </p>
-          
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 p-3 rounded-lg">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 text-primary" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" 
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">{t('hero.feature1.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('hero.feature1.description')}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 p-3 rounded-lg">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 text-primary" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M13 10V3L4 14h7v7l9-11h-7z" 
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">{t('hero.feature2.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('hero.feature2.description')}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-start gap-4">
-              <div className="bg-primary/10 p-3 rounded-lg">
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  className="h-6 w-6 text-primary" 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
-                >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" 
-                  />
-                </svg>
-              </div>
-              <div>
-                <h3 className="text-lg font-medium">{t('hero.feature3.title')}</h3>
-                <p className="text-muted-foreground">
-                  {t('hero.feature3.description')}
-                </p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

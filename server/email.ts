@@ -80,7 +80,7 @@ export async function sendCustomEmail(
     `;
     
     const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      from: `"Watson Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: clientEmail,
       subject: subject,
       html: emailHtml,
@@ -103,7 +103,8 @@ export async function sendOnboardingEmail(
   onboardingLink: string,
   language: EmailLanguage = 'english',
   customMessage?: string,
-  advisorSignature?: string
+  advisorSignature?: string,
+  advisorEmail?: string
 ) {
   // Select content based on language
   const content = language === 'english' ? englishContent : italianContent;
@@ -159,8 +160,9 @@ export async function sendOnboardingEmail(
   `;
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: `"Watson Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
     to: clientEmail,
+    cc: advisorEmail,
     subject: content.subject,
     html,
   });
