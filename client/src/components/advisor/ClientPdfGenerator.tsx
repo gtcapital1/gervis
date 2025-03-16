@@ -736,7 +736,7 @@ ${letterFields.closing}`}
                   }}
                   placeholder={language === "english" ? "Enter the full content of your cover letter here..." : "Inserisci qui il contenuto completo della tua lettera..."}
                   rows={20}
-                  className="w-full mb-4"
+                  className="w-full mb-4 bg-white text-black"
                 />
               </div>
             </TabsContent>
