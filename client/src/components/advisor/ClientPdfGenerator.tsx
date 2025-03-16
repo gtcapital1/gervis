@@ -145,11 +145,11 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
         // Add the logo in the top-right corner with correct proportions
         if (companyLogo) {
           try {
-            // Impostiamo un'altezza fissa
-            const FIXED_HEIGHT = 25; // Altezza fissa in mm
+            // Impostiamo un'altezza fissa più piccola
+            const FIXED_HEIGHT = 18; // Altezza fissa in mm ridotta
             
-            // Posizione in alto a destra
-            const x = 125; // Coordinate X (destra del foglio)
+            // Posizione in alto a destra, spostata leggermente 
+            const x = 135; // Coordinate X (più a destra)
             const y = 5;   // Coordinate Y (alto del foglio)
             
             // First, we create a new Image to calculate the original dimensions
