@@ -313,7 +313,8 @@ ${user?.name || ""}`
             </div>
           </div>
           <div className="flex gap-4">
-            {client.isOnboarded && (
+            {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
+            {assets.length > 0 && (
               <ClientPdfGenerator 
                 client={{
                   ...client,
@@ -606,7 +607,8 @@ ${user?.name || ""}`
             </div>
             
             {/* Bottom row: Asset Allocation full width */}
-            {client.isOnboarded ? (
+            {/* Mostra gli asset se ce ne sono, indipendentemente dallo stato di onboarding */}
+            {assets.length > 0 ? (
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
