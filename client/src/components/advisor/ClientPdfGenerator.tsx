@@ -740,7 +740,7 @@ ${advisorPhone}`;
       <Button 
         onClick={() => setShowCustomizeDialog(true)} 
         className="w-full"
-        variant="outline"
+        variant="default"
         size="lg"
       >
         <FileText className="mr-2 h-5 w-5" />
