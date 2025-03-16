@@ -365,7 +365,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
-      const { subject, message, language = 'english' } = req.body;
+      const { subject, message, language = 'english', attachment } = req.body;
       
       if (!subject || !message) {
         return res.status(400).json({ success: false, message: "Subject and message are required" });
@@ -391,13 +391,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Extract signature
       const advisorSignature = advisor?.signature || undefined;
       
+      // Prepare attachments if any
+      const attachments = attachment ? [attachment] : undefined;
+      
       // Send email
       await sendCustomEmail(
         client.email,
         subject,
         message,
         language as 'english' | 'italian',
-        undefined,
+        attachments,
         advisorSignature
       );
       

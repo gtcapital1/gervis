@@ -427,7 +427,7 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
   };
 
   // Function to send email with PDF attachment
-  const sendEmail = async () => {
+  const generateAndSendEmail = async () => {
     if (!client.email) {
       toast({
         title: language === "english" ? "Error" : "Errore",
@@ -440,6 +440,276 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
     setIsSending(true);
 
     try {
+      // Genera il PDF prima di inviare l'email
+      const pdfDoc = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+      });
+      
+      // Set PDF document properties
+      pdfDoc.setProperties({
+        title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
+        subject: t('pdf.subject'),
+        creator: 'Financial Advisor Platform',
+        author: 'Financial Advisor'
+      });
+      
+      // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
+      
+      // Estrai informazioni del consulente
+      const advisorInfo = client.advisorId ? (advisorSignature?.split('\n') || []) : [];
+      const advisorName = advisorInfo[0] || "Financial Advisor";
+      const advisorCompany = advisorInfo[1] || "";
+      const advisorEmail = advisorInfo[2] || "";
+      const advisorPhone = advisorInfo[3] || "";
+      
+      // Usa Calibri (sans-serif) per la lettera
+      pdfDoc.setFont('helvetica', 'normal'); // JSPDF non ha Calibri, helvetica è il più simile
+
+      // Creo un margine destro per allineare correttamente
+      const rightMargin = 190;
+      
+      // Mittente a sinistra in alto (nome, cognome, società, mail, telefono)
+      pdfDoc.setFontSize(11);
+      pdfDoc.setFont('helvetica', 'bold');
+      const fromLabel = language === "english" ? "From:" : "Da:";
+      pdfDoc.text(fromLabel, 20, 25);
+      pdfDoc.setFont('helvetica', 'normal');
+      pdfDoc.text(advisorName, 35, 25);
+      if (advisorCompany) {
+        pdfDoc.text(advisorCompany, 35, 30);
+      }
+      if (advisorEmail) {
+        pdfDoc.text(advisorEmail, 35, 35);
+      }
+      if (advisorPhone) {
+        pdfDoc.text(advisorPhone, 35, 40);
+      }
+      
+      // Data in alto a destra
+      const now = new Date();
+      const dateStr = now.toLocaleDateString(language === "english" ? "en-US" : "it-IT", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+      pdfDoc.text(dateStr, rightMargin, 25, { align: "right" });
+      
+      // Destinatario veramente a destra (allineato correttamente)
+      const toClientText = `${t('pdf.coverLetter.toClient')}:`;
+      pdfDoc.text(toClientText, rightMargin, 50, { align: "right" });
+      
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(`${client.firstName} ${client.lastName}`, rightMargin, 55, { align: "right" });
+      pdfDoc.setFont('helvetica', 'normal');
+      if (client.email) {
+        pdfDoc.text(client.email, rightMargin, 60, { align: "right" });
+      }
+      
+      // Oggetto - adatta in base alla lingua
+      pdfDoc.setFontSize(11);
+      pdfDoc.setFont('helvetica', 'bold');
+      const subjectLabel = language === "english" ? "Subject:" : "Oggetto:";
+      pdfDoc.text(subjectLabel, 20, 75);
+      pdfDoc.setFont('helvetica', 'normal');
+      const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
+      pdfDoc.text(subjectText, 65, 75);
+      
+      // Testo della lettera - tutto da letterContent
+      pdfDoc.setFontSize(11);
+      pdfDoc.setFont('helvetica', 'normal');
+      const letterContentLines = pdfDoc.splitTextToSize(letterContent, 170);
+      pdfDoc.text(letterContentLines, 20, 85);
+      
+      // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
+      pdfDoc.addPage();
+      
+      // Titolo documento
+      pdfDoc.setFontSize(18);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
+      
+      // SECTION 1: Personal Information
+      pdfDoc.setFontSize(14);
+      pdfDoc.text(t('pdf.personalInformation'), 15, 40);
+      pdfDoc.setDrawColor(41, 98, 255);
+      pdfDoc.line(15, 43, 195, 43);
+      
+      // Client personal details
+      pdfDoc.setFontSize(11);
+      
+      // Gather all available personal information from client
+      const personalInfo = [
+        [`${t('pdf.name')}:`, `${client.firstName} ${client.lastName}`],
+        [`${t('pdf.email')}:`, client.email],
+        [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
+        [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
+        [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
+        [`${t('onboarding.income')}:`, client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : t('pdf.notProvided')],
+        [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : t('pdf.notProvided')],
+        [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
+        [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
+      ];
+      
+      autoTable(pdfDoc, {
+        startY: 50,
+        head: [],
+        body: personalInfo,
+        theme: 'plain',
+        columnStyles: {
+          0: { cellWidth: 80, fontStyle: 'bold' },
+          1: { cellWidth: 100 }
+        },
+        styles: {
+          fontSize: 11,
+          cellPadding: 3,
+        },
+      });
+      
+      // SECTION 2: Investment Profile
+      const section2Y = (pdfDoc as any).lastAutoTable.finalY + 20;
+      
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(t('pdf.investmentProfile'), 15, section2Y);
+      pdfDoc.setDrawColor(41, 98, 255);
+      pdfDoc.line(15, section2Y + 3, 195, section2Y + 3);
+      
+      // Investment profile details
+      const investmentProfile = [
+        [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
+        [`${t('pdf.investmentGoal')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
+        [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
+        [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
+      ];
+      
+      autoTable(pdfDoc, {
+        startY: section2Y + 10,
+        head: [],
+        body: investmentProfile,
+        theme: 'plain',
+        columnStyles: {
+          0: { cellWidth: 80, fontStyle: 'bold' },
+          1: { cellWidth: 100 }
+        },
+        styles: {
+          fontSize: 11,
+          cellPadding: 3,
+        },
+      });
+      
+      // ======== PAGINA 3 - ASSET ALLOCATION E DICHIARAZIONE ========
+      pdfDoc.addPage();
+      
+      // Titolo documento
+      pdfDoc.setFontSize(18);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(t('pdf.clientSummaryReport'), 105, 20, { align: "center" });
+      
+      // Asset allocation section
+      pdfDoc.setFontSize(14);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(t('pdf.assetAllocation'), 15, 40);
+      pdfDoc.setDrawColor(41, 98, 255);
+      pdfDoc.line(15, 43, 195, 43);
+      
+      // Assets table
+      if (assets && assets.length > 0) {
+        // Calcola il valore totale per le percentuali
+        const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+        
+        // Crea la tabella degli asset con la percentuale
+        autoTable(pdfDoc, {
+          startY: 50,
+          head: [[
+            t('pdf.category'),
+            t('pdf.value'),
+            '%'
+          ]],
+          body: [
+            ...assets.map(asset => [
+              t(`asset_categories.${asset.category}`),
+              `${formatCurrency(asset.value)} €`,
+              `${Math.round((asset.value / totalValue) * 100)}%`
+            ]),
+            // Aggiungi il totale come ultima riga della tabella
+            [
+              `${t('pdf.totalAssetsValue')}`,
+              `${formatCurrency(totalValue)} €`,
+              '100%'
+            ]
+          ],
+          theme: 'grid',
+          headStyles: {
+            fillColor: [41, 98, 255],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+          },
+          alternateRowStyles: {
+            fillColor: [240, 240, 240],
+          },
+          // Applica stile in grassetto all'ultima riga (totale)
+          bodyStyles: {
+            fontSize: 10
+          },
+          // Stile specifico per la riga del totale
+          didDrawCell: (data) => {
+            if (data.row.index === assets.length && data.section === 'body') {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [220, 220, 220];
+            }
+          },
+        });
+      } else {
+        pdfDoc.setFontSize(11);
+        pdfDoc.setFont('helvetica', 'normal');
+        pdfDoc.text(t('pdf.noAssetsFound'), 15, 55);
+      }
+      
+      // Add client declaration
+      const declarationY = (pdfDoc as any).lastAutoTable ? (pdfDoc as any).lastAutoTable.finalY + 20 : 120;
+      
+      pdfDoc.setFontSize(12);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text(t('pdf.clientDeclaration'), 15, declarationY);
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont('helvetica', 'normal');
+      
+      const declaration = t('pdf.clientDeclarationText');
+      const splitDeclaration = pdfDoc.splitTextToSize(declaration, 180);
+      pdfDoc.text(splitDeclaration, 15, declarationY + 10);
+      
+      // Add signature areas
+      const signatureY = declarationY + 10 + splitDeclaration.length * 4.5 + 15;
+      
+      pdfDoc.setFontSize(11);
+      pdfDoc.text(t('pdf.clientSignature'), 15, signatureY);
+      
+      // Aggiungi campo data accanto alla firma del cliente
+      pdfDoc.text(t('pdf.date') + ': ___/___/_____', 15, signatureY + 35);
+      
+      pdfDoc.line(15, signatureY + 25, 85, signatureY + 25);
+      
+      // Add page numbers solo alle pagine del modulo (non alla lettera)
+      const pageCount = pdfDoc.getNumberOfPages();
+      for (let i = 2; i <= pageCount; i++) {
+        pdfDoc.setPage(i);
+        
+        // Page numbers - partendo da pag 1 per il modulo
+        pdfDoc.setFontSize(8);
+        pdfDoc.setTextColor(100, 100, 100);
+        pdfDoc.text(`${t('pdf.page')} ${i-1} ${t('pdf.of')} ${pageCount-1}`, 170, 285);
+      }
+
+      // Ottieni il PDF come base64
+      const pdfBase64 = pdfDoc.output('datauristring').split(',')[1];
+      
+      // Prepara il corpo email senza la firma extra
+      const emailBodyParts = letterContent.split("\n\n");
+      const emailBodyWithoutSignature = emailBodyParts.slice(0, -4).join("\n\n"); // Rimuove le ultime 4 righe (firma)
+      
+      // Invia email con il PDF allegato
       const response = await apiRequest(`/api/clients/${client.id}/send-email`, {
         method: 'POST',
         headers: {
@@ -447,15 +717,23 @@ ${advisorSignature?.split('\n')?.[3] || "+39 123-456-7890"}`
         },
         body: JSON.stringify({
           subject: emailSubject || (language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione"),
-          message: letterContent,
-          language: language === "english" ? "english" : "italian"
+          message: emailBodyWithoutSignature,
+          language: language === "english" ? "english" : "italian",
+          attachment: {
+            filename: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
+            content: pdfBase64,
+            encoding: 'base64'
+          }
         }),
       });
 
       if (response.success) {
+        // Salva anche il PDF
+        pdfDoc.save(`${client.firstName}_${client.lastName}_Onboarding_Form.pdf`);
+        
         toast({
           title: language === "english" ? "Email Sent" : "Email Inviata",
-          description: language === "english" ? "Email sent successfully" : "Email inviata con successo",
+          description: language === "english" ? "Email sent successfully with PDF attachment" : "Email inviata con successo con PDF allegato",
           variant: "default",
         });
         setShowSendEmailDialog(false);
