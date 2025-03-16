@@ -14,6 +14,7 @@ export const users = pgTable("users", {
   name: text("name"),
   phone: text("phone"),
   signature: text("signature"),
+  companyLogo: text("company_logo"), // Aggiunta del campo per il logo aziendale
   role: text("role").default("advisor"),
   isPro: boolean("is_pro").default(false),
   proSince: timestamp("pro_since"),
