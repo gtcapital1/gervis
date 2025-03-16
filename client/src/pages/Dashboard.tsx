@@ -238,9 +238,9 @@ export default function Dashboard() {
       <div className="p-6 space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Client Overview</CardTitle>
+            <CardTitle>{t('dashboard.client_overview')}</CardTitle>
             <CardDescription>
-              View and manage all your clients
+              {t('dashboard.view_manage_clients')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,7 +249,7 @@ export default function Dashboard() {
                 <div className="relative w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search clients..."
+                    placeholder={t('dashboard.search_clients')}
                     className="pl-8"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -262,7 +262,7 @@ export default function Dashboard() {
                   className={showArchived ? "bg-amber-600" : ""}
                 >
                   <Archive className="mr-2 h-4 w-4" />
-                  {showArchived ? "Showing Archived" : "Show Archived"}
+                  {showArchived ? t('dashboard.showing_archived') : t('dashboard.show_archived')}
                 </Button>
               </div>
               <Button 
@@ -270,43 +270,43 @@ export default function Dashboard() {
                 size="sm"
                 onClick={() => {
                   toast({
-                    title: "Filter option",
+                    title: t('dashboard.filter'),
                     description: "Advanced filtering will be available soon."
                   });
                 }}
               >
                 <Filter className="mr-2 h-4 w-4" />
-                Filter
+                {t('dashboard.filter')}
               </Button>
             </div>
             
             {isLoading ? (
               <div className="flex justify-center items-center h-64">
-                <p>Loading clients...</p>
+                <p>{t('dashboard.loading_clients')}</p>
               </div>
             ) : isError ? (
               <div className="flex justify-center items-center h-64">
-                <p className="text-destructive">Error loading clients. Please try again.</p>
+                <p className="text-destructive">{t('dashboard.error_loading')}</p>
               </div>
             ) : filteredClients.length === 0 ? (
               <div className="flex flex-col justify-center items-center h-64 space-y-3">
-                <p className="text-muted-foreground">No clients found</p>
+                <p className="text-muted-foreground">{t('dashboard.no_clients_found')}</p>
                 <Button 
                   variant="outline" 
                   onClick={() => setIsClientDialogOpen(true)}
                 >
-                  Add Your First Client
+                  {t('dashboard.add_first_client')}
                 </Button>
               </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead>{t('dashboard.name')}</TableHead>
+                    <TableHead>{t('dashboard.email')}</TableHead>
+                    <TableHead>{t('dashboard.phone')}</TableHead>
+                    <TableHead>{t('dashboard.status')}</TableHead>
+                    <TableHead>{t('dashboard.created')}</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -323,7 +323,7 @@ export default function Dashboard() {
                           variant={client.isOnboarded ? "default" : "outline"}
                           className={client.isOnboarded ? "bg-green-600" : ""}
                         >
-                          {client.isOnboarded ? "Onboarded" : "Not Onboarded"}
+                          {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(client.createdAt)}</TableCell>
@@ -335,20 +335,20 @@ export default function Dashboard() {
                             onClick={() => handleViewClient(client.id)}
                           >
                             <ChevronRight className="h-4 w-4" />
-                            <span className="sr-only">View</span>
+                            <span className="sr-only">{t('dashboard.view')}</span>
                           </Button>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
                                 <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">More</span>
+                                <span className="sr-only">{t('dashboard.actions')}</span>
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem 
                                 onClick={() => handleViewClient(client.id)}
                               >
-                                View Details
+                                {t('dashboard.view_details')}
                               </DropdownMenuItem>
                               {client.isArchived ? (
                                 <DropdownMenuItem 
@@ -356,7 +356,7 @@ export default function Dashboard() {
                                   className="text-green-600"
                                 >
                                   <RefreshCcw className="mr-2 h-4 w-4" />
-                                  Restore Client
+                                  {t('dashboard.restore_client')}
                                 </DropdownMenuItem>
                               ) : (
                                 <>
@@ -365,7 +365,7 @@ export default function Dashboard() {
                                     className="text-amber-600"
                                   >
                                     <Archive className="mr-2 h-4 w-4" />
-                                    Archive
+                                    {t('dashboard.archive')}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem 
@@ -373,7 +373,7 @@ export default function Dashboard() {
                                     className="text-red-600"
                                   >
                                     <UserX className="mr-2 h-4 w-4" />
-                                    Delete Permanently
+                                    {t('dashboard.delete_permanently')}
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -399,18 +399,17 @@ export default function Dashboard() {
       <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Archive Client</DialogTitle>
+            <DialogTitle>{t('dashboard.archive_client')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to archive {clientToArchive ? `${clientToArchive.firstName} ${clientToArchive.lastName}` : ''}? Archived clients will be moved to 
-              the archive section and won't appear in the main client list.
+              {t('dashboard.archive_confirmation').replace('this client', clientToArchive ? `${clientToArchive.firstName} ${clientToArchive.lastName}` : '')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
             <AlertTriangle className="h-10 w-10 text-amber-500" />
             <div>
-              <h4 className="font-medium">This action can be reversed later</h4>
+              <h4 className="font-medium">{t('dashboard.action_reversible')}</h4>
               <p className="text-sm text-muted-foreground">
-                You can restore archived clients from the archived clients view.
+                {t('dashboard.restore_info')}
               </p>
             </div>
           </div>
@@ -419,14 +418,14 @@ export default function Dashboard() {
               variant="outline"
               onClick={() => setIsArchiveDialogOpen(false)}
             >
-              Cancel
+              {t('dashboard.cancel')}
             </Button>
             <Button 
               variant="destructive"
               onClick={confirmArchiveClient}
               disabled={archiveClientMutation.isPending}
             >
-              {archiveClientMutation.isPending ? "Archiving..." : "Archive Client"}
+              {archiveClientMutation.isPending ? t('dashboard.archiving') : t('dashboard.archive_client')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -436,17 +435,17 @@ export default function Dashboard() {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Client Permanently</DialogTitle>
+            <DialogTitle>{t('dashboard.delete_client')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to permanently delete {clientToDelete ? `${clientToDelete.firstName} ${clientToDelete.lastName}` : ''}? This action cannot be undone.
+              {t('dashboard.delete_confirmation').replace('this client', clientToDelete ? `${clientToDelete.firstName} ${clientToDelete.lastName}` : '')}
             </DialogDescription>
           </DialogHeader>
           <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
             <AlertTriangle className="h-10 w-10 text-red-500" />
             <div>
-              <h4 className="font-medium text-red-600">This action is permanent</h4>
+              <h4 className="font-medium text-red-600">{t('dashboard.action_permanent')}</h4>
               <p className="text-sm text-muted-foreground">
-                All client data including profile, assets, and recommendations will be permanently deleted from our system.
+                {t('dashboard.delete_data_warning')}
               </p>
             </div>
           </div>
@@ -455,14 +454,14 @@ export default function Dashboard() {
               variant="outline"
               onClick={() => setIsDeleteDialogOpen(false)}
             >
-              Cancel
+              {t('dashboard.cancel')}
             </Button>
             <Button 
               variant="destructive"
               onClick={confirmDeleteClient}
               disabled={deleteClientMutation.isPending}
             >
-              {deleteClientMutation.isPending ? "Deleting..." : "Delete Permanently"}
+              {deleteClientMutation.isPending ? t('dashboard.deleting') : t('dashboard.delete_permanently')}
             </Button>
           </DialogFooter>
         </DialogContent>
