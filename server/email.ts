@@ -40,6 +40,57 @@ const italianContent = {
 
 type EmailLanguage = 'english' | 'italian';
 
+export async function sendCustomEmail(
+  clientEmail: string,
+  subject: string,
+  message: string,
+  language: EmailLanguage = 'english',
+  attachments?: any[],
+  advisorSignature?: string
+) {
+  try {
+    const content = language === 'english' ? englishContent : italianContent;
+    const signature = advisorSignature || content.team;
+    
+    const emailHtml = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .signature { margin-top: 20px; font-weight: bold; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div style="white-space: pre-line;">${message}</div>
+        <div class="signature">
+          ${signature}
+        </div>
+      </div>
+    </body>
+    </html>
+    `;
+    
+    const mailOptions = {
+      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      to: clientEmail,
+      subject: subject,
+      html: emailHtml,
+      attachments: attachments || []
+    };
+    
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending email:', error);
+    throw error;
+  }
+}
+
 export async function sendOnboardingEmail(
   clientEmail: string,
   firstName: string,

@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword } from "./auth";
+import { sendCustomEmail } from "./email";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -359,6 +360,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Send email with PDF
+  app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { subject, message, language = 'english' } = req.body;
+      
+      if (!subject || !message) {
+        return res.status(400).json({ success: false, message: "Subject and message are required" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ success: false, message: "Client not found" });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to send email to this client' });
+      }
+      
+      if (!client.email) {
+        return res.status(400).json({ success: false, message: "Client has no email address" });
+      }
+      
+      // Get the advisor (for signature)
+      const advisor = await storage.getUser(req.user.id);
+      
+      // Send email
+      await sendCustomEmail(
+        client.email,
+        subject,
+        message,
+        language as 'english' | 'italian',
+        undefined,
+        advisor?.signature || undefined
+      );
+      
+      res.json({ success: true, message: "Email sent successfully" });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ success: false, message: "Failed to send email" });
+    }
+  });
+  
   // Archive client
   app.post('/api/clients/:id/archive', isAuthenticated, async (req, res) => {
     try {
@@ -540,6 +585,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!client) {
         return res.status(404).json({ message: 'Client not found' });
       }
+      
+  // Send email with PDF
+  app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { subject, message, language = 'english', includeAttachment = true } = req.body;
+      
+      if (!subject || !message) {
+        return res.status(400).json({ success: false, message: "Subject and message are required" });
+      }
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ success: false, message: "Client not found" });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to send email to this client' });
+      }
+      
+      if (!client.email) {
+        return res.status(400).json({ success: false, message: "Client has no email address" });
+      }
+      
+      // Get the advisor (for signature)
+      const advisor = await storage.getUser(req.user.id);
+      
+      // Get client assets
+      const assets = await storage.getAssetsByClient(clientId);
+      
+      // Send email
+      await sendCustomEmail(
+        client.email,
+        subject,
+        message,
+        language as 'english' | 'italian',
+        undefined,
+        advisor?.signature
+      );
+      
+      res.json({ success: true, message: "Email sent successfully" });
+    } catch (error) {
+      console.error("Error sending email:", error);
+      res.status(500).json({ success: false, message: "Failed to send email" });
+    }
+  });
       
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user?.id) {
