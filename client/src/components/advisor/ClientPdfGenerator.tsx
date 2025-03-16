@@ -70,17 +70,14 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
   
-  // Imposta l'italiano come lingua di default ma tiene traccia della lingua corrente con useState
-  const [currentLanguage, setCurrentLanguage] = useState<string>("italian");
+  // Usa la lingua attualmente impostata nella pagina
+  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language === 'en' ? 'english' : 'italian');
   
-  // Imposta la lingua iniziale a italiano quando il componente viene montato
+  // Aggiorna il currentLanguage quando cambia i18n.language
   useEffect(() => {
-    console.log("Inizializzazione lingua:", i18n.language);
-    if (i18n.language !== "italian") {
-      i18n.changeLanguage("italian");
-    }
-    setCurrentLanguage("italian");
-  }, []);
+    setCurrentLanguage(i18n.language === 'en' ? 'english' : 'italian');
+    console.log("Lingua ereditata dalla pagina:", i18n.language);
+  }, [i18n.language]);
   
   const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -661,22 +658,8 @@ ${closing}`;
     });
   };
 
-  // Function to handle language switch and update letter fields
-  const handleLanguageChange = () => {
-    // Alterna tra italiano e inglese - forza il cambio esplicito
-    const newLang = currentLanguage === "english" ? "italian" : "english";
-    console.log("Changing language to:", newLang);
-    
-    // Prima aggiorna lo stato locale, poi cambia la lingua in i18n
-    setCurrentLanguage(newLang);
-    
-    // Cambio lingua in i18n e aggiorna i campi
-    setTimeout(() => {
-      i18n.changeLanguage(newLang);
-      setLetterFieldsByLanguage(newLang);
-      console.log("Lingua aggiornata a:", newLang, "Stato corrente:", currentLanguage);
-    }, 10);
-  };
+  // Non abbiamo più bisogno della funzione handleLanguageChange
+  // poiché la lingua viene ereditata direttamente dalla pagina
 
   const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
 
@@ -703,17 +686,7 @@ ${closing}`;
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex justify-end mb-4">
-            <Button
-              variant={currentLanguage === "english" ? "outline" : "default"}
-              size="sm"
-              onClick={handleLanguageChange}
-              className="flex items-center gap-2"
-            >
-              <Globe className="h-4 w-4" />
-              {currentLanguage === "english" ? "English" : "Italiano"}
-            </Button>
-          </div>
+          {/* Rimosso il pulsante di cambio lingua perché ora la lingua viene ereditata dalla pagina */}
           
           <div className="grid grid-cols-1 gap-4 py-2">
             <div>

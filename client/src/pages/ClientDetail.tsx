@@ -315,7 +315,10 @@ ${user?.name || ""}`
           <div className="flex gap-4">
             {client.isOnboarded && (
               <ClientPdfGenerator 
-                client={client}
+                client={{
+                  ...client,
+                  birthDate: null // Aggiungiamo la proprietà birthDate mancante
+                }}
                 assets={assets}
                 advisorSignature={user?.signature || null}
                 companyLogo={user?.companyLogo || null}
