@@ -63,13 +63,7 @@ interface ClientPdfGeneratorProps {
 }
 
 interface LetterFields {
-  greeting: string;
-  introduction: string;
-  collaboration: string;
-  servicePoints: string[];
-  process: string;
-  contactInfo: string;
-  closing: string;
+  fullContent: string;
 }
 
 export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
@@ -85,13 +79,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const [emailCustomMessage, setEmailCustomMessage] = useState('');
   
   const [letterFields, setLetterFields] = useState<LetterFields>({
-    greeting: '',
-    introduction: '',
-    collaboration: '',
-    servicePoints: ['', '', '', ''],
-    process: '',
-    contactInfo: '',
-    closing: ''
+    fullContent: ''
   });
   
   // Imposta i campi della lettera in base alla lingua corrente
@@ -101,22 +89,36 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   
   // Funzione per impostare i campi della lettera in base alla lingua
   const setLetterFieldsByLanguage = (lang: string) => {
-    const defaultLetterFields: LetterFields = {
-      greeting: t('pdf.coverLetter.greeting'),
-      introduction: t('pdf.coverLetter.introduction', { firstName: client.firstName, lastName: client.lastName }),
-      collaboration: t('pdf.coverLetter.collaboration'),
-      servicePoints: [
-        t('pdf.coverLetter.servicePoint1'),
-        t('pdf.coverLetter.servicePoint2'),
-        t('pdf.coverLetter.servicePoint3'),
-        t('pdf.coverLetter.servicePoint4')
-      ],
-      process: t('pdf.coverLetter.process'),
-      contactInfo: t('pdf.coverLetter.contactInfo'),
-      closing: t('pdf.coverLetter.closing')
-    };
+    // Crea un contenuto completo basato sulle traduzioni
+    const greeting = t('pdf.coverLetter.greeting');
+    const introduction = t('pdf.coverLetter.introduction', { firstName: client.firstName, lastName: client.lastName });
+    const collaboration = t('pdf.coverLetter.collaboration');
+    const servicePoint1 = t('pdf.coverLetter.servicePoint1');
+    const servicePoint2 = t('pdf.coverLetter.servicePoint2');
+    const servicePoint3 = t('pdf.coverLetter.servicePoint3');
+    const servicePoint4 = t('pdf.coverLetter.servicePoint4');
+    const process = t('pdf.coverLetter.process');
+    const contactInfo = t('pdf.coverLetter.contactInfo');
+    const closing = t('pdf.coverLetter.closing');
     
-    setLetterFields(defaultLetterFields);
+    // Crea il testo completo formattato come vorrebbe essere nella lettera
+    const fullContent = `${greeting}
+
+${introduction}
+
+${collaboration}
+1. ${servicePoint1}
+2. ${servicePoint2}
+3. ${servicePoint3}
+4. ${servicePoint4}
+
+${process}
+
+${contactInfo}
+
+${closing}`;
+    
+    setLetterFields({ fullContent });
   };
 
   // Funzione per generare il contenuto del PDF senza salvarlo
@@ -312,38 +314,36 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     const subjectText = language === "english" ? "Beginning of our collaboration" : "Avvio della nostra collaborazione";
     doc.text(subjectText, 65, headerHeight + 60);
     
-    // Saluti
+    // Corpo della lettera completo - usando il contenuto pieno personalizzato
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    doc.text(letterFields.greeting, 20, headerHeight + 70);
     
-    // Corpo della lettera - introduzione personalizzata
-    const introLines = doc.splitTextToSize(letterFields.introduction, 170);
-    doc.text(introLines, 20, headerHeight + 80);
+    // Dividiamo il testo completo in righe separate per il rendering
+    const contentLines = letterFields.fullContent.split('\n');
     
-    // Testo collaborazione
-    const collaborationLines = doc.splitTextToSize(letterFields.collaboration, 170);
-    doc.text(collaborationLines, 20, headerHeight + 110);
+    // Posizione Y iniziale per il testo dopo l'intestazione
+    let yPosition = headerHeight + 70;
     
-    // Punti numerati personalizzati
-    let bulletY = headerHeight + 120;
+    // Renderizza ciascuna riga del contenuto
+    contentLines.forEach(line => {
+      // Se la linea è vuota (newline), incrementa lo spazio
+      if (line.trim() === '') {
+        yPosition += 6;
+        return;
+      }
+      
+      // Formatta il testo in modo che si adatti correttamente alla pagina
+      const formattedLines = doc.splitTextToSize(line, 170);
+      
+      // Applica il testo al documento
+      doc.text(formattedLines, 20, yPosition);
+      
+      // Incrementa la posizione Y per la prossima riga
+      yPosition += formattedLines.length * 6;
+    });
     
-    for (let i = 0; i < letterFields.servicePoints.length; i++) {
-      const pointLines = doc.splitTextToSize(`${i+1}. ${letterFields.servicePoints[i]}`, 160);
-      doc.text(pointLines, 25, bulletY);
-      bulletY += pointLines.length * 6;
-    }
-    
-    // Testo processo
-    const processLines = doc.splitTextToSize(letterFields.process, 170);
-    doc.text(processLines, 20, bulletY + 5);
-    
-    // Informazioni di contatto
-    const contactLines = doc.splitTextToSize(letterFields.contactInfo, 170);
-    doc.text(contactLines, 20, bulletY + 20);
-    
-    // Chiusura e firma
-    doc.text(letterFields.closing, 20, bulletY + 40);
+    // Imposta la posizione finale per la firma (è un po' più in basso)
+    const bulletY = yPosition + 10;
     
     // Nome, cognome e società nella firma
     doc.setFont('helvetica', 'bold');
@@ -588,10 +588,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
   const sendEmail = async () => {
     setIsSending(true);
     
-    try {
-      // Crea una stringa concatenata di tutti i punti per evitare problemi con gli array
-      const allServicePoints = letterFields.servicePoints.map((p, i) => `${i+1}. ${p}`).join("\n");
-      
+    try {      
       // Generate PDF content
       const doc = generatePdfContent();
       
@@ -639,18 +636,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
     }
   };
 
-  // Function to update service points
-  const handleServicePointChange = (index: number, value: string) => {
-    const updatedServicePoints = [...letterFields.servicePoints];
-    updatedServicePoints[index] = value;
-    
-    setLetterFields({
-      ...letterFields,
-      servicePoints: updatedServicePoints
-    });
-  };
-
-  // Function to update single letter field
+  // Function to update single letter field (full content)
   const handleLetterFieldChange = (field: keyof LetterFields, value: string) => {
     setLetterFields({
       ...letterFields,
@@ -691,7 +677,7 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
           
           <div className="flex justify-end space-x-2 mb-4">
             <RadioGroup 
-              defaultValue={language}
+              value={language}
               className="flex space-x-2 border rounded-lg p-1"
               onValueChange={handleLanguageChange}
             >
@@ -708,73 +694,13 @@ export function ClientPdfGenerator({ client, assets, advisorSignature, companyLo
           
           <div className="grid grid-cols-1 gap-4 py-2">
             <div>
-              <Label htmlFor="greeting">{t('pdf.coverLetter.fields.greeting')}</Label>
-              <Input 
-                id="greeting" 
-                value={letterFields.greeting}
-                onChange={(e) => handleLetterFieldChange('greeting', e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="introduction">{t('pdf.coverLetter.fields.introduction')}</Label>
+              <Label htmlFor="fullContent">{t('pdf.coverLetter.fields.fullContent')}</Label>
               <Textarea 
-                id="introduction" 
-                rows={3}
-                value={letterFields.introduction}
-                onChange={(e) => handleLetterFieldChange('introduction', e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="collaboration">{t('pdf.coverLetter.fields.collaboration')}</Label>
-              <Textarea 
-                id="collaboration" 
-                rows={3}
-                value={letterFields.collaboration}
-                onChange={(e) => handleLetterFieldChange('collaboration', e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>{t('pdf.coverLetter.fields.servicePoints')}</Label>
-              {letterFields.servicePoints.map((point, index) => (
-                <div key={index} className="flex items-start gap-2">
-                  <span className="mt-2 text-sm font-medium">{index + 1}.</span>
-                  <Input 
-                    value={point}
-                    onChange={(e) => handleServicePointChange(index, e.target.value)}
-                  />
-                </div>
-              ))}
-            </div>
-            
-            <div>
-              <Label htmlFor="process">{t('pdf.coverLetter.fields.process')}</Label>
-              <Textarea 
-                id="process" 
-                rows={3}
-                value={letterFields.process}
-                onChange={(e) => handleLetterFieldChange('process', e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="contactInfo">{t('pdf.coverLetter.fields.contactInfo')}</Label>
-              <Textarea 
-                id="contactInfo" 
-                rows={2}
-                value={letterFields.contactInfo}
-                onChange={(e) => handleLetterFieldChange('contactInfo', e.target.value)}
-              />
-            </div>
-            
-            <div>
-              <Label htmlFor="closing">{t('pdf.coverLetter.fields.closing')}</Label>
-              <Input 
-                id="closing" 
-                value={letterFields.closing}
-                onChange={(e) => handleLetterFieldChange('closing', e.target.value)}
+                id="fullContent" 
+                rows={20}
+                className="font-mono text-sm bg-white text-black"
+                value={letterFields.fullContent}
+                onChange={(e) => handleLetterFieldChange('fullContent', e.target.value)}
               />
             </div>
           </div>
