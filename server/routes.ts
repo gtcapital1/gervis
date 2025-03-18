@@ -94,7 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = signatureSchema.parse(req.body);
       
       // Update the signature
-      await storage.updateUser(req.user.id, { signature: validatedData.signature });
+      await storage.updateUser(req.user?.id as number, { signature: validatedData.signature });
       
       res.json({ success: true, message: 'Signature updated successfully' });
     } catch (error) {
@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get the advisor (for signature)
-      const advisor = await storage.getUser(req.user.id);
+      const advisor = await storage.getUser(req.user?.id as number);
       
       // Send email
       await sendCustomEmail(
