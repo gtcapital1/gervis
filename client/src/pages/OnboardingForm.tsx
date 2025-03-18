@@ -74,12 +74,23 @@ const onboardingFormSchema = z.object({
 type OnboardingFormValues = z.infer<typeof onboardingFormSchema>;
 
 export default function OnboardingForm() {
-  const { token } = useParams();
+  // Invece di usare params, prendi il token dalla query
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { t, i18n } = useTranslation();
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
+  
+  // Otteniamo il token dalla query string
+  const [token, setToken] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    if (tokenParam) {
+      setToken(tokenParam);
+    }
+  }, []);
   
   // Convert enums to select options
   const riskProfileOptions = RISK_PROFILES as unknown as [string, ...string[]];
