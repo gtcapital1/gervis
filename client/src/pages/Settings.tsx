@@ -381,7 +381,7 @@ export default function Settings() {
                   <div className="flex items-center justify-between mt-2 p-4 border rounded-lg">
                     <div>
                       <p className="font-medium">
-                        {user?.isPro ? "Watson PRO Plan" : "Standard Plan"}
+                        {user?.isPro ? "Gervis PRO Plan" : "Standard Plan"}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         {user?.isPro
@@ -396,7 +396,7 @@ export default function Settings() {
                         className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
                       >
                         <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
-                        Upgrade to Watson PRO
+                        Upgrade to Gervis PRO
                       </Button>
                     )}
                   </div>

@@ -29,7 +29,7 @@ export function UpgradeDialog({
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Upgrade to Watson PRO mutation
+  // Upgrade to Gervis PRO mutation
   const upgradeMutation = useMutation({
     mutationFn: () => {
       return apiRequest(`/api/users/${userId}/upgrade`, {
@@ -38,8 +38,8 @@ export function UpgradeDialog({
     },
     onSuccess: () => {
       toast({
-        title: "Upgraded to Watson PRO",
-        description: "Your account has been successfully upgraded to Watson PRO!",
+        title: "Upgraded to Gervis PRO",
+        description: "Your account has been successfully upgraded to Gervis PRO!",
       });
       // Invalidate user query to refresh UI with Watson PRO status
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
