@@ -14,10 +14,10 @@ const resourcesIt = {
     hero: {
       title_1: "L'Assistente di Riferimento per",
       title_2: "Consulenti Finanziari",
-      description: "Watson fornisce ai consulenti finanziari strumenti basati sull'IA per offrire ai clienti un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione dei clienti e sfrutta il pieno potenziale dell'IA applicata con Watson.",
+      description: "Gervis fornisce ai consulenti finanziari strumenti basati sull'IA per offrire ai clienti un'esperienza di consulenza finanziaria indimenticabile. Automatizza la documentazione, ottimizza la gestione dei clienti e sfrutta il pieno potenziale dell'IA applicata con Gervis.",
       get_started: "Inizia Ora",
       learn_more: "Scopri di Più",
-      title: "Piattaforma Watson per Consulenti Finanziari",
+      title: "Piattaforma Gervis per Consulenti Finanziari",
       feature1: {
         title: "Analisi del Portafoglio",
         description: "Analizza i portafogli dei clienti con algoritmi sofisticati per identificare opportunità e rischi."
@@ -53,7 +53,7 @@ const resourcesIt = {
       }
     },
     benefits: {
-      title: "Perché Scegliere Watson?",
+      title: "Perché Scegliere Gervis?",
       subtitle: "Vantaggi concreti per la tua attività di consulenza finanziaria",
       items: {
         save_time: {
@@ -94,7 +94,7 @@ const resourcesIt = {
       have_account: "Hai già un account?",
       login_error: "Accesso fallito! Controlla le tue credenziali.",
       register_error: "Registrazione fallita! Riprova.",
-      welcome: "Benvenuto su Watson, la tua piattaforma di consulenza finanziaria",
+      welcome: "Benvenuto su Gervis, la tua piattaforma di consulenza finanziaria",
       welcome_back: "Bentornato",
       register_title: "Crea Account",
       description: "La piattaforma intelligente che aiuta i consulenti finanziari a fornire una gestione patrimoniale personalizzata e una guida finanziaria intuitiva.",
@@ -327,8 +327,8 @@ const resourcesIt = {
       cancel: "Annulla",
       saving: "Salvataggio in corso...",
       save_changes: "Salva Modifiche",
-      app_name: "Watson",
-      pro_version: "Watson Pro",
+      app_name: "Gervis",
+      pro_version: "Gervis Pro",
       coming_soon: "PROSSIMAMENTE"
     },
     about: {
