@@ -6,7 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendVerificationEmail } from "./email";
+import { sendVerificationEmail, sendVerificationPin } from "./email";
 
 declare global {
   namespace Express {
@@ -122,11 +122,12 @@ export function setupAuth(app: Express) {
       // Set default signature format (without comma)
       const signature = `${formattedFirstName} ${formattedLastName}\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
       
-      // Generate verification token and expiry
-      const verificationToken = generateVerificationToken();
+      // Generate verification PIN and token for security
+      const verificationPin = generateVerificationPin();
+      const verificationToken = generateVerificationToken(); // Manteniamo anche il token per sicurezza
       const verificationTokenExpires = getTokenExpiryTimestamp();
       
-      // Create user with verification token
+      // Create user with verification data
       const user = await storage.createUser({
         ...req.body,
         username,
@@ -135,24 +136,23 @@ export function setupAuth(app: Express) {
         password: await hashPassword(req.body.password),
         verificationToken,
         verificationTokenExpires,
+        verificationPin,
         isEmailVerified: false,
+        registrationCompleted: false
       });
       
-      // Generate verification URL
-      const verificationUrl = generateVerificationUrl(verificationToken);
-      
-      // Send verification email
+      // Send verification PIN email
       try {
         // Default language is Italian per requirements
-        await sendVerificationEmail(
+        await sendVerificationPin(
           user.email,
           user.name || `${user.firstName} ${user.lastName}`,
-          verificationUrl,
+          verificationPin,
           'italian'
         );
-        console.log(`Verification email sent to ${user.email}`);
+        console.log(`Verification PIN email sent to ${user.email}`);
       } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
+        console.error('Failed to send verification PIN email:', emailError);
         // Continue with registration even if email fails
       }
 
@@ -161,7 +161,8 @@ export function setupAuth(app: Express) {
         res.status(201).json({ 
           success: true, 
           user,
-          message: "Ti abbiamo inviato un'email di verifica. Per favore controlla la tua casella di posta per completare la registrazione."
+          needsPinVerification: true,
+          message: "Ti abbiamo inviato un codice PIN di verifica. Per favore controlla la tua casella di posta e inserisci il codice per completare la registrazione."
         });
       });
     } catch (err) {
@@ -210,5 +211,139 @@ export function setupAuth(app: Express) {
       });
     }
     res.json({ success: true, user: req.user });
+  });
+
+  // Endpoint per la verifica del PIN
+  app.post("/api/verify-pin", async (req, res, next) => {
+    try {
+      const { email, pin } = req.body;
+      
+      if (!email || !pin) {
+        return res.status(400).json({
+          success: false,
+          message: "Email e PIN sono obbligatori"
+        });
+      }
+      
+      // Trova l'utente tramite email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utente non trovato"
+        });
+      }
+      
+      // Verifica se il PIN coincide
+      if (user.verificationPin !== pin) {
+        return res.status(400).json({
+          success: false,
+          message: "PIN non valido. Controlla la tua email e riprova."
+        });
+      }
+      
+      // Verifica se il token è scaduto
+      if (user.verificationTokenExpires && new Date(user.verificationTokenExpires) < new Date()) {
+        return res.status(400).json({
+          success: false,
+          message: "Il PIN è scaduto. Richiedi un nuovo PIN di verifica."
+        });
+      }
+      
+      // Aggiorna lo stato dell'utente
+      const updatedUser = await storage.updateUser(user.id, {
+        isEmailVerified: true,
+        registrationCompleted: true,
+        verificationPin: null // Cancella il PIN dopo l'uso
+      });
+      
+      // Se l'utente è già loggato, aggiorniamo la sessione
+      if (req.isAuthenticated() && req.user.id === user.id) {
+        req.login(updatedUser, (err: any) => {
+          if (err) return next(err);
+          return res.status(200).json({
+            success: true,
+            message: "Email verificata con successo",
+            user: updatedUser
+          });
+        });
+      } else {
+        // Altrimenti facciamo il login
+        req.login(updatedUser, (err: any) => {
+          if (err) return next(err);
+          return res.status(200).json({
+            success: true,
+            message: "Email verificata con successo",
+            user: updatedUser
+          });
+        });
+      }
+    } catch (err) {
+      next(err);
+    }
+  });
+  
+  // Endpoint per richiedere un nuovo PIN
+  app.post("/api/resend-pin", async (req, res, next) => {
+    try {
+      const { email } = req.body;
+      
+      if (!email) {
+        return res.status(400).json({
+          success: false,
+          message: "Email è obbligatoria"
+        });
+      }
+      
+      // Trova l'utente tramite email
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "Utente non trovato"
+        });
+      }
+      
+      // Se l'utente è già verificato
+      if (user.isEmailVerified) {
+        return res.status(400).json({
+          success: false,
+          message: "L'email è già stata verificata"
+        });
+      }
+      
+      // Genera un nuovo PIN e aggiorna il timestamp di scadenza
+      const verificationPin = generateVerificationPin();
+      const verificationTokenExpires = getTokenExpiryTimestamp();
+      
+      // Aggiorna l'utente con il nuovo PIN
+      await storage.updateUser(user.id, {
+        verificationPin,
+        verificationTokenExpires
+      });
+      
+      // Invia il nuovo PIN
+      try {
+        await sendVerificationPin(
+          user.email,
+          user.name || `${user.firstName} ${user.lastName}`,
+          verificationPin,
+          'italian'
+        );
+        
+        return res.status(200).json({
+          success: true,
+          message: "Nuovo PIN inviato con successo"
+        });
+      } catch (emailError) {
+        console.error('Failed to send verification PIN email:', emailError);
+        return res.status(500).json({
+          success: false,
+          message: "Errore nell'invio dell'email con il PIN di verifica"
+        });
+      }
+    } catch (err) {
+      next(err);
+    }
   });
 }

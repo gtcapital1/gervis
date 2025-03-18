@@ -1,23 +1,26 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { AlertCircle, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Mail, AlertCircle } from "lucide-react";
+import { PinVerificationDialog } from "./PinVerificationDialog";
 
 interface VerificationAlertProps {
   email: string;
 }
 
 export function VerificationAlert({ email }: VerificationAlertProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
-  const [isResending, setIsResending] = useState(false);
-  const [isSent, setIsSent] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const handleResendVerification = async () => {
     try {
-      setIsResending(true);
-      const response = await apiRequest('/api/resend-verification', {
+      setIsLoading(true);
+      const response = await apiRequest('/api/resend-pin', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -26,55 +29,77 @@ export function VerificationAlert({ email }: VerificationAlertProps) {
       });
 
       if (response.success) {
-        setIsSent(true);
         toast({
-          title: "Email inviata",
-          description: "Abbiamo inviato una nuova email di verifica al tuo indirizzo.",
+          title: "PIN inviato",
+          description: "Abbiamo inviato un nuovo PIN di verifica alla tua email.",
           variant: "default",
         });
+        setDialogOpen(true);
       } else {
         toast({
           title: "Errore",
-          description: response.message || "Si è verificato un errore durante l'invio dell'email di verifica.",
+          description: response.message || "Si è verificato un errore durante l'invio del PIN di verifica.",
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
         title: "Errore",
-        description: "Si è verificato un errore durante l'invio dell'email di verifica.",
+        description: "Si è verificato un errore durante l'invio del PIN di verifica.",
         variant: "destructive",
       });
     } finally {
-      setIsResending(false);
+      setIsLoading(false);
     }
   };
 
+  const handleVerificationSuccess = () => {
+    toast({
+      title: "Verifica completata",
+      description: "Il tuo account è stato verificato con successo. Ora puoi accedere a tutte le funzionalità.",
+      variant: "default",
+    });
+    setDialogOpen(false);
+    // Aggiorniamo la pagina per riflettere il nuovo stato dell'utente
+    window.location.reload();
+  };
+
   return (
-    <Alert variant="destructive" className="mb-6">
-      <AlertCircle className="h-4 w-4" />
-      <AlertTitle>Verifica richiesta</AlertTitle>
-      <AlertDescription>
-        <p className="mb-4">
-          Devi verificare il tuo indirizzo email prima di poter accedere. 
-          Controlla la tua casella di posta elettronica.
-        </p>
-        {isSent ? (
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle className="h-4 w-4" />
-            <span>Email di verifica inviata</span>
+    <>
+      <Alert variant="warning" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Email non verificata</AlertTitle>
+        <AlertDescription className="mt-2">
+          Per accedere a tutte le funzionalità, verifica il tuo indirizzo email.
+          Abbiamo inviato un codice PIN all'indirizzo {email}.
+          <div className="mt-2">
+            <Button
+              size="sm"
+              variant="default"
+              className="mr-2"
+              onClick={() => setDialogOpen(true)}
+            >
+              Inserisci PIN
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleResendVerification}
+              disabled={isLoading}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {isLoading ? "Invio in corso..." : "Invia nuovo PIN"}
+            </Button>
           </div>
-        ) : (
-          <Button
-            variant="outline"
-            onClick={handleResendVerification}
-            disabled={isResending}
-            className="bg-white hover:bg-gray-100"
-          >
-            {isResending ? "Invio in corso..." : "Invia nuovamente l'email di verifica"}
-          </Button>
-        )}
-      </AlertDescription>
-    </Alert>
+        </AlertDescription>
+      </Alert>
+
+      <PinVerificationDialog
+        open={dialogOpen}
+        email={email}
+        onSuccess={handleVerificationSuccess}
+        onClose={() => setDialogOpen(false)}
+      />
+    </>
   );
 }
