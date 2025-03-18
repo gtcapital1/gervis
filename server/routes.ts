@@ -505,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Generate a link from the token
-      const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.replit.app`;
+      const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapas.replit.app`;
       const link = `${baseUrl}/onboarding?token=${token}`;
       
       // If customMessage is provided, send an email with the link
