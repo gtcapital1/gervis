@@ -81,16 +81,22 @@ export default function OnboardingForm() {
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
   
-  // Otteniamo il token dalla query string
+  // Otteniamo il token dalla query string o dai parametri di route
   const [token, setToken] = useState<string | null>(null);
+  const params = useParams();
   
   useEffect(() => {
+    // Prima controlliamo la query string
     const urlParams = new URLSearchParams(window.location.search);
     const tokenParam = urlParams.get('token');
+    
     if (tokenParam) {
       setToken(tokenParam);
+    } else if (params.token) {
+      // Se non c'è nella query string, controlliamo i parametri di route
+      setToken(params.token);
     }
-  }, []);
+  }, [params]);
   
   // Convert enums to select options
   const riskProfileOptions = RISK_PROFILES as unknown as [string, ...string[]];
@@ -132,10 +138,10 @@ export default function OnboardingForm() {
     isError, 
     error 
   } = useQuery<ClientResponse, Error, ClientResponse>({
-    queryKey: [`/api/onboarding/${token}`],
+    queryKey: ['/api/onboarding', token],
     queryFn: () => {
       if (!token) throw new Error("No token provided");
-      return apiRequest(`/api/onboarding/${token}`);
+      return apiRequest(`/api/onboarding?token=${token}`);
     },
     enabled: !!token
   });
@@ -172,7 +178,7 @@ export default function OnboardingForm() {
   const mutation = useMutation({
     mutationFn: (data: OnboardingFormValues) => {
       if (!token) throw new Error("No token provided");
-      return apiRequest(`/api/onboarding/${token}`, {
+      return apiRequest(`/api/onboarding?token=${token}`, {
         method: "POST",
         body: JSON.stringify(data),
       });
