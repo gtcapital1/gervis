@@ -82,6 +82,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get client details
+  app.get('/api/clients/:id', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to view this client' });
+      }
+      
+      // Get assets for this client
+      const assets = await storage.getAssetsByClient(clientId);
+      
+      // Get recommendations for this client
+      const recommendations = await storage.getRecommendationsByClient(clientId);
+      
+      res.json({ 
+        success: true, 
+        client,
+        assets,
+        recommendations
+      });
+    } catch (error) {
+      console.error('Error fetching client details:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch client details', error: String(error) });
+    }
+  });
+  
+  // Update client details
+  app.patch('/api/clients/:id', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
+      }
+      
+      // Update client in database
+      const updatedClient = await storage.updateClient(clientId, req.body);
+      
+      res.json({ 
+        success: true, 
+        client: updatedClient
+      });
+    } catch (error) {
+      console.error('Error updating client details:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ success: false, message: 'Invalid client data', errors: error.errors });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to update client details', error: String(error) });
+      }
+    }
+  });
+  
   // Update user password
   app.post('/api/user/password', isAuthenticated, async (req, res) => {
     try {
