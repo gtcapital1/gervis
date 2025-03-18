@@ -254,7 +254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Check if token is expired
-      if (user.tokenExpiryDate && new Date(user.tokenExpiryDate) < new Date()) {
+      if (user.verificationTokenExpires && new Date(user.verificationTokenExpires) < new Date()) {
         return res.status(400).json({ 
           success: false, 
           message: "Il token di verifica è scaduto. Si prega di richiedere un nuovo token." 
