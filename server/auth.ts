@@ -34,6 +34,12 @@ export function generateVerificationToken(): string {
   return randomBytes(32).toString("hex");
 }
 
+// Generate a 4-digit PIN
+export function generateVerificationPin(): string {
+  // Generate a random number between 1000 and 9999
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
 // Get token expiry timestamp (24 hours from now)
 export function getTokenExpiryTimestamp(): Date {
   const expiryDate = new Date();

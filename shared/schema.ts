@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   isEmailVerified: boolean("is_email_verified").default(false),
   verificationToken: text("verification_token"),
   verificationTokenExpires: timestamp("verification_token_expires"),
+  verificationPin: text("verification_pin"), // PIN a 4 cifre per la verifica
+  registrationCompleted: boolean("registration_completed").default(false), // Flag che indica se la registrazione è stata completata
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
