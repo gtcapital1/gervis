@@ -12,9 +12,9 @@ type AuthContextType = {
   user: SelectUser | null;
   isLoading: boolean;
   error: Error | null;
-  loginMutation: UseMutationResult<{ success: boolean; user: SelectUser }, Error, LoginData>;
+  loginMutation: UseMutationResult<{ success: boolean; user: SelectUser; message?: string; needsVerification?: boolean }, Error, LoginData>;
   logoutMutation: UseMutationResult<{ success: boolean }, Error, void>;
-  registerMutation: UseMutationResult<{ success: boolean; user: SelectUser }, Error, InsertUser>;
+  registerMutation: UseMutationResult<{ success: boolean; user: SelectUser; message?: string; needsPinVerification?: boolean }, Error, InsertUser>;
 };
 
 type LoginData = Pick<InsertUser, "email" | "password">;
@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: (credentials: LoginData) => 
       httpRequest("POST", "/api/login", credentials),
-    onSuccess: (data: { success: boolean; user: SelectUser }) => {
+    onSuccess: (data: { success: boolean; user: SelectUser; message?: string; needsVerification?: boolean }) => {
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const registerMutation = useMutation({
     mutationFn: (userData: InsertUser) => 
       httpRequest("POST", "/api/register", userData),
-    onSuccess: (data: { success: boolean; user: SelectUser }) => {
+    onSuccess: (data: { success: boolean; user: SelectUser; message?: string; needsPinVerification?: boolean }) => {
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
