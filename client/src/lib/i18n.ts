@@ -333,9 +333,9 @@ const resourcesIt = {
     },
     about: {
       title: "Chi Siamo",
-      description1: "Watson è una piattaforma digitale innovativa progettata per consulenti finanziari che vogliono migliorare i loro servizi e offrire un'esperienza di consulenza di livello superiore.",
+      description1: "Gervis è una piattaforma digitale innovativa progettata per consulenti finanziari che vogliono migliorare i loro servizi e offrire un'esperienza di consulenza di livello superiore.",
       description2: "La nostra missione è rendere la tecnologia avanzata accessibile ai consulenti finanziari indipendenti, aiutandoli a competere efficacemente con le grandi istituzioni finanziarie.",
-      description3: "Watson è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive."
+      description3: "Gervis è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive."
     },
     languages: {
       english: "Inglese",
@@ -433,10 +433,10 @@ const resourcesEn = {
     hero: {
       title_1: "The Ultimate Assistant for",
       title_2: "Financial Consultants",
-      description: "Watson empowers financial consultants with AI-driven tools so you can deliver to your clients an exceptional financial advice experience. Automate documentation, optimize client management, and exploit the full potential of applied AI with Watson.",
+      description: "Gervis empowers financial consultants with AI-driven tools so you can deliver to your clients an exceptional financial advice experience. Automate documentation, optimize client management, and exploit the full potential of applied AI with Gervis.",
       get_started: "Get Started",
       learn_more: "Learn More",
-      title: "Watson Financial Advisor Platform",
+      title: "Gervis Financial Advisor Platform",
       feature1: {
         title: "Portfolio Analysis",
         description: "Analyze client portfolios with sophisticated algorithms to identify opportunities and risks."
@@ -472,7 +472,7 @@ const resourcesEn = {
       }
     },
     benefits: {
-      title: "Why Choose Watson?",
+      title: "Why Choose Gervis?",
       subtitle: "Tangible benefits for your financial advisory business",
       items: {
         save_time: {
@@ -513,7 +513,7 @@ const resourcesEn = {
       have_account: "Already have an account?",
       login_error: "Login failed! Please check your credentials.",
       register_error: "Registration failed! Please try again.",
-      welcome: "Welcome to Watson, your financial advisor platform",
+      welcome: "Welcome to Gervis, your financial advisor platform",
       welcome_back: "Welcome Back",
       register_title: "Create Account",
       description: "The intelligent platform that helps financial advisors provide personalized wealth management and intuitive financial guidance.",
@@ -597,15 +597,15 @@ const resourcesEn = {
       cancel: "Cancel",
       saving: "Saving...",
       save_changes: "Save Changes",
-      app_name: "Watson",
-      pro_version: "Watson Pro",
+      app_name: "Gervis",
+      pro_version: "Gervis Pro",
       coming_soon: "COMING SOON"
     },
     about: {
       title: "About Us",
-      description1: "Watson is an innovative digital platform designed for financial advisors who want to improve their services and offer a superior consulting experience.",
+      description1: "Gervis is an innovative digital platform designed for financial advisors who want to improve their services and offer a superior consulting experience.",
       description2: "Our mission is to make advanced technology accessible to independent financial advisors, helping them compete effectively with large financial institutions.",
-      description3: "Watson is designed to support financial advisors in optimizing their business processes, allowing them to focus on client relationships rather than document management and repetitive tasks."
+      description3: "Gervis is designed to support financial advisors in optimizing their business processes, allowing them to focus on client relationships rather than document management and repetitive tasks."
     },
     contact: {
       title: "Contact Us",
