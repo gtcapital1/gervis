@@ -147,8 +147,7 @@ export function Layout({ children }: LayoutProps) {
             <div className="flex items-center h-16 flex-shrink-0 px-4 bg-black">
               <Link href="/">
                 <div className="text-xl font-bold tracking-tight text-white flex items-center cursor-pointer">
-                  <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
-                  Watson
+                  {t('common.app_name')}
                 </div>
               </Link>
             </div>
@@ -166,8 +165,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
           <Link href="/">
             <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
-              <span className="text-3xl mr-1 text-accent font-serif">Φ</span>
-              Watson
+              {t('common.app_name')}
             </div>
           </Link>
 
