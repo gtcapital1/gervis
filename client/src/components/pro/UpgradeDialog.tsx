@@ -81,7 +81,7 @@ export function UpgradeDialog({
           <Separator />
 
           <div className="space-y-4">
-            <h3 className="font-medium">Watson PRO features include:</h3>
+            <h3 className="font-medium">Gervis PRO features include:</h3>
             <ul className="space-y-3">
               <li className="flex items-start">
                 <div className="mr-3 mt-0.5">
