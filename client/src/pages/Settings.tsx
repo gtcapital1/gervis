@@ -253,6 +253,32 @@ export default function Settings() {
     },
   });
   
+  // Delete company logo mutation
+  const deleteLogoMutation = useMutation({
+    mutationFn: () => {
+      return apiRequest(`/api/users/${user?.id}/company-logo`, {
+        method: "DELETE",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Logo eliminato",
+        description: "Il logo aziendale è stato eliminato con successo",
+      });
+      // Clear the preview
+      setPreviewLogo(null);
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile eliminare il logo aziendale",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Handle logo file upload
   function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -462,7 +488,21 @@ export default function Settings() {
                     {/* Logo preview */}
                     {previewLogo && (
                       <div className="mb-4">
-                        <h3 className="font-medium mb-2">Anteprima Logo</h3>
+                        <div className="flex justify-between items-center mb-2">
+                          <h3 className="font-medium">Anteprima Logo</h3>
+                          {user?.companyLogo && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-red-500 border-red-200 hover:bg-red-50"
+                              disabled={deleteLogoMutation.isPending}
+                              onClick={() => deleteLogoMutation.mutate()}
+                            >
+                              {deleteLogoMutation.isPending ? "Eliminando..." : "Elimina Logo"}
+                            </Button>
+                          )}
+                        </div>
                         <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
                           <img 
                             src={previewLogo} 
