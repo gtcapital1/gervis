@@ -308,7 +308,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         await sendCustomEmail(
           'gianmarco.trapasso@gmail.com',
-          'Nuovo messaggio dal form di contatto Watson',
+          'Nuovo messaggio dal form di contatto Gervis',
           emailMessage,
           'italian',
           undefined,

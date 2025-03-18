@@ -75,7 +75,7 @@ export async function sendCustomEmail(
     `;
     
     const mailOptions = {
-      from: `"Watson Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
       to: clientEmail,
       cc: advisorEmail,
       subject: subject,
@@ -156,7 +156,7 @@ export async function sendOnboardingEmail(
   `;
 
   await transporter.sendMail({
-    from: `"Watson Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+    from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
     to: clientEmail,
     cc: advisorEmail,
     subject: content.subject,
