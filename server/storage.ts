@@ -284,7 +284,7 @@ export class PostgresStorage implements IStorage {
     });
 
     // Generate onboarding link
-    const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapas.replit.app`;
+    const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapasso.replit.app`;
     const onboardingLink = `${baseUrl}/onboarding?token=${token}`;
     
     // Get advisor information (to include signature)
