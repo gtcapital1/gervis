@@ -22,6 +22,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByField(field: string, value: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
   
@@ -101,6 +102,28 @@ export class PostgresStorage implements IStorage {
   async getUserByEmail(email: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.email, email));
     return result[0];
+  }
+
+  async getUserByField(field: string, value: string): Promise<User | undefined> {
+    // Build dynamic where clause based on field
+    // This is a safe approach since we're controlling the field name directly
+    let result;
+    
+    switch(field) {
+      case 'verificationToken':
+        result = await db.select().from(users).where(eq(users.verificationToken, value));
+        break;
+      case 'email':
+        result = await this.getUserByEmail(value);
+        return result;
+      case 'username':
+        result = await this.getUserByUsername(value);
+        return result;
+      default:
+        throw new Error(`Field ${field} not supported for user lookup`);
+    }
+    
+    return result?.[0];
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {

@@ -231,6 +231,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Send email with PDF
+  // Verify email
+  app.get('/api/verify-email', async (req, res) => {
+    try {
+      const { token } = req.query;
+
+      if (!token || typeof token !== 'string') {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Token non valido" 
+        });
+      }
+
+      // Get user by verification token
+      const user = await storage.getUserByField('verificationToken', token);
+      
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Token non valido o scaduto" 
+        });
+      }
+
+      // Check if token is expired
+      if (user.tokenExpiryDate && new Date(user.tokenExpiryDate) < new Date()) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Il token di verifica è scaduto. Si prega di richiedere un nuovo token." 
+        });
+      }
+
+      // Update user to mark email as verified
+      await storage.updateUser(user.id, {
+        isEmailVerified: true,
+        verificationToken: null,
+        verificationTokenExpires: null
+      });
+
+      // Redirect to login page with success parameter
+      return res.redirect('/?verificationSuccess=true');
+    } catch (error) {
+      console.error("Email verification error:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Errore durante la verifica dell'email" 
+      });
+    }
+  });
+
+  // Resend verification email
+  app.post('/api/resend-verification', async (req, res) => {
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Email richiesta" 
+        });
+      }
+
+      // Find user by email
+      const user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Utente non trovato" 
+        });
+      }
+
+      // Check if email is already verified
+      if (user.isEmailVerified) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "L'email è già stata verificata" 
+        });
+      }
+
+      // Generate new verification token
+      const verificationToken = generateVerificationToken();
+      const verificationTokenExpires = getTokenExpiryTimestamp();
+
+      // Update user with new token
+      await storage.updateUser(user.id, {
+        verificationToken,
+        verificationTokenExpires
+      });
+
+      // Generate verification URL
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+      const verificationUrl = `${baseUrl}/api/verify-email?token=${verificationToken}`;
+      
+      // Send verification email
+      await sendVerificationEmail(
+        user.email,
+        user.name || `${user.firstName} ${user.lastName}`,
+        verificationUrl,
+        'italian'
+      );
+
+      res.json({ 
+        success: true, 
+        message: "Email di verifica inviata con successo" 
+      });
+    } catch (error) {
+      console.error("Resend verification error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Errore durante l'invio dell'email di verifica" 
+      });
+    }
+  });
+
   app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
