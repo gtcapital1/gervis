@@ -2,10 +2,11 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { Express } from "express";
 import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
+import { sendVerificationEmail } from "./email";
 
 declare global {
   namespace Express {
@@ -26,6 +27,24 @@ export async function comparePasswords(supplied: string, stored: string) {
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
   return timingSafeEqual(hashedBuf, suppliedBuf);
+}
+
+// Generate a verification token
+export function generateVerificationToken(): string {
+  return randomBytes(32).toString("hex");
+}
+
+// Get token expiry timestamp (24 hours from now)
+export function getTokenExpiryTimestamp(): Date {
+  const expiryDate = new Date();
+  expiryDate.setHours(expiryDate.getHours() + 24);
+  return expiryDate;
+}
+
+// Generate verification URL
+export function generateVerificationUrl(token: string): string {
+  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+  return `${baseUrl}/verify-email?token=${token}`;
 }
 
 export function setupAuth(app: Express) {
@@ -97,17 +116,47 @@ export function setupAuth(app: Express) {
       // Set default signature format (without comma)
       const signature = `${formattedFirstName} ${formattedLastName}\n${req.body.isIndependent ? 'Consulente Finanziario Indipendente' : req.body.company}\n${req.body.email}\n${req.body.phone || ''}`;
       
+      // Generate verification token and expiry
+      const verificationToken = generateVerificationToken();
+      const verificationTokenExpires = getTokenExpiryTimestamp();
+      
+      // Create user with verification token
       const user = await storage.createUser({
         ...req.body,
         username,
         name,
         signature,
         password: await hashPassword(req.body.password),
+        verificationToken,
+        verificationTokenExpires,
+        isEmailVerified: false,
       });
+      
+      // Generate verification URL
+      const verificationUrl = generateVerificationUrl(verificationToken);
+      
+      // Send verification email
+      try {
+        // Default language is Italian per requirements
+        await sendVerificationEmail(
+          user.email,
+          user.name || `${user.firstName} ${user.lastName}`,
+          verificationUrl,
+          'italian'
+        );
+        console.log(`Verification email sent to ${user.email}`);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Continue with registration even if email fails
+      }
 
       req.login(user, (err: any) => {
         if (err) return next(err);
-        res.status(201).json({ success: true, user });
+        res.status(201).json({ 
+          success: true, 
+          user,
+          message: "Ti abbiamo inviato un'email di verifica. Per favore controlla la tua casella di posta per completare la registrazione."
+        });
       });
     } catch (err) {
       next(err);
@@ -121,6 +170,15 @@ export function setupAuth(app: Express) {
         return res.status(401).json({ 
           success: false, 
           message: "Email o password non validi" 
+        });
+      }
+      
+      // Check if email is verified
+      if (!user.isEmailVerified) {
+        return res.status(403).json({
+          success: false,
+          message: "Email non verificata. Per favore controlla la tua casella di posta per completare la verifica.",
+          needsVerification: true
         });
       }
       

@@ -3,8 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
-import { setupAuth, comparePasswords, hashPassword } from "./auth";
-import { sendCustomEmail } from "./email";
+import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
+import { sendCustomEmail, sendVerificationEmail } from "./email";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
