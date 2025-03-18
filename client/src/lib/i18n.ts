@@ -147,7 +147,7 @@ const resourcesIt = {
     },
     onboarding: {
       title: "Questionario Profilo Finanziario",
-      welcome: "Benvenuto nel tuo percorso finanziario",
+      welcome: "Benvenuto",
       instructions: "Si prega di compilare le seguenti informazioni per aiutarci a comprendere il tuo profilo finanziario e i tuoi obiettivi.",
       personal_info: "Informazioni Personali",
       first_name: "Nome",
@@ -525,7 +525,7 @@ const resourcesEn = {
     },
     onboarding: {
       title: "Financial Profile Questionnaire",
-      welcome: "Welcome to your financial journey",
+      welcome: "Welcome",
       instructions: "Please fill in the following information to help us understand your financial profile and goals.",
       personal_info: "Personal Information",
       first_name: "First Name",
