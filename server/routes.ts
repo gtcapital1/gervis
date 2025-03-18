@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = passwordSchema.parse(req.body);
       
       // Get the user
-      const user = await storage.getUser(req.user.id);
+      const user = await storage.getUser(req.user?.id as number);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
@@ -70,7 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const hashedPassword = await hashPassword(validatedData.newPassword);
       
       // Update the password
-      await storage.updateUser(req.user.id, { password: hashedPassword });
+      await storage.updateUser(req.user?.id as number, { password: hashedPassword });
       
       res.json({ success: true, message: 'Password updated successfully' });
     } catch (error) {
@@ -377,7 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message,
         language as 'english' | 'italian',
         undefined,
-        advisor?.signature
+        advisor?.signature || undefined
       );
       
       res.json({ success: true, message: "Email sent successfully" });

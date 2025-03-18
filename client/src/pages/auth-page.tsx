@@ -229,7 +229,7 @@ export default function AuthPage() {
     loginMutation.mutate(data, {
       onSuccess: (response) => {
         // Controlla se l'utente necessita di verifica
-        if (response.needsVerification) {
+        if (response.message && response.message.includes("non verificata")) {
           // Salva l'email per la verifica
           setRegisteredEmail(data.email);
           setNeedsVerification(true);
@@ -267,7 +267,7 @@ export default function AuthPage() {
     registerMutation.mutate(userDataWithUsername, {
       onSuccess: (response) => {
         // Se la registrazione richiede la verifica del PIN
-        if (response.needsPinVerification) {
+        if (response.message && response.message.includes("PIN")) {
           setRegisteredEmail(userData.email);
           setNeedsVerification(true);
           setVerifyPinDialogOpen(true);
