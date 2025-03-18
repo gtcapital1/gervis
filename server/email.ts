@@ -40,6 +40,72 @@ const italianContent = {
 
 type EmailLanguage = 'english' | 'italian';
 
+// Email verification content
+const emailVerificationContent = {
+  english: {
+    subject: 'Verify your Gervis account',
+    title: 'Email Verification Required',
+    greeting: (name: string) => `Dear ${name},`,
+    message: 'Thank you for registering with Gervis. To complete your registration and access all features, please verify your email address by clicking the button below:',
+    buttonText: 'Verify Email Address',
+    expiry: 'This verification link will expire in 24 hours for security purposes.',
+    footer: 'If you did not sign up for a Gervis account, please ignore this email.',
+    signature: 'The Gervis Team'
+  },
+  italian: {
+    subject: 'Verifica il tuo account Gervis',
+    title: 'Verifica Email Richiesta',
+    greeting: (name: string) => `Gentile ${name},`,
+    message: 'Grazie per esserti registrato su Gervis. Per completare la registrazione e accedere a tutte le funzionalità, verifica il tuo indirizzo email cliccando sul pulsante qui sotto:',
+    buttonText: 'Verifica Indirizzo Email',
+    expiry: 'Questo link di verifica scadrà tra 24 ore per motivi di sicurezza.',
+    footer: 'Se non hai creato un account Gervis, ignora questa email.',
+    signature: 'Il Team Gervis'
+  }
+};
+
+// Function to send email verification
+export async function sendVerificationEmail(
+  userEmail: string,
+  userName: string,
+  verificationLink: string,
+  language: EmailLanguage = 'italian'
+) {
+  try {
+    const content = language === 'english' ? emailVerificationContent.english : emailVerificationContent.italian;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
+        <h2 style="color: #0066cc;">${content.title}</h2>
+        <p style="margin-bottom: 16px;">${content.greeting(userName)}</p>
+        <p>${content.message}</p>
+        <div style="margin: 30px 0;">
+          <a href="${verificationLink}" 
+             style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+            ${content.buttonText}
+          </a>
+        </div>
+        <p style="font-size: 14px; color: #666;">${content.expiry}</p>
+        <p style="font-size: 14px; color: #666;">${content.footer}</p>
+        <p style="margin-top: 30px;">${content.signature}</p>
+      </div>
+    `;
+    
+    await transporter.sendMail({
+      from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      to: userEmail,
+      subject: content.subject,
+      html,
+    });
+    
+    console.log(`Verification email sent to ${userEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending verification email:', error);
+    throw error;
+  }
+}
+
 export async function sendCustomEmail(
   clientEmail: string,
   subject: string,

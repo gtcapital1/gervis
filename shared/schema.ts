@@ -19,6 +19,9 @@ export const users = pgTable("users", {
   role: text("role").default("advisor"),
   isPro: boolean("is_pro").default(false),
   proSince: timestamp("pro_since"),
+  isEmailVerified: boolean("is_email_verified").default(false),
+  verificationToken: text("verification_token"),
+  verificationTokenExpires: timestamp("verification_token_expires"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
