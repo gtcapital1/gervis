@@ -229,7 +229,7 @@ export default function AuthPage() {
     loginMutation.mutate(data, {
       onSuccess: (response) => {
         // Controlla se l'utente necessita di verifica
-        if (response.message && response.message.includes("non verificata")) {
+        if (response.message && response.message.includes("non verificata") || response.needsVerification) {
           // Salva l'email per la verifica
           setRegisteredEmail(data.email);
           setNeedsVerification(true);
@@ -247,12 +247,24 @@ export default function AuthPage() {
           navigate("/dashboard");
         }
       },
-      onError: (error) => {
-        toast({
-          title: "Login failed",
-          description: error.message,
-          variant: "destructive",
-        });
+      onError: (error: any) => {
+        // Se l'errore contiene informazioni sulla necessità di verifica
+        if (error.status === 403 && error.data?.needsVerification) {
+          setRegisteredEmail(data.email);
+          setNeedsVerification(true);
+          setVerifyPinDialogOpen(true);
+          
+          toast({
+            title: "Verifica richiesta",
+            description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
+          });
+        } else {
+          toast({
+            title: "Login failed",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
       },
     });
   }
