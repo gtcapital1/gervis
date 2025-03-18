@@ -291,26 +291,8 @@ export class PostgresStorage implements IStorage {
     const advisor = client.advisorId ? await this.getUser(client.advisorId) : undefined;
     const advisorSignature = advisor?.signature || undefined;
 
-    // Send onboarding email
-    try {
-      // Use advisor email if provided, otherwise get from advisor object
-      const emailToUse = advisorEmail || (advisor ? advisor.email : undefined);
-      
-      await sendOnboardingEmail(
-        client.email,
-        client.firstName,
-        client.lastName,
-        onboardingLink,
-        language,
-        customMessage,
-        advisorSignature,
-        emailToUse
-      );
-      console.log(`Onboarding email sent to ${client.email} in ${language}`);
-    } catch (error) {
-      console.error('Failed to send onboarding email:', error);
-      // Don't throw error, still return the token
-    }
+    // Non inviamo più l'email qui per evitare duplicazioni
+    // L'email viene inviata solamente in server/routes.ts
     
     return token;
   }

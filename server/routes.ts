@@ -505,7 +505,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       );
       
       // Generate a link from the token
-      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+      const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
       const link = `${baseUrl}/onboarding?token=${token}`;
       
       // If customMessage is provided, send an email with the link
@@ -590,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get client data by onboarding token
+  // Get client data by onboarding token (supports both route param and query param)
   app.get('/api/onboarding/:token', async (req, res) => {
     try {
       const { token } = req.params;
@@ -628,10 +628,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Complete client onboarding
+  // Get client data by onboarding token using query parameter
+  app.get('/api/onboarding', async (req, res) => {
+    try {
+      const token = req.query.token as string;
+      
+      if (!token) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Token is required" 
+        });
+      }
+      
+      // Get client by onboarding token
+      const client = await storage.getClientByToken(token);
+      
+      if (!client) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Invalid or expired token" 
+        });
+      }
+      
+      // Return minimal client info
+      res.json({
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        isOnboarded: client.isOnboarded
+      });
+    } catch (error) {
+      console.error("Error fetching client by token:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to fetch client data" 
+      });
+    }
+  });
+  
+  // Complete client onboarding with route param
   app.post('/api/onboarding/:token', async (req, res) => {
     try {
       const { token } = req.params;
+      
+      if (!token) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Token is required" 
+        });
+      }
+      
+      // Get client by onboarding token
+      const client = await storage.getClientByToken(token);
+      
+      if (!client) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Invalid or expired token" 
+        });
+      }
+      
+      // Validate the request body against the schema
+      const { 
+        assets,
+        ...clientData
+      } = req.body;
+      
+      // Update client with onboarding data
+      const updatedClient = await storage.updateClient(client.id, {
+        ...clientData,
+        isOnboarded: true
+      });
+      
+      // Add assets if provided
+      if (assets && Array.isArray(assets)) {
+        for (const asset of assets) {
+          await storage.createAsset({
+            ...asset,
+            clientId: client.id
+          });
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        message: "Onboarding completed successfully",
+        client: updatedClient
+      });
+    } catch (error) {
+      console.error("Error completing onboarding:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ 
+          success: false, 
+          message: "Invalid onboarding data", 
+          errors: error.errors 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to complete onboarding process" 
+        });
+      }
+    }
+  });
+  
+  // Complete client onboarding with query parameter
+  app.post('/api/onboarding', async (req, res) => {
+    try {
+      const token = req.query.token as string;
       
       if (!token) {
         return res.status(400).json({ 
