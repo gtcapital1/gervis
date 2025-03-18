@@ -171,6 +171,7 @@ export default function OnboardingForm() {
   // Handle form submission
   const mutation = useMutation({
     mutationFn: (data: OnboardingFormValues) => {
+      if (!token) throw new Error("No token provided");
       return apiRequest(`/api/onboarding/${token}`, {
         method: "POST",
         body: JSON.stringify(data),
