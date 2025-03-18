@@ -68,7 +68,7 @@ export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
         body: JSON.stringify(payload),
       });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       // Invalidate clients cache to trigger a refetch
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       
@@ -81,12 +81,22 @@ export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
       form.reset();
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
+      let errorMessage = "Failed to create client. Please try again.";
+      
+      // Check if we have more detailed error information
+      if (error.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Error",
-        description: "Failed to create client. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
+      
       console.error("Failed to create client:", error);
     },
     onSettled: () => {

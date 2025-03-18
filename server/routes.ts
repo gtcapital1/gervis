@@ -54,6 +54,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Create new client
+  app.post('/api/clients', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      // Validate client data
+      const clientData = insertClientSchema.parse({
+        ...req.body,
+        advisorId: req.user.id,
+        isOnboarded: false
+      });
+      
+      // Create client in database
+      const client = await storage.createClient(clientData);
+      
+      res.json({ success: true, client });
+    } catch (error) {
+      console.error('Error creating client:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ success: false, message: 'Invalid client data', errors: error.errors });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to create client', error: String(error) });
+      }
+    }
+  });
+  
   // Update user password
   app.post('/api/user/password', isAuthenticated, async (req, res) => {
     try {
