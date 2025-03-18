@@ -66,7 +66,7 @@ export function VerificationAlert({ email }: VerificationAlertProps) {
 
   return (
     <>
-      <Alert variant="warning" className="mb-4">
+      <Alert className="mb-4 border-amber-500 bg-amber-50 text-amber-900">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Email non verificata</AlertTitle>
         <AlertDescription className="mt-2">

@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import { Checkbox } from "@/components/ui/checkbox";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { VerificationAlert } from "@/components/VerificationAlert";
+import { PinVerificationDialog } from "@/components/PinVerificationDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
 
@@ -82,6 +83,9 @@ export default function AuthPage() {
   const { toast } = useToast();
   const [location, navigate] = useLocation();
   const { t } = useTranslation();
+  const [verifyPinDialogOpen, setVerifyPinDialogOpen] = useState(false);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
@@ -107,20 +111,141 @@ export default function AuthPage() {
     },
   });
   
-  // Redirect to dashboard if already logged in
-  if (user) {
+  // Funzione per gestire la verifica PIN completata con successo
+  const handleVerificationSuccess = () => {
+    toast({
+      title: "Verifica completata",
+      description: "Email verificata con successo. Ora puoi accedere a tutte le funzionalità.",
+    });
+    
+    setVerifyPinDialogOpen(false);
+    setNeedsVerification(false);
+    
+    // Ricarica la pagina per aggiornare lo stato dell'utente
+    window.location.reload();
+  };
+
+  // Se l'utente è già loggato e verificato, reindirizza alla dashboard
+  if (user && user.isEmailVerified) {
     navigate("/dashboard");
     return null;
+  }
+  
+  // Se l'utente è loggato ma non verificato, mostra la schermata di verifica
+  if (user && !user.isEmailVerified) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle>Verifica la tua email</CardTitle>
+            <CardDescription>
+              Prima di continuare, devi verificare il tuo indirizzo email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Email non verificata</AlertTitle>
+              <AlertDescription>
+                Abbiamo inviato un codice PIN di 4 cifre all'indirizzo {user.email}.
+                Inserisci il codice per completare la verifica.
+              </AlertDescription>
+            </Alert>
+            <div className="flex flex-col space-y-2">
+              <Button
+                onClick={() => setVerifyPinDialogOpen(true)}
+                className="w-full"
+              >
+                Inserisci PIN di verifica
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <PinVerificationDialog
+          open={verifyPinDialogOpen}
+          email={user.email}
+          onSuccess={handleVerificationSuccess}
+          onClose={() => setVerifyPinDialogOpen(false)}
+        />
+      </div>
+    );
+  }
+  
+  // Se l'utente non è loggato ma abbiamo ricevuto un invito alla verifica, mostra la schermata di verifica
+  if (needsVerification && !user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <CardTitle>Verifica la tua email</CardTitle>
+            <CardDescription>
+              Prima di continuare, devi verificare il tuo indirizzo email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Email non verificata</AlertTitle>
+              <AlertDescription>
+                Abbiamo inviato un codice PIN di 4 cifre all'indirizzo {registeredEmail}.
+                Inserisci il codice per completare la verifica.
+              </AlertDescription>
+            </Alert>
+            <div className="flex flex-col space-y-2">
+              <Button
+                onClick={() => setVerifyPinDialogOpen(true)}
+                className="w-full"
+              >
+                Inserisci PIN di verifica
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setNeedsVerification(false);
+                  loginMutation.reset();
+                  registerMutation.reset();
+                  setActiveTab("login");
+                }}
+                className="w-full"
+              >
+                Torna alla pagina di login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        
+        <PinVerificationDialog
+          open={verifyPinDialogOpen}
+          email={registeredEmail}
+          onSuccess={handleVerificationSuccess}
+          onClose={() => setVerifyPinDialogOpen(false)}
+        />
+      </div>
+    );
   }
 
   function onLoginSubmit(data: LoginFormValues) {
     loginMutation.mutate(data, {
-      onSuccess: () => {
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-        });
-        navigate("/dashboard");
+      onSuccess: (response) => {
+        // Controlla se l'utente necessita di verifica
+        if (response.needsVerification) {
+          // Salva l'email per la verifica
+          setRegisteredEmail(data.email);
+          setNeedsVerification(true);
+          setVerifyPinDialogOpen(true);
+          
+          toast({
+            title: "Verifica richiesta",
+            description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
+          });
+        } else {
+          toast({
+            title: "Login successful",
+            description: "Welcome back!",
+          });
+          navigate("/dashboard");
+        }
       },
       onError: (error) => {
         toast({
@@ -140,12 +265,24 @@ export default function AuthPage() {
       username: `${userData.firstName.toLowerCase()}.${userData.lastName.toLowerCase()}`
     };
     registerMutation.mutate(userDataWithUsername, {
-      onSuccess: () => {
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created.",
-        });
-        navigate("/dashboard");
+      onSuccess: (response) => {
+        // Se la registrazione richiede la verifica del PIN
+        if (response.needsPinVerification) {
+          setRegisteredEmail(userData.email);
+          setNeedsVerification(true);
+          setVerifyPinDialogOpen(true);
+          
+          toast({
+            title: "Registrazione effettuata",
+            description: "Ti abbiamo inviato un PIN di verifica via email. Inseriscilo per completare la registrazione.",
+          });
+        } else {
+          toast({
+            title: "Registration successful",
+            description: "Your account has been created.",
+          });
+          navigate("/dashboard");
+        }
       },
       onError: (error) => {
         toast({
@@ -447,6 +584,14 @@ export default function AuthPage() {
           </Tabs>
         </div>
       </div>
+      
+      {/* Finestra di dialogo per la verifica del PIN */}
+      <PinVerificationDialog
+        open={verifyPinDialogOpen}
+        email={registeredEmail}
+        onSuccess={handleVerificationSuccess}
+        onClose={() => setVerifyPinDialogOpen(false)}
+      />
     </div>
   );
 }
