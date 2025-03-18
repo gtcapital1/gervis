@@ -39,6 +39,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all clients for the current advisor
+  app.get('/api/clients', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clients = await storage.getClientsByAdvisor(req.user.id);
+      res.json({ success: true, clients });
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch clients', error: String(error) });
+    }
+  });
+  
   // Update user password
   app.post('/api/user/password', isAuthenticated, async (req, res) => {
     try {

@@ -74,10 +74,15 @@ export default function Dashboard() {
   const { t } = useTranslation();
 
   // Fetch clients
-  const { data: clients = [], isLoading, isError } = useQuery<Client[]>({
+  const { data, isLoading, isError } = useQuery<{clients: Client[]} | null>({
     queryKey: ['/api/clients'],
-    retry: 1,
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
+  
+  // Estrai i clienti dalla risposta o usa un array vuoto se non disponibili
+  const clients = data?.clients || [];
 
   // Archive client mutation
   const archiveClientMutation = useMutation({
