@@ -19,7 +19,7 @@ export default function Contact() {
             <div className="flex justify-center mb-6">
               <Mail className="h-12 w-12 text-secondary" />
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-4">info@watsonfinance.com</h3>
+            <h3 className="text-2xl font-bold text-gray-900 mb-4">info@gervisfinance.com</h3>
             <p className="text-gray-600 mb-6">
               Via Verdi 123, 20121 Milano, Italia
             </p>
