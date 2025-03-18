@@ -41,7 +41,7 @@ export function UpgradeDialog({
         title: "Upgraded to Gervis PRO",
         description: "Your account has been successfully upgraded to Gervis PRO!",
       });
-      // Invalidate user query to refresh UI with Watson PRO status
+      // Invalidate user query to refresh UI with Gervis PRO status
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
       onOpenChange(false);
     },
@@ -64,7 +64,7 @@ export function UpgradeDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center text-xl">
             <Star className="mr-2 h-5 w-5 text-yellow-500" />
-            Upgrade to Watson PRO
+            Upgrade to Gervis PRO
           </DialogTitle>
           <DialogDescription>
             Unlock premium features and enhance your financial advisory capabilities
