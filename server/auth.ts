@@ -92,7 +92,8 @@ export function setupAuth(app: Express) {
     try {
       const user = await storage.getUser(id);
       if (!user) {
-        return done(new Error("User not found"), null);
+        // Gestisci l'utente non trovato in modo silenzioso
+        return done(null, null);
       }
       done(null, user);
     } catch (err) {
