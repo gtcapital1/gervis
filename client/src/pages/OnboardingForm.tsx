@@ -133,6 +133,10 @@ export default function OnboardingForm() {
     error 
   } = useQuery<ClientResponse, Error, ClientResponse>({
     queryKey: [`/api/onboarding/${token}`],
+    queryFn: () => {
+      if (!token) throw new Error("No token provided");
+      return apiRequest(`/api/onboarding/${token}`);
+    },
     enabled: !!token
   });
   

@@ -48,6 +48,7 @@ function Router() {
         component={Settings}
       />
       <Route path="/onboarding/success" component={OnboardingSuccess} />
+      <Route path="/onboarding" component={OnboardingForm} />
       <Route path="/onboarding/:token" component={OnboardingForm} />
       <Route component={NotFound} />
     </Switch>
