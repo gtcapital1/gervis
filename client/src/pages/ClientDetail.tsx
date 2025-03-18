@@ -115,8 +115,11 @@ export default function ClientDetail() {
   const refetchAssets = () => {
     // Non fare nulla
   };
-  const setForceRefresh = (prev: number) => {
+  // Usando una funzione che definisce correttamente il tipo
+  // Variabile fittizia compatibile con il tipo atteso
+  const setForceRefresh = (value: number): void => {
     // Non fare nulla
+    console.log("ForceRefresh received value:", value);
   };
 
   // For sending onboarding form

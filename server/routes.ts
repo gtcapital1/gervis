@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
-import { sendCustomEmail, sendVerificationEmail } from "./email";
+import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -470,6 +470,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Generate onboarding token and link for client
+  app.post('/api/clients/:id/onboarding-token', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.id);
+      const { language = 'italian', customMessage } = req.body;
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to generate token for this client' });
+      }
+      
+      if (!client.email) {
+        return res.status(400).json({ success: false, message: "Client has no email address" });
+      }
+      
+      // Generate the onboarding token
+      const token = await storage.generateOnboardingToken(
+        clientId,
+        language as 'english' | 'italian',
+        customMessage,
+        req.user.email
+      );
+      
+      // Generate a link from the token
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+      const link = `${baseUrl}/onboarding?token=${token}`;
+      
+      // If customMessage is provided, send an email with the link
+      if (customMessage) {
+        try {
+          // Get advisor information
+          const advisor = await storage.getUser(req.user.id);
+          
+          // Get client name parts
+          const firstName = client.firstName || client.name.split(' ')[0];
+          const lastName = client.lastName || client.name.split(' ').slice(1).join(' ');
+          
+          // Send the onboarding email
+          await sendOnboardingEmail(
+            client.email,
+            firstName,
+            lastName,
+            link,
+            language as 'english' | 'italian',
+            customMessage,
+            advisor?.signature || undefined,
+            advisor?.email
+          );
+        } catch (emailError) {
+          console.error("Failed to send onboarding email:", emailError);
+          // We don't need to fail the whole request if just the email fails
+        }
+      }
+      
+      res.json({ 
+        success: true, 
+        token,
+        link,
+        language
+      });
+    } catch (error) {
+      console.error('Error generating onboarding token:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate onboarding token', error: String(error) });
+    }
+  });
+  
   app.post('/api/clients/:id/send-email', isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
