@@ -328,7 +328,7 @@ const resourcesIt = {
       saving: "Salvataggio in corso...",
       save_changes: "Salva Modifiche",
       app_name: "Gervis",
-      pro_version: "Gervis PRO",
+      pro_version: "Gervis Pro",
       coming_soon: "PROSSIMAMENTE"
     },
     about: {
@@ -598,7 +598,7 @@ const resourcesEn = {
       saving: "Saving...",
       save_changes: "Save Changes",
       app_name: "Gervis",
-      pro_version: "Gervis PRO",
+      pro_version: "Gervis Pro",
       coming_soon: "COMING SOON"
     },
     about: {

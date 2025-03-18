@@ -355,7 +355,7 @@ export default function Settings() {
                     <h3 className="font-medium">Account Type</h3>
                     <p className="text-muted-foreground">
                       {user?.isPro ? (
-                        <span className="text-accent font-semibold">Watson PRO</span>
+                        <span className="text-accent font-semibold">Gervis PRO</span>
                       ) : (
                         "Standard"
                       )}
