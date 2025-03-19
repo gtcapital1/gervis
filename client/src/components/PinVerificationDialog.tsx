@@ -116,11 +116,30 @@ export function PinVerificationDialog({
       });
 
       if (response.success) {
-        toast({
-          title: "Verifica completata",
-          description: "Il tuo account è stato verificato con successo.",
-          variant: "default",
-        });
+        // Verifica se l'utente è in attesa di approvazione
+        if (response.pendingApproval) {
+          toast({
+            title: "Verifica completata",
+            description: "Email verificata con successo. In attesa di approvazione da parte del management di Gervis.",
+            variant: "default",
+          });
+          
+          // Mostri un toast più a lungo per enfatizzare il messaggio di approvazione in attesa
+          setTimeout(() => {
+            toast({
+              title: "Approvazione richiesta",
+              description: "Il tuo account è in attesa di approvazione. Riceverai un'email quando sarà approvato.",
+              variant: "default",
+              duration: 10000, // 10 secondi
+            });
+          }, 1000);
+        } else {
+          toast({
+            title: "Verifica completata",
+            description: "Il tuo account è stato verificato con successo.",
+            variant: "default",
+          });
+        }
         onSuccess();
       } else {
         toast({

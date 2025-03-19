@@ -55,15 +55,22 @@ export function UserManagement() {
     data: users,
     isLoading,
     isError,
+    error,
+    refetch
   } = useQuery<{ success: boolean; users: User[] }>({
     queryKey: ["/api/admin/users"],
     throwOnError: false,
+    retry: 2,
+    staleTime: 30000, // 30 secondi
   });
 
-  // Pending users calculation
-  const pendingUsers = users?.users.filter(user => user.approvalStatus === "pending") || [];
-  const approvedUsers = users?.users.filter(user => user.approvalStatus === "approved") || [];
-  const rejectedUsers = users?.users.filter(user => user.approvalStatus === "rejected") || [];
+  // Log per debug
+  console.log("UserManagement - Query state:", { isLoading, isError, errorMessage: error?.message });
+  
+  // Gestione degli utenti in base ai dati ricevuti
+  const pendingUsers = users?.users?.filter(user => user.approvalStatus === "pending") || [];
+  const approvedUsers = users?.users?.filter(user => user.approvalStatus === "approved") || [];
+  const rejectedUsers = users?.users?.filter(user => user.approvalStatus === "rejected") || [];
 
   // Approve user mutation
   const approveMutation = useMutation({
@@ -213,9 +220,29 @@ export function UserManagement() {
 
   if (isError) {
     return (
-      <div className="flex justify-center items-center h-64 text-red-500">
-        {t("error.loading_data")}
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("admin.users_management")}</CardTitle>
+          <CardDescription>
+            {t("admin.users_management_desc")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-col justify-center items-center h-64">
+            <div className="text-red-500 mb-4">
+              {t("error.loading_data")}
+              {error && `: ${error.message}`}
+            </div>
+            <Button 
+              onClick={() => refetch()} 
+              variant="outline"
+              className="mt-2"
+            >
+              {t("common.retry")}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 

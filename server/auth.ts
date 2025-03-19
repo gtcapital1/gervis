@@ -280,14 +280,21 @@ export function setupAuth(app: Express) {
         verificationPin: null // Cancella il PIN dopo l'uso
       });
       
+      // Prepariamo la risposta in base allo stato di approvazione
+      const isPending = updatedUser.approvalStatus === 'pending';
+      const responseMessage = isPending
+        ? "Email verificata con successo. In attesa di approvazione da parte del management di Gervis."
+        : "Email verificata con successo";
+        
       // Se l'utente è già loggato, aggiorniamo la sessione
       if (req.isAuthenticated() && req.user.id === user.id) {
         req.login(updatedUser, (err: any) => {
           if (err) return next(err);
           return res.status(200).json({
             success: true,
-            message: "Email verificata con successo",
-            user: updatedUser
+            message: responseMessage,
+            user: updatedUser,
+            pendingApproval: isPending
           });
         });
       } else {
@@ -296,8 +303,9 @@ export function setupAuth(app: Express) {
           if (err) return next(err);
           return res.status(200).json({
             success: true,
-            message: "Email verificata con successo",
-            user: updatedUser
+            message: responseMessage,
+            user: updatedUser,
+            pendingApproval: isPending
           });
         });
       }
