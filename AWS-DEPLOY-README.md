@@ -144,7 +144,7 @@ Prima di iniziare, assicurati di avere:
 
 1. **Trasferisci il pacchetto sul server AWS**:
    ```bash
-   scp -i /percorso/alla/tua/chiave.pem gervis-prod.tar.gz ec2-user@tuo-indirizzo-ip:/home/ec2-user/
+   scp -i ~/.ssh/gervis.pem gervis-prod.tar.gz ec2-user@15.236.198.128:/home/ec2-user/
    ```
 
 2. **Estrai e configura l'applicazione**:
@@ -182,33 +182,19 @@ Prima di iniziare, assicurati di avere:
    ```bash
    cd /var/www/gervis
    
-   # Se non esiste la cartella shared con lo schema, esegui lo script apposito
-   if [ ! -d "shared" ]; then
-     # Scarica lo script di creazione dello schema
-     curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/setup-shared-schema.sh
-     # Rendi lo script eseguibile
-     chmod +x setup-shared-schema.sh
-     # Esegui lo script
-     ./setup-shared-schema.sh
-   fi
+   # Scarica lo script per eseguire le migrazioni del database
+   curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/run-db-push.sh
+   chmod +x run-db-push.sh
    
-   # Verifica che drizzle.config.json esista
-   if [ ! -f drizzle.config.json ]; then
-     cat > drizzle.config.json << EOF
-   {
-     "out": "./migrations",
-     "schema": "shared/schema.ts",
-     "dialect": "postgresql",
-     "dbCredentials": {
-       "url": "\$DATABASE_URL"
-     }
-   }
-   EOF
-   fi
-   
-   # Esegui la migrazione
-   npm run db:push
+   # Esegui lo script di migrazione (creerà anche i file necessari se mancanti)
+   ./run-db-push.sh
    ```
+   
+   > **Nota**: Questo script svolge tutte le seguenti operazioni automaticamente:
+   > - Verifica che esista il file `.env` (e lo crea se necessario)
+   > - Verifica che esista la cartella `shared` con lo schema (e la crea se necessaria)
+   > - Crea il file `drizzle.config.json` con l'URL corretto del database
+   > - Esegue la migrazione del database
 
 ## Configurazione del server web
 
@@ -341,31 +327,12 @@ git pull  # Se hai usato git
 npm ci
 npm run build
 
-# Se non esiste la cartella shared con lo schema, esegui lo script apposito
-if [ ! -d "shared" ]; then
-  # Scarica lo script di creazione dello schema
-  curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/setup-shared-schema.sh
-  # Rendi lo script eseguibile
-  chmod +x setup-shared-schema.sh
-  # Esegui lo script
-  ./setup-shared-schema.sh
-fi
+# Scarica lo script per eseguire le migrazioni del database
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/run-db-push.sh
+chmod +x run-db-push.sh
 
-# Verifica la presenza di drizzle.config.json
-if [ ! -f drizzle.config.json ]; then
-  cat > drizzle.config.json << EOF
-{
-  "out": "./migrations",
-  "schema": "shared/schema.ts",
-  "dialect": "postgresql",
-  "dbCredentials": {
-    "url": "\$DATABASE_URL"
-  }
-}
-EOF
-fi
-
-npm run db:push  # Solo se ci sono modifiche allo schema
+# Esegui lo script per applicare le migrazioni
+./run-db-push.sh
 pm2 restart gervis
 ```
 
