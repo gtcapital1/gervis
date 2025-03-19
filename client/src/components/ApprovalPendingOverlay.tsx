@@ -1,10 +1,16 @@
 import { Link } from "wouter";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { ClipboardCheck, Clock, AlertCircle } from "lucide-react";
+import { ClipboardCheck, Clock, AlertCircle, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
 
 export function ApprovalPendingOverlay({ email }: { email: string }) {
   const { t } = useTranslation();
+  const { logoutMutation } = useAuth();
+  
+  const handleLogout = () => {
+    logoutMutation.mutate();
+  };
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
@@ -44,11 +50,22 @@ export function ApprovalPendingOverlay({ email }: { email: string }) {
             {t('approval.next_steps')}
           </p>
           
-          <Link href="/">
-            <Button variant="default" className="w-full">
-              {t('approval.return_home')}
+          <div className="flex flex-col gap-3 w-full">
+            <Link href="/">
+              <Button variant="default" className="w-full">
+                {t('approval.return_home')}
+              </Button>
+            </Link>
+            
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={handleLogout}
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              {t('dashboard.logout') || 'Logout'}
             </Button>
-          </Link>
+          </div>
         </div>
       </div>
     </div>
