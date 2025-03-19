@@ -1,6 +1,6 @@
 {
   "out": "./migrations",
-  "schema": "./shared/schema.ts",
+  "schema": "shared/schema.ts",
   "dialect": "postgresql",
   "dbCredentials": {
     "url": "$DATABASE_URL"

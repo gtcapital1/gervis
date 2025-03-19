@@ -181,7 +181,7 @@ Prima di iniziare, assicurati di avere:
      cat > drizzle.config.json << EOF
    {
      "out": "./migrations",
-     "schema": "./shared/schema.ts",
+     "schema": "shared/schema.ts",
      "dialect": "postgresql",
      "dbCredentials": {
        "url": "\$DATABASE_URL"
@@ -330,7 +330,7 @@ if [ ! -f drizzle.config.json ]; then
   cat > drizzle.config.json << EOF
 {
   "out": "./migrations",
-  "schema": "./shared/schema.ts",
+  "schema": "shared/schema.ts",
   "dialect": "postgresql",
   "dbCredentials": {
     "url": "\$DATABASE_URL"
