@@ -333,9 +333,9 @@ const resourcesIt = {
     },
     about: {
       title: "Chi Siamo",
-      description1: "Gervis è una piattaforma digitale innovativa progettata per consulenti finanziari che vogliono migliorare i loro servizi e offrire un'esperienza di consulenza di livello superiore.",
-      description2: "La nostra missione è rendere la tecnologia avanzata accessibile ai consulenti finanziari indipendenti, aiutandoli a competere efficacemente con le grandi istituzioni finanziarie.",
-      description3: "Gervis è progettato per supportare i consulenti finanziari nell'ottimizzazione dei loro processi aziendali, permettendo loro di concentrarsi sulla relazione con i clienti piuttosto che sulla gestione documentale e le attività ripetitive."
+      description1: "Gervis è un prodotto di GT AI Solutions. La missione di GT AI Solutions è integrare soluzioni di intelligenza artificiale in tutti i business per liberare tempo prezioso e permettere alle aziende di concentrarsi sul loro core business.",
+      description2: "Crediamo fermamente che l'intelligenza artificiale sia la chiave per trasformare i processi aziendali, eliminando le attività ripetitive e a basso valore aggiunto, consentendo alle persone di dedicarsi a ciò che conta davvero: relazioni, creatività e innovazione.",
+      description3: "Gervis rappresenta l'applicazione di questa filosofia nel settore della consulenza finanziaria, offrendo ai consulenti strumenti avanzati per automatizzare la gestione documentale, ottimizzare i processi di onboarding e fornire un'esperienza cliente superiore."
     },
     languages: {
       english: "Inglese",
@@ -603,9 +603,9 @@ const resourcesEn = {
     },
     about: {
       title: "About Us",
-      description1: "Gervis is an innovative digital platform designed for financial advisors who want to improve their services and offer a superior consulting experience.",
-      description2: "Our mission is to make advanced technology accessible to independent financial advisors, helping them compete effectively with large financial institutions.",
-      description3: "Gervis is designed to support financial advisors in optimizing their business processes, allowing them to focus on client relationships rather than document management and repetitive tasks."
+      description1: "Gervis is a product of GT AI Solutions. GT AI Solutions' mission is to integrate artificial intelligence solutions into all businesses to free up valuable time and allow companies to focus on their core business.",
+      description2: "We firmly believe that artificial intelligence is the key to transforming business processes, eliminating repetitive and low-value activities, enabling people to focus on what truly matters: relationships, creativity, and innovation.",
+      description3: "Gervis represents the application of this philosophy in the financial consulting sector, offering advisors advanced tools to automate document management, streamline onboarding processes, and deliver a superior client experience."
     },
     contact: {
       title: "Contact Us",
