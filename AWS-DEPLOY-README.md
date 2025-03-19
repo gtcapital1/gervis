@@ -129,7 +129,7 @@ Prima di iniziare, assicurati di avere:
 3. **Prepara il pacchetto per il deploy**:
    ```bash
    mkdir -p gervis-prod
-   cp -r dist package.json package-lock.json deploy/scripts deploy/.env.production drizzle.config.json ./gervis-prod
+   cp -r dist package.json package-lock.json deploy/scripts deploy/.env.production drizzle.config.json shared ./gervis-prod
    cd gervis-prod
    
    # Installa solo le dipendenze di produzione
