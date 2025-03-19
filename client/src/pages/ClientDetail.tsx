@@ -312,7 +312,7 @@ ${user?.name || ""}`
                   {client.isOnboarded ? (
                     <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
                   ) : (
-                    <Badge variant="outline">{t('dashboard.not_onboarded')}</Badge>
+                    <Badge variant="outline" className="text-red-500">{t('dashboard.not_onboarded')}</Badge>
                   )}
                 </div>
               </div>
