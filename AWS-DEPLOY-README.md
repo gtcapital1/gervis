@@ -7,12 +7,13 @@ Questa guida fornisce istruzioni dettagliate per il deployment dell'applicazione
 2. [Creazione e configurazione dell'istanza EC2](#creazione-e-configurazione-dellistanza-ec2)
 3. [Configurazione del database PostgreSQL](#configurazione-del-database-postgresql)
 4. [Installazione delle dipendenze](#installazione-delle-dipendenze)
-5. [Configurazione dell'applicazione](#configurazione-dellapplicazione)
-6. [Configurazione di PM2](#configurazione-di-pm2)
-7. [Configurazione di Nginx](#configurazione-di-nginx)
-8. [Configurazione HTTPS con Certbot](#configurazione-https-con-certbot)
-9. [Avvio e test dell'applicazione](#avvio-e-test-dellapplicazione)
-10. [Manutenzione e aggiornamenti](#manutenzione-e-aggiornamenti)
+5. [Metodo 1: Configurazione dell'applicazione (build sul server)](#configurazione-dellapplicazione)
+6. [Metodo 2: Build locale e trasferimento (Raccomandato)](#metodo-2-build-locale-e-trasferimento-raccomandato)
+7. [Configurazione di PM2](#configurazione-di-pm2)
+8. [Configurazione di Nginx](#configurazione-di-nginx)
+9. [Configurazione HTTPS con Certbot](#configurazione-https-con-certbot)
+10. [Avvio e test dell'applicazione](#avvio-e-test-dellapplicazione)
+11. [Manutenzione e aggiornamenti](#manutenzione-e-aggiornamenti)
 
 ## Prerequisiti
 
@@ -122,7 +123,7 @@ Prima di iniziare, assicurati di avere:
    sudo npm install -g pm2
    ```
 
-## Configurazione dell'applicazione
+## Metodo 1: Configurazione dell'applicazione (build sul server)
 
 1. **Crea una directory per l'applicazione**:
    ```bash
@@ -173,11 +174,90 @@ Prima di iniziare, assicurati di avere:
 
 5. **Costruisci l'applicazione**:
    ```bash
+   # Aumenta il limite di memoria per Node.js se necessario
+   export NODE_OPTIONS="--max-old-space-size=4096"
    npm run build
    ```
 
 6. **Esegui le migrazioni del database**:
    ```bash
+   npm run db:push
+   ```
+
+## Metodo 2: Build locale e trasferimento (Raccomandato)
+
+Questo metodo è consigliato se riscontri problemi durante il build sul server AWS, come blocchi o errori di memoria.
+
+### Fase 1: Build locale
+
+1. **Ottieni il codice sorgente sul tuo computer locale**:
+   ```bash
+   git clone https://github.com/gtcapital1/gervis-financial-advisor.git gervis
+   cd gervis
+   ```
+
+2. **Installa le dipendenze**:
+   ```bash
+   npm ci
+   ```
+
+3. **Esegui il build dell'applicazione**:
+   ```bash
+   # Aumenta il limite di memoria per Node.js
+   export NODE_OPTIONS="--max-old-space-size=4096"
+   npm run build
+   ```
+
+4. **Prepara il pacchetto per il trasferimento**:
+   ```bash
+   mkdir -p gervis-prod
+   cp -r dist package.json package-lock.json deploy/scripts deploy/.env.production ./gervis-prod
+   cd gervis-prod
+   
+   # Installa solo le dipendenze di produzione
+   npm ci --only=production
+   
+   # Crea un archivio
+   cd ..
+   tar -czf gervis-prod.tar.gz -C gervis-prod .
+   ```
+
+### Fase 2: Preparazione del server AWS
+
+1. **Crea una directory per l'applicazione**:
+   ```bash
+   sudo mkdir -p /var/www/gervis
+   sudo chown ec2-user:ec2-user /var/www/gervis
+   ```
+
+2. **Carica il pacchetto sull'istanza AWS**:
+   ```bash
+   # Dal tuo computer locale
+   scp -i /percorso/alla/tua/chiave.pem gervis-prod.tar.gz ec2-user@tuo-indirizzo-ip:/home/ec2-user/
+   ```
+
+3. **Estrai il pacchetto sul server**:
+   ```bash
+   # Sull'istanza AWS
+   cd /var/www/gervis
+   tar -xzf /home/ec2-user/gervis-prod.tar.gz
+   ```
+
+4. **Crea il file .env con le variabili di ambiente**:
+   ```bash
+   # Copia il file .env.production
+   cp deploy/.env.production .env
+   
+   # Modifica le variabili con i tuoi valori
+   nano .env
+   ```
+
+5. **Esegui le migrazioni del database**:
+   ```bash
+   # Installa drizzle-kit se necessario
+   npm install -g drizzle-kit
+   
+   # Esegui le migrazioni
    npm run db:push
    ```
 
