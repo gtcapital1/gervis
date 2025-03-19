@@ -72,15 +72,9 @@ fi
 
 # Verifica che la directory dell'applicazione esista
 if [ ! -d "$APP_DIR" ]; then
-  print_error "La directory $APP_DIR non esiste!"
-  read -p "Vuoi crearla? (s/n): " CREATE_DIR
-  if [[ $CREATE_DIR == "s" || $CREATE_DIR == "S" ]]; then
-    mkdir -p $APP_DIR
-    print_success "Directory $APP_DIR creata."
-  else
-    print_error "Impossibile continuare senza la directory dell'applicazione."
-    exit 1
-  fi
+  print_status "La directory $APP_DIR non esiste, verrà creata automaticamente."
+  mkdir -p $APP_DIR
+  print_success "Directory $APP_DIR creata."
 fi
 
 # Verifica requisiti
@@ -93,9 +87,9 @@ check_command nodejs || MISSING=$((MISSING+1))
 check_command npm || MISSING=$((MISSING+1))
 
 if [ $MISSING -gt 0 ]; then
-  print_warning "Mancano $MISSING comandi necessari. Vuoi installarli automaticamente?"
-  read -p "Installa i requisiti mancanti? (s/n): " INSTALL_DEPS
-  if [[ $INSTALL_DEPS == "s" || $INSTALL_DEPS == "S" ]]; then
+  print_status "Mancano $MISSING comandi necessari. Installazione automatica..."
+  INSTALL_DEPS="s"
+  if true; then
     print_status "Aggiornamento dei repository..."
     apt-get update
 
@@ -301,11 +295,11 @@ pm2 save
 
 print_success "Applicazione avviata con PM2 e configurata per l'avvio automatico!"
 
-# Configurazione HTTPS con Let's Encrypt (opzionale)
-print_status "Vuoi configurare HTTPS con Let's Encrypt?"
-read -p "Configura HTTPS? (s/n): " SETUP_HTTPS
+# Configurazione HTTPS con Let's Encrypt (automatica)
+print_status "Configurazione automatica di HTTPS con Let's Encrypt..."
+SETUP_HTTPS="s"
 
-if [[ $SETUP_HTTPS == "s" || $SETUP_HTTPS == "S" ]]; then
+if true; then
   # Verifica se certbot è installato
   if ! command -v certbot &> /dev/null; then
     print_status "Installazione di Certbot..."

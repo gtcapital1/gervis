@@ -46,43 +46,29 @@ if [ ! -f "$DEPLOY_PACKAGE" ]; then
   exit 1
 fi
 
-# Chiedi le informazioni per la connessione
-print_status "Inserisci le informazioni per la connessione al server:"
-read -p "Indirizzo IP o nome host [13.38.161.27]: " SERVER_HOST
-SERVER_HOST=${SERVER_HOST:-"13.38.161.27"}
+# Impostazione delle informazioni per la connessione (preset senza richiedere input)
+SERVER_HOST="gervis.it"
+SSH_USER="ec2-user"
+SSH_PORT="22"
+SSH_KEY="~/.ssh/gervis.pem"
+SSH_OPTIONS="-i $SSH_KEY"
+DEST_DIR="/var/www/gervis"
 
-read -p "Nome utente SSH [ec2-user]: " SSH_USER
-SSH_USER=${SSH_USER:-"ec2-user"}
-
-read -p "Porta SSH [22]: " SSH_PORT
-SSH_PORT=${SSH_PORT:-"22"}
-
-read -p "Percorso della chiave SSH (lascia vuoto per usare l'autenticazione predefinita): " SSH_KEY
-SSH_OPTIONS=""
-if [ ! -z "$SSH_KEY" ]; then
-  if [ ! -f "$SSH_KEY" ]; then
-    print_error "File della chiave SSH non trovato: $SSH_KEY"
-    exit 1
-  fi
-  SSH_OPTIONS="-i $SSH_KEY"
+# Verifica che la chiave SSH esista
+if [ ! -f $(eval echo $SSH_KEY) ]; then
+  print_error "File della chiave SSH non trovato: $SSH_KEY"
+  exit 1
 fi
 
-# Directory di destinazione sul server
-read -p "Directory di destinazione [/var/www/gervis]: " DEST_DIR
-DEST_DIR=${DEST_DIR:-"/var/www/gervis"}
-
-# Conferma prima di procedere
+# Mostra riepilogo delle informazioni
 echo ""
-print_status "Riepilogo delle informazioni:"
+print_status "Riepilogo delle informazioni di deployment:"
 echo "  - Server: $SSH_USER@$SERVER_HOST:$SSH_PORT"
+echo "  - Chiave SSH: $SSH_KEY"
 echo "  - Directory di destinazione: $DEST_DIR"
 echo "  - Pacchetto: $DEPLOY_PACKAGE"
 echo ""
-read -p "Vuoi procedere con il deployment? (s/n): " CONFIRM
-if [[ $CONFIRM != "s" && $CONFIRM != "S" ]]; then
-  print_error "Deployment annullato."
-  exit 1
-fi
+print_status "Avvio del processo di deployment automatico..."
 
 # Passo 1: Trasferisci il pacchetto
 print_status "Trasferimento del pacchetto sul server..."
