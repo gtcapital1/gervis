@@ -176,6 +176,16 @@ Prima di iniziare, assicurati di avere:
    ```bash
    cd /var/www/gervis
    
+   # Se non esiste la cartella shared con lo schema, esegui lo script apposito
+   if [ ! -d "shared" ]; then
+     # Scarica lo script di creazione dello schema
+     curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/setup-shared-schema.sh
+     # Rendi lo script eseguibile
+     chmod +x setup-shared-schema.sh
+     # Esegui lo script
+     ./setup-shared-schema.sh
+   fi
+   
    # Verifica che drizzle.config.json esista
    if [ ! -f drizzle.config.json ]; then
      cat > drizzle.config.json << EOF
@@ -324,6 +334,16 @@ git pull  # Se hai usato git
 
 npm ci
 npm run build
+
+# Se non esiste la cartella shared con lo schema, esegui lo script apposito
+if [ ! -d "shared" ]; then
+  # Scarica lo script di creazione dello schema
+  curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/setup-shared-schema.sh
+  # Rendi lo script eseguibile
+  chmod +x setup-shared-schema.sh
+  # Esegui lo script
+  ./setup-shared-schema.sh
+fi
 
 # Verifica la presenza di drizzle.config.json
 if [ ! -f drizzle.config.json ]; then
