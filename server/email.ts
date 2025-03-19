@@ -3,12 +3,12 @@ import nodemailer from 'nodemailer';
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig() {
   return {
-    host: process.env.EMAIL_HOST || process.env.SMTP_HOST,
-    port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '587'),
-    secure: (process.env.EMAIL_PORT === '465' || process.env.SMTP_PORT === '465'),
-    user: process.env.EMAIL_USER || process.env.SMTP_USER,
+    host: process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtps.aruba.it',
+    port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '465'),
+    secure: true, // Per Aruba, la porta 465 è sempre secure
+    user: process.env.EMAIL_USER || process.env.SMTP_USER || 'registration@gervis.it',
     pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS,
-    from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER
+    from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER || 'registration@gervis.it'
   };
 }
 
@@ -105,7 +105,7 @@ export async function sendVerificationPin(
     `;
     
     await transporter.sendMail({
-      from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Gervis Financial" <${emailConfig.from}>`,
       to: userEmail,
       subject: content.subject,
       html,
@@ -143,7 +143,7 @@ export async function sendVerificationEmail(
     `;
     
     await transporter.sendMail({
-      from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Gervis Financial" <${emailConfig.from}>`,
       to: userEmail,
       subject: content.subject,
       html,
@@ -192,7 +192,7 @@ export async function sendCustomEmail(
     `;
     
     const mailOptions = {
-      from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
+      from: `"Gervis Financial" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
       subject: subject,
@@ -219,64 +219,72 @@ export async function sendOnboardingEmail(
   advisorSignature?: string,
   advisorEmail?: string
 ) {
-  // Select content based on language
-  const content = language === 'english' ? englishContent : italianContent;
-  
-  // Process custom message if provided
-  // Remove salutations that might be duplicated in the email
-  let processedMessage = customMessage || '';
-  const greetingPatterns = [
-    new RegExp(`Dear\\s+${firstName}\\s+${lastName}`, 'i'),
-    new RegExp(`Gentile\\s+${firstName}\\s+${lastName}`, 'i'),
-    /^Dear\s+.*,/i,
-    /^Gentile\s+.*,/i
-  ];
-  
-  // Remove greeting lines from custom message to avoid duplication
-  if (customMessage) {
-    const messageLines = customMessage.split('\n');
-    const filteredLines = messageLines.filter(line => {
-      const trimmedLine = line.trim();
-      return !greetingPatterns.some(pattern => pattern.test(trimmedLine));
-    });
-    processedMessage = filteredLines.join('\n');
-  }
-  
-  // Format the message content with HTML paragraphs
-  const messageContent = customMessage 
-    ? processedMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
-    : `<p>${content.invitation}</p>`;
-  
-  // Prepare signature section
-  const signatureHtml = advisorSignature 
-    ? `<p style="margin-top: 30px;">${content.signature}</p>
-       <p style="white-space: pre-line;">${advisorSignature}</p>`
-    : `<p style="margin-top: 30px;">${content.signature}</p>
-       <p>${content.team}</p>`;
-  
-  const html = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-      ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
-      <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
-      ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
-      <p style="margin-top: 20px;">${content.callToAction}</p>
-      <div style="margin: 30px 0;">
-        <a href="${onboardingLink}" 
-           style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
-          ${content.buttonText}
-        </a>
+  try {
+    // Select content based on language
+    const content = language === 'english' ? englishContent : italianContent;
+    
+    // Process custom message if provided
+    // Remove salutations that might be duplicated in the email
+    let processedMessage = customMessage || '';
+    const greetingPatterns = [
+      new RegExp(`Dear\\s+${firstName}\\s+${lastName}`, 'i'),
+      new RegExp(`Gentile\\s+${firstName}\\s+${lastName}`, 'i'),
+      /^Dear\s+.*,/i,
+      /^Gentile\s+.*,/i
+    ];
+    
+    // Remove greeting lines from custom message to avoid duplication
+    if (customMessage) {
+      const messageLines = customMessage.split('\n');
+      const filteredLines = messageLines.filter(line => {
+        const trimmedLine = line.trim();
+        return !greetingPatterns.some(pattern => pattern.test(trimmedLine));
+      });
+      processedMessage = filteredLines.join('\n');
+    }
+    
+    // Format the message content with HTML paragraphs
+    const messageContent = customMessage 
+      ? processedMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
+      : `<p>${content.invitation}</p>`;
+    
+    // Prepare signature section
+    const signatureHtml = advisorSignature 
+      ? `<p style="margin-top: 30px;">${content.signature}</p>
+         <p style="white-space: pre-line;">${advisorSignature}</p>`
+      : `<p style="margin-top: 30px;">${content.signature}</p>
+         <p>${content.team}</p>`;
+    
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
+        ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
+        <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
+        ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
+        <p style="margin-top: 20px;">${content.callToAction}</p>
+        <div style="margin: 30px 0;">
+          <a href="${onboardingLink}" 
+             style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
+            ${content.buttonText}
+          </a>
+        </div>
+        <p style="font-size: 14px; color: #666;">${content.expiry}</p>
+        <p>${content.questions}</p>
+        ${signatureHtml}
       </div>
-      <p style="font-size: 14px; color: #666;">${content.expiry}</p>
-      <p>${content.questions}</p>
-      ${signatureHtml}
-    </div>
-  `;
-
-  await transporter.sendMail({
-    from: `"Gervis Financial" <${process.env.EMAIL_FROM || process.env.EMAIL_USER}>`,
-    to: clientEmail,
-    cc: advisorEmail,
-    subject: content.subject,
-    html,
-  });
+    `;
+  
+    await transporter.sendMail({
+      from: `"Gervis Financial" <${emailConfig.from}>`,
+      to: clientEmail,
+      cc: advisorEmail,
+      subject: content.subject,
+      html,
+    });
+    
+    console.log(`Onboarding email sent to ${clientEmail}`);
+    return true;
+  } catch (error) {
+    console.error('Error sending onboarding email:', error);
+    throw error;
+  }
 }
