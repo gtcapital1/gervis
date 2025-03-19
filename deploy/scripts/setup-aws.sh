@@ -90,26 +90,67 @@ if [ $MISSING -gt 0 ]; then
   print_status "Mancano $MISSING comandi necessari. Installazione automatica..."
   INSTALL_DEPS="s"
   if true; then
-    print_status "Aggiornamento dei repository..."
-    apt-get update
-
-    # Installa Nginx se mancante
-    if ! command -v nginx &> /dev/null; then
-      print_status "Installazione di Nginx..."
-      apt-get install -y nginx
+    # Rileva il sistema operativo
+    OS_TYPE="unknown"
+    if grep -q "Amazon Linux" /etc/os-release; then
+      OS_TYPE="amazon"
+    elif [ -f /etc/redhat-release ]; then
+      OS_TYPE="redhat"
+    elif [ -f /etc/debian_version ]; then
+      OS_TYPE="debian"
     fi
-
+    
+    print_status "Sistema operativo rilevato: $OS_TYPE"
+    
+    # Installa Node.js se mancante
+    if ! command -v nodejs &> /dev/null && ! command -v node &> /dev/null; then
+      print_status "Installazione di Node.js..."
+      if [ -f ./deploy/scripts/setup-nodejs.sh ]; then
+        bash ./deploy/scripts/setup-nodejs.sh
+      elif [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+        curl -sL https://rpm.nodesource.com/setup_18.x | bash -
+        yum install -y nodejs
+      else
+        curl -sL https://deb.nodesource.com/setup_18.x | bash -
+        apt-get install -y nodejs
+      fi
+    fi
+    
     # Installa PostgreSQL se mancante
     if ! command -v psql &> /dev/null; then
       print_status "Installazione di PostgreSQL..."
-      apt-get install -y postgresql postgresql-contrib
+      if [ -f ./deploy/scripts/setup-postgres.sh ]; then
+        bash ./deploy/scripts/setup-postgres.sh
+      elif [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+        yum install -y postgresql-server postgresql-contrib
+        if [ -d "/var/lib/pgsql/data" ] && [ ! "$(ls -A /var/lib/pgsql/data)" ]; then
+          postgresql-setup initdb || service postgresql initdb
+        fi
+        systemctl start postgresql || service postgresql start
+        systemctl enable postgresql || chkconfig postgresql on
+      else
+        apt-get install -y postgresql postgresql-contrib
+      fi
     fi
-
-    # Installa Node.js se mancante
-    if ! command -v nodejs &> /dev/null; then
-      print_status "Installazione di Node.js..."
-      curl -sL https://deb.nodesource.com/setup_18.x | bash -
-      apt-get install -y nodejs
+    
+    # Installa Nginx se mancante
+    if ! command -v nginx &> /dev/null; then
+      print_status "Installazione di Nginx..."
+      if [ -f ./deploy/scripts/fix-nginx.sh ]; then
+        bash ./deploy/scripts/fix-nginx.sh
+      elif [ "$OS_TYPE" = "amazon" ]; then
+        amazon-linux-extras install nginx1 -y || yum install nginx -y
+        systemctl start nginx || service nginx start
+        systemctl enable nginx || chkconfig nginx on
+      elif [ "$OS_TYPE" = "redhat" ]; then
+        yum install nginx -y
+        systemctl start nginx || service nginx start
+        systemctl enable nginx || chkconfig nginx on
+      else
+        apt-get install -y nginx
+        systemctl start nginx || service nginx start
+        systemctl enable nginx || service nginx enable
+      fi
     fi
 
     # Installa PM2 globalmente
@@ -170,8 +211,36 @@ print_success "File .env creato con successo!"
 # Configurazione di Nginx
 print_status "Configurazione di Nginx per il dominio $DOMAIN..."
 
+# Rileva il sistema operativo
+OS_TYPE="unknown"
+if grep -q "Amazon Linux" /etc/os-release; then
+  OS_TYPE="amazon"
+elif [ -f /etc/redhat-release ]; then
+  OS_TYPE="redhat"
+elif [ -f /etc/debian_version ]; then
+  OS_TYPE="debian"
+fi
+
+# Determina i percorsi in base al sistema
+if [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+  NGINX_SITES_PATH="/etc/nginx/conf.d"
+  NGINX_CONFIG_FILE="$NGINX_SITES_PATH/gervis.conf"
+else
+  NGINX_SITES_PATH="/etc/nginx/sites-available"
+  NGINX_ENABLED_PATH="/etc/nginx/sites-enabled"
+  NGINX_CONFIG_FILE="$NGINX_SITES_PATH/gervis"
+fi
+
+# Crea la directory conf.d se non esiste (per Amazon Linux/RHEL)
+if [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+  if [ ! -d "$NGINX_SITES_PATH" ]; then
+    mkdir -p "$NGINX_SITES_PATH"
+    print_status "Directory $NGINX_SITES_PATH creata."
+  fi
+fi
+
 # Crea il file di configurazione Nginx
-cat > /etc/nginx/sites-available/gervis << EOF
+cat > "$NGINX_CONFIG_FILE" << EOF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN;
@@ -209,26 +278,34 @@ server {
 }
 EOF
 
-# Abilita il sito creando un symlink
-if [ ! -L /etc/nginx/sites-enabled/gervis ]; then
-  ln -s /etc/nginx/sites-available/gervis /etc/nginx/sites-enabled/
-  print_status "Sito abilitato in Nginx."
-fi
-
-# Rimuovi il default site se esiste
-if [ -L /etc/nginx/sites-enabled/default ]; then
-  rm /etc/nginx/sites-enabled/default
-  print_status "Sito default rimosso da Nginx."
+# Abilita il sito creando un symlink (solo per Debian/Ubuntu)
+if [ "$OS_TYPE" = "debian" ]; then
+  if [ ! -L "$NGINX_ENABLED_PATH/gervis" ]; then
+    ln -s "$NGINX_CONFIG_FILE" "$NGINX_ENABLED_PATH/gervis"
+    print_status "Sito abilitato in Nginx."
+  fi
+  
+  # Rimuovi il default site se esiste
+  if [ -L "$NGINX_ENABLED_PATH/default" ]; then
+    rm "$NGINX_ENABLED_PATH/default"
+    print_status "Sito default rimosso da Nginx."
+  fi
 fi
 
 # Verifica la configurazione di Nginx
 nginx -t
 if [ $? -eq 0 ]; then
   # Riavvia Nginx per applicare le modifiche
-  systemctl restart nginx
+  systemctl restart nginx || service nginx restart
   print_success "Nginx configurato con successo!"
 else
   print_error "Errore nella configurazione di Nginx!"
+  
+  # Prova a usare lo script fix-nginx.sh
+  if [ -f "./deploy/scripts/fix-nginx.sh" ]; then
+    print_status "Tentativo di riparazione con fix-nginx.sh..."
+    bash ./deploy/scripts/fix-nginx.sh
+  fi
 fi
 
 # Configurazione di PM2
