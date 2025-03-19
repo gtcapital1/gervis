@@ -117,7 +117,7 @@ export async function sendVerificationPin(
     `;
     
     await transporter.sendMail({
-      from: `"Gervis Financial" <${emailConfig.from}>`,
+      from: `"Gervis" <${emailConfig.from}>`,
       to: userEmail,
       subject: content.subject,
       html,
@@ -155,7 +155,7 @@ export async function sendVerificationEmail(
     `;
     
     await transporter.sendMail({
-      from: `"Gervis Financial" <${emailConfig.from}>`,
+      from: `"Gervis" <${emailConfig.from}>`,
       to: userEmail,
       subject: content.subject,
       html,
@@ -204,7 +204,7 @@ export async function sendCustomEmail(
     `;
     
     const mailOptions = {
-      from: `"Gervis Financial" <${emailConfig.from}>`,
+      from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
       subject: subject,
@@ -286,7 +286,7 @@ export async function sendOnboardingEmail(
     `;
   
     await transporter.sendMail({
-      from: `"Gervis Financial" <${emailConfig.from}>`,
+      from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
       subject: content.subject,
