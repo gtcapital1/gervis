@@ -377,7 +377,8 @@ const resourcesIt = {
       coming_soon: "PROSSIMAMENTE",
       error: {
         unauthorized: "Accesso non autorizzato",
-        admin_access_required: "Questa pagina richiede privilegi di amministratore" 
+        admin_access_required: "Questa pagina richiede privilegi di amministratore",
+        loading_data: "Errore durante il caricamento dei dati. Riprova."
       }
     },
     about: {
@@ -696,7 +697,8 @@ const resourcesEn = {
       coming_soon: "COMING SOON",
       error: {
         unauthorized: "Unauthorized access",
-        admin_access_required: "This page requires administrator privileges" 
+        admin_access_required: "This page requires administrator privileges",
+        loading_data: "Error loading data. Please try again."
       }
     },
     about: {
