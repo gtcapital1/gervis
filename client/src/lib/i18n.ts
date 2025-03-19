@@ -309,6 +309,19 @@ const resourcesIt = {
       next_steps: "Riceverai una notifica via email quando il tuo account sarà approvato. Nel frattempo, puoi tornare alla pagina principale.",
       return_home: "Torna alla Homepage"
     },
+    verification: {
+      title: "Verifica il tuo indirizzo email",
+      description: "Ti abbiamo inviato un codice PIN di 4 cifre all'indirizzo {email}. Inserisci il codice per completare la verifica.",
+      pin_code: "Codice PIN",
+      pin_placeholder: "Inserisci il PIN a 4 cifre",
+      verifying: "Verifica in corso...",
+      verify: "Verifica PIN",
+      sending: "Invio in corso...",
+      resend: "Invia nuovo PIN",
+      failed: "Verifica fallita",
+      invalid_pin: "PIN non valido. Controlla la tua email e riprova.",
+      error: "Si è verificato un errore durante la verifica del PIN."
+    },
     client: {
       loading_details: "Caricamento dettagli cliente...",
       error_loading: "Errore nel caricamento dei dettagli cliente.",
@@ -804,6 +817,19 @@ const resourcesEn = {
       email_sent_to: "Email verified successfully for",
       next_steps: "You will be notified by email when your account is approved. Meanwhile, feel free to return to the home page.",
       return_home: "Return to Homepage"
+    },
+    verification: {
+      title: "Verify your email address",
+      description: "We've sent a 4-digit PIN code to {email}. Enter the code to complete verification.",
+      pin_code: "PIN Code",
+      pin_placeholder: "Enter 4-digit PIN",
+      verifying: "Verifying...",
+      verify: "Verify PIN",
+      sending: "Sending...",
+      resend: "Resend PIN",
+      failed: "Verification Failed",
+      invalid_pin: "Invalid PIN. Please check your email and try again.",
+      error: "An error occurred during PIN verification."
     }
   }
 };

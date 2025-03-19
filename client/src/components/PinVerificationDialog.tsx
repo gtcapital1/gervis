@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 import {
   Dialog,
@@ -101,6 +101,8 @@ export function PinVerificationDialog({
     }
   };
 
+  const [verificationSuccessful, setVerificationSuccessful] = useState(false);
+
   const onSubmit = async (data: PinVerificationFormValues) => {
     try {
       setIsVerifying(true);
@@ -116,27 +118,29 @@ export function PinVerificationDialog({
       });
 
       if (response.success) {
-        // Tutti gli utenti devono aspettare l'approvazione dopo la verifica dell'email
+        setVerificationSuccessful(true);
+        
+        // Notifica all'utente che la verifica è stata completata
         toast({
-          title: "Verifica completata",
-          description: "Email verificata con successo. In attesa di approvazione da parte del management di Gervis.",
+          title: t('approval.email_confirmation'),
+          description: `${t('approval.email_sent_to')} ${email}`,
           variant: "default",
-          duration: 8000, // 8 secondi
+          duration: 5000,
         });
         
         // Mostri un toast più a lungo per enfatizzare il messaggio di approvazione in attesa
         setTimeout(() => {
           toast({
-            title: "Approvazione richiesta",
-            description: "Il tuo account è in attesa di approvazione. Riceverai un'email quando sarà approvato.",
+            title: t('approval.title'),
+            description: t('approval.status_message'),
             variant: "default",
-            duration: 10000, // 10 secondi
+            duration: 8000,
           });
         }, 1000);
         
-        // Chiudi il dialog senza chiamare la funzione di successo che reindirizza
+        // Chiudi il dialog e chiama onSuccess per reindirizzare l'utente
         setTimeout(() => {
-          onClose();
+          onSuccess();
         }, 2000);
       } else {
         toast({
@@ -159,66 +163,94 @@ export function PinVerificationDialog({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Verifica il tuo indirizzo email</DialogTitle>
-          <DialogDescription>
-            Ti abbiamo inviato un codice PIN di 4 cifre all'indirizzo {email}. Inserisci il codice per completare la verifica.
-          </DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="pin"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Codice PIN</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Inserisci il PIN a 4 cifre"
-                      {...field}
-                      maxLength={4}
-                      className="text-center text-lg letter-spacing-2"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <div className="flex flex-col gap-2">
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isVerifying}
-              >
-                {isVerifying ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Verifica in corso...
-                  </>
-                ) : (
-                  "Verifica PIN"
-                )}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleResendPin}
-                disabled={isResending}
-              >
-                {isResending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Invio in corso...
-                  </>
-                ) : (
-                  "Invia nuovo PIN"
-                )}
-              </Button>
+        {verificationSuccessful ? (
+          // Schermata di successo
+          <>
+            <DialogHeader>
+              <DialogTitle>{t('approval.email_confirmation')}</DialogTitle>
+              <DialogDescription>
+                {t('approval.email_sent_to')} <span className="font-medium">{email}</span>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center py-6">
+              <div className="rounded-full bg-green-100 p-3 mb-4">
+                <CheckCircle2 className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-lg font-medium mb-2">{t('approval.title')}</h3>
+              <p className="text-center text-gray-500 mb-4">
+                {t('approval.status_message')}
+              </p>
+              <p className="text-center text-sm text-gray-500">
+                {t('approval.next_steps')}
+              </p>
             </div>
-          </form>
-        </Form>
+          </>
+        ) : (
+          // Form di verifica
+          <>
+            <DialogHeader>
+              <DialogTitle>{t('verification.title') || 'Verifica il tuo indirizzo email'}</DialogTitle>
+              <DialogDescription>
+                {t('verification.description')?.replace('{email}', email) || 
+                  `Ti abbiamo inviato un codice PIN di 4 cifre all'indirizzo ${email}. Inserisci il codice per completare la verifica.`}
+              </DialogDescription>
+            </DialogHeader>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="pin"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('verification.pin_code') || 'Codice PIN'}</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder={t('verification.pin_placeholder') || "Inserisci il PIN a 4 cifre"}
+                          {...field}
+                          maxLength={4}
+                          className="text-center text-lg letter-spacing-2"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex flex-col gap-2">
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isVerifying}
+                  >
+                    {isVerifying ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('verification.verifying') || 'Verifica in corso...'}
+                      </>
+                    ) : (
+                      t('verification.verify') || 'Verifica PIN'
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={handleResendPin}
+                    disabled={isResending}
+                  >
+                    {isResending ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('verification.sending') || 'Invio in corso...'}
+                      </>
+                    ) : (
+                      t('verification.resend') || 'Invia nuovo PIN'
+                    )}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );
