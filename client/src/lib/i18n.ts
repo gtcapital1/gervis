@@ -260,6 +260,37 @@ const resourcesIt = {
       en: "Inglese",
       it: "Italiano"
     },
+    contact: {
+      title: "Contattaci",
+      subtitle: "Hai domande? Ci piacerebbe sentirti.",
+      error: "C'è stato un errore nell'invio del tuo messaggio. Riprova.",
+      form: {
+        firstName: "Nome",
+        lastName: "Cognome",
+        email: "Email",
+        company: "Società",
+        message: "Messaggio",
+        privacy: "Acconsento al trattamento dei miei dati per ricevere una risposta alla mia richiesta.",
+        submit: "Invia Messaggio",
+        submitting: "Invio in corso...",
+        success: "Messaggio Inviato con Successo!",
+        success_message: "Grazie per averci contattato. Ti risponderemo al più presto.",
+        placeholders: {
+          firstName: "Inserisci il tuo nome",
+          lastName: "Inserisci il tuo cognome",
+          email: "Inserisci la tua email",
+          company: "Inserisci il nome della tua società",
+          message: "Come possiamo aiutarti?"
+        }
+      },
+      validation: {
+        firstName: "Il nome è obbligatorio",
+        lastName: "Il cognome è obbligatorio",
+        email: "Inserisci un indirizzo email valido",
+        message: "Inserisci il tuo messaggio",
+        privacy: "Devi accettare i termini sulla privacy"
+      }
+    },
     client: {
       loading_details: "Caricamento dettagli cliente...",
       error_loading: "Errore nel caricamento dei dettagli cliente.",
@@ -715,7 +746,7 @@ const resourcesEn = {
         firstName: "First Name",
         lastName: "Last Name",
         email: "Email",
-        company: "Società (Opzionale)",
+        company: "Company",
         message: "Message",
         privacy: "I agree to the processing of my data for the purpose of receiving a response to my inquiry.",
         submit: "Send Message",
