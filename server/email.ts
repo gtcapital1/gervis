@@ -45,7 +45,8 @@ const options: SMTPTransport.Options = {
   secure: true, // Per la porta 465 deve essere true
   auth: {
     user: emailConfig.user,
-    pass: emailConfig.pass
+    pass: emailConfig.pass,
+    type: 'login' // Specifica esplicitamente il tipo di autenticazione
   },
   tls: {
     rejectUnauthorized: false, // Non verificare il certificato
@@ -56,7 +57,18 @@ const options: SMTPTransport.Options = {
 };
 
 console.log("DEBUG - Creazione transporter nodemailer");
+// Aggiungi debug logger per nodemailer
 const transporter = nodemailer.createTransport(options);
+
+// Abilita modalità di debug estesa
+if (process.env.NODE_ENV !== 'production') {
+  transporter.set('debug', true);
+}
+
+// Log aggiuntivo per verificare che le credenziali siano state impostate correttamente
+console.log("DEBUG - Verifica configurazione transporter:");
+console.log("Auth user impostato:", !!transporter.options.auth?.user);
+console.log("Auth password impostata:", !!transporter.options.auth?.pass);
 
 // Verifica la connessione al server SMTP
 console.log("DEBUG - Verifica connessione SMTP...");
