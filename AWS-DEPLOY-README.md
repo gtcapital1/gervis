@@ -181,6 +181,20 @@ Prima di iniziare, assicurati di avere:
 
 6. **Esegui le migrazioni del database**:
    ```bash
+   # Assicurati che il file drizzle.config.json esista
+   # Se non esiste, crealo con il seguente contenuto:
+   cat > drizzle.config.json << EOF
+{
+  "out": "./migrations",
+  "schema": "./shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "\$DATABASE_URL"
+  }
+}
+EOF
+
+   # Esegui la migrazione
    npm run db:push
    ```
 
@@ -256,6 +270,19 @@ Questo metodo è consigliato se riscontri problemi durante il build sul server A
    ```bash
    # Installa drizzle-kit se necessario
    npm install -g drizzle-kit
+   
+   # Assicurati che il file drizzle.config.json esista
+   # Se non esiste, crealo con il seguente contenuto:
+   cat > drizzle.config.json << EOF
+{
+  "out": "./migrations",
+  "schema": "./shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "\$DATABASE_URL"
+  }
+}
+EOF
    
    # Esegui le migrazioni
    npm run db:push
@@ -397,6 +424,21 @@ git pull  # Se hai usato git
 
 npm ci
 npm run build
+
+# Assicurati che il file drizzle.config.json esista prima di eseguire db:push
+if [ ! -f drizzle.config.json ]; then
+  cat > drizzle.config.json << EOF
+{
+  "out": "./migrations",
+  "schema": "./shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "\$DATABASE_URL"
+  }
+}
+EOF
+fi
+
 npm run db:push  # Solo se ci sono modifiche allo schema
 pm2 restart gervis
 ```
