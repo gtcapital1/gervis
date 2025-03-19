@@ -1,0 +1,114 @@
+ubuntu@ip-172-31-46-173:/var/www/gervis$ # 1. Verifica che la directory dist esista e contenga i file necessari
+ls -la /var/www/gervis/dist
+
+# 2. Avvia l'applicazione con PM2
+cd /var/www/gervis
+pm2 start ecosystem.config.cjs
+
+# 3. Verifica lo stato di PM2
+pm2 status
+
+# 4. Verifica che l'applicazione risponda localmente
+curl http://localhost:5000
+
+# 5. Verifica che Nginx sia configurato correttamente e in esecuzione
+sudo systemctl status nginx
+total 72
+drwxr-xr-x  3 ubuntu ubuntu  4096 Mar 19 15:10 .
+drwxr-xr-x 12 ubuntu ubuntu  4096 Mar 19 15:28 ..
+-rwxr-xr-x  1 ubuntu ubuntu 58523 Mar 19 15:29 index.js
+drwxr-xr-x  3 ubuntu ubuntu  4096 Mar 19 15:29 public
+[PM2] Applying action restartProcessId on app [gervis](ids: [ 0 ])
+[PM2] [gervis](0) ✓
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ gervis             │ fork     │ 109  │ online    │ 0%       │ 21.8mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+┌────┬────────────────────┬──────────┬──────┬───────────┬──────────┬──────────┐
+│ id │ name               │ mode     │ ↺    │ status    │ cpu      │ memory   │
+├────┼────────────────────┼──────────┼──────┼───────────┼──────────┼──────────┤
+│ 0  │ gervis             │ fork     │ 109  │ online    │ 0%       │ 57.2mb   │
+└────┴────────────────────┴──────────┴──────┴───────────┴──────────┴──────────┘
+curl: (7) Failed to connect to localhost port 5000 after 0 ms: Connection refused
+● nginx.service - A high performance web server and a reverse proxy server
+     Loaded: loaded (/lib/systemd/system/nginx.service; enabled; vendor preset:>
+     Active: active (running) since Wed 2025-03-19 15:17:45 UTC; 13min ago
+       Docs: man:nginx(8)
+   Main PID: 25302 (nginx)
+      Tasks: 3 (limit: 4586)
+     Memory: 5.2M
+        CPU: 159ms
+     CGroup: /system.slice/nginx.service
+             ├─25302 "nginx: master process /usr/sbin/nginx -g daemon on; maste>
+             ├─25673 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" ">
+             └─25674 "nginx: worker process" "" "" "" "" "" "" "" "" "" "" "" ">
+
+Mar 19 15:17:45 ip-172-31-46-173 systemd[1]: Starting A high performance web se>
+Mar 19 15:17:45 ip-172-31-46-173 systemd[1]: Started A high performance web ser>
+ubuntu@ip-172-31-46-173:/var/www/gervis$ # Controlla la configurazione di Nginx
+sudo cat /etc/nginx/sites-available/gervis
+
+# Riavvia Nginx per applicare eventuali modifiche
+sudo systemctl restart nginx
+server {
+    server_name gervis.it www.gervis.it 15.237.238.255;
+    root /var/www/gervis/dist/client;
+
+    # Logging
+    access_log /var/log/nginx/gervis.access.log;
+    error_log /var/log/nginx/gervis.error.log;
+
+    # Gzip
+    gzip on;
+    gzip_comp_level 5;
+    gzip_min_length 256;
+    gzip_proxied any;
+    gzip_types application/javascript application/json application/xml text/css text/plain text/xml;
+
+    # Gestione dei file statici
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 30d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # Proxy verso l'applicazione Node.js
+    location / {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    listen 443 ssl; # managed by Certbot
+    ssl_certificate /etc/letsencrypt/live/gervis.it/fullchain.pem; # managed by Certbot
+    ssl_certificate_key /etc/letsencrypt/live/gervis.it/privkey.pem; # managed by Certbot
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+
+}
+server {
+    if ($host = www.gervis.it) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    if ($host = gervis.it) {
+        return 301 https://$host$request_uri;
+    } # managed by Certbot
+
+
+    listen 80;
+    server_name gervis.it www.gervis.it 15.237.238.255;
+    return 404; # managed by Certbot
+
+
+
+
+}ubuntu@ip-172-31-46-173:/var/www/gervis$ 
