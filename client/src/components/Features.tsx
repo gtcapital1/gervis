@@ -15,7 +15,7 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon, p
   return (
     <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border ${isComingSoon ? 'border-blue-800' : 'border-gray-800'} transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
       {isComingSoon && (
-        <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
+        <div className="absolute top-4 right-4 bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
           {plusFeature ? 'Gervis+' : t('common.pro_version')}
         </div>
       )}
@@ -62,7 +62,7 @@ export default function Features() {
     {
       icon: <TrendingUp className="h-7 w-7 text-green-400" />,
       title: "Daily Market Update",
-      description: "Ricevi aggiornamenti giornalieri sui mercati finanziari, analisi delle tendenze e principali driver economici per rimanere sempre informato.",
+      description: "Receive daily updates on financial markets, trend analysis and key economic drivers to stay always informed about market developments.",
       learnMoreColor: "text-green-400",
       isComingSoon: true,
       plusFeature: true
