@@ -1,60 +1,79 @@
-# Aggiornamento Gervis - 19 Marzo 2025
+# Gervis - Istruzioni per Aggiornamento
 
-Questo aggiornamento risolve i problemi relativi al caricamento delle variabili d'ambiente e alla configurazione del server SMTP per l'invio di email.
+Questo documento contiene le istruzioni per aggiornare l'applicazione Gervis tramite GitHub.
 
-## Modifiche principali
+## File Importanti per l'Aggiornamento
 
-1. **Caricamento migliorato del file `.env`**
-   - Implementato caricamento esplicito all'avvio dell'applicazione
-   - Aggiunta verifica con log dettagliati delle variabili caricate
+- **create-env-file.sh**: Script per generare automaticamente il file `.env` in produzione
+- **.env.example**: Template per il file di configurazione ambientale
+- **configurazione-email-aruba.md**: Guida per la configurazione SMTP con Aruba
+- **istruzioni-update-github.md**: Guida dettagliata per aggiornare tramite Git
+- **checklist-deploy.md**: Checklist completa per il deployment
+- **test-smtp.js**: Utility per testare la connessione SMTP
 
-2. **Configurazione ottimizzata per SMTP Aruba**
-   - Disabilitata verifica certificato TLS
-   - Rimosse impostazioni di connessione pool che causavano problemi
-   - Aggiunto logging dettagliato per diagnostica
+## Procedura di aggiornamento rapida
 
-3. **Configurazione PM2 aggiornata**
-   - Aggiunta configurazione specifica per caricare il file `.env`
-   - Migliorata gestione degli errori
+1. **Connessione al server**:
+   ```bash
+   ssh username@your-server-ip
+   ```
 
-## Istruzioni per l'installazione
+2. **Navigazione e backup**:
+   ```bash
+   cd /var/www/gervis
+   pg_dump -U username -h hostname database_name > backup_$(date +%Y%m%d).sql
+   ```
 
-1. Scompattare questo archivio nella directory dell'applicazione
-2. Verificare che il file `.env` contenga le variabili corrette (vedi checklist-deploy.md)
-3. Riavviare l'applicazione con `pm2 restart gervis`
-4. Verificare i log per eventuali errori con `pm2 logs gervis --err --lines 30`
+3. **Pull da GitHub**:
+   ```bash
+   git pull origin main
+   ```
 
-## Variabili d'ambiente cruciali per il funzionamento
+4. **Aggiornamento dipendenze**:
+   ```bash
+   npm ci
+   ```
 
-```
-# Database
-DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[database]
+5. **Aggiornamento ambiente**:
+   ```bash
+   ./create-env-file.sh
+   ```
 
-# Server e ambiente
-NODE_ENV=production
-HOST=0.0.0.0
-PORT=5000
-BASE_URL=https://gervis.it
+6. **Riavvio applicazione**:
+   ```bash
+   pm2 restart gervis
+   ```
 
-# Email (essenziali per l'invio di notifiche e onboarding)
-SMTP_USER=registration@gervis.it
-SMTP_PASS=[password-email]
-EMAIL_USER=registration@gervis.it  # fallback per SMTP_USER
-EMAIL_PASSWORD=[password-email]    # fallback per SMTP_PASS
+7. **Verifica funzionamento**:
+   ```bash
+   node test-smtp.js  # Verifica invio email
+   pm2 logs gervis    # Controlla i log per errori
+   ```
 
-# Sicurezza
-SESSION_SECRET=[valore-casuale-lungo]
-```
+## Modifiche in questo aggiornamento
 
-## Contenuti del pacchetto
+- Risolto problema di caricamento variabili d'ambiente in ambiente ESM
+- Migliorata gestione delle connessioni SMTP con Aruba
+- Aggiunti script di utilità per il deployment e la manutenzione
+- Aggiunta documentazione dettagliata per la risoluzione dei problemi
 
-- `server/` - Codice backend aggiornato
-- `client/` - Codice frontend
-- `shared/` - Modelli e schemi dati
-- `test-smtp.js` - Script di diagnostica per verificare la configurazione email
-- `checklist-deploy.md` - Lista di controllo per il deployment
-- `ecosystem.config.cjs` - Configurazione aggiornata per PM2
+## Risoluzione problemi comuni
 
-## Supporto
+### Errore "Missing credentials for PLAIN"
 
-Per assistenza, contattare il team di sviluppo.
+Questo errore indica un problema con le credenziali SMTP. Verificare:
+- Presenza variabili `SMTP_USER` e `SMTP_PASS` nel file `.env`
+- Correttezza della password Aruba
+- Corretta configurazione del server SMTP
+
+### Errore "Cannot load dotenv"
+
+Questo errore è legato alla modalità di caricamento delle variabili d'ambiente:
+- Assicurarsi di utilizzare `import 'dotenv/config'` nei file principali
+- Verificare che il file `.env` esista nella root del progetto
+
+## Contatti
+
+In caso di problemi con l'aggiornamento contattare:
+- supporto@gervis.it
+- Numero di emergenza: XXX-XXXXXXX
