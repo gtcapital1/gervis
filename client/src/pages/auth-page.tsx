@@ -44,11 +44,25 @@ import { Separator } from "@/components/ui/separator";
 
 // Form schemas
 // Schemi con traduzioni - vengono creati nella funzione AuthPage
-let loginSchema: z.ZodObject<any, any>;
-let registerSchema: z.ZodObject<any, any>;
+let loginSchema: any;
+let registerSchema: any;
 
-type LoginFormValues = z.infer<typeof loginSchema>;
-type RegisterFormValues = z.infer<typeof registerSchema>;
+type LoginFormValues = {
+  email: string;
+  password: string;
+};
+
+type RegisterFormValues = {
+  firstName: string;
+  lastName: string;
+  company: string;
+  isIndependent: boolean;
+  email: string;
+  phone?: string;
+  password: string;
+  confirmPassword: string;
+  username?: string;
+};
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
@@ -248,7 +262,10 @@ export default function AuthPage() {
       // Log per debug
       console.log("Tentativo di login con:", { email: data.email, passwordLength: data.password.length });
       
-      loginMutation.mutate(data, {
+      loginMutation.mutate({ 
+        email: data.email, 
+        password: data.password 
+      }, {
         onSuccess: (response) => {
           console.log("Login success response:", response);
           
@@ -351,7 +368,16 @@ export default function AuthPage() {
         username: `${userData.firstName.toLowerCase()}.${userData.lastName.toLowerCase()}`
       };
       
-      registerMutation.mutate(userDataWithUsername, {
+      registerMutation.mutate({
+        email: userData.email,
+        password: userData.password,
+        username: userDataWithUsername.username,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        company: userData.company,
+        isIndependent: userData.isIndependent,
+        phone: userData.phone
+      }, {
         onSuccess: (response) => {
           console.log("Registration success response:", response);
           

@@ -217,7 +217,14 @@ export default function OnboardingForm() {
   
   async function onSubmit(data: OnboardingFormValues) {
     setFormError(null);
-    mutation.mutate(data);
+    try {
+      mutation.mutate(data);
+    } catch (error: any) {
+      // Se c'è un errore relativo al token, mostra un messaggio più specifico
+      if (error.message?.includes("token")) {
+        setFormError("Errore durante l'invio del modulo. Per favore, richiedi un nuovo link di onboarding.");
+      }
+    }
   }
   
   if (isLoading) {
