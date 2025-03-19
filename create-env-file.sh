@@ -1,102 +1,74 @@
 #!/bin/bash
 
-# Script per creare e configurare il file .env per Gervis
+# Script per generare il file .env per l'applicazione Gervis
+# Questo script crea un file .env configurato per l'ambiente di produzione
 
-# Colori per output
+set -e
+
+# Colori per l'output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 YELLOW='\033[0;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Funzione per stampare messaggi di stato
-print_status() {
-  echo -e "${BLUE}[INFO]${NC} $1"
-}
+# Funzioni per i messaggi
+print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
+print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
 
-# Funzione per stampare messaggi di successo
-print_success() {
-  echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+# Directory corrente
+CURRENT_DIR=$(pwd)
+print_status "Directory corrente: $CURRENT_DIR"
 
-# Funzione per stampare messaggi di errore
-print_error() {
-  echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# Funzione per stampare messaggi di avvertimento
-print_warning() {
-  echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-# Banner di avvio
-echo "╔═════════════════════════════════════════════════╗"
-echo "║                                                 ║"
-echo "║     CONFIGURAZIONE FILE .ENV PER GERVIS        ║"
-echo "║                                                 ║"
-echo "╚═════════════════════════════════════════════════╝"
-echo ""
-
-# Controlla se il file .env esiste già - in modalità non interattiva, sovrascriviamo sempre
-if [ -f ".env" ]; then
-  print_warning "Il file .env esiste già, ma sarà preservato per mantenere le configurazioni."
-  exit 0
-fi
-
-# Generazione del session secret casuale
+# Generare un session secret se non specificato
 SESSION_SECRET=$(openssl rand -hex 32)
 
-# Imposta i valori predefiniti (modalità non interattiva)
-print_status "Impostazione dei valori predefiniti per il file .env..."
-
-# Determina i valori di base
-DATABASE_URL="postgresql://gervis:Oliver1@localhost:5432/gervis"
-PORT=3000
-BASE_URL="https://gervis.it"
-
-# Impostazioni email predefinite
-SETUP_EMAIL="s"
-EMAIL_HOST="smtp.example.com"
-EMAIL_PORT=587
-EMAIL_USER="noreply@gervis.it"
-EMAIL_PASSWORD="email_password_placeholder"
-EMAIL_FROM="Gervis <noreply@gervis.it>"
+# Imposta le variabili di default
+DB_HOST=${DB_HOST:-"localhost"}
+DB_PORT=${DB_PORT:-"5432"}
+DB_USER=${DB_USER:-"gervis"}
+DB_PASSWORD=${DB_PASSWORD:-"Oliver1"}
+DB_NAME=${DB_NAME:-"gervis"}
+PORT=${PORT:-"5000"}
+NODE_ENV=${NODE_ENV:-"production"}
+HOST=${HOST:-"0.0.0.0"}
+BASE_URL=${BASE_URL:-"https://gervis.it"}
 
 # Crea il file .env
-print_status "Creazione del file .env..."
+cat > "$CURRENT_DIR/.env" << EOF
+# File di configurazione per Gervis
 
-cat > .env << EOF
-# Configurazione ambiente Gervis
-NODE_ENV=production
+# Ambiente
+NODE_ENV=$NODE_ENV
 PORT=$PORT
+HOST=$HOST
+BASE_URL=$BASE_URL
 
 # Database
-DATABASE_URL=$DATABASE_URL
+DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME
 
 # Sessione
 SESSION_SECRET=$SESSION_SECRET
 
-# URL di base per i link nelle email
-BASE_URL=$BASE_URL
+# SMTP (per invio email)
+# Impostare queste variabili per abilitare l'invio di email
+# SMTP_HOST=smtp.example.com
+# SMTP_PORT=587
+# SMTP_USER=user@example.com
+# SMTP_PASS=yourpassword
+# SMTP_FROM=noreply@example.com
 EOF
 
-# Aggiungi le impostazioni email se configurate
-if [[ $SETUP_EMAIL == "s" || $SETUP_EMAIL == "S" ]]; then
-  cat >> .env << EOF
+# Imposta i permessi corretti
+chmod 600 "$CURRENT_DIR/.env"
 
-# Email
-EMAIL_HOST=$EMAIL_HOST
-EMAIL_PORT=$EMAIL_PORT
-EMAIL_USER=$EMAIL_USER
-EMAIL_PASSWORD=$EMAIL_PASSWORD
-EMAIL_FROM="$EMAIL_FROM"
-EOF
-fi
+print_success "File .env creato con successo in $CURRENT_DIR/.env"
+print_status "Configurazione:"
+print_status "- Node.js ambiente: $NODE_ENV"
+print_status "- Server: $HOST:$PORT"
+print_status "- Database: postgresql://$DB_USER:****@$DB_HOST:$DB_PORT/$DB_NAME"
+print_status "- Base URL: $BASE_URL"
 
-print_success "File .env creato con successo!"
-echo ""
-echo "Puoi modificare manualmente questo file in qualsiasi momento."
-echo "Per applicare le modifiche, riavvia l'applicazione:"
-echo "  pm2 restart gervis  # Se stai usando PM2"
-echo "  npm run dev         # In ambiente di sviluppo"
-echo ""
+print_warning "IMPORTANTE: Se vuoi configurare l'invio di email, modifica il file .env e imposta le variabili SMTP_*"

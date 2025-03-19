@@ -72,7 +72,7 @@ app.use((req, res, next) => {
   // Use the environment port if available, otherwise default to 5000
   // this serves both the API and the client
   const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
-  const host = process.env.HOST || "localhost"; // Use localhost on macOS to avoid AirPlay conflicts
+  const host = process.env.HOST || "0.0.0.0"; // Use 0.0.0.0 to allow external connections
   
   server.listen({
     port,
