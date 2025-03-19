@@ -17,11 +17,15 @@ const emailConfig = getEmailConfig();
 const transporter = nodemailer.createTransport({
   host: emailConfig.host,
   port: emailConfig.port,
-  secure: emailConfig.secure,
+  secure: true,
   auth: {
     user: emailConfig.user,
     pass: emailConfig.pass,
   },
+  tls: {
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1'
+  }
 });
 
 // English content
