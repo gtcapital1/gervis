@@ -14,21 +14,42 @@ function getEmailConfig() {
 
 // Supporta sia il formato EMAIL_ che SMTP_ delle variabili ambiente
 const emailConfig = getEmailConfig();
-const transporter = nodemailer.createTransport({
-  host: emailConfig.host,
-  port: emailConfig.port,
-  secure: true,
-  auth: {
-    user: emailConfig.user,
-    pass: emailConfig.pass,
-  },
-  tls: {
-    // Non verificare il certificato
-    rejectUnauthorized: false,
-    // Compatibilità con versioni meno recenti di TLS
-    minVersion: 'TLSv1'
-  }
-});
+
+// Proviamo una configurazione alternativa per il server di Aruba
+let transportOptions;
+
+// Per Aruba utilizziamo configurazioni specifiche per risolvere problemi SSL
+if (emailConfig.host.includes('aruba.it')) {
+  transportOptions = {
+    host: emailConfig.host,
+    port: emailConfig.port,
+    secure: true, // Per la porta 465 deve essere true
+    auth: {
+      user: emailConfig.user,
+      pass: emailConfig.pass,
+    },
+    tls: {
+      rejectUnauthorized: false, // Non verificare il certificato
+      minVersion: 'TLSv1', // Usa versione minima di TLS
+      ciphers: 'SSLv3', // Prova con SSLv3 per retrocompatibilità
+    },
+    debug: true // Abilita il debug per vedere maggiori informazioni
+  };
+} else {
+  // Configurazione standard per altri server
+  transportOptions = {
+    host: emailConfig.host,
+    port: emailConfig.port,
+    secure: emailConfig.port === 465,
+    auth: {
+      user: emailConfig.user,
+      pass: emailConfig.pass,
+    }
+  };
+}
+
+// Crea il transporter con le opzioni appropriate
+const transporter = nodemailer.createTransport(transportOptions);
 
 // English content
 const englishContent = {
