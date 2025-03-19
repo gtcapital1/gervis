@@ -1,0 +1,50 @@
+ec2-user@ip-172-31-36-102 gervis]$ # 1. Installa PostgreSQL 15
+sudo dnf install -y postgresql15 pos# 1. Installa PostgreSQL 1515-contrib
+sudo dnf install -y postgresql15 postgresql15-server postgresql15-contrib
+# 2. Inizializza il database di PostgreSQL
+# 2. Inizializza il database di PostgreSQLo è:
+# In Amazon Linux 2023, il comando corretto è: postgresql-15
+sudo /usr/bin/postgresql-setup --initdb --unit postgresql-15
+# 3. Modifica pg_hba.conf per permettere autenticazione password
+# 3. Modifica pg_hba.conf per permettere autenticazione passwordba.conf.bak
+sudo cp /var/lib/pgsql/data/pg_hba.conf /var/lib/pgsql/data/pg_hba.conf.bak
+sudo sed -i 's/ident/md5/g' /var/lib/pgsql/data/pg_hba.conf
+sudo sed -i 's/peer/md5/g' /var/lib/pgsql/data/pg_hba.conf
+# 4. Avvia e abilita il servizio PostgreSQL
+# 4. Avvia e abilita il servizio PostgreSQL
+sudo systemctl start postgresqll
+sudo systemctl enable postgresql
+# 5. Verifica che il servizio sia attivo
+# 5. Verifica che il servizio sia attivo
+sudo systemctl status postgresql
+# 6. Crea database e utente (dopo aver verificato che PostgreSQL sia in esecuzio# 6. Crea database e utente (dopo aver verificato che PostgreSQL sia in esecuzione)o -i -u postgres psql -c "CREATE DATABASE gervis;"
+sudo -i -u postgres psql -c "CREATE DATABASE gervis;"PASSWORD 'Oliver1';"
+sudo -i -u postgres psql -c "CREATE USER gervis WITH PASSWORD 'Oliver1';"ervis;"sudo -i -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gervis TO gervis;"
+Last metadata expiration check: 0:01:44 ago on Wed Mar 19 14:34:36 2025.
+Package postgresql15-15.12-1.amzn2023.0.1.x86_64 is already installed.
+Package postgresql15-server-15.12-1.amzn2023.0.1.x86_64 is already installed.
+Package postgresql15-contrib-15.12-1.amzn2023.0.1.x86_64 is already installed.
+Dependencies resolved.
+Nothing to do.
+Complete!
+FATAL: no db datadir (PGDATA) configured for 'postgresql-15.service' unit
+cp: cannot stat '/var/lib/pgsql/data/pg_hba.conf': No such file or directory
+sed: can't read /var/lib/pgsql/data/pg_hba.conf: No such file or directory
+sed: can't read /var/lib/pgsql/data/pg_hba.conf: No such file or directory
+Job for postgresql.service failed because the control process exited with error code.
+See "systemctl status postgresql.service" and "journalctl -xeu postgresql.service" for details.
+Created symlink /etc/systemd/system/multi-user.target.wants/postgresql.service → /usr/lib/systemd/system/postgresql.service.
+× postgresql.service - PostgreSQL database server
+     Loaded: loaded (/usr/lib/systemd/system/postgresql.service; enabled; prese>
+     Active: failed (Result: exit-code) since Wed 2025-03-19 14:36:21 UTC; 635m>
+        CPU: 2ms
+
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal systemd[1]: Startin>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal postgresql-check-db>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal postgresql-check-db>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal postgresql-check-db>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal postgresql-check-db>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal systemd[1]: postgre>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal systemd[1]: postgre>
+Mar 19 14:36:21 ip-172-31-36-102.eu-west-3.compute.internal systemd[1]: Failed >
+lines 1-13/13 (END)
