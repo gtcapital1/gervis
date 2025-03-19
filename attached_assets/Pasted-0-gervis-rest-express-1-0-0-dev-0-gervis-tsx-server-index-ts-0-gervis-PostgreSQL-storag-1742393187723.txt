@@ -1,0 +1,42 @@
+0|gervis  | > rest-express@1.0.0 dev
+0|gervis  | > tsx server/index.ts
+0|gervis  | PostgreSQL storage initialized with database connection
+0|gervis  | /var/www/gervis/server/vite.ts:77
+0|gervis  |     throw new Error(
+0|gervis  |           ^
+0|gervis  | Error: Could not find the build directory: /var/www/gervis/server/public, make sure to build the client first
+0|gervis  |     at serveStatic (/var/www/gervis/server/vite.ts:77:11)
+0|gervis  |     at <anonymous> (/var/www/gervis/server/index.ts:69:5)
+0|gervis  | Node.js v18.20.6
+0|gervis  | > rest-express@1.0.0 dev
+0|gervis  | > tsx server/index.ts
+0|gervis  | PostgreSQL storage initialized with database connection
+0|gervis  | /var/www/gervis/server/vite.ts:77
+0|gervis  |     throw new Error(
+0|gervis  |           ^
+0|gervis  | Error: Could not find the build directory: /var/www/gervis/server/public, make sure to build the client first
+0|gervis  |     at serveStatic (/var/www/gervis/server/vite.ts:77:11)
+0|gervis  |     at <anonymous> (/var/www/gervis/server/index.ts:69:5)
+0|gervis  | Node.js v18.20.6
+0|gervis  | > rest-express@1.0.0 dev
+0|gervis  | > tsx server/index.ts
+0|gervis  | PostgreSQL storage initialized with database connection
+0|gervis  | /var/www/gervis/server/vite.ts:77
+0|gervis  |     throw new Error(
+0|gervis  |           ^
+0|gervis  | Error: Could not find the build directory: /var/www/gervis/server/public, make sure to build the client first
+0|gervis  |     at serveStatic (/var/www/gervis/server/vite.ts:77:11)
+0|gervis  |     at <anonymous> (/var/www/gervis/server/index.ts:69:5)
+0|gervis  | Node.js v18.20.6
+0|gervis  | > rest-express@1.0.0 dev
+0|gervis  | > tsx server/index.ts
+0|gervis  | PostgreSQL storage initialized with database connection
+0|gervis  | /var/www/gervis/server/vite.ts:77
+0|gervis  |     throw new Error(
+0|gervis  |           ^
+0|gervis  | Error: Could not find the build directory: /var/www/gervis/server/public, make sure to build the client first
+0|gervis  |     at serveStatic (/var/www/gervis/server/vite.ts:77:11)
+0|gervis  |     at <anonymous> (/var/www/gervis/server/index.ts:69:5)
+0|gervis  | Node.js v18.20.6
+0|gervis  | > rest-express@1.0.0 dev
+0|gervis  | > tsx server/index.ts
