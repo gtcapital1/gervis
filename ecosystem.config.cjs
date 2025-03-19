@@ -22,7 +22,9 @@ module.exports = {
         "npm run build",
         "chmod +x ./fix-public-path.sh",
         "./fix-public-path.sh --force"
-      ]
+      ],
+      // Indica esplicitamente a PM2 di caricare il file .env
+      env_file: ".env"
     }
   ]
 };
