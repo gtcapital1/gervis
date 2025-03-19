@@ -91,17 +91,66 @@ set -e
 # Colori per output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
+YELLOW='\033[0;33m'
 NC='\033[0m' # No Color
 
-echo -e "\${GREEN}[1/6]\${NC} Estrazione del pacchetto..."
+# Funzione per verificare se un comando è disponibile
+check_command() {
+  command -v \$1 &> /dev/null
+  return \$?
+}
+
+echo -e "\${GREEN}[1/7]\${NC} Verifica prerequisiti..."
+
+# Verifica se Node.js è installato
+if ! check_command nodejs && ! check_command node; then
+  echo -e "\${YELLOW}[WARN]\${NC} Node.js non è installato. Installazione in corso..."
+  
+  # Determina il tipo di sistema operativo
+  if [ -f /etc/debian_version ]; then
+    # Debian/Ubuntu
+    sudo apt-get update
+    curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  elif [ -f /etc/redhat-release ] || [ -f /etc/system-release ]; then
+    # CentOS/RHEL/Amazon Linux
+    curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+    sudo yum install -y nodejs
+  else
+    echo -e "\${RED}[ERROR]\${NC} Sistema operativo non supportato per l'installazione automatica di Node.js"
+    echo "Installa Node.js manualmente e riprova"
+    exit 1
+  fi
+  
+  echo -e "\${GREEN}[OK]\${NC} Node.js installato con successo"
+fi
+
+# Verifica se npm è installato
+if ! check_command npm; then
+  echo -e "\${YELLOW}[WARN]\${NC} npm non è installato. Installazione in corso..."
+  
+  if [ -f /etc/debian_version ]; then
+    sudo apt-get install -y npm
+  elif [ -f /etc/redhat-release ] || [ -f /etc/system-release ]; then
+    sudo yum install -y npm
+  else
+    echo -e "\${RED}[ERROR]\${NC} Sistema operativo non supportato per l'installazione automatica di npm"
+    echo "Installa npm manualmente e riprova"
+    exit 1
+  fi
+  
+  echo -e "\${GREEN}[OK]\${NC} npm installato con successo"
+fi
+
+echo -e "\${GREEN}[2/7]\${NC} Estrazione del pacchetto..."
 cd /tmp
 tar -xzf $DEPLOY_PACKAGE
 
-echo -e "\${GREEN}[2/6]\${NC} Creazione directory di destinazione..."
+echo -e "\${GREEN}[3/7]\${NC} Creazione directory di destinazione..."
 sudo mkdir -p $DEST_DIR
 sudo chown \$(whoami):\$(whoami) $DEST_DIR
 
-echo -e "\${GREEN}[3/6]\${NC} Backup delle configurazioni esistenti..."
+echo -e "\${GREEN}[4/7]\${NC} Backup delle configurazioni esistenti..."
 if [ -d "$DEST_DIR" ]; then
   # Backup del file .env se esiste
   if [ -f "$DEST_DIR/.env" ]; then
@@ -114,7 +163,7 @@ if [ -d "$DEST_DIR" ]; then
   fi
 fi
 
-echo -e "\${GREEN}[4/6]\${NC} Copia dei file..."
+echo -e "\${GREEN}[5/7]\${NC} Copia dei file..."
 # Prima svuota la cartella di destinazione (preservando i backup)
 sudo rm -rf $DEST_DIR/*
 
@@ -132,11 +181,11 @@ if [ -f "/tmp/drizzle.config.json.backup" ]; then
   echo "File drizzle.config.json ripristinato."
 fi
 
-echo -e "\${GREEN}[5/6]\${NC} Installazione delle dipendenze..."
+echo -e "\${GREEN}[6/7]\${NC} Installazione delle dipendenze..."
 cd $DEST_DIR
 npm ci --production
 
-echo -e "\${GREEN}[6/6]\${NC} Configurazione dell'ambiente di produzione..."
+echo -e "\${GREEN}[7/7]\${NC} Configurazione dell'ambiente di produzione..."
 # Rendi eseguibili gli script
 chmod +x $DEST_DIR/deploy/scripts/*.sh
 chmod +x $DEST_DIR/create-env-file.sh 2>/dev/null || true
