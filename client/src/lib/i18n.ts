@@ -147,7 +147,8 @@ const resourcesIt = {
       register_description: "Registrati per iniziare a gestire i tuoi clienti in modo efficiente.",
       creating_account: "Creazione account in corso...",
       back_to_home: "Torna alla Home",
-      independent_advisor: "Sono un consulente finanziario indipendente"
+      independent_advisor: "Sono un consulente finanziario indipendente (senza società)",
+      company_validation_error: "Società è un campo obbligatorio se non sei un consulente indipendente."
     },
     dashboard: {
       clients: "Clienti",
@@ -647,7 +648,8 @@ const resourcesEn = {
       register_description: "Register to start managing your clients efficiently.",
       creating_account: "Creating account...",
       back_to_home: "Back to Home",
-      independent_advisor: "Sono un consulente finanziario indipendente"
+      independent_advisor: "I am an independent financial advisor (without a company)",
+      company_validation_error: "Company is required unless you are an independent advisor"
     },
     onboarding: {
       title: "Financial Profile Questionnaire",

@@ -73,7 +73,7 @@ const registerSchema = z.object({
   message: "Passwords don't match",
   path: ["confirmPassword"],
 }).refine((data) => data.isIndependent || (data.company && data.company.length > 0), {
-  message: "Società è un campo obbligatorio se non sei un consulente indipendente.",
+  message: "Company is required unless you are an independent advisor",
   path: ["company"],
 });
 
