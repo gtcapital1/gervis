@@ -59,6 +59,41 @@ export default function AuthPage() {
   const [verifyPinDialogOpen, setVerifyPinDialogOpen] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [needsVerification, setNeedsVerification] = useState(false);
+  
+  // Definiamo gli schemi di validazione con le traduzioni
+  loginSchema = z.object({
+    email: z.string().email({
+      message: t('auth.validation.email_invalid'),
+    }),
+    password: z.string().min(6, {
+      message: t('auth.validation.password_length'),
+    }),
+  });
+  
+  registerSchema = z.object({
+    firstName: z.string().min(1, {
+      message: t('auth.validation.first_name_required'),
+    }),
+    lastName: z.string().min(1, {
+      message: t('auth.validation.last_name_required'),
+    }),
+    company: z.string(),
+    isIndependent: z.boolean().default(false),
+    email: z.string().email({
+      message: t('auth.validation.email_invalid'),
+    }),
+    phone: z.string().optional(),
+    password: z.string().min(6, {
+      message: t('auth.validation.password_length'),
+    }),
+    confirmPassword: z.string(),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: t('auth.validation.passwords_dont_match'),
+    path: ["confirmPassword"],
+  }).refine((data) => data.isIndependent || (data.company && data.company.length > 0), {
+    message: t('auth.company_validation_error'),
+    path: ["company"],
+  });
 
   // Login form
   const loginForm = useForm<LoginFormValues>({
