@@ -715,7 +715,7 @@ const resourcesEn = {
         firstName: "First Name",
         lastName: "Last Name",
         email: "Email",
-        company: "Company (Optional)",
+        company: "Società (Opzionale)",
         message: "Message",
         privacy: "I agree to the processing of my data for the purpose of receiving a response to my inquiry.",
         submit: "Send Message",
@@ -726,7 +726,7 @@ const resourcesEn = {
           firstName: "Enter your first name",
           lastName: "Enter your last name",
           email: "Enter your email address",
-          company: "Enter your company name",
+          company: "Inserisci il nome della tua società",
           message: "How can we help you?"
         }
       },

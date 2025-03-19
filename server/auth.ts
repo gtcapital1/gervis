@@ -198,7 +198,7 @@ export function setupAuth(app: Express) {
       if (user.approvalStatus === 'pending') {
         return res.status(403).json({
           success: false,
-          message: "Il tuo account è in attesa di approvazione. Sarai informato via email quando la tua registrazione sarà approvata.",
+          message: "In attesa di approvazione da parte del management di Gervis",
           pendingApproval: true
         });
       }

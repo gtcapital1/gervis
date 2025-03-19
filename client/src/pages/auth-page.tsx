@@ -276,7 +276,16 @@ export default function AuthPage() {
               title: "Verifica richiesta",
               description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
             });
-          } else {
+          } 
+          // Se l'utente è in attesa di approvazione
+          else if (error.status === 403 && error.data?.pendingApproval) {
+            toast({
+              title: "Account in attesa",
+              description: "In attesa di approvazione da parte del management di Gervis",
+              variant: "default",
+            });
+          }
+          else {
             toast({
               title: "Login fallito",
               description: error.message || "Si è verificato un errore durante il login. Riprova più tardi.",
