@@ -1,0 +1,202 @@
+Build completata
+[INFO] Configurazione di PM2...
+[INFO] Configurazione di Nginx...
+[INFO] Verifica configurazione Nginx...
+nginx: [emerg] invalid number of arguments in "proxy_set_header" directive in /etc/nginx/sites-enabled/gervis:27
+nginx: configuration file /etc/nginx/nginx.conf test failed
+[ERROR] Errore nella configurazione di Nginx!
+[INFO] Avvio dell'applicazione con PM2...
+
+                        -------------
+
+__/\\\\\\\\\\\\\____/\\\\____________/\\\\____/\\\\\\\\\_____
+ _\/\\\/////////\\\_\/\\\\\\________/\\\\\\__/\\\///////\\\___
+  _\/\\\_______\/\\\_\/\\\//\\\____/\\\//\\\_\///______\//\\\__
+   _\/\\\\\\\\\\\\\/__\/\\\\///\\\/\\\/_\/\\\___________/\\\/___
+    _\/\\\/////////____\/\\\__\///\\\/___\/\\\________/\\\//_____
+     _\/\\\_____________\/\\\____\///_____\/\\\_____/\\\//________
+      _\/\\\_____________\/\\\_____________\/\\\___/\\\/___________
+       _\/\\\_____________\/\\\_____________\/\\\__/\\\\\\\\\\\\\\\_
+        _\///______________\///______________\///__\///////////////__
+
+
+                          Runtime Edition
+
+        PM2 is a Production Process Manager for Node.js applications
+                     with a built-in Load Balancer.
+
+                Start and Daemonize any application:
+                $ pm2 start app.js
+
+                Load Balance 4 instances of api.js:
+                $ pm2 start api.js -i 4
+
+                Monitor in production:
+                $ pm2 monitor
+
+                Make pm2 auto-boot at server restart:
+                $ pm2 startup
+
+                To go further checkout:
+                http://pm2.io/
+
+
+                        -------------
+
+[PM2] Spawning PM2 daemon with pm2_home=/root/.pm2
+[PM2] PM2 Successfully daemonized
+[PM2][WARN] Applications gervis not running, starting...
+[PM2][ERROR] Error: Script not found: /var/www/gervis/tsx
+[PM2] Saving current process list...
+[PM2][WARN] PM2 is not managing any process, skipping save...
+[PM2][WARN] To force saving use: pm2 save --force
+[PM2] Init System found: systemd
+Platform systemd
+Template
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+[Service]
+Type=forking
+User=root
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PM2_HOME=/root/.pm2
+PIDFile=/root/.pm2/pm2.pid
+Restart=on-failure
+
+ExecStart=/usr/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target
+
+Target path
+/etc/systemd/system/pm2-root.service
+Command list
+[ 'systemctl enable pm2-root' ]
+[PM2] Writing init configuration in /etc/systemd/system/pm2-root.service
+[PM2] Making script booting at startup...
+[PM2] [-] Executing: systemctl enable pm2-root...
+Created symlink /etc/systemd/system/multi-user.target.wants/pm2-root.service → /etc/systemd/system/pm2-root.service.
+[PM2] [v] Command successfully executed.
++---------------------------------------+
+[PM2] Freeze a process list on reboot via:
+$ pm2 save
+
+[PM2] Remove init script via:
+$ pm2 unstartup systemd
+[PM2] Init System found: systemd
+Platform systemd
+Template
+[Unit]
+Description=PM2 process manager
+Documentation=https://pm2.keymetrics.io/
+After=network.target
+
+[Service]
+Type=forking
+User=root
+LimitNOFILE=infinity
+LimitNPROC=infinity
+LimitCORE=infinity
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin:/usr/bin:/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
+Environment=PM2_HOME=/home/root/.pm2
+PIDFile=/home/root/.pm2/pm2.pid
+Restart=on-failure
+
+ExecStart=/usr/lib/node_modules/pm2/bin/pm2 resurrect
+ExecReload=/usr/lib/node_modules/pm2/bin/pm2 reload all
+ExecStop=/usr/lib/node_modules/pm2/bin/pm2 kill
+
+[Install]
+WantedBy=multi-user.target
+
+Target path
+/etc/systemd/system/pm2-root.service
+Command list
+[ 'systemctl enable pm2-root' ]
+[PM2] Writing init configuration in /etc/systemd/system/pm2-root.service
+[PM2] Making script booting at startup...
+[PM2] [-] Executing: systemctl enable pm2-root...
+[PM2] [v] Command successfully executed.
++---------------------------------------+
+[PM2] Freeze a process list on reboot via:
+$ pm2 save
+
+[PM2] Remove init script via:
+$ pm2 unstartup systemd
+[SUCCESS] PM2 configurato per l'avvio automatico
+[INFO] Verifico se il dominio è configurato per l'IP del server...
+[WARNING] Il dominio gervis.it non è ancora configurato per puntare a 15.237.238.255.
+[WARNING] Una volta configurato il DNS, esegui: sudo certbot --nginx -d gervis.it -d www.gervis.it
+[INFO] Esecuzione della migrazione del database...
+
+> rest-express@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file '/var/www/gervis/drizzle.config.ts'
+Using 'pg' driver for database querying
+[✓] Pulling schema from database...
+error: permission denied for schema public
+    at /var/www/gervis/node_modules/pg-pool/index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async Object.query (/var/www/gervis/node_modules/drizzle-kit/bin.cjs:66575:26)
+    at async pgPush (/var/www/gervis/node_modules/drizzle-kit/bin.cjs:70117:13)
+    at async Object.handler (/var/www/gervis/node_modules/drizzle-kit/bin.cjs:79124:9)
+    at async run (/var/www/gervis/node_modules/drizzle-kit/bin.cjs:78381:7) {
+  length: 99,
+  severity: 'ERROR',
+  code: '42501',
+  detail: undefined,
+  hint: undefined,
+  position: '14',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'aclchk.c',
+  line: '3655',
+  routine: 'aclcheck_error'
+}
+
+╔═════════════════════════════════════════════════╗
+║                                                 ║
+║         SETUP COMPLETATO!                      ║
+║                                                 ║
+╚═════════════════════════════════════════════════╝
+
+L'applicazione Gervis è stata configurata con successo!
+
+Dettagli configurazione:
+  - Applicazione: /var/www/gervis
+  - Database: postgresql://gervis:******@localhost:5432/gervis
+  - Applicazione in esecuzione con PM2
+  - Nginx configurato per il dominio gervis.it e IP 15.237.238.255
+
+Per verificare lo stato dell'applicazione, esegui:
+  pm2 status
+
+Per visualizzare i log dell'applicazione:
+  pm2 logs gervis
+
+[WARNING] L'applicazione potrebbe non essere in esecuzione. Verifica i log con 'pm2 logs gervis'
+
+Il sito è ora accessibile all'indirizzo:
+  http://15.237.238.255
+
+Dopo aver configurato il DNS, sarà accessibile all'indirizzo:
+  https://gervis.it
+
+Grazie per aver scelto Gervis!
+ubuntu@ip-172-31-46-173:~/gervis$ 

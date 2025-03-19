@@ -164,7 +164,7 @@ cat > "$APP_DIR/ecosystem.config.cjs" << EOF
 module.exports = {
   apps: [{
     name: 'gervis',
-    script: 'tsx',
+    script: '$APP_DIR/node_modules/.bin/tsx',
     args: 'server/index.ts',
     cwd: '$APP_DIR',
     instances: 1,
@@ -199,7 +199,7 @@ server {
     gzip_types application/javascript application/json application/xml text/css text/plain text/xml;
 
     # Gestione dei file statici
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+    location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 30d;
         add_header Cache-Control \"public, no-transform\";
     }
@@ -208,13 +208,13 @@ server {
     location / {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Upgrade \\\$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto \$scheme;
-        proxy_cache_bypass \$http_upgrade;
+        proxy_set_header Host \\\$host;
+        proxy_set_header X-Real-IP \\\$remote_addr;
+        proxy_set_header X-Forwarded-For \\\$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \\\$scheme;
+        proxy_cache_bypass \\\$http_upgrade;
     }
 }
 EOF"
@@ -282,9 +282,18 @@ fi
 print_status "Esecuzione della migrazione del database..."
 cd "$APP_DIR" || exit
 
-# Verifica se esiste uno script di migrazione, in caso contrario prova un approccio alternativo
+# Correggi i permessi del database per l'utente gervis prima di eseguire la migrazione
+print_status "Correzione permessi PostgreSQL per l'utente gervis..."
+sudo -i -u postgres psql << EOF
+GRANT ALL PRIVILEGES ON SCHEMA public TO gervis;
+ALTER USER gervis WITH SUPERUSER;
+\q
+EOF
+
+# Verifica se esiste uno script di migrazione
 if grep -q "db:push" "$APP_DIR/package.json"; then
-  npm run db:push || true
+  print_status "Esecuzione db:push..."
+  cd "$APP_DIR" && npm run db:push
 else
   print_warning "Script db:push non trovato. Utilizzo approccio alternativo per la migrazione..."
   # Crea uno script temporaneo per la migrazione
@@ -328,7 +337,8 @@ main().catch(console.error);
 EOF
   
   # Esegui lo script
-  NODE_OPTIONS="--max-old-space-size=4096" node "$APP_DIR/db-push.js" || true
+  print_status "Esecuzione script di migrazione alternativo..."
+  cd "$APP_DIR" && NODE_OPTIONS="--max-old-space-size=4096" node "$APP_DIR/db-push.js"
 fi
 
 # 14. Riepilogo finale
