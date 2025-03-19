@@ -9,8 +9,27 @@ import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./e
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
   if (!req.isAuthenticated()) {
-    return res.status(401).json({ message: 'Authentication required' });
+    return res.status(401).json({ success: false, message: 'Authentication required' });
   }
+  
+  // Verifica se l'utente è in stato "pending"
+  if (req.user?.approvalStatus === 'pending') {
+    return res.status(403).json({
+      success: false,
+      message: "In attesa di approvazione da parte del management di Gervis",
+      pendingApproval: true
+    });
+  }
+  
+  // Verifica se l'utente è in stato "rejected"
+  if (req.user?.approvalStatus === 'rejected') {
+    return res.status(403).json({
+      success: false,
+      message: "La tua registrazione è stata rifiutata. Per favore contatta l'amministratore per maggiori informazioni.",
+      rejected: true
+    });
+  }
+  
   next();
 }
 
@@ -33,6 +52,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get current user
   app.get('/api/user', (req, res) => {
     if (req.isAuthenticated()) {
+      // Verifica se l'utente è in stato "pending"
+      if (req.user?.approvalStatus === 'pending') {
+        return res.status(403).json({
+          success: false,
+          message: "In attesa di approvazione da parte del management di Gervis",
+          pendingApproval: true
+        });
+      }
+      
+      // Verifica se l'utente è in stato "rejected"
+      if (req.user?.approvalStatus === 'rejected') {
+        return res.status(403).json({
+          success: false,
+          message: "La tua registrazione è stata rifiutata. Per favore contatta l'amministratore per maggiori informazioni.",
+          rejected: true
+        });
+      }
+      
       res.json({ success: true, user: req.user });
     } else {
       res.status(401).json({ success: false, message: 'Not authenticated' });
