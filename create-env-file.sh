@@ -37,55 +37,30 @@ echo "║                                                 ║"
 echo "╚═════════════════════════════════════════════════╝"
 echo ""
 
-# Controlla se il file .env esiste già
+# Controlla se il file .env esiste già - in modalità non interattiva, sovrascriviamo sempre
 if [ -f ".env" ]; then
-  print_warning "Il file .env esiste già."
-  read -p "Vuoi sovrascriverlo? (s/n): " OVERWRITE
-  if [[ $OVERWRITE != "s" && $OVERWRITE != "S" ]]; then
-    print_error "Operazione annullata."
-    exit 1
-  fi
+  print_warning "Il file .env esiste già, ma sarà preservato per mantenere le configurazioni."
+  exit 0
 fi
 
 # Generazione del session secret casuale
 SESSION_SECRET=$(openssl rand -hex 32)
 
-# Chiedi le variabili all'utente
-print_status "Inserisci i dati per il file .env:"
-echo ""
+# Imposta i valori predefiniti (modalità non interattiva)
+print_status "Impostazione dei valori predefiniti per il file .env..."
 
-# Chiedi la URL del database
-read -p "URL del database PostgreSQL [postgresql://gervis:password@localhost:5432/gervis]: " DATABASE_URL
-DATABASE_URL=${DATABASE_URL:-"postgresql://gervis:password@localhost:5432/gervis"}
+# Determina i valori di base
+DATABASE_URL="postgresql://gervis:Oliver1@localhost:5432/gervis"
+PORT=3000
+BASE_URL="https://gervis.it"
 
-# Chiedi la porta dell'applicazione
-read -p "Porta dell'applicazione [3000]: " PORT
-PORT=${PORT:-3000}
-
-# Chiedi il dominio di base
-read -p "Dominio di base (es. https://gervis.it) [http://localhost:$PORT]: " BASE_URL
-BASE_URL=${BASE_URL:-"http://localhost:$PORT"}
-
-# Chiedi le impostazioni email
-read -p "Configurare le impostazioni email? (s/n) [n]: " SETUP_EMAIL
-SETUP_EMAIL=${SETUP_EMAIL:-"n"}
-
-if [[ $SETUP_EMAIL == "s" || $SETUP_EMAIL == "S" ]]; then
-  read -p "Host SMTP [smtp.example.com]: " EMAIL_HOST
-  EMAIL_HOST=${EMAIL_HOST:-"smtp.example.com"}
-  
-  read -p "Porta SMTP [587]: " EMAIL_PORT
-  EMAIL_PORT=${EMAIL_PORT:-587}
-  
-  read -p "Utente SMTP [noreply@example.com]: " EMAIL_USER
-  EMAIL_USER=${EMAIL_USER:-"noreply@example.com"}
-  
-  read -p "Password SMTP: " -s EMAIL_PASSWORD
-  echo ""
-  
-  read -p "Email mittente [Gervis <noreply@example.com>]: " EMAIL_FROM
-  EMAIL_FROM=${EMAIL_FROM:-"Gervis <noreply@example.com>"}
-fi
+# Impostazioni email predefinite
+SETUP_EMAIL="s"
+EMAIL_HOST="smtp.example.com"
+EMAIL_PORT=587
+EMAIL_USER="noreply@gervis.it"
+EMAIL_PASSWORD="email_password_placeholder"
+EMAIL_FROM="Gervis <noreply@gervis.it>"
 
 # Crea il file .env
 print_status "Creazione del file .env..."
