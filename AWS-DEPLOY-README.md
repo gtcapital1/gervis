@@ -1,396 +1,210 @@
-# Guida al Deployment di Gervis su AWS
+# Guida al Deployment di Gervis su AWS/VPS
 
-Questa guida fornisce istruzioni dettagliate per il deployment dell'applicazione Gervis su Amazon Web Services (AWS) utilizzando un'istanza EC2 con Amazon Linux. Il metodo consigliato prevede la build dell'applicazione in locale e il successivo trasferimento dei file sul server AWS.
+Questa guida ti aiuterà a configurare Gervis sul tuo server AWS EC2 o VPS.
 
-## Indice
-1. [Prerequisiti](#prerequisiti)
-2. [Creazione dell'istanza EC2](#creazione-dellistanza-ec2)
-3. [Configurazione di PostgreSQL](#configurazione-di-postgresql)
-4. [Preparazione del server](#preparazione-del-server)
-5. [Build locale e deploy](#build-locale-e-deploy)
-6. [Configurazione del server web](#configurazione-del-server-web)
-7. [Sicurezza HTTPS](#sicurezza-https)
-8. [Avvio dell'applicazione](#avvio-dellapplicazione)
-9. [Manutenzione](#manutenzione)
+## Requisiti
 
-## Prerequisiti
+- Un server con Ubuntu/Debian o Amazon Linux
+- Accesso root o sudo
+- Un dominio puntato al tuo server (es. gervis.it)
 
-Prima di iniziare, assicurati di avere:
-- Un account AWS attivo
-- Conoscenze di base sulla gestione di server Linux
-- Un dominio configurato con record DNS che puntano alla tua istanza EC2
-- Il codice sorgente dell'applicazione Gervis sul tuo computer locale
+## Metodo 1: Configurazione Automatica (Raccomandato)
 
-## Creazione dell'istanza EC2
-
-1. **Accedi alla console AWS e crea una nuova istanza EC2**:
-   - Scegli "Amazon Linux 2023" come sistema operativo
-   - Tipo di istanza consigliato: almeno t3.small per prestazioni adeguate
-   - Configura il gruppo di sicurezza:
-     - SSH (porta 22) dal tuo IP
-     - HTTP (porta 80) da ovunque
-     - HTTPS (porta 443) da ovunque
-   - Assegna un Elastic IP all'istanza (consigliato)
-
-2. **Connettiti all'istanza**:
-   ```bash
-   ssh -i /percorso/alla/tua/chiave.pem ec2-user@tuo-indirizzo-ip
-   ```
-
-3. **Aggiorna il sistema**:
-   ```bash
-   sudo dnf update -y
-   ```
-
-## Configurazione di PostgreSQL
-
-1. **Installa PostgreSQL**:
-   ```bash
-   sudo dnf install -y postgresql15 postgresql15-server
-   ```
-
-2. **Inizializza e avvia il database**:
-   ```bash
-   sudo postgresql-setup --initdb
-   sudo systemctl enable postgresql
-   sudo systemctl start postgresql
-   ```
-
-3. **Crea database e utente**:
-   ```bash
-   sudo -i -u postgres
-   psql
-   
-   # Esegui questi comandi nel prompt psql:
-   CREATE DATABASE gervis;
-   CREATE USER gervisuser WITH ENCRYPTED PASSWORD 'ScegliUnaPasswordSicura';
-   GRANT ALL PRIVILEGES ON DATABASE gervis TO gervisuser;
-   \q
-   exit
-   ```
-
-4. **Configura l'autenticazione**:
-   ```bash
-   sudo nano /var/lib/pgsql/data/pg_hba.conf
-   ```
-   
-   Modifica la riga:
-   ```
-   host    all    all    127.0.0.1/32    ident
-   ```
-   
-   In:
-   ```
-   host    all    all    127.0.0.1/32    md5
-   ```
-
-5. **Riavvia PostgreSQL**:
-   ```bash
-   sudo systemctl restart postgresql
-   ```
-
-## Preparazione del server
-
-1. **Installa le dipendenze necessarie**:
-   ```bash
-   # Node.js e npm
-   sudo dnf install -y nodejs
-   
-   # Git, Nginx e Certbot
-   sudo dnf install -y git nginx certbot python3-certbot-nginx
-   
-   # PM2 per la gestione dell'applicazione
-   sudo npm install -g pm2 drizzle-kit
-   ```
-
-2. **Crea la directory per l'applicazione**:
-   ```bash
-   sudo mkdir -p /var/www/gervis
-   sudo chown ec2-user:ec2-user /var/www/gervis
-   ```
-
-## Build locale e deploy
-
-### 1. Preparazione dell'applicazione in locale
-
-1. **Clona il repository**:
-   ```bash
-   git clone https://github.com/gtcapital1/gervis.git
-   cd gervis
-   ```
-
-2. **Installa le dipendenze e crea la build**:
-   ```bash
-   npm ci
-   export NODE_OPTIONS="--max-old-space-size=4096"
-   npm run build
-   ```
-
-3. **Prepara il pacchetto per il deploy**:
-   ```bash
-   mkdir -p gervis-prod
-   cp -r dist package.json package-lock.json deploy/scripts deploy/.env.production drizzle.config.json shared ./gervis-prod
-   cd gervis-prod
-   
-   # Installa solo le dipendenze di produzione
-   npm ci --only=production
-   
-   # Crea l'archivio
-   cd ..
-   tar -czf gervis-prod.tar.gz -C gervis-prod .
-   ```
-
-### 2. Caricamento e configurazione sul server
-
-1. **Trasferisci il pacchetto sul server AWS**:
-   ```bash
-   scp -i ~/.ssh/gervis.pem gervis-prod.tar.gz ec2-user@15.236.198.128:/home/ec2-user/
-   ```
-
-2. **Estrai e configura l'applicazione**:
-   ```bash
-   # Sul server AWS
-   cd /var/www/gervis
-   tar -xzf /home/ec2-user/gervis-prod.tar.gz
-   
-   # Scarica lo script per creare il file .env
-   curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/create-env-file.sh
-   chmod +x create-env-file.sh
-   
-   # Esegui lo script per creare il file .env
-   ./create-env-file.sh
-   
-   # Opzionalmente, modifica il file se necessario
-   nano .env
-   ```
-
-3. **Configura le variabili d'ambiente nel file .env**:
-   ```
-   DATABASE_URL=postgresql://gervisuser:ScegliUnaPasswordSicura@localhost:5432/gervis
-   NODE_ENV=production
-   PORT=3000
-   BASE_URL=https://tuo-dominio.com
-   SESSION_SECRET=ScegliUnSecretComplicatoELungo
-   SMTP_HOST=smtp.tuoservizio.com
-   SMTP_PORT=587
-   SMTP_USER=tuo-email@example.com
-   SMTP_PASS=TuaPasswordEmail
-   SMTP_FROM=no-reply@tuo-dominio.com
-   ```
-
-4. **Esegui le migrazioni del database**:
-   ```bash
-   cd /var/www/gervis
-   
-   # Scarica lo script per eseguire le migrazioni del database
-   curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/run-db-push.sh
-   chmod +x run-db-push.sh
-   
-   # Esegui lo script di migrazione (creerà anche i file necessari se mancanti)
-   ./run-db-push.sh
-   ```
-   
-   > **Nota**: Questo script svolge tutte le seguenti operazioni automaticamente:
-   > - Verifica che esista il file `.env` (e lo crea se necessario)
-   > - Verifica che esista la cartella `shared` con lo schema (e la crea se necessaria)
-   > - Crea il file `drizzle.config.json` con l'URL corretto del database
-   > - Esegue la migrazione del database
-
-## Configurazione del server web
-
-### 1. Configura PM2
-
-1. **Crea il file di configurazione per PM2**:
-   ```bash
-   # Sul server AWS
-   cd /var/www/gervis
-   nano ecosystem.config.js
-   ```
-   
-   Contenuto del file:
-   ```javascript
-   module.exports = {
-     apps: [{
-       name: 'gervis',
-       script: 'dist/server/index.js',
-       instances: 'max',
-       exec_mode: 'cluster',
-       env: {
-         NODE_ENV: 'production',
-         PORT: 3000
-       },
-       watch: false,
-       max_memory_restart: '1G'
-     }]
-   };
-   ```
-
-2. **Avvia l'applicazione con PM2**:
-   ```bash
-   pm2 start ecosystem.config.js
-   pm2 startup
-   # Esegui il comando suggerito dall'output
-   pm2 save
-   ```
-
-### 2. Configura Nginx
-
-1. **Crea la configurazione di Nginx**:
-   ```bash
-   sudo nano /etc/nginx/conf.d/gervis.conf
-   ```
-   
-   Contenuto del file:
-   ```nginx
-   server {
-       listen 80;
-       server_name tuo-dominio.com www.tuo-dominio.com;
-       
-       location / {
-           proxy_pass http://localhost:3000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_cache_bypass $http_upgrade;
-       }
-       
-       # Timeout maggiore per l'onboarding
-       location /api/onboarding {
-           proxy_pass http://localhost:3000;
-           proxy_http_version 1.1;
-           proxy_set_header Upgrade $http_upgrade;
-           proxy_set_header Connection 'upgrade';
-           proxy_set_header Host $host;
-           proxy_set_header X-Real-IP $remote_addr;
-           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-           proxy_set_header X-Forwarded-Proto $scheme;
-           proxy_cache_bypass $http_upgrade;
-           proxy_read_timeout 300s;  # 5 minuti di timeout
-       }
-       
-       # Limite per upload di file
-       client_max_body_size 10M;
-   }
-   ```
-
-2. **Verifica e attiva la configurazione**:
-   ```bash
-   sudo nginx -t
-   sudo systemctl restart nginx
-   ```
-
-## Sicurezza HTTPS
-
-1. **Ottieni un certificato SSL con Certbot**:
-   ```bash
-   sudo certbot --nginx -d tuo-dominio.com -d www.tuo-dominio.com
-   ```
-   
-   Segui le istruzioni visualizzate. Certbot modificherà automaticamente la configurazione di Nginx.
-
-2. **Verifica il rinnovo automatico del certificato**:
-   ```bash
-   sudo certbot renew --dry-run
-   ```
-
-## Avvio dell'applicazione
-
-1. **Verifica lo stato dei servizi**:
-   ```bash
-   sudo systemctl status nginx
-   sudo systemctl status postgresql
-   pm2 status
-   ```
-
-2. **Aggiorna il BASE_URL nell'applicazione** (se necessario):
-   ```bash
-   cd /var/www/gervis
-   node deploy/base-url-update.js https://tuo-dominio.com
-   ```
-
-3. **Accedi al tuo dominio** tramite browser per verificare che l'applicazione funzioni correttamente.
-
-## Manutenzione
-
-### Aggiornamento dell'applicazione
+Abbiamo creato uno script che configura automaticamente tutto l'ambiente necessario per Gervis:
 
 ```bash
-# Sul server AWS
+# Scarica lo script di configurazione
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/setup-aws.sh
+
+# Rendi lo script eseguibile
+chmod +x setup-aws.sh
+
+# Esegui lo script come sudo
+sudo ./setup-aws.sh
+```
+
+Lo script configurerà automaticamente:
+
+- Nginx con il tuo dominio
+- Database PostgreSQL
+- PM2 per l'avvio automatico dell'applicazione
+- HTTPS con Let's Encrypt (opzionale)
+
+## Metodo 2: Configurazione Manuale
+
+Se preferisci configurare manualmente il tuo ambiente, segui questi passaggi:
+
+### 1. Installare le Dipendenze
+
+```bash
+# Aggiorna i repository
+sudo apt update
+
+# Installa Node.js
+curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Installa PostgreSQL
+sudo apt install -y postgresql postgresql-contrib
+
+# Installa Nginx
+sudo apt install -y nginx
+
+# Installa PM2 globalmente
+sudo npm install -g pm2
+```
+
+### 2. Configurare il Database
+
+```bash
+# Crea il database e l'utente
+sudo -u postgres psql -c "CREATE DATABASE gervis;"
+sudo -u postgres psql -c "CREATE USER gervis WITH PASSWORD 'password_sicura';"
+sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gervis TO gervis;"
+```
+
+### 3. Configurare l'Applicazione
+
+```bash
+# Crea la directory dell'applicazione
+sudo mkdir -p /var/www/gervis
+
+# Clona il repository
+git clone https://github.com/gtcapital1/gervis.git /var/www/gervis
+
+# Installa le dipendenze
 cd /var/www/gervis
-git pull  # Se hai usato git
-# oppure carica i nuovi file manualmente
-
 npm ci
+
+# Crea il file .env
+cat > /var/www/gervis/.env << EOF
+NODE_ENV=production
+PORT=3000
+DATABASE_URL=postgresql://gervis:password_sicura@localhost:5432/gervis
+SESSION_SECRET=$(openssl rand -hex 32)
+BASE_URL=https://tuo-dominio.it
+EOF
+
+# Esegui la build dell'applicazione
 npm run build
-
-# Scarica lo script per eseguire le migrazioni del database
-curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/run-db-push.sh
-chmod +x run-db-push.sh
-
-# Esegui lo script per applicare le migrazioni
-./run-db-push.sh
-pm2 restart gervis
 ```
 
-### Backup del database
+### 4. Configurare PM2
 
-1. **Crea una directory per i backup**:
-   ```bash
-   mkdir -p /var/backups/gervis
-   ```
-
-2. **Crea uno script di backup**:
-   ```bash
-   nano /var/backups/gervis/backup.sh
-   ```
-   
-   Contenuto:
-   ```bash
-   #!/bin/bash
-   DATE=$(date +%Y-%m-%d_%H-%M-%S)
-   FILENAME="/var/backups/gervis/gervis_$DATE.sql"
-   pg_dump -U postgres gervis > $FILENAME
-   gzip $FILENAME
-   
-   # Rimuovi backup più vecchi di 30 giorni
-   find /var/backups/gervis -name "gervis_*.sql.gz" -mtime +30 -delete
-   ```
-
-3. **Rendi lo script eseguibile e pianifica il backup**:
-   ```bash
-   chmod +x /var/backups/gervis/backup.sh
-   
-   # Aggiungi al crontab per esecuzione giornaliera alle 2:00
-   sudo crontab -e
-   ```
-   
-   Aggiungi:
-   ```
-   0 2 * * * /var/backups/gervis/backup.sh
-   ```
-
-### Monitoraggio e risoluzione problemi
-
-**Log dell'applicazione:**
 ```bash
-pm2 logs gervis
+# Crea il file di configurazione PM2
+cat > /var/www/gervis/ecosystem.config.cjs << EOF
+module.exports = {
+  apps: [{
+    name: 'gervis',
+    script: 'dist/index.js',
+    instances: 1,
+    exec_mode: 'fork',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 3000
+    },
+    watch: false,
+    max_memory_restart: '1G'
+  }]
+};
+EOF
+
+# Avvia l'applicazione con PM2
+pm2 start ecosystem.config.cjs
+
+# Configura PM2 per avviarsi al boot
+pm2 startup
+# Esegui il comando suggerito dall'output
+pm2 save
 ```
 
-**Log di Nginx:**
+### 5. Configurare Nginx
+
 ```bash
+# Crea il file di configurazione Nginx
+cat > /etc/nginx/sites-available/gervis << EOF
+server {
+    listen 80;
+    server_name tuo-dominio.it www.tuo-dominio.it;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_cache_bypass \$http_upgrade;
+    }
+}
+EOF
+
+# Abilita il sito
+sudo ln -s /etc/nginx/sites-available/gervis /etc/nginx/sites-enabled/
+
+# Rimuovi il default site se necessario
+sudo rm /etc/nginx/sites-enabled/default
+
+# Verifica la configurazione e riavvia Nginx
+sudo nginx -t
+sudo systemctl restart nginx
+```
+
+### 6. Configurare HTTPS (Opzionale)
+
+```bash
+# Installa Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Ottieni il certificato
+sudo certbot --nginx -d tuo-dominio.it -d www.tuo-dominio.it
+```
+
+## Risoluzione dei Problemi
+
+Se riscontri problemi, puoi utilizzare i nostri script di diagnostica:
+
+### Fix Nginx
+
+Se Nginx mostra la pagina predefinita invece di Gervis:
+
+```bash
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/fix-nginx.sh
+chmod +x fix-nginx.sh
+sudo ./fix-nginx.sh
+```
+
+### Verifica Stato Applicazione
+
+Per verificare lo stato dell'applicazione:
+
+```bash
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/check-app-status.sh
+chmod +x check-app-status.sh
+./check-app-status.sh
+```
+
+### Controllo dei Log
+
+```bash
+# Log Nginx
 sudo tail -f /var/log/nginx/error.log
-sudo tail -f /var/log/nginx/access.log
+
+# Log PM2
+pm2 logs gervis
+
+# Log PostgreSQL
+sudo tail -f /var/lib/postgresql/data/log/postgresql-*.log
 ```
 
-**Log di PostgreSQL:**
-```bash
-sudo tail -f /var/lib/pgsql/data/log/postgresql-*.log
-```
+## Contatti e Supporto
+
+Se hai bisogno di ulteriore assistenza, non esitare a contattarci:
+
+- Email: support@gervis.it
+- Telefono: +39 123 456 789
 
 ---
 
-Per assistenza più specifica, contatta il team di sviluppo di Gervis.
+© 2024 Gervis. Tutti i diritti riservati.
