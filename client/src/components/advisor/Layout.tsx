@@ -10,6 +10,7 @@ import {
   User,
   ArrowLeft,
   Globe,
+  ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,9 @@ export function Layout({ children }: LayoutProps) {
   // Keep track of current language
   const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
   
+  // Check if the user is an admin
+  const isAdmin = user?.email === "gianmarco.trapasso@gmail.com" || user?.role === "admin";
+  
   // Handle language change
   const toggleLanguage = () => {
     const newLang = currentLanguage === "en" ? "it" : "en";
@@ -47,7 +51,8 @@ export function Layout({ children }: LayoutProps) {
     logoutMutation.mutate();
   }
 
-  const navigation = [
+  // Define base navigation items
+  const baseNavigation = [
     {
       name: "Dashboard",
       href: "/app",
@@ -68,6 +73,20 @@ export function Layout({ children }: LayoutProps) {
       disabled: false,
     },
   ];
+  
+  // Add admin panel link if user is admin
+  const navigation = isAdmin 
+    ? [
+        ...baseNavigation,
+        {
+          name: "Admin",
+          href: "/admin",
+          icon: ShieldAlert,
+          current: location === "/admin",
+          disabled: false,
+        }
+      ] 
+    : baseNavigation;
 
   const NavLinks = () => (
     <>

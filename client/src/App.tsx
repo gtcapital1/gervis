@@ -10,6 +10,7 @@ import OnboardingForm from "@/pages/OnboardingForm";
 import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import AuthPage from "@/pages/auth-page";
 import Settings from "@/pages/Settings";
+import AdminPanel from "@/pages/AdminPanel";
 import { Layout } from "@/components/advisor/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -46,6 +47,10 @@ function Router() {
       <ProtectedRoute 
         path="/settings" 
         component={Settings}
+      />
+      <ProtectedRoute 
+        path="/admin" 
+        component={AdminPanel}
       />
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route path="/onboarding" component={OnboardingForm} />
