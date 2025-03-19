@@ -148,7 +148,14 @@ const resourcesIt = {
       creating_account: "Creazione account in corso...",
       back_to_home: "Torna alla Home",
       independent_advisor: "Sono un consulente finanziario indipendente (senza società)",
-      company_validation_error: "Società è un campo obbligatorio se non sei un consulente indipendente."
+      company_validation_error: "Il nome della società è obbligatorio a meno che tu sia un consulente indipendente",
+      validation: {
+        first_name_required: "Il nome è obbligatorio",
+        last_name_required: "Il cognome è obbligatorio",
+        email_invalid: "Inserisci un indirizzo email valido",
+        password_length: "La password deve contenere almeno 6 caratteri",
+        passwords_dont_match: "Le password non coincidono"
+      }
     },
     dashboard: {
       clients: "Clienti",
@@ -649,7 +656,14 @@ const resourcesEn = {
       creating_account: "Creating account...",
       back_to_home: "Back to Home",
       independent_advisor: "I am an independent financial advisor (without a company)",
-      company_validation_error: "Company is required unless you are an independent advisor"
+      company_validation_error: "Company is required unless you are an independent advisor",
+      validation: {
+        first_name_required: "First name is required",
+        last_name_required: "Last name is required",
+        email_invalid: "Please enter a valid email address",
+        password_length: "Password must be at least 6 characters",
+        passwords_dont_match: "Passwords don't match"
+      }
     },
     onboarding: {
       title: "Financial Profile Questionnaire",

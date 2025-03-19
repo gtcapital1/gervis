@@ -43,39 +43,9 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 // Form schemas
-const loginSchema = z.object({
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }),
-});
-
-const registerSchema = z.object({
-  firstName: z.string().min(1, {
-    message: "First name is required.",
-  }),
-  lastName: z.string().min(1, {
-    message: "Last name is required.", 
-  }),
-  company: z.string(),
-  isIndependent: z.boolean().default(false),
-  email: z.string().email({
-    message: "Please enter a valid email address.",
-  }),
-  phone: z.string().optional(),
-  password: z.string().min(6, {
-    message: "Password must be at least 6 characters.",
-  }),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-}).refine((data) => data.isIndependent || (data.company && data.company.length > 0), {
-  message: "Company is required unless you are an independent advisor",
-  path: ["company"],
-});
+// Schemi con traduzioni - vengono creati nella funzione AuthPage
+let loginSchema: z.ZodObject<any, any>;
+let registerSchema: z.ZodObject<any, any>;
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
