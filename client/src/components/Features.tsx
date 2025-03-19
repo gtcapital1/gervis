@@ -15,7 +15,7 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon, p
   return (
     <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border ${isComingSoon ? 'border-blue-800' : 'border-gray-800'} transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
       {isComingSoon && (
-        <div className="absolute top-4 right-4 bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
+        <div className={`absolute top-4 right-4 ${plusFeature ? 'bg-sky-500' : 'bg-blue-600'} text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center`}>
           {plusFeature ? 'Gervis+' : t('common.pro_version')}
         </div>
       )}
