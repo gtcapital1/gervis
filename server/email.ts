@@ -39,21 +39,23 @@ console.log("DEBUG - Inizializzazione configurazione email");
 const emailConfig = getEmailConfig();
 
 // Configurazione SMTP per Aruba con opzioni specifiche per compatibilità
+// Nuova configurazione semplificata per Aruba
+console.log("DEBUG - Utilizzo configurazione SMTP alternativa per Aruba");
 const options: SMTPTransport.Options = {
-  host: emailConfig.host,
-  port: emailConfig.port,
-  secure: true, // Per la porta 465 deve essere true
+  pool: false, // disabilita il pooling (può causare problemi con alcuni server)
+  host: 'smtps.aruba.it',
+  port: 465,
+  secure: true, // usa TLS
   auth: {
     user: emailConfig.user,
-    pass: emailConfig.pass,
-    type: 'login' // Specifica esplicitamente il tipo di autenticazione
+    pass: emailConfig.pass
   },
   tls: {
-    rejectUnauthorized: false, // Non verificare il certificato
-    minVersion: 'TLSv1', // Usa versione minima di TLS
-    ciphers: 'SSLv3', // Prova con SSLv3 per retrocompatibilità
+    // Non verifica il certificato del server
+    rejectUnauthorized: false
   },
-  debug: true // Abilita il debug per vedere maggiori informazioni
+  debug: true, // abilita debug per vedere maggiori dettagli
+  logger: true // mostra log dettagliati
 };
 
 console.log("DEBUG - Creazione transporter nodemailer");
@@ -67,8 +69,8 @@ if (process.env.NODE_ENV !== 'production') {
 
 // Log aggiuntivo per verificare che le credenziali siano state impostate correttamente
 console.log("DEBUG - Verifica configurazione transporter:");
-console.log("Auth user impostato:", !!transporter.options.auth?.user);
-console.log("Auth password impostata:", !!transporter.options.auth?.pass);
+console.log("Auth user impostato:", !!emailConfig.user);
+console.log("Auth password impostata:", !!emailConfig.pass);
 
 // Verifica la connessione al server SMTP
 console.log("DEBUG - Verifica connessione SMTP...");
