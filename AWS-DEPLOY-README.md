@@ -153,8 +153,14 @@ Prima di iniziare, assicurati di avere:
    cd /var/www/gervis
    tar -xzf /home/ec2-user/gervis-prod.tar.gz
    
-   # Crea il file di configurazione
-   cp deploy/.env.production .env
+   # Scarica lo script per creare il file .env
+   curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/create-env-file.sh
+   chmod +x create-env-file.sh
+   
+   # Esegui lo script per creare il file .env
+   ./create-env-file.sh
+   
+   # Opzionalmente, modifica il file se necessario
    nano .env
    ```
 
