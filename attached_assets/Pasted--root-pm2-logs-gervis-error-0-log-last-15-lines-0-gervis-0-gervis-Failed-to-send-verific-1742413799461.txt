@@ -1,0 +1,35 @@
+/root/.pm2/logs/gervis-error-0.log last 15 lines:
+0|gervis   | }
+0|gervis   | Failed to send verification PIN email: Error: Missing credentials for "PLAIN"
+0|gervis   |     at SMTPConnection._formatError (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:809:19)
+0|gervis   |     at SMTPConnection.login (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:454:38)
+0|gervis   |     at /var/www/gervis/node_modules/nodemailer/lib/smtp-transport/index.js:272:32
+0|gervis   |     at SMTPConnection.<anonymous> (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:215:17)
+0|gervis   |     at Object.onceWrapper (node:events:631:28)
+0|gervis   |     at SMTPConnection.emit (node:events:517:28)
+0|gervis   |     at SMTPConnection._actionEHLO (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:1371:14)
+0|gervis   |     at SMTPConnection._processResponse (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:993:20)
+0|gervis   |     at SMTPConnection._onData (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:774:14)
+0|gervis   |     at SMTPConnection._onSocketData (/var/www/gervis/node_modules/nodemailer/lib/smtp-connection/index.js:195:44) {
+0|gervis   |   code: 'EAUTH',
+0|gervis   |   command: 'API'
+0|gervis   | }
+
+/root/.pm2/logs/gervis-out-0.log last 15 lines:
+0|gervis   | 7:31:59 PM [express] POST /api/login 403 in 108ms :: {"success":false,"message":"Email non verificat…
+0|gervis   | 7:32:08 PM [express] POST /api/resend-pin 500 in 167ms :: {"success":false,"message":"Errore nell'in…
+0|gervis   | 7:33:44 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:37:29 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:38:42 PM [express] GET /api/user 401 in 2ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:46:09 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:47:26 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:47:34 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:48:01 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:48:30 PM [express] GET /api/user 401 in 2ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:48:36 PM [express] GET /api/user 401 in 2ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:48:39 PM [express] POST /api/login 403 in 75ms :: {"success":false,"message":"Email non verificata…
+0|gervis   | 7:48:42 PM [express] POST /api/resend-pin 500 in 192ms :: {"success":false,"message":"Errore nell'in…
+0|gervis   | 7:49:14 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+0|gervis   | 7:49:43 PM [express] GET /api/user 401 in 1ms :: {"success":false,"message":"Not authenticated"}
+
+
