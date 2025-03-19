@@ -1,210 +1,165 @@
-# Guida al Deployment di Gervis su AWS/VPS
+# Guida al Deployment di Gervis su AWS
 
-Questa guida ti aiuterà a configurare Gervis sul tuo server AWS EC2 o VPS.
+Questa guida descrive il processo completo per deployare Gervis su un server AWS EC2 o su qualsiasi VPS Linux.
 
-## Requisiti
+## Indice
+- [Prerequisiti](#prerequisiti)
+- [Processo di Deployment](#processo-di-deployment)
+  - [1. Preparazione Locale](#1-preparazione-locale)
+  - [2. Deployment sul Server](#2-deployment-sul-server)
+  - [3. Configurazione del Server](#3-configurazione-del-server)
+- [Comandi Rapidi](#comandi-rapidi)
+- [Verifica dell'Installazione](#verifica-dellinstallazione)
+- [Aggiornamenti Futuri](#aggiornamenti-futuri)
+- [Risoluzione dei Problemi](#risoluzione-dei-problemi)
 
-- Un server con Ubuntu/Debian o Amazon Linux
-- Accesso root o sudo
-- Un dominio puntato al tuo server (es. gervis.it)
+## Prerequisiti
 
-## Metodo 1: Configurazione Automatica (Raccomandato)
+- Un server AWS EC2 o VPS con Ubuntu/Amazon Linux
+- Accesso SSH al server
+- Git installato sul computer locale
+- Dominio configurato con DNS che punta al tuo server (opzionale per HTTPS)
 
-Abbiamo creato uno script che configura automaticamente tutto l'ambiente necessario per Gervis:
+## Processo di Deployment
+
+### 1. Preparazione Locale
+
+Clona il repository e prepara il pacchetto di deployment:
 
 ```bash
-# Scarica lo script di configurazione
-curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/setup-aws.sh
+# Clona il repository sul tuo computer
+git clone https://github.com/gtcapital1/gervis.git
 
-# Rendi lo script eseguibile
-chmod +x setup-aws.sh
+# Entra nella directory del progetto
+cd gervis
 
-# Esegui lo script come sudo
-sudo ./setup-aws.sh
+# Rendi eseguibile lo script di preparazione
+chmod +x deploy/prepare-for-deploy.sh
+
+# Esegui lo script di preparazione
+./deploy/prepare-for-deploy.sh
 ```
 
-Lo script configurerà automaticamente:
+Lo script farà:
+- Installare le dipendenze
+- Fare la build dell'applicazione
+- Creare un pacchetto di deployment (`gervis-deploy.tar.gz`)
+- Opzionalmente creare un pacchetto completo con node_modules (`gervis-complete.tar.gz`)
 
-- Nginx con il tuo dominio
-- Database PostgreSQL
-- PM2 per l'avvio automatico dell'applicazione
-- HTTPS con Let's Encrypt (opzionale)
+### 2. Deployment sul Server
 
-## Metodo 2: Configurazione Manuale
-
-Se preferisci configurare manualmente il tuo ambiente, segui questi passaggi:
-
-### 1. Installare le Dipendenze
+Una volta creato il pacchetto, puoi deployarlo sul server:
 
 ```bash
-# Aggiorna i repository
-sudo apt update
+# Rendi eseguibile lo script di deployment
+chmod +x deploy/scripts/deploy.sh
 
-# Installa Node.js
-curl -sL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt install -y nodejs
-
-# Installa PostgreSQL
-sudo apt install -y postgresql postgresql-contrib
-
-# Installa Nginx
-sudo apt install -y nginx
-
-# Installa PM2 globalmente
-sudo npm install -g pm2
+# Esegui lo script di deployment
+./deploy/scripts/deploy.sh
 ```
 
-### 2. Configurare il Database
+Ti verranno chieste le seguenti informazioni:
+- Indirizzo IP o nome host del server (default: 13.38.161.27)
+- Nome utente SSH (default: ec2-user)
+- Porta SSH (default: 22)
+- Percorso della chiave SSH (se necessario)
+- Directory di destinazione sul server (default: /var/www/gervis)
+
+Lo script automaticamente:
+1. Trasferirà il pacchetto al server
+2. Estrarrà i file nella directory di destinazione
+3. Farà il backup di configurazioni esistenti
+4. Installerà le dipendenze
+5. Configurerà l'ambiente di base
+6. Avvierà o riavvierà l'applicazione
+
+### 3. Configurazione del Server
+
+Dopo il deployment iniziale, devi completare la configurazione del server:
 
 ```bash
-# Crea il database e l'utente
-sudo -u postgres psql -c "CREATE DATABASE gervis;"
-sudo -u postgres psql -c "CREATE USER gervis WITH PASSWORD 'password_sicura';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gervis TO gervis;"
-```
+# Connettiti al server
+ssh ec2-user@13.38.161.27
 
-### 3. Configurare l'Applicazione
-
-```bash
-# Crea la directory dell'applicazione
-sudo mkdir -p /var/www/gervis
-
-# Clona il repository
-git clone https://github.com/gtcapital1/gervis.git /var/www/gervis
-
-# Installa le dipendenze
+# Vai alla directory dell'applicazione
 cd /var/www/gervis
-npm ci
 
-# Crea il file .env
-cat > /var/www/gervis/.env << EOF
-NODE_ENV=production
-PORT=3000
-DATABASE_URL=postgresql://gervis:password_sicura@localhost:5432/gervis
-SESSION_SECRET=$(openssl rand -hex 32)
-BASE_URL=https://tuo-dominio.it
-EOF
-
-# Esegui la build dell'applicazione
-npm run build
+# Esegui lo script di configurazione
+sudo ./deploy/scripts/setup-aws.sh
 ```
 
-### 4. Configurare PM2
+Lo script configurerà:
+- Nginx come reverse proxy
+- PM2 per la gestione dei processi
+- Avvio automatico al riavvio
+- HTTPS con Let's Encrypt (se desiderato)
+
+## Comandi Rapidi
+
+Per chi vuole eseguire tutto da zero in un unico flusso:
 
 ```bash
-# Crea il file di configurazione PM2
-cat > /var/www/gervis/ecosystem.config.cjs << EOF
-module.exports = {
-  apps: [{
-    name: 'gervis',
-    script: 'dist/index.js',
-    instances: 1,
-    exec_mode: 'fork',
-    env: {
-      NODE_ENV: 'production',
-      PORT: 3000
-    },
-    watch: false,
-    max_memory_restart: '1G'
-  }]
-};
-EOF
+# PASSO 1: Sul computer locale
+git clone https://github.com/gtcapital1/gervis.git
+cd gervis
+chmod +x deploy/prepare-for-deploy.sh
+./deploy/prepare-for-deploy.sh
+chmod +x deploy/scripts/deploy.sh
+./deploy/scripts/deploy.sh
 
-# Avvia l'applicazione con PM2
-pm2 start ecosystem.config.cjs
-
-# Configura PM2 per avviarsi al boot
-pm2 startup
-# Esegui il comando suggerito dall'output
-pm2 save
+# PASSO 2: Sul server (dopo aver completato il deploy.sh)
+ssh ec2-user@13.38.161.27
+cd /var/www/gervis
+sudo ./deploy/scripts/setup-aws.sh
 ```
 
-### 5. Configurare Nginx
+## Verifica dell'Installazione
+
+Per verificare che tutto funzioni correttamente:
 
 ```bash
-# Crea il file di configurazione Nginx
-cat > /etc/nginx/sites-available/gervis << EOF
-server {
-    listen 80;
-    server_name tuo-dominio.it www.tuo-dominio.it;
-    
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade \$http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host \$host;
-        proxy_set_header X-Real-IP \$remote_addr;
-        proxy_cache_bypass \$http_upgrade;
-    }
-}
-EOF
-
-# Abilita il sito
-sudo ln -s /etc/nginx/sites-available/gervis /etc/nginx/sites-enabled/
-
-# Rimuovi il default site se necessario
-sudo rm /etc/nginx/sites-enabled/default
-
-# Verifica la configurazione e riavvia Nginx
-sudo nginx -t
-sudo systemctl restart nginx
+cd /var/www/gervis
+./deploy/scripts/check-app-status.sh
 ```
 
-### 6. Configurare HTTPS (Opzionale)
+Questo script verificherà:
+- Stato dell'applicazione Node.js
+- Configurazione di Nginx
+- Connessione al database
+- Certificati HTTPS (se configurati)
 
-```bash
-# Installa Certbot
-sudo apt install -y certbot python3-certbot-nginx
+## Aggiornamenti Futuri
 
-# Ottieni il certificato
-sudo certbot --nginx -d tuo-dominio.it -d www.tuo-dominio.it
-```
+Per aggiornare Gervis in futuro:
+
+1. Fai il pull delle ultime modifiche dal repository
+2. Ripeti i passaggi 1 e 2 del [Processo di Deployment](#processo-di-deployment)
+
+Le tue configurazioni (database, .env, ecc.) saranno automaticamente preservate durante l'aggiornamento.
 
 ## Risoluzione dei Problemi
 
-Se riscontri problemi, puoi utilizzare i nostri script di diagnostica:
+Se riscontri problemi durante il deployment:
 
-### Fix Nginx
-
-Se Nginx mostra la pagina predefinita invece di Gervis:
-
+### Nginx non mostra l'applicazione
 ```bash
-curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/fix-nginx.sh
-chmod +x fix-nginx.sh
-sudo ./fix-nginx.sh
+sudo ./deploy/scripts/fix-nginx.sh
 ```
 
-### Verifica Stato Applicazione
-
-Per verificare lo stato dell'applicazione:
-
+### Database non configurato correttamente
 ```bash
-curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/check-app-status.sh
-chmod +x check-app-status.sh
-./check-app-status.sh
+./run-db-push.sh
 ```
 
-### Controllo dei Log
-
+### L'applicazione non si avvia
 ```bash
-# Log Nginx
-sudo tail -f /var/log/nginx/error.log
-
-# Log PM2
 pm2 logs gervis
-
-# Log PostgreSQL
-sudo tail -f /var/lib/postgresql/data/log/postgresql-*.log
 ```
 
-## Contatti e Supporto
+### Errori di permessi
+```bash
+sudo chown -R $USER:$USER /var/www/gervis
+chmod +x deploy/scripts/*.sh
+```
 
-Se hai bisogno di ulteriore assistenza, non esitare a contattarci:
-
-- Email: support@gervis.it
-- Telefono: +39 123 456 789
-
----
-
-© 2024 Gervis. Tutti i diritti riservati.
+Per ulteriori dettagli, consulta il file `deploy-instructions.txt`.
