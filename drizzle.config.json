@@ -3,6 +3,6 @@
   "schema": "shared/schema.ts",
   "dialect": "postgresql",
   "dbCredentials": {
-    "url": "$DATABASE_URL"
+    "url": "postgresql://gervisuser:password@localhost:5432/gervis"
   }
 }
