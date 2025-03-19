@@ -21,6 +21,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslation } from "react-i18next";
+import { ApprovalPendingOverlay } from "@/components/ApprovalPendingOverlay";
 
 interface LayoutProps {
   children: ReactNode;
@@ -157,8 +158,14 @@ export function Layout({ children }: LayoutProps) {
     </>
   );
 
+  // Check if the user is pending approval
+  const isPendingApproval = user && user.approvalStatus === "pending";
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
+      {/* Approval Pending Overlay */}
+      {isPendingApproval && <ApprovalPendingOverlay email={user.email} />}
+      
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0">
         <div className="flex flex-col w-64 bg-black text-white">

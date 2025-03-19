@@ -299,6 +299,16 @@ const resourcesIt = {
         privacy: "Devi accettare i termini sulla privacy"
       }
     },
+    approval: {
+      title: "Account in Attesa di Approvazione",
+      description: "Il tuo account è in attesa di verifica da parte del team di gestione Gervis",
+      status: "Stato Account: In Attesa",
+      status_message: "Il tuo account è stato creato ma richiede approvazione prima di poter utilizzare tutte le funzionalità. Questo processo richiede solitamente 1-2 giorni lavorativi.",
+      email_confirmation: "Verifica Completata",
+      email_sent_to: "Email verificata con successo per",
+      next_steps: "Riceverai una notifica via email quando il tuo account sarà approvato. Nel frattempo, puoi tornare alla pagina principale.",
+      return_home: "Torna alla Homepage"
+    },
     client: {
       loading_details: "Caricamento dettagli cliente...",
       error_loading: "Errore nel caricamento dei dettagli cliente.",
@@ -784,6 +794,16 @@ const resourcesEn = {
         message: "Please enter your message",
         privacy: "You must agree to the privacy terms"
       }
+    },
+    approval: {
+      title: "Account Pending Approval",
+      description: "Your account is awaiting verification by the Gervis management team",
+      status: "Account Status: Pending",
+      status_message: "Your account has been created but requires approval before you can use all the features. This usually takes 1-2 business days.",
+      email_confirmation: "Verification Complete",
+      email_sent_to: "Email verified successfully for",
+      next_steps: "You will be notified by email when your account is approved. Meanwhile, feel free to return to the home page.",
+      return_home: "Return to Homepage"
     }
   }
 };
