@@ -23,7 +23,9 @@ const transporter = nodemailer.createTransport({
     pass: emailConfig.pass,
   },
   tls: {
+    // Non verificare il certificato
     rejectUnauthorized: false,
+    // Compatibilità con versioni meno recenti di TLS
     minVersion: 'TLSv1'
   }
 });
