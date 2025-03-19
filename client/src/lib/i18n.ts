@@ -333,7 +333,7 @@ const resourcesIt = {
     },
     about: {
       title: "Chi Siamo",
-      description1: "Gervis è un prodotto di GT AI Solutions. La missione di GT AI Solutions è integrare soluzioni di intelligenza artificiale in tutti i business per liberare tempo prezioso e permettere alle aziende di concentrarsi sul loro core business.",
+      description1: "Gervis è un prodotto sviluppato e gestito da GT AI Solutions. La missione di GT AI Solutions è integrare soluzioni di intelligenza artificiale in tutti i business per liberare tempo prezioso e permettere alle aziende di concentrarsi sul loro core business.",
       description2: "Crediamo fermamente che l'intelligenza artificiale sia la chiave per trasformare i processi aziendali, eliminando le attività ripetitive e a basso valore aggiunto, consentendo alle persone di dedicarsi a ciò che conta davvero: relazioni, creatività e innovazione.",
       description3: "Gervis rappresenta l'applicazione di questa filosofia nel settore della consulenza finanziaria, offrendo ai consulenti strumenti avanzati per automatizzare la gestione documentale, ottimizzare i processi di onboarding e fornire un'esperienza cliente superiore."
     },
@@ -603,7 +603,7 @@ const resourcesEn = {
     },
     about: {
       title: "About Us",
-      description1: "Gervis is a product of GT AI Solutions. GT AI Solutions' mission is to integrate artificial intelligence solutions into all businesses to free up valuable time and allow companies to focus on their core business.",
+      description1: "Gervis is a product developed and managed by GT AI Solutions. GT AI Solutions' mission is to integrate artificial intelligence solutions into all businesses to free up valuable time and allow companies to focus on their core business.",
       description2: "We firmly believe that artificial intelligence is the key to transforming business processes, eliminating repetitive and low-value activities, enabling people to focus on what truly matters: relationships, creativity, and innovation.",
       description3: "Gervis represents the application of this philosophy in the financial consulting sector, offering advisors advanced tools to automate document management, streamline onboarding processes, and deliver a superior client experience."
     },

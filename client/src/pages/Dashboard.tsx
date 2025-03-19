@@ -322,7 +322,7 @@ export default function Dashboard() {
                         <TableCell>
                           <Badge
                             variant={client.isOnboarded ? "default" : "outline"}
-                            className={client.isOnboarded ? "bg-green-600" : "text-red-500"}
+                            className={client.isOnboarded ? "bg-green-600" : "border-red-500 text-red-500 font-medium"}
                           >
                             {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
                           </Badge>
