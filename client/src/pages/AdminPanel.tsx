@@ -1,63 +1,64 @@
-import React, { useEffect } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { useLocation } from 'wouter';
-import UserManagement from '@/components/admin/UserManagement';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useEffect } from "react";
+import { useLocation, useRoute } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
+import { UserManagement } from "@/components/admin/UserManagement";
+import { Layout } from "@/components/advisor/Layout";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 export default function AdminPanel() {
-  const { user, isLoading } = useAuth();
-  const [, setLocation] = useLocation();
-  
-  // Controllo se l'utente è un amministratore
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const { t } = useTranslation();
+  const [_, setLocation] = useLocation();
+
+  // Check if the user is authorized to access the admin panel
+  const isAdmin = user?.email === "gianmarco.trapasso@gmail.com" || user?.role === "admin";
+
+  // Redirect unauthorized users
   useEffect(() => {
-    if (!isLoading && user) {
-      // Verifica se l'utente è un amministratore
-      if (user.role !== 'admin') {
-        // Reindirizza alla dashboard se non è un amministratore
-        setLocation('/dashboard');
-      }
-    } else if (!isLoading && !user) {
-      // Reindirizza al login se non autenticato
-      setLocation('/');
+    if (user && !isAdmin) {
+      toast({
+        title: t("error.unauthorized"),
+        description: t("error.admin_access_required"),
+        variant: "destructive",
+      });
+      setLocation("/app");
     }
-  }, [user, isLoading, setLocation]);
+  }, [user, isAdmin, setLocation, toast, t]);
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-center">
-          <p>Caricamento in corso...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Se non è un amministratore, non mostrare nulla (verrà reindirizzato dal useEffect)
-  if (!user || user.role !== 'admin') {
+  // If no user or not admin, don't render
+  if (!user || !isAdmin) {
     return null;
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center">Pannello di Amministrazione</h1>
-      
-      <div className="grid grid-cols-1 gap-8">
-        <div className="col-span-1">
-          <UserManagement />
+    <Layout>
+      <div className="container mx-auto py-8 px-4">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold">{t("admin.admin_panel")}</h1>
+          <p className="text-gray-600">{t("admin.welcome_admin")}</p>
         </div>
-        
-        <div className="col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Statistiche</CardTitle>
-              <CardDescription>Panoramica del sistema</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Funzionalità in sviluppo</p>
-            </CardContent>
-          </Card>
-        </div>
+
+        <Tabs defaultValue="users" className="w-full">
+          <TabsList className="mb-6">
+            <TabsTrigger value="users">{t("admin.users")}</TabsTrigger>
+            <TabsTrigger value="settings">{t("admin.system_settings")}</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="users" className="space-y-6">
+            <UserManagement />
+          </TabsContent>
+          
+          <TabsContent value="settings">
+            <div className="p-8 bg-gray-100 rounded-lg text-center">
+              <h3 className="text-lg font-medium">{t("admin.coming_soon")}</h3>
+              <p className="text-gray-600">{t("admin.system_settings_coming_soon")}</p>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
-    </div>
+    </Layout>
   );
 }

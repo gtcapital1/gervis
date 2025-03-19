@@ -1,13 +1,26 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { useToast } from '@/hooks/use-toast';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -16,326 +29,386 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Check, X, Trash2 } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 type User = {
   id: number;
-  username: string;
-  email: string;
-  firstName: string;
-  lastName: string;
   name: string;
-  role: string;
-  approvalStatus: 'pending' | 'approved' | 'rejected';
+  email: string;
+  username: string;
+  approvalStatus: "pending" | "approved" | "rejected";
   createdAt: string;
-  company?: string;
-  isIndependent?: boolean;
 };
 
-export default function UserManagement() {
-  const { t } = useTranslation();
+export function UserManagement() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const { t } = useTranslation();
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [dialogAction, setDialogAction] = useState<"approve" | "reject" | "delete" | null>(null);
+  const [showDialog, setShowDialog] = useState(false);
 
-  // Query per ottenere tutti gli utenti
-  const { data: usersData, isLoading: isLoadingUsers, error: usersError } = useQuery({
-    queryKey: ['/api/admin/users'],
-    queryFn: () => apiRequest('/api/admin/users'),
+  // Fetch all users
+  const {
+    data: users,
+    isLoading,
+    isError,
+  } = useQuery<{ success: boolean; users: User[] }>({
+    queryKey: ["/api/admin/users"],
+    throwOnError: false,
   });
 
-  // Query per ottenere gli utenti in attesa di approvazione
-  const { data: pendingUsersData, isLoading: isLoadingPendingUsers, error: pendingUsersError } = useQuery({
-    queryKey: ['/api/admin/users/pending'],
-    queryFn: () => apiRequest('/api/admin/users/pending'),
-  });
+  // Pending users calculation
+  const pendingUsers = users?.users.filter(user => user.approvalStatus === "pending") || [];
+  const approvedUsers = users?.users.filter(user => user.approvalStatus === "approved") || [];
+  const rejectedUsers = users?.users.filter(user => user.approvalStatus === "rejected") || [];
 
-  // Mutation per approvare un utente
+  // Approve user mutation
   const approveMutation = useMutation({
-    mutationFn: (userId: number) => 
-      apiRequest(`/api/admin/users/${userId}/approve`, {
-        method: 'POST',
-      }),
+    mutationFn: (userId: number) => {
+      return apiRequest(`/api/admin/users/${userId}/approve`, {
+        method: "POST",
+      });
+    },
     onSuccess: () => {
       toast({
-        title: t('Utente approvato'),
-        description: t('L\'utente è stato approvato con successo'),
+        title: t("admin.user_approved"),
+        description: t("admin.user_approved_desc"),
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowDialog(false);
     },
     onError: (error: Error) => {
       toast({
-        title: t('Errore'),
-        description: error.message || t('Si è verificato un errore durante l\'approvazione dell\'utente'),
-        variant: 'destructive',
+        title: t("error.title"),
+        description: error.message,
+        variant: "destructive",
       });
-    },
+    }
   });
 
-  // Mutation per rifiutare un utente
+  // Reject user mutation
   const rejectMutation = useMutation({
-    mutationFn: (userId: number) => 
-      apiRequest(`/api/admin/users/${userId}/reject`, {
-        method: 'POST',
-      }),
+    mutationFn: (userId: number) => {
+      return apiRequest(`/api/admin/users/${userId}/reject`, {
+        method: "POST",
+      });
+    },
     onSuccess: () => {
       toast({
-        title: t('Utente rifiutato'),
-        description: t('L\'utente è stato rifiutato con successo'),
+        title: t("admin.user_rejected"),
+        description: t("admin.user_rejected_desc"),
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowDialog(false);
     },
     onError: (error: Error) => {
       toast({
-        title: t('Errore'),
-        description: error.message || t('Si è verificato un errore durante il rifiuto dell\'utente'),
-        variant: 'destructive',
+        title: t("error.title"),
+        description: error.message,
+        variant: "destructive",
       });
-    },
+    }
   });
 
-  // Mutation per eliminare un utente
+  // Delete user mutation
   const deleteMutation = useMutation({
-    mutationFn: (userId: number) => 
-      apiRequest(`/api/admin/users/${userId}`, {
-        method: 'DELETE',
-      }),
+    mutationFn: (userId: number) => {
+      return apiRequest(`/api/admin/users/${userId}`, {
+        method: "DELETE",
+      });
+    },
     onSuccess: () => {
       toast({
-        title: t('Utente eliminato'),
-        description: t('L\'utente è stato eliminato con successo'),
+        title: t("admin.user_deleted"),
+        description: t("admin.user_deleted_desc"),
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/users/pending'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      setShowDialog(false);
     },
     onError: (error: Error) => {
       toast({
-        title: t('Errore'),
-        description: error.message || t('Si è verificato un errore durante l\'eliminazione dell\'utente'),
-        variant: 'destructive',
+        title: t("error.title"),
+        description: error.message,
+        variant: "destructive",
       });
-    },
+    }
   });
 
-  function formatDate(date: string | null) {
-    if (!date) return '';
-    return new Date(date).toLocaleDateString();
-  }
+  // Handle user action
+  const handleUserAction = (user: User, action: "approve" | "reject" | "delete") => {
+    setSelectedUser(user);
+    setDialogAction(action);
+    setShowDialog(true);
+  };
 
-  function getApprovalStatusBadge(status: string) {
+  // Execute action when confirmed
+  const confirmAction = () => {
+    if (!selectedUser) return;
+    
+    switch (dialogAction) {
+      case "approve":
+        approveMutation.mutate(selectedUser.id);
+        break;
+      case "reject":
+        rejectMutation.mutate(selectedUser.id);
+        break;
+      case "delete":
+        deleteMutation.mutate(selectedUser.id);
+        break;
+    }
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
+  };
+
+  // Get dialog title and content based on action
+  const getDialogContent = () => {
+    if (!selectedUser) return { title: "", content: "" };
+    
+    switch (dialogAction) {
+      case "approve":
+        return {
+          title: t("admin.approve_user_title"),
+          content: t("admin.approve_user_content", { name: selectedUser.name || selectedUser.email }),
+        };
+      case "reject":
+        return {
+          title: t("admin.reject_user_title"),
+          content: t("admin.reject_user_content", { name: selectedUser.name || selectedUser.email }),
+        };
+      case "delete":
+        return {
+          title: t("admin.delete_user_title"),
+          content: t("admin.delete_user_content", { name: selectedUser.name || selectedUser.email }),
+        };
+      default:
+        return { title: "", content: "" };
+    }
+  };
+
+  // Get badge for user status
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">In attesa</Badge>;
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Approvato</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Rifiutato</Badge>;
+      case "pending":
+        return <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300"><Clock className="h-3 w-3 mr-1" /> {t("admin.status_pending")}</Badge>;
+      case "approved":
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300"><CheckCircle className="h-3 w-3 mr-1" /> {t("admin.status_approved")}</Badge>;
+      case "rejected":
+        return <Badge variant="outline" className="bg-red-100 text-red-800 border-red-300"><XCircle className="h-3 w-3 mr-1" /> {t("admin.status_rejected")}</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
+  };
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64">{t("common.loading")}</div>;
   }
 
-  function handleApprove(userId: number) {
-    approveMutation.mutate(userId);
-  }
-
-  function handleReject(userId: number) {
-    rejectMutation.mutate(userId);
-  }
-
-  function handleDelete(userId: number) {
-    setSelectedUserId(userId);
-  }
-
-  function confirmDelete() {
-    if (selectedUserId) {
-      deleteMutation.mutate(selectedUserId);
-      setSelectedUserId(null);
-    }
-  }
-
-  if (isLoadingUsers || isLoadingPendingUsers) {
-    return <div className="flex justify-center p-6">Caricamento in corso...</div>;
-  }
-
-  if (usersError || pendingUsersError) {
+  if (isError) {
     return (
-      <div className="p-6 text-center">
-        <p className="text-red-600 mb-2">Errore di caricamento</p>
-        <p>{(usersError as Error)?.message || (pendingUsersError as Error)?.message}</p>
+      <div className="flex justify-center items-center h-64 text-red-500">
+        {t("error.loading_data")}
       </div>
     );
   }
 
-  const users = usersData?.users || [];
-  const pendingUsers = pendingUsersData?.users || [];
+  const dialogContent = getDialogContent();
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle>{t('Gestione utenti')}</CardTitle>
-        <CardDescription>{t('Gestisci gli utenti della piattaforma')}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="pending">
-              {t('In attesa di approvazione')} 
-              {pendingUsers.length > 0 && (
-                <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary text-primary-foreground">
-                  {pendingUsers.length}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="all">{t('Tutti gli utenti')}</TabsTrigger>
-          </TabsList>
-          
-          <TabsContent value="pending">
-            {pendingUsers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                {t('Non ci sono utenti in attesa di approvazione')}
-              </div>
-            ) : (
-              <Table>
-                <TableCaption>{t('Lista degli utenti in attesa di approvazione')}</TableCaption>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('Nome')}</TableHead>
-                    <TableHead>{t('Email')}</TableHead>
-                    <TableHead>{t('Azienda')}</TableHead>
-                    <TableHead>{t('Registrato il')}</TableHead>
-                    <TableHead className="text-right">{t('Azioni')}</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingUsers.map((user: User) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.isIndependent ? t('Indipendente') : user.company}</TableCell>
-                      <TableCell>{formatDate(user.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleApprove(user.id)}
-                            className="text-green-600 border-green-300 hover:bg-green-50"
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            {t('Approva')}
-                          </Button>
-                          <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={() => handleReject(user.id)}
-                            className="text-red-600 border-red-300 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            {t('Rifiuta')}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </TabsContent>
-          
-          <TabsContent value="all">
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("admin.users_management")}</CardTitle>
+          <CardDescription>
+            {t("admin.users_management_desc")}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-2">{t("admin.pending_approvals")}</h3>
             <Table>
-              <TableCaption>{t('Lista completa degli utenti')}</TableCaption>
+              <TableCaption>{t("admin.pending_approvals_caption")}</TableCaption>
               <TableHeader>
                 <TableRow>
-                  <TableHead>{t('Nome')}</TableHead>
-                  <TableHead>{t('Email')}</TableHead>
-                  <TableHead>{t('Ruolo')}</TableHead>
-                  <TableHead>{t('Stato')}</TableHead>
-                  <TableHead>{t('Registrato il')}</TableHead>
-                  <TableHead className="text-right">{t('Azioni')}</TableHead>
+                  <TableHead>{t("admin.name")}</TableHead>
+                  <TableHead>{t("admin.email")}</TableHead>
+                  <TableHead>{t("admin.registered_on")}</TableHead>
+                  <TableHead>{t("admin.status")}</TableHead>
+                  <TableHead className="text-right">{t("admin.actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user: User) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.name}</TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'default' : 'outline'}>
-                        {user.role === 'admin' ? t('Amministratore') : t('Consulente')}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{getApprovalStatusBadge(user.approvalStatus)}</TableCell>
-                    <TableCell>{formatDate(user.createdAt)}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {user.approvalStatus === 'pending' && (
-                          <>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleApprove(user.id)}
-                              className="text-green-600 border-green-300 hover:bg-green-50"
-                            >
-                              <Check className="h-4 w-4 mr-2" />
-                              {t('Approva')}
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm" 
-                              onClick={() => handleReject(user.id)}
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <X className="h-4 w-4 mr-2" />
-                              {t('Rifiuta')}
-                            </Button>
-                          </>
-                        )}
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="text-red-600 border-red-300 hover:bg-red-50"
-                              onClick={() => handleDelete(user.id)}
-                            >
-                              <Trash2 className="h-4 w-4 mr-2" />
-                              {t('Elimina')}
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>{t('Sei sicuro di voler eliminare questo utente?')}</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                {t('Questa azione non può essere annullata. Tutti i dati associati a questo utente verranno eliminati permanentemente.')}
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t('Annulla')}</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={confirmDelete}
-                                className="bg-red-600 hover:bg-red-700"
-                              >
-                                {t('Elimina')}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
+                {pendingUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      {t("admin.no_pending_users")}
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  pendingUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name || "-"}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>{getStatusBadge(user.approvalStatus)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mr-2 text-green-600 hover:text-green-800 hover:bg-green-100"
+                          onClick={() => handleUserAction(user, "approve")}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" /> {t("admin.approve")}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                          onClick={() => handleUserAction(user, "reject")}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> {t("admin.reject")}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
-          </TabsContent>
-        </Tabs>
-      </CardContent>
-    </Card>
+          </div>
+
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-2">{t("admin.approved_users")}</h3>
+            <Table>
+              <TableCaption>{t("admin.approved_users_caption")}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("admin.name")}</TableHead>
+                  <TableHead>{t("admin.email")}</TableHead>
+                  <TableHead>{t("admin.registered_on")}</TableHead>
+                  <TableHead>{t("admin.status")}</TableHead>
+                  <TableHead className="text-right">{t("admin.actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvedUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      {t("admin.no_approved_users")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  approvedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name || "-"}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>{getStatusBadge(user.approvalStatus)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                          onClick={() => handleUserAction(user, "delete")}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> {t("admin.delete")}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold mb-2">{t("admin.rejected_users")}</h3>
+            <Table>
+              <TableCaption>{t("admin.rejected_users_caption")}</TableCaption>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("admin.name")}</TableHead>
+                  <TableHead>{t("admin.email")}</TableHead>
+                  <TableHead>{t("admin.registered_on")}</TableHead>
+                  <TableHead>{t("admin.status")}</TableHead>
+                  <TableHead className="text-right">{t("admin.actions")}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rejectedUsers.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      {t("admin.no_rejected_users")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rejectedUsers.map((user) => (
+                    <TableRow key={user.id}>
+                      <TableCell className="font-medium">{user.name || "-"}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>{formatDate(user.createdAt)}</TableCell>
+                      <TableCell>{getStatusBadge(user.approvalStatus)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mr-2 text-green-600 hover:text-green-800 hover:bg-green-100"
+                          onClick={() => handleUserAction(user, "approve")}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" /> {t("admin.approve")}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-800 hover:bg-red-100"
+                          onClick={() => handleUserAction(user, "delete")}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> {t("admin.delete")}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showDialog} onOpenChange={setShowDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{dialogContent.title}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {dialogContent.content}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmAction}
+              className={
+                dialogAction === "approve" 
+                  ? "bg-green-600 hover:bg-green-700" 
+                  : "bg-red-600 hover:bg-red-700"
+              }
+            >
+              {dialogAction === "approve" 
+                ? t("admin.confirm_approve") 
+                : dialogAction === "reject" 
+                  ? t("admin.confirm_reject") 
+                  : t("admin.confirm_delete")
+              }
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

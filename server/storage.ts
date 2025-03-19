@@ -133,7 +133,13 @@ export class PostgresStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const result = await db.insert(users).values(insertUser).returning();
+    // Imposta lo stato di approvazione come pending per tutti i nuovi utenti
+    const userWithApproval = {
+      ...insertUser,
+      approvalStatus: 'pending' as const
+    };
+    
+    const result = await db.insert(users).values(userWithApproval).returning();
     return result[0];
   }
   
