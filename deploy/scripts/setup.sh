@@ -1,82 +1,123 @@
 #!/bin/bash
 
-# Script di configurazione per Gervis
-# ----------------------------------
-# Questo script automatizza l'installazione e configurazione iniziale di Gervis
-# su un server di produzione.
+# Script completo per la configurazione dell'ambiente Gervis
+# Questo script scarica e esegue tutti gli altri script necessari per il setup
 
-# Interrompi in caso di errori
-set -e
+set -e  # Interrompi lo script in caso di errore
 
-# Colori per output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "=== Setup completo ambiente Gervis ==="
+echo "Questo script eseguirà tutte le fasi necessarie per configurare Gervis"
 
-# Configurazione
-APP_DIR="/var/www/gervis"
-NGINX_CONF="/etc/nginx/sites-available/gervis"
-NGINX_ENABLED="/etc/nginx/sites-enabled/gervis"
-DB_NAME="gervis"
-DB_USER="gervis_user"
+# Funzione per controllare se un comando esiste
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
 
-echo -e "${YELLOW}Configurazione di Gervis su sito.it${NC}"
+# Controlla se Git è installato
+if ! command_exists git; then
+  echo "Git non è installato. Installazione in corso..."
+  if command_exists apt-get; then
+    sudo apt-get update
+    sudo apt-get install -y git
+  elif command_exists yum; then
+    sudo yum install -y git
+  else
+    echo "Impossibile installare Git automaticamente. Installalo manualmente e riprova."
+    exit 1
+  fi
+fi
 
-# Verifica dei prerequisiti
-echo -e "${GREEN}Verifica dei prerequisiti...${NC}"
-command -v node >/dev/null 2>&1 || { echo -e "${RED}Node.js non è installato. Installalo prima di continuare.${NC}"; exit 1; }
-command -v npm >/dev/null 2>&1 || { echo -e "${RED}npm non è installato. Installalo prima di continuare.${NC}"; exit 1; }
-command -v pm2 >/dev/null 2>&1 || { echo -e "${YELLOW}PM2 non è installato. Installazione in corso...${NC}"; npm install -g pm2; }
-command -v psql >/dev/null 2>&1 || { echo -e "${RED}PostgreSQL non è installato. Installalo prima di continuare.${NC}"; exit 1; }
+# Controlla se curl è installato
+if ! command_exists curl; then
+  echo "curl non è installato. Installazione in corso..."
+  if command_exists apt-get; then
+    sudo apt-get update
+    sudo apt-get install -y curl
+  elif command_exists yum; then
+    sudo yum install -y curl
+  else
+    echo "Impossibile installare curl automaticamente. Installalo manualmente e riprova."
+    exit 1
+  fi
+fi
 
-# Configurazione della directory dell'applicazione
-echo -e "${GREEN}Creazione della directory dell'applicazione...${NC}"
-sudo mkdir -p "$APP_DIR"
-sudo chown $(whoami):$(whoami) "$APP_DIR"
+# Verifica l'ambiente
+echo "Verifica dell'ambiente..."
+if [[ -f /etc/os-release ]]; then
+  . /etc/os-release
+  OS=$NAME
+  echo "Sistema operativo rilevato: $OS"
+else
+  echo "Sistema operativo non riconosciuto."
+  OS="Unknown"
+fi
 
-# Configurazione di PostgreSQL
-echo -e "${GREEN}Configurazione del database PostgreSQL...${NC}"
-echo -e "${YELLOW}Per favore inserisci la password per l'utente PostgreSQL:${NC}"
-read -s DB_PASSWORD
+# Offri di eseguire lo script di setup AWS se appropriato
+if [[ $OS == *"Amazon Linux"* ]] || [[ $OS == *"CentOS"* ]] || [[ $OS == *"Red Hat"* ]]; then
+  echo "Ambiente compatibile con AWS rilevato."
+  read -p "Vuoi eseguire lo script di setup per AWS? (s/n): " setup_aws
+  if [[ $setup_aws == "s" ]] || [[ $setup_aws == "S" ]]; then
+    echo "Scaricamento dello script di setup AWS..."
+    curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/deploy/scripts/setup-aws.sh
+    chmod +x setup-aws.sh
+    
+    echo "Esecuzione dello script di setup AWS..."
+    sudo ./setup-aws.sh
+  fi
+fi
 
-# Creazione del database e dell'utente
-sudo -u postgres psql -c "CREATE DATABASE $DB_NAME;"
-sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE $DB_NAME TO $DB_USER;"
-sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS pgcrypto;"
+# Scarica e prepara lo script per creare la cartella shared
+echo "Scaricamento dello script per la configurazione dello schema..."
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/setup-shared-schema.sh
+chmod +x setup-shared-schema.sh
 
-echo -e "${GREEN}Database configurato con successo!${NC}"
+# Scarica e prepara lo script per creare il file .env
+echo "Scaricamento dello script per la configurazione del file .env..."
+curl -O https://raw.githubusercontent.com/gtcapital1/gervis/main/create-env-file.sh
+chmod +x create-env-file.sh
 
-# Configurazione di Nginx
-echo -e "${GREEN}Configurazione di Nginx...${NC}"
-sudo cp deploy/nginx.conf "$NGINX_CONF"
+# Crea la struttura di base se non esiste
+mkdir -p shared
 
-# Sostituisci il dominio nel file di configurazione
-sudo sed -i "s/sito.it/$(hostname -f)/g" "$NGINX_CONF"
+# Esegui lo script per configurare lo schema
+echo "Configurazione dello schema..."
+./setup-shared-schema.sh
 
-# Abilita il sito
-sudo ln -sf "$NGINX_CONF" "$NGINX_ENABLED"
+# Crea drizzle.config.json se non esiste
+if [ ! -f drizzle.config.json ]; then
+  echo "Creazione del file drizzle.config.json..."
+  cat > drizzle.config.json << EOF
+{
+  "out": "./migrations",
+  "schema": "shared/schema.ts",
+  "dialect": "postgresql",
+  "dbCredentials": {
+    "url": "\${DATABASE_URL}"
+  }
+}
+EOF
+fi
 
-# Verifica la configurazione di Nginx
-sudo nginx -t
+# Chiedi all'utente se vuole configurare il file .env
+read -p "Vuoi configurare il file .env? (s/n): " setup_env
+if [[ $setup_env == "s" ]] || [[ $setup_env == "S" ]]; then
+  echo "Esecuzione dello script per configurare il file .env..."
+  ./create-env-file.sh
+fi
 
-# Riavvia Nginx
-sudo systemctl restart nginx
-
-echo -e "${GREEN}Nginx configurato con successo!${NC}"
-
-# Configurazione .env
-echo -e "${GREEN}Configurazione del file .env...${NC}"
-cp deploy/.env.example .env
-
-# Aggiorna il file .env con i valori corretti
-sed -i "s/postgres:\/\/username:password@localhost:5432\/gervis/postgres:\/\/$DB_USER:$DB_PASSWORD@localhost:5432\/$DB_NAME/g" .env
-sed -i "s/SESSION_SECRET=cambia_questa_stringa_con_una_password_lunga_e_complessa/SESSION_SECRET=$(openssl rand -hex 32)/g" .env
-sed -i "s/BASE_URL=https:\/\/sito.it/BASE_URL=https:\/\/$(hostname -f)/g" .env
-
-echo -e "${GREEN}File .env configurato con successo!${NC}"
-echo -e "${YELLOW}IMPORTANTE: Devi ancora configurare le impostazioni email nel file .env!${NC}"
-
-echo -e "${GREEN}Configurazione completata con successo!${NC}"
-echo -e "${YELLOW}Puoi ora procedere con il deployment usando lo script deploy.sh${NC}"
+echo "=== Setup completato con successo! ==="
+echo ""
+echo "Dovresti ora avere:"
+echo "- La cartella shared con lo schema"
+echo "- Il file drizzle.config.json configurato"
+if [[ $setup_env == "s" ]] || [[ $setup_env == "S" ]]; then
+  echo "- Il file .env configurato"
+else
+  echo "- Esegui ./create-env-file.sh per configurare il file .env"
+fi
+echo ""
+echo "Prossimi passi:"
+echo "1. Installa le dipendenze con 'npm ci'"
+echo "2. Costruisci l'applicazione con 'npm run build'"
+echo "3. Applica lo schema al database con 'npm run db:push'"
+echo "4. Avvia l'applicazione con 'npm start' o 'pm2 start'"
