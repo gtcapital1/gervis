@@ -300,6 +300,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete client
+  app.delete('/api/clients/:id', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to delete this client' });
+      }
+      
+      // Delete the client
+      const success = await storage.deleteClient(clientId);
+      
+      if (success) {
+        res.json({ success: true, message: 'Client deleted successfully' });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to delete client' });
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      res.status(500).json({ success: false, message: 'An error occurred while deleting client', error: String(error) });
+    }
+  });
+  
   // Update user password
   app.post('/api/user/password', isAuthenticated, async (req, res) => {
     try {
