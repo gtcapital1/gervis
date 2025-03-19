@@ -123,7 +123,14 @@ CREATE_FULL=${CREATE_FULL:-"n"}
 
 if [[ $CREATE_FULL == "s" || $CREATE_FULL == "S" ]]; then
   print_status "Creazione del pacchetto completo..."
-  tar -czf $FULL_PACKAGE --exclude='.git' --exclude='node_modules/.cache' .
+  # Crea una directory temporanea per il pacchetto completo
+  mkdir -p full-package-temp
+  # Copia tutti i file tranne quelli non necessari
+  rsync -a --exclude='.git' --exclude='node_modules/.cache' --exclude="$FULL_PACKAGE" --exclude="$DEPLOY_PACKAGE" --exclude='full-package-temp' . full-package-temp/
+  # Crea il pacchetto da questa directory
+  tar -czf $FULL_PACKAGE -C full-package-temp .
+  # Pulisci
+  rm -rf full-package-temp
   print_success "Pacchetto completo creato: $FULL_PACKAGE"
 fi
 
