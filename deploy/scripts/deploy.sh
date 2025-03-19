@@ -1,63 +1,115 @@
 #!/bin/bash
 
-# Script di deployment per Gervis
-# ----------------------------------
-# Questo script automatizza il processo di deployment dell'applicazione
-# su un server di produzione.
+# Script per il deployment di Gervis
+# Questo script prepara il pacchetto per il deployment e aiuta a caricarlo su un server AWS
 
-# Interrompi in caso di errori
-set -e
+set -e  # Interrompi lo script in caso di errore
 
-# Colori per output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+echo "=== Script di deployment Gervis ==="
+echo "Questo script preparerà il pacchetto per il deployment"
 
-# Configurazione
-APP_DIR="/var/www/gervis"
-REPO_URL="https://github.com/username/gervis.git"  # Cambia con il tuo repository
-BRANCH="main"
-
-echo -e "${YELLOW}Avvio deployment di Gervis su sito.it${NC}"
-
-# Verifica se la directory esiste
-if [ -d "$APP_DIR" ]; then
-    echo -e "${GREEN}La directory esiste, aggiornamento del codice...${NC}"
-    cd "$APP_DIR"
-    git pull origin "$BRANCH"
-else
-    echo -e "${GREEN}Clonazione del repository...${NC}"
-    git clone -b "$BRANCH" "$REPO_URL" "$APP_DIR"
-    cd "$APP_DIR"
+# Controlla se npm è installato
+if ! command -v npm &> /dev/null; then
+  echo "npm non è installato. Installalo prima di procedere."
+  exit 1
 fi
 
-# Installazione delle dipendenze
-echo -e "${GREEN}Installazione delle dipendenze...${NC}"
-npm install --production
+# Controlla se git è installato
+if ! command -v git &> /dev/null; then
+  echo "git non è installato. Installalo prima di procedere."
+  exit 1
+fi
 
-# Compilazione del frontend
-echo -e "${GREEN}Compilazione del frontend...${NC}"
+# Definisci le directory
+TEMP_DIR="gervis-deploy"
+PACKAGE_NAME="gervis-prod.tar.gz"
+
+echo "Pulizia directory temporanee precedenti..."
+rm -rf $TEMP_DIR
+rm -f $PACKAGE_NAME
+
+echo "Creazione directory temporanea per il deployment..."
+mkdir -p $TEMP_DIR
+
+echo "Costruzione dell'applicazione..."
 npm run build
 
-# Verifica se il file .env esiste
-if [ ! -f ".env" ]; then
-    echo -e "${YELLOW}File .env non trovato. Creazione da .env.example...${NC}"
-    cp deploy/.env.example .env
-    echo -e "${RED}IMPORTANTE: Modifica il file .env con i valori corretti!${NC}"
+echo "Copiando i file necessari nella directory di deployment..."
+# Copia i file di configurazione
+cp package.json $TEMP_DIR/
+cp package-lock.json $TEMP_DIR/
+cp tsconfig.json $TEMP_DIR/
+cp tailwind.config.ts $TEMP_DIR/
+cp postcss.config.js $TEMP_DIR/
+cp vite.config.ts $TEMP_DIR/
+cp drizzle.config.*s* $TEMP_DIR/ 2>/dev/null || :
+
+# Copia gli script di supporto
+cp setup-shared-schema.sh $TEMP_DIR/ 2>/dev/null || :
+cp create-env-file.sh $TEMP_DIR/ 2>/dev/null || :
+
+# Copia la directory dist
+cp -r dist $TEMP_DIR/
+
+# Copia la directory shared
+mkdir -p $TEMP_DIR/shared
+cp -r shared/* $TEMP_DIR/shared/ 2>/dev/null || :
+
+# Copia la directory deploy
+mkdir -p $TEMP_DIR/deploy
+cp -r deploy/* $TEMP_DIR/deploy/ 2>/dev/null || :
+
+echo "Copia delle migrazioni se esistono..."
+if [ -d "migrations" ]; then
+  cp -r migrations $TEMP_DIR/
 fi
 
-# Riavvio dell'applicazione con PM2
-if pm2 list | grep -q "gervis"; then
-    echo -e "${GREEN}Riavvio dell'applicazione con PM2...${NC}"
-    pm2 reload gervis
-else
-    echo -e "${GREEN}Avvio dell'applicazione con PM2...${NC}"
-    pm2 start ecosystem.config.js
-fi
+echo "Creazione del file .env.production esempio..."
+cat > $TEMP_DIR/.env.example << EOF
+# Configurazione del database
+DATABASE_URL=postgresql://gervisuser:password@localhost:5432/gervis
 
-# Verifica dello stato
-echo -e "${GREEN}Verifica dello stato dell'applicazione...${NC}"
-pm2 status
+# Configurazione del server
+NODE_ENV=production
+PORT=3000
+BASE_URL=https://tuo-dominio.com
+SESSION_SECRET=string-segreta-molto-lunga-e-complessa
 
-echo -e "${GREEN}Deployment completato con successo!${NC}"
+# Configurazione email
+SMTP_HOST=smtp.esempio.com
+SMTP_PORT=587
+SMTP_USER=user@esempio.com
+SMTP_PASS=password
+SMTP_FROM=no-reply@tuo-dominio.com
+EOF
+
+echo "Creazione del pacchetto di deployment..."
+tar -czf $PACKAGE_NAME -C $TEMP_DIR .
+
+echo "Pulizia directory temporanea..."
+rm -rf $TEMP_DIR
+
+FILESIZE=$(du -h $PACKAGE_NAME | cut -f1)
+
+echo "=== Deployment package creato con successo: $PACKAGE_NAME ($FILESIZE) ==="
+echo ""
+echo "Per deployare su un server AWS:"
+echo "1. Trasferisci il pacchetto al server:"
+echo "   scp -i chiave.pem $PACKAGE_NAME ec2-user@tuo-server.amazonaws.com:~/"
+echo ""
+echo "2. Sul server, estrai il pacchetto:"
+echo "   mkdir -p /var/www/gervis"
+echo "   tar -xzf ~/$PACKAGE_NAME -C /var/www/gervis"
+echo ""
+echo "3. Configura l'applicazione:"
+echo "   cd /var/www/gervis"
+echo "   ./create-env-file.sh"
+echo "   npm ci --production"
+echo ""
+echo "4. Esegui le migrazioni del database:"
+echo "   npm run db:push"
+echo ""
+echo "5. Avvia l'applicazione:"
+echo "   pm2 start ecosystem.config.js"
+echo ""
+echo "Per istruzioni più dettagliate, consulta AWS-DEPLOY-README.md"
