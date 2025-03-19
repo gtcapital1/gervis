@@ -24,7 +24,7 @@ DOMAIN="gervis.it"
 APP_DIR="/var/www/gervis"
 DB_PASSWORD="Oliver1"
 SESSION_SECRET=$(openssl rand -hex 32)
-SERVER_IP="35.180.70.203"
+SERVER_IP="15.237.238.255"
 
 # Banner di avvio
 echo "╔═════════════════════════════════════════════════╗"
