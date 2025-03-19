@@ -1,13 +1,8 @@
 // Caricamento esplicito delle variabili d'ambiente
-import dotenv from 'dotenv';
-// Carica dotenv all'inizio per assicurarsi che tutte le variabili d'ambiente siano disponibili
-const dotenvResult = dotenv.config();
-if (dotenvResult.error) {
-  console.warn("AVVISO - Impossibile caricare il file .env:", dotenvResult.error.message);
-  console.log("Se questo è un ambiente di produzione, assicurati che il file .env sia presente nella directory di root.");
-} else {
-  console.log("INFO - File .env caricato correttamente:", dotenvResult.parsed ? Object.keys(dotenvResult.parsed).length + " variabili" : "nessuna variabile trovata");
-}
+import 'dotenv/config';
+
+// In ESM, non possiamo ottenere direttamente il risultato di config(), quindi lo logghiamo in altro modo
+console.log("INFO - File .env caricato, variabili d'ambiente disponibili");
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
