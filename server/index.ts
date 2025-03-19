@@ -1,3 +1,14 @@
+// Caricamento esplicito delle variabili d'ambiente
+import dotenv from 'dotenv';
+// Carica dotenv all'inizio per assicurarsi che tutte le variabili d'ambiente siano disponibili
+const dotenvResult = dotenv.config();
+if (dotenvResult.error) {
+  console.warn("AVVISO - Impossibile caricare il file .env:", dotenvResult.error.message);
+  console.log("Se questo è un ambiente di produzione, assicurati che il file .env sia presente nella directory di root.");
+} else {
+  console.log("INFO - File .env caricato correttamente:", dotenvResult.parsed ? Object.keys(dotenvResult.parsed).length + " variabili" : "nessuna variabile trovata");
+}
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -78,9 +89,14 @@ app.use((req, res, next) => {
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
+  
+  // Controlla se siamo in un ambiente Replit (che dovrebbe sempre usare vite in dev)
+  // oppure se esplicitamente impostato come development
+  if (process.env.REPL_ID || process.env.NODE_ENV !== 'production') {
+    console.log("DEBUG - Utilizzando configurazione di sviluppo con Vite");
     await setupVite(app, server);
   } else {
+    console.log("DEBUG - Utilizzando configurazione di produzione con servizio statico");
     serveStatic(app);
   }
 

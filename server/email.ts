@@ -42,7 +42,6 @@ const emailConfig = getEmailConfig();
 // Nuova configurazione semplificata per Aruba
 console.log("DEBUG - Utilizzo configurazione SMTP alternativa per Aruba");
 const options: SMTPTransport.Options = {
-  pool: false, // disabilita il pooling (può causare problemi con alcuni server)
   host: 'smtps.aruba.it',
   port: 465,
   secure: true, // usa TLS
@@ -57,6 +56,9 @@ const options: SMTPTransport.Options = {
   debug: true, // abilita debug per vedere maggiori dettagli
   logger: true // mostra log dettagliati
 };
+
+// Commento: La proprietà pool è stata rimossa perché non è presente nel tipo Options di SMTPTransport
+// Ma è comunque importante notare che vogliamo evitare il pooling per evitare problemi con alcuni server
 
 console.log("DEBUG - Creazione transporter nodemailer");
 // Aggiungi debug logger per nodemailer
