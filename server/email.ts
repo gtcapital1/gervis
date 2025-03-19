@@ -1,12 +1,26 @@
 import nodemailer from 'nodemailer';
 
+// Funzione di supporto per prendere variabili di configurazione email da diversi formati
+function getEmailConfig() {
+  return {
+    host: process.env.EMAIL_HOST || process.env.SMTP_HOST,
+    port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '587'),
+    secure: (process.env.EMAIL_PORT === '465' || process.env.SMTP_PORT === '465'),
+    user: process.env.EMAIL_USER || process.env.SMTP_USER,
+    pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS,
+    from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER
+  };
+}
+
+// Supporta sia il formato EMAIL_ che SMTP_ delle variabili ambiente
+const emailConfig = getEmailConfig();
 const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: parseInt(process.env.EMAIL_PORT || '587'),
-  secure: process.env.EMAIL_PORT === '465',
+  host: emailConfig.host,
+  port: emailConfig.port,
+  secure: emailConfig.secure,
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: emailConfig.user,
+    pass: emailConfig.pass,
   },
 });
 

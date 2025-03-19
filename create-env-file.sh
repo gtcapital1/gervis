@@ -54,11 +54,11 @@ SESSION_SECRET=$SESSION_SECRET
 
 # SMTP (per invio email)
 # Impostare queste variabili per abilitare l'invio di email
-EMAIL_HOST="${EMAIL_HOST:-"smtp.gmail.com"}"
-EMAIL_PORT="${EMAIL_PORT:-"587"}"
-EMAIL_USER="${EMAIL_USER:-"gianmarco.trapasso@gmail.com"}"
+EMAIL_HOST="${EMAIL_HOST:-"smtps.aruba.it"}"
+EMAIL_PORT="${EMAIL_PORT:-"465"}"
+EMAIL_USER="${EMAIL_USER:-"registration@gervis.it"}"
 EMAIL_PASSWORD="${EMAIL_PASSWORD:-""}" # Lasciare vuoto per sicurezza, va impostato manualmente
-EMAIL_FROM="${EMAIL_FROM:-"gianmarco.trapasso@gmail.com"}"
+EMAIL_FROM="${EMAIL_FROM:-"registration@gervis.it"}"
 EOF
 
 # Imposta i permessi corretti
@@ -72,5 +72,4 @@ print_status "- Database: postgresql://$DB_USER:****@$DB_HOST:$DB_PORT/$DB_NAME"
 print_status "- Base URL: $BASE_URL"
 
 print_warning "IMPORTANTE: Per utilizzare l'invio di email, devi impostare EMAIL_PASSWORD nel file .env"
-print_warning "Per Gmail, devi generare una password per app al link: https://myaccount.google.com/apppasswords"
-print_warning "Esegui: sudo nano /var/www/gervis/.env"
+print_warning "Esegui: sudo nano /var/www/gervis/.env per impostare la password di Aruba"
