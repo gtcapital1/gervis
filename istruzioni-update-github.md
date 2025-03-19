@@ -1,111 +1,112 @@
-# Aggiornamento Gervis tramite GitHub
+# Istruzioni per l'Aggiornamento del Progetto tramite GitHub
 
-Questo documento descrive il processo di aggiornamento dell'applicazione Gervis utilizzando Git.
+Questo documento spiega come aggiornare l'applicazione Gervis in produzione utilizzando la repository GitHub.
 
-## Istruzioni
+## Prerequisiti
 
-1. **Accedi al server di produzione**
+- Accesso SSH al server di produzione
+- Credenziali Git per accedere alla repository GitHub
+- Variabili d'ambiente necessarie già configurate sul server
+
+## Procedura di aggiornamento
+
+1. **Connessione al server**
+
    ```bash
-   ssh ubuntu@<indirizzo-ip-server>
+   ssh username@your-server-ip
    ```
 
-2. **Vai alla directory del progetto**
+2. **Navigazione alla directory del progetto**
+
    ```bash
    cd /var/www/gervis
    ```
 
-3. **Fai il pull delle ultime modifiche da GitHub**
+3. **Backup del database (opzionale ma consigliato)**
+
    ```bash
-   sudo git pull origin main
+   # Esempio per PostgreSQL
+   pg_dump -U username -h hostname database_name > database_backup_$(date +%Y%m%d).sql
    ```
 
-4. **Verifica il file .env**
+4. **Pull dei cambiamenti da GitHub**
+
    ```bash
-   # Verifica che il file .env esista
-   sudo ls -la .env
+   # Assicurarsi di essere nel branch principale
+   git checkout main
    
-   # Se non esiste, crealo copiando .env.example
-   sudo cp .env.example .env
-   sudo nano .env
+   # Recuperare i cambiamenti senza applicarli
+   git fetch origin
+   
+   # Visualizzare i cambiamenti che verranno applicati
+   git log HEAD..origin/main --oneline
+   
+   # Applicare i cambiamenti
+   git pull origin main
    ```
 
-5. **Assicurati che le seguenti variabili siano configurate nel file .env**
-   ```
-   # Database
-   DATABASE_URL=postgresql://[user]:[password]@[host]:[port]/[database]
+5. **Installazione delle dipendenze (se necessario)**
 
-   # Server e ambiente
-   NODE_ENV=production
-   HOST=0.0.0.0
-   PORT=5000
-   BASE_URL=https://gervis.it
-
-   # Email (essenziali per l'invio di notifiche e onboarding)
-   SMTP_USER=registration@gervis.it
-   SMTP_PASS=[password-email]
-   EMAIL_USER=registration@gervis.it  # fallback per SMTP_USER
-   EMAIL_PASSWORD=[password-email]    # fallback per SMTP_PASS
-
-   # Sicurezza
-   SESSION_SECRET=[valore-casuale-lungo]
-   ```
-
-6. **Installa le dipendenze (se necessario)**
    ```bash
-   sudo npm install
+   npm ci
    ```
 
-7. **Riavvia l'applicazione con PM2**
+6. **Aggiornamento del file .env**
+
    ```bash
-   sudo pm2 restart gervis
+   # Eseguire lo script per aggiornare il file .env
+   ./create-env-file.sh
    ```
 
-8. **Verifica i log per eventuali errori**
+7. **Riavvio dell'applicazione**
+
    ```bash
-   sudo pm2 logs gervis --err --lines 30
+   # Se si utilizza PM2
+   pm2 restart gervis
+   
+   # Oppure, se si utilizza systemd
+   sudo systemctl restart gervis
    ```
 
-## Test SMTP
+8. **Verifica dell'aggiornamento**
 
-Per verificare che la configurazione SMTP funzioni correttamente, puoi usare lo script di test incluso:
-
-1. **Crea un file test-smtp.js nella directory del progetto**
    ```bash
-   sudo nano test-smtp.js
+   # Controllare i log per verificare che l'applicazione si avvii correttamente
+   pm2 logs gervis
+   
+   # Oppure, se si utilizza systemd
+   sudo journalctl -u gervis -f
    ```
 
-2. **Copia il contenuto del file test-smtp.js fornito nel repository**
+## Risoluzione dei problemi
 
-3. **Esegui il test**
+### Errori SMTP
+
+Se si verificano errori di connessione SMTP:
+
+1. Verificare che le variabili d'ambiente SMTP siano impostate correttamente
+
    ```bash
-   sudo node test-smtp.js
+   # Controllare le variabili d'ambiente
+   printenv | grep SMTP
    ```
 
-Se tutto funziona correttamente, dovresti vedere il messaggio "Connessione SMTP verificata con successo!" e "Email inviata con successo!".
+2. Eseguire il test della connessione SMTP:
 
-## Verifica dell'ambiente
+   ```bash
+   node test-smtp.js
+   ```
 
-Per verificare che tutte le variabili d'ambiente siano caricate correttamente, puoi eseguire:
+### Errori di caricamento delle variabili d'ambiente
 
-```bash
-sudo -u [utente-che-esegue-pm2] printenv | grep SMTP
-```
+Se l'applicazione non riesce a caricare le variabili d'ambiente:
 
-Se non vedi le variabili SMTP, significa che non sono disponibili nell'ambiente e devi assicurarti che:
-1. Il file .env sia presente nella directory corretta
-2. PM2 sia configurato per caricare il file .env (verificato nel file ecosystem.config.cjs)
-3. Il processo PM2 sia stato riavviato dopo le modifiche
+1. Verificare che il file `.env` esista e sia nella posizione corretta (directory root del progetto)
+2. Controllare i permessi del file `.env` (dovrebbe essere leggibile dall'utente che esegue l'applicazione)
+3. Ricreare il file `.env` utilizzando lo script `create-env-file.sh`
 
-## Problemi comuni e soluzioni
+## Note tecniche
 
-### Errore: Failed to send verification email
-- **Problema**: Le credenziali SMTP sono errate o non caricate correttamente.
-- **Soluzione**: Verificare che le variabili SMTP_USER, SMTP_PASS, EMAIL_USER, EMAIL_PASSWORD siano correttamente impostate nel file .env.
-
-### Errore: Could not load the .env file
-- **Problema**: Il file .env non viene trovato o caricato.
-- **Soluzione**: Assicurarsi che il file .env esista nella directory del progetto e che PM2 sia configurato per caricare le variabili d'ambiente dal file .env.
-
-### Errore: Error: getaddrinfo ENOTFOUND smtps.aruba.it
-- **Problema**: Il server non riesce a risolvere il nome del server SMTP.
-- **Soluzione**: Verificare la connessione internet e che il server DNS sia configurato correttamente.
+- L'applicazione è configurata come modulo ES (ESM) e utilizza `import 'dotenv/config'` per caricare le variabili d'ambiente
+- Per la connessione SMTP con Aruba, è importante utilizzare il protocollo TLS sulla porta 465
+- Le email vengono inviate utilizzando l'account `registration@gervis.it`

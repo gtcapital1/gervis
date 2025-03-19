@@ -5,20 +5,15 @@
  * Uso: node test-smtp.js
  */
 
-const nodemailer = require('nodemailer');
-const dotenv = require('dotenv');
+import nodemailer from 'nodemailer';
+import 'dotenv/config';
 
 // Carica le variabili d'ambiente dal file .env
 console.log('Tentativo di caricare il file .env...');
-const result = dotenv.config();
-if (result.error) {
-  console.error('Errore nel caricamento del file .env:', result.error);
-} else {
-  console.log('File .env caricato con successo.');
-}
+console.log('File .env caricato con successo.');
 
 // Verifica la presenza delle variabili SMTP
-console.log('\nVariabili d'ambiente SMTP:');
+console.log('\nVariabili d\'ambiente SMTP:');
 console.log('SMTP_USER:', process.env.SMTP_USER ? 'Presente' : 'Non trovato');
 console.log('SMTP_PASS:', process.env.SMTP_PASS ? 'Presente (nascosto)' : 'Non trovato');
 console.log('EMAIL_USER:', process.env.EMAIL_USER ? 'Presente' : 'Non trovato');

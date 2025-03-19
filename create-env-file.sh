@@ -1,71 +1,76 @@
 #!/bin/bash
+# Script per generare automaticamente il file .env durante il deployment
 
-# Colori per output
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-
-echo -e "${GREEN}=== Creazione del file .env per il server Gervis ===${NC}"
-
-# Percorso del file .env
-ENV_FILE=".env"
-
-# Controlla se il file .env esiste già
-if [ -f "$ENV_FILE" ]; then
-  echo "Il file .env esiste già."
-  read -p "Vuoi sovrascriverlo? (s/n): " SOVRASCRIVERE
-  if [ "$SOVRASCRIVERE" != "s" ]; then
-    echo "Operazione annullata."
-    exit 0
-  fi
+# Controlla se è già presente un file .env
+if [ -f .env ]; then
+  echo "AVVISO: File .env già esistente. Rinominando il file esistente in .env.backup..."
+  mv .env .env.backup
 fi
 
-# Crea il file .env con le impostazioni di base
-cat > $ENV_FILE << EOL
-# Ambiente
-NODE_ENV=production
+# Controlla se sono presenti variabili d'ambiente necessarie
+echo "Verifica variabili d'ambiente necessarie..."
 
-# Server
-PORT=5000
-HOST=0.0.0.0
+# Lista delle variabili necessarie
+REQUIRED_VARS=(
+  "DATABASE_URL"
+  "BASE_URL"
+  "SMTP_USER"
+  "SMTP_PASS"
+  "SESSION_SECRET"
+)
+
+# Flag per tenere traccia se tutte le variabili sono presenti
+ALL_VARS_PRESENT=true
+
+# Controlla ogni variabile
+for VAR in "${REQUIRED_VARS[@]}"; do
+  if [ -z "${!VAR}" ]; then
+    echo "ERRORE: Variabile d'ambiente $VAR non impostata"
+    ALL_VARS_PRESENT=false
+  else
+    echo "✅ Variabile $VAR presente"
+  fi
+done
+
+# Se mancano variabili, esci con errore
+if [ "$ALL_VARS_PRESENT" = false ]; then
+  echo "ERRORE: Mancano alcune variabili d'ambiente necessarie. Assicurati di impostarle prima di eseguire nuovamente lo script."
+  exit 1
+fi
+
+# Crea il file .env con le variabili necessarie
+echo "Creazione file .env..."
+
+cat > .env << EOF
+# File .env generato automaticamente da create-env-file.sh
+# Data: $(date)
 
 # Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USER=gervis
-DB_PASSWORD=Oliver1
-DB_NAME=gervis
+DATABASE_URL="${DATABASE_URL}"
 
-# Base URL
-BASE_URL=https://gervis.it
+# Application
+BASE_URL="${BASE_URL}"
+PORT=5000
+HOST="0.0.0.0"
+NODE_ENV="production"
 
-# Sessione
-SESSION_SECRET=gervisSuperSecretKey2024!
+# Email (SMTP)
+SMTP_USER="${SMTP_USER}"
+SMTP_PASS="${SMTP_PASS}"
+SMTP_FROM="${SMTP_USER}"
 
-# Email (impostazioni Aruba)
-SMTP_HOST=smtps.aruba.it
-SMTP_PORT=465
-SMTP_USER=registration@gervis.it
-SMTP_PASS=88900Gervis!
-SMTP_FROM=registration@gervis.it
+# Session
+SESSION_SECRET="${SESSION_SECRET}"
 
-# Anche nel formato EMAIL_ per compatibilità
-EMAIL_HOST=smtps.aruba.it
-EMAIL_PORT=465
-EMAIL_USER=registration@gervis.it
-EMAIL_PASSWORD=88900Gervis!
-EMAIL_FROM=registration@gervis.it
-EOL
+# Other
+EOF
 
-echo -e "${GREEN}File .env creato con successo!${NC}"
-echo "Contenuto del file:"
-cat $ENV_FILE
-echo -e "${GREEN}=== Fine della creazione del file .env ===${NC}"
+echo "File .env creato con successo!"
+echo "Contenuto del file .env:"
+grep -v "SMTP_PASS\|SESSION_SECRET" .env | cat -n
 
-# Informazioni aggiuntive
-echo ""
-echo -e "${GREEN}Per applicare questo file sul server:${NC}"
-echo "1. Trasferisci il file sul server: scp .env user@server:/tmp/"
-echo "2. Accedi al server: ssh user@server"
-echo "3. Sposta il file: sudo mv /tmp/.env /var/www/gervis/.env"
-echo "4. Riavvia l'applicazione: sudo pm2 restart gervis"
+# Imposta i permessi corretti
+chmod 600 .env
+echo "Permessi file impostati a 600 (lettura/scrittura solo per il proprietario)"
+
+exit 0
