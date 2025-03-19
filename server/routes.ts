@@ -39,6 +39,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Middleware to check if user is admin
+  async function isAdmin(req: Request, res: Response, next: Function) {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    
+    // Check if user is admin
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Non sei autorizzato ad accedere a questa funzionalità' });
+    }
+    
+    // Se l'utente è un amministratore, procedi
+    next();
+  }
+  
+  // ===== Admin User Management Routes =====
+  
+  // Get all users (admin only)
+  app.get('/api/admin/users', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      res.json({ success: true, users });
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch users', error: String(error) });
+    }
+  });
+  
+  // Get pending users (admin only)
+  app.get('/api/admin/users/pending', isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getPendingUsers();
+      res.json({ success: true, users });
+    } catch (error) {
+      console.error('Error fetching pending users:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch pending users', error: String(error) });
+    }
+  });
+  
+  // Approve user (admin only)
+  app.post('/api/admin/users/:id/approve', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+      }
+      
+      const user = await storage.approveUser(userId);
+      
+      // TODO: Send approval notification email to user
+      
+      res.json({ success: true, user, message: 'Utente approvato con successo' });
+    } catch (error) {
+      console.error('Error approving user:', error);
+      res.status(500).json({ success: false, message: 'Failed to approve user', error: String(error) });
+    }
+  });
+  
+  // Reject user (admin only)
+  app.post('/api/admin/users/:id/reject', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+      }
+      
+      const user = await storage.rejectUser(userId);
+      
+      // TODO: Send rejection notification email to user
+      
+      res.json({ success: true, user, message: 'Utente rifiutato con successo' });
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      res.status(500).json({ success: false, message: 'Failed to reject user', error: String(error) });
+    }
+  });
+  
+  // Delete user (admin only)
+  app.delete('/api/admin/users/:id', isAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      if (isNaN(userId)) {
+        return res.status(400).json({ success: false, message: 'Invalid user ID' });
+      }
+      
+      const success = await storage.deleteUser(userId);
+      
+      if (success) {
+        res.json({ success: true, message: 'Utente eliminato con successo' });
+      } else {
+        res.status(404).json({ success: false, message: 'Utente non trovato' });
+      }
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      res.status(500).json({ success: false, message: 'Failed to delete user', error: String(error) });
+    }
+  });
+  
   // Get all clients for the current advisor
   app.get('/api/clients', isAuthenticated, async (req, res) => {
     try {

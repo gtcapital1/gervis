@@ -131,7 +131,7 @@ export function setupAuth(app: Express) {
       const verificationToken = generateVerificationToken(); // Manteniamo anche il token per sicurezza
       const verificationTokenExpires = getTokenExpiryTimestamp();
       
-      // Create user with verification data
+      // Create user with verification data and pending approval status
       const user = await storage.createUser({
         ...req.body,
         username,
@@ -142,7 +142,8 @@ export function setupAuth(app: Express) {
         verificationTokenExpires,
         verificationPin,
         isEmailVerified: false,
-        registrationCompleted: false
+        registrationCompleted: false,
+        approvalStatus: 'pending'
       });
       
       // Send verification PIN email
@@ -190,6 +191,24 @@ export function setupAuth(app: Express) {
           success: false,
           message: "Email non verificata. Per favore controlla la tua casella di posta per completare la verifica.",
           needsVerification: true
+        });
+      }
+      
+      // Check if user is approved
+      if (user.approvalStatus === 'pending') {
+        return res.status(403).json({
+          success: false,
+          message: "Il tuo account è in attesa di approvazione. Sarai informato via email quando la tua registrazione sarà approvata.",
+          pendingApproval: true
+        });
+      }
+      
+      // Check if user is rejected
+      if (user.approvalStatus === 'rejected') {
+        return res.status(403).json({
+          success: false,
+          message: "La tua registrazione è stata rifiutata. Per favore contatta l'amministratore per maggiori informazioni.",
+          rejected: true
         });
       }
       
