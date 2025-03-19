@@ -3,14 +3,14 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig() {
-  // Forziamo l'uso delle credenziali di Aruba
+  // Utilizziamo le credenziali SMTP dalle variabili di ambiente
   return {
     host: 'smtps.aruba.it',
     port: 465,
     secure: true, // Per Aruba, la porta 465 è sempre secure
-    user: 'registration@gervis.it',
-    pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS || '88900Gervis!',
-    from: 'registration@gervis.it'
+    user: process.env.SMTP_USER || 'registration@gervis.it',
+    pass: process.env.SMTP_PASS || '',
+    from: process.env.SMTP_USER || 'registration@gervis.it'
   };
 }
 
