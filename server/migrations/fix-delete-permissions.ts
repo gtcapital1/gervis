@@ -20,9 +20,9 @@ async function fixDeletePermissions() {
     console.log(`Nome utente corrente: ${username}`);
     
     // Concedi permessi DELETE sulle tabelle principali
-    await db.execute(sql`GRANT DELETE ON clients TO ${sql.raw(String(username))}`);
-    await db.execute(sql`GRANT DELETE ON assets TO ${sql.raw(String(username))}`);
-    await db.execute(sql`GRANT DELETE ON recommendations TO ${sql.raw(String(username))}`);
+    await db.execute(sql`GRANT DELETE ON clients TO ${sql.raw(username as string)}`);
+    await db.execute(sql`GRANT DELETE ON assets TO ${sql.raw(username as string)}`);
+    await db.execute(sql`GRANT DELETE ON recommendations TO ${sql.raw(username as string)}`);
     
     console.log("Permessi DELETE concessi con successo");
     
