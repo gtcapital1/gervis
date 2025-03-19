@@ -377,21 +377,57 @@ print_status "Configurazione automatica di HTTPS con Let's Encrypt..."
 SETUP_HTTPS="s"
 
 if true; then
-  # Verifica se certbot è installato
-  if ! command -v certbot &> /dev/null; then
-    print_status "Installazione di Certbot..."
-    apt-get update
-    apt-get install -y certbot python3-certbot-nginx
-  fi
-
-  # Richiedi il certificato
-  print_status "Richiesta del certificato SSL per $DOMAIN..."
-  certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
-  
-  if [ $? -eq 0 ]; then
-    print_success "HTTPS configurato con successo!"
+  if [ -f "./deploy/scripts/setup-certbot.sh" ]; then
+    print_status "Utilizzo dello script specializzato per Certbot..."
+    bash ./deploy/scripts/setup-certbot.sh
+    
+    if [ $? -eq 0 ]; then
+      print_success "HTTPS configurato con successo!"
+    else
+      print_error "Errore nella configurazione di HTTPS con lo script specializzato!"
+      
+      # Fallback al metodo standard
+      if ! command -v certbot &> /dev/null; then
+        print_status "Installazione di Certbot..."
+        if [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+          # Amazon Linux o Red Hat/CentOS
+          amazon-linux-extras install epel -y 2>/dev/null || yum install -y epel-release
+          yum install -y certbot python-certbot-nginx || yum install -y certbot python3-certbot-nginx
+        else
+          # Debian/Ubuntu
+          apt-get update
+          apt-get install -y certbot python3-certbot-nginx
+        fi
+      fi
+      
+      print_status "Richiesta del certificato SSL per $DOMAIN..."
+      certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN || \
+      certbot certonly --standalone -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
+    fi
   else
-    print_error "Errore nella configurazione di HTTPS!"
+    # Metodo standard
+    if ! command -v certbot &> /dev/null; then
+      print_status "Installazione di Certbot..."
+      if [ "$OS_TYPE" = "amazon" ] || [ "$OS_TYPE" = "redhat" ]; then
+        # Amazon Linux o Red Hat/CentOS
+        amazon-linux-extras install epel -y 2>/dev/null || yum install -y epel-release
+        yum install -y certbot python-certbot-nginx || yum install -y certbot python3-certbot-nginx
+      else
+        # Debian/Ubuntu
+        apt-get update
+        apt-get install -y certbot python3-certbot-nginx
+      fi
+    fi
+    
+    print_status "Richiesta del certificato SSL per $DOMAIN..."
+    certbot --nginx -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN || \
+    certbot certonly --standalone -d $DOMAIN -d www.$DOMAIN --non-interactive --agree-tos --email admin@$DOMAIN
+    
+    if [ $? -eq 0 ]; then
+      print_success "HTTPS configurato con successo!"
+    else
+      print_error "Errore nella configurazione di HTTPS!"
+    fi
   fi
 fi
 
