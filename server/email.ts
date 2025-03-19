@@ -308,10 +308,19 @@ export async function sendOnboardingEmail(
       ? processedMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
       : `<p>${content.invitation}</p>`;
     
-    // Prepare signature section
+    // Prepare signature section - Verifico se la firma dell'advisor contiene già una formula di saluto
+    const containsSignaturePhrase = advisorSignature && 
+      (advisorSignature.toLowerCase().includes('cordiali saluti') || 
+       advisorSignature.toLowerCase().includes('best regards') ||
+       advisorSignature.toLowerCase().includes('warm regards') ||
+       advisorSignature.toLowerCase().includes('regards') ||
+       advisorSignature.toLowerCase().includes('saluti'));
+
     const signatureHtml = advisorSignature 
-      ? `<p style="margin-top: 30px;">${content.signature}</p>
-         <p style="white-space: pre-line;">${advisorSignature}</p>`
+      ? containsSignaturePhrase
+          ? `<p style="white-space: pre-line; margin-top: 30px;">${advisorSignature}</p>`
+          : `<p style="margin-top: 30px;">${content.signature}</p>
+             <p style="white-space: pre-line;">${advisorSignature}</p>`
       : `<p style="margin-top: 30px;">${content.signature}</p>
          <p>${content.team}</p>`;
     
