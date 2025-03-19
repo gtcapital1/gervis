@@ -1,4 +1,4 @@
-import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart } from "lucide-react";
+import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart, TrendingUp, Globe } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface FeatureCardProps {
@@ -7,15 +7,16 @@ interface FeatureCardProps {
   description: string;
   learnMoreColor: string;
   isComingSoon?: boolean;
+  plusFeature?: boolean;
 }
 
-function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon, plusFeature }: FeatureCardProps) {
   const { t } = useTranslation();
   return (
     <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border ${isComingSoon ? 'border-blue-800' : 'border-gray-800'} transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
       {isComingSoon && (
         <div className="absolute top-4 right-4 bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
-          {t('common.pro_version')}
+          {plusFeature ? 'Gervis+' : t('common.pro_version')}
         </div>
       )}
       <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
@@ -59,6 +60,14 @@ export default function Features() {
       isComingSoon: false
     },
     {
+      icon: <TrendingUp className="h-7 w-7 text-green-400" />,
+      title: "Daily Market Update",
+      description: "Ricevi aggiornamenti giornalieri sui mercati finanziari, analisi delle tendenze e principali driver economici per rimanere sempre informato.",
+      learnMoreColor: "text-green-400",
+      isComingSoon: true,
+      plusFeature: true
+    },
+    {
       icon: <LineChart className="h-7 w-7 text-secondary" />,
       title: t('features.wealth_assessment.title'),
       description: t('features.wealth_assessment.description'),
@@ -86,7 +95,7 @@ export default function Features() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           {features.map((feature, index) => (
             <FeatureCard
               key={index}
@@ -95,6 +104,7 @@ export default function Features() {
               description={feature.description}
               learnMoreColor={feature.learnMoreColor}
               isComingSoon={feature.isComingSoon}
+              plusFeature={feature.plusFeature}
             />
           ))}
         </div>
