@@ -96,17 +96,15 @@ async function fixCascadeDelete() {
   }
 }
 
-// Esegui la funzione se lo script viene eseguito direttamente
-if (require.main === module) {
-  fixCascadeDelete()
-    .then(result => {
-      console.log(result);
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(err => {
-      console.error("Errore:", err);
-      process.exit(1);
-    });
-}
+// Esegui la funzione
+fixCascadeDelete()
+  .then(result => {
+    console.log(result);
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(err => {
+    console.error("Errore:", err);
+    process.exit(1);
+  });
 
 export { fixCascadeDelete };
