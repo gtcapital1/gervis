@@ -116,31 +116,28 @@ export function PinVerificationDialog({
       });
 
       if (response.success) {
-        // Verifica se l'utente è in attesa di approvazione
-        if (response.pendingApproval) {
+        // Tutti gli utenti devono aspettare l'approvazione dopo la verifica dell'email
+        toast({
+          title: "Verifica completata",
+          description: "Email verificata con successo. In attesa di approvazione da parte del management di Gervis.",
+          variant: "default",
+          duration: 8000, // 8 secondi
+        });
+        
+        // Mostri un toast più a lungo per enfatizzare il messaggio di approvazione in attesa
+        setTimeout(() => {
           toast({
-            title: "Verifica completata",
-            description: "Email verificata con successo. In attesa di approvazione da parte del management di Gervis.",
+            title: "Approvazione richiesta",
+            description: "Il tuo account è in attesa di approvazione. Riceverai un'email quando sarà approvato.",
             variant: "default",
+            duration: 10000, // 10 secondi
           });
-          
-          // Mostri un toast più a lungo per enfatizzare il messaggio di approvazione in attesa
-          setTimeout(() => {
-            toast({
-              title: "Approvazione richiesta",
-              description: "Il tuo account è in attesa di approvazione. Riceverai un'email quando sarà approvato.",
-              variant: "default",
-              duration: 10000, // 10 secondi
-            });
-          }, 1000);
-        } else {
-          toast({
-            title: "Verifica completata",
-            description: "Il tuo account è stato verificato con successo.",
-            variant: "default",
-          });
-        }
-        onSuccess();
+        }, 1000);
+        
+        // Chiudi il dialog senza chiamare la funzione di successo che reindirizza
+        setTimeout(() => {
+          onClose();
+        }, 2000);
       } else {
         toast({
           title: "Verifica fallita",

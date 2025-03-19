@@ -616,7 +616,7 @@ const resourcesEn = {
       register_description: "Register to start managing your clients efficiently.",
       creating_account: "Creating account...",
       back_to_home: "Back to Home",
-      independent_advisor: "I am an independent financial advisor"
+      independent_advisor: "Sono un consulente finanziario indipendente"
     },
     onboarding: {
       title: "Financial Profile Questionnaire",

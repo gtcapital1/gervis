@@ -56,12 +56,15 @@ export function VerificationAlert({ email }: VerificationAlertProps) {
   const handleVerificationSuccess = () => {
     toast({
       title: "Verifica completata",
-      description: "Il tuo account è stato verificato con successo. Ora puoi accedere a tutte le funzionalità.",
+      description: "Email verificata con successo. In attesa di approvazione da parte del management di Gervis.",
       variant: "default",
+      duration: 8000, // 8 secondi
     });
     setDialogOpen(false);
-    // Aggiorniamo la pagina per riflettere il nuovo stato dell'utente
-    window.location.reload();
+    // Aggiorniamo la pagina dopo un breve ritardo
+    setTimeout(() => {
+      window.location.reload();
+    }, 2000);
   };
 
   return (
