@@ -59,9 +59,7 @@ const registerSchema = z.object({
   lastName: z.string().min(1, {
     message: "Last name is required.", 
   }),
-  company: z.string().min(1, {
-    message: "Società è un campo obbligatorio.",
-  }),
+  company: z.string(),
   isIndependent: z.boolean().default(false),
   email: z.string().email({
     message: "Please enter a valid email address.",
@@ -74,6 +72,9 @@ const registerSchema = z.object({
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
   path: ["confirmPassword"],
+}).refine((data) => data.isIndependent || (data.company && data.company.length > 0), {
+  message: "Società è un campo obbligatorio se non sei un consulente indipendente.",
+  path: ["company"],
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
