@@ -3,21 +3,30 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     let errorData;
+    let errorMessage = "";
+    
     try {
+      // Clone della risposta per evitare il consumo del body
+      const resClone = res.clone();
+      
       // Prova a interpretare la risposta come JSON
-      errorData = await res.json();
+      try {
+        errorData = await resClone.json();
+        errorMessage = errorData.message || `${res.status}: Errore`;
+      } catch (jsonError) {
+        // Se non è un JSON valido, usa il testo raw
+        const text = await res.text() || res.statusText;
+        errorMessage = `${res.status}: ${text}`;
+      }
     } catch (e) {
-      // Se non è un JSON valido, usa il testo raw
-      const text = await res.text() || res.statusText;
-      const error: any = new Error(`${res.status}: ${text}`);
-      error.status = res.status;
-      throw error;
+      // Fallback nel caso in cui entrambi i tentativi falliscano
+      errorMessage = `${res.status}: Errore nel processare la risposta`;
     }
     
     // Crea un errore con i dettagli della risposta
-    const error: any = new Error(errorData.message || `${res.status}: Errore`);
+    const error: any = new Error(errorMessage);
     error.status = res.status;
-    error.data = errorData;
+    if (errorData) error.data = errorData;
     throw error;
   }
 }
@@ -45,15 +54,28 @@ export async function httpRequest<T = any>(
 ): Promise<T> {
   const options: RequestInit = {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
     credentials: "include",
   };
 
   if (data) {
-    options.body = JSON.stringify(data);
+    try {
+      options.body = JSON.stringify(data);
+    } catch (error) {
+      console.error("Errore nella serializzazione JSON:", error);
+      throw new Error("Impossibile processare i dati della richiesta");
+    }
   }
 
-  return apiRequest(url, options) as Promise<T>;
+  try {
+    return apiRequest(url, options) as Promise<T>;
+  } catch (error) {
+    console.error(`Errore nella richiesta ${method} a ${url}:`, error);
+    throw error;
+  }
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";

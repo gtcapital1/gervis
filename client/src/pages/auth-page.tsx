@@ -226,84 +226,163 @@ export default function AuthPage() {
   }
 
   function onLoginSubmit(data: LoginFormValues) {
-    loginMutation.mutate(data, {
-      onSuccess: (response) => {
-        // Controlla se l'utente necessita di verifica
-        if (response.message && response.message.includes("non verificata") || response.needsVerification) {
-          // Salva l'email per la verifica
-          setRegisteredEmail(data.email);
-          setNeedsVerification(true);
-          setVerifyPinDialogOpen(true);
+    try {
+      // Prima di inviare i dati, verifichiamo che siano validi
+      if (!data.email || !data.password) {
+        toast({
+          title: "Login fallito",
+          description: "Email e password sono obbligatori",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Log per debug
+      console.log("Tentativo di login con:", { email: data.email, passwordLength: data.password.length });
+      
+      loginMutation.mutate(data, {
+        onSuccess: (response) => {
+          console.log("Login success response:", response);
           
-          toast({
-            title: "Verifica richiesta",
-            description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
-          });
-        } else {
-          toast({
-            title: "Login successful",
-            description: "Welcome back!",
-          });
-          navigate("/dashboard");
-        }
-      },
-      onError: (error: any) => {
-        // Se l'errore contiene informazioni sulla necessità di verifica
-        if (error.status === 403 && error.data?.needsVerification) {
-          setRegisteredEmail(data.email);
-          setNeedsVerification(true);
-          setVerifyPinDialogOpen(true);
+          // Controlla se l'utente necessita di verifica
+          if (response.message && response.message.includes("non verificata") || response.needsVerification) {
+            // Salva l'email per la verifica
+            setRegisteredEmail(data.email);
+            setNeedsVerification(true);
+            setVerifyPinDialogOpen(true);
+            
+            toast({
+              title: "Verifica richiesta",
+              description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
+            });
+          } else {
+            toast({
+              title: "Login effettuato",
+              description: "Bentornato!",
+            });
+            navigate("/dashboard");
+          }
+        },
+        onError: (error: any) => {
+          console.error("Login error:", error);
           
-          toast({
-            title: "Verifica richiesta",
-            description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
-          });
-        } else {
-          toast({
-            title: "Login failed",
-            description: error.message,
-            variant: "destructive",
-          });
-        }
-      },
-    });
+          // Se l'errore contiene informazioni sulla necessità di verifica
+          if (error.status === 403 && error.data?.needsVerification) {
+            setRegisteredEmail(data.email);
+            setNeedsVerification(true);
+            setVerifyPinDialogOpen(true);
+            
+            toast({
+              title: "Verifica richiesta",
+              description: "Per favore, verifica il tuo indirizzo email inserendo il PIN che ti abbiamo inviato.",
+            });
+          } else {
+            toast({
+              title: "Login fallito",
+              description: error.message || "Si è verificato un errore durante il login. Riprova più tardi.",
+              variant: "destructive",
+            });
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Exception during login:", error);
+      toast({
+        title: "Errore imprevisto",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   }
 
   function onRegisterSubmit(data: RegisterFormValues) {
-    const { confirmPassword, ...userData } = data;
-    // Add a username (it will be overwritten in the backend, but we need it to satisfy the schema)
-    const userDataWithUsername = {
-      ...userData,
-      username: `${userData.firstName.toLowerCase()}.${userData.lastName.toLowerCase()}`
-    };
-    registerMutation.mutate(userDataWithUsername, {
-      onSuccess: (response) => {
-        // Se la registrazione richiede la verifica del PIN
-        if (response.message && response.message.includes("PIN")) {
-          setRegisteredEmail(userData.email);
-          setNeedsVerification(true);
-          setVerifyPinDialogOpen(true);
-          
-          toast({
-            title: "Registrazione effettuata",
-            description: "Ti abbiamo inviato un PIN di verifica via email. Inseriscilo per completare la registrazione.",
-          });
-        } else {
-          toast({
-            title: "Registration successful",
-            description: "Your account has been created.",
-          });
-          navigate("/dashboard");
-        }
-      },
-      onError: (error) => {
+    try {
+      // Prima di inviare i dati, verifichiamo che siano validi
+      if (!data.email || !data.password || !data.firstName || !data.lastName) {
         toast({
-          title: "Registration failed",
-          description: error.message,
+          title: "Registrazione fallita",
+          description: "Tutti i campi obbligatori devono essere compilati",
           variant: "destructive",
         });
-      },
-    });
+        return;
+      }
+      
+      // Verifica che le password coincidano
+      if (data.password !== data.confirmPassword) {
+        toast({
+          title: "Registrazione fallita",
+          description: "Le password non coincidono",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const { confirmPassword, ...userData } = data;
+      
+      // Log per debug
+      console.log("Tentativo di registrazione:", {
+        email: userData.email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        isIndependent: userData.isIndependent,
+        passwordLength: userData.password.length
+      });
+      
+      // Add a username (it will be overwritten in the backend, but we need it to satisfy the schema)
+      const userDataWithUsername = {
+        ...userData,
+        username: `${userData.firstName.toLowerCase()}.${userData.lastName.toLowerCase()}`
+      };
+      
+      registerMutation.mutate(userDataWithUsername, {
+        onSuccess: (response) => {
+          console.log("Registration success response:", response);
+          
+          // Se la registrazione richiede la verifica del PIN
+          if (response.message && response.message.includes("PIN")) {
+            setRegisteredEmail(userData.email);
+            setNeedsVerification(true);
+            setVerifyPinDialogOpen(true);
+            
+            toast({
+              title: "Registrazione effettuata",
+              description: "Ti abbiamo inviato un PIN di verifica via email. Inseriscilo per completare la registrazione.",
+            });
+          } else {
+            toast({
+              title: "Registrazione completata",
+              description: "Il tuo account è stato creato con successo.",
+            });
+            navigate("/dashboard");
+          }
+        },
+        onError: (error: any) => {
+          console.error("Registration error:", error);
+          
+          // Gestione errori specifici
+          if (error.message && error.message.includes("Email already registered")) {
+            toast({
+              title: "Registrazione fallita",
+              description: "Questa email è già registrata. Prova ad effettuare il login.",
+              variant: "destructive",
+            });
+          } else {
+            toast({
+              title: "Registrazione fallita",
+              description: error.message || "Si è verificato un errore durante la registrazione. Riprova più tardi.",
+              variant: "destructive",
+            });
+          }
+        },
+      });
+    } catch (error) {
+      console.error("Exception during registration:", error);
+      toast({
+        title: "Errore imprevisto",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive",
+      });
+    }
   }
 
   return (
