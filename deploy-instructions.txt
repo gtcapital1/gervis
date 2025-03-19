@@ -1,140 +1,133 @@
-# Istruzioni per il deployment di Gervis
+===================================================
+ISTRUZIONI PER IL DEPLOYMENT DI GERVIS SU AWS
+===================================================
 
-Ecco le istruzioni passo-passo per eseguire il deployment di Gervis sul tuo server AWS/VPS.
+1. PREPARAZIONE DEL SERVER
+===================================================
+- Accedere all'istanza EC2 t3.medium (15.237.238.255)
+- Assicurarsi di utilizzare Ubuntu 22.04 LTS
 
-## Metodo 1: Build locale e deployment automatizzato (Raccomandato)
-
-Questo metodo è consigliato perché:
-- La build avviene nel tuo ambiente di sviluppo controllato
-- Puoi verificare che tutto funzioni correttamente prima di caricare
-- Il server richiede meno risorse (non deve fare la build)
-- È più veloce e affidabile
-
-### Passo 1: Prepara il pacchetto di deployment
-
-Nel tuo ambiente di sviluppo:
-
-```bash
-# Vai alla directory principale del progetto
-cd /percorso/del/progetto
-
-# Rendi eseguibile lo script di preparazione
-chmod +x deploy/prepare-for-deploy.sh
-
-# Esegui lo script di preparazione
-./deploy/prepare-for-deploy.sh
-```
-
-Lo script farà:
-1. Installare le dipendenze se necessario
-2. Eseguire la build del progetto
-3. Creare un pacchetto con solo i file necessari per la produzione
-4. Salvarlo come `gervis-deploy.tar.gz`
-
-### Passo 2: Esegui il deployment sul server
-
-Sempre nel tuo ambiente di sviluppo:
-
-```bash
-# Rendi eseguibile lo script di deployment
-chmod +x deploy/scripts/deploy.sh
-
-# Esegui lo script di deployment
-./deploy/scripts/deploy.sh
-```
-
-Lo script chiederà:
-- Indirizzo IP o nome host del server
-- Nome utente SSH
-- Percorso della chiave SSH (se necessario)
-- Directory di destinazione sul server
-
-Poi automaticamente:
-1. Trasferirà il pacchetto sul server
-2. Estrarrà i file nella directory di destinazione
-3. Installerà le dipendenze di produzione
-4. Configurerà l'ambiente
-5. Avvierà o riavvierà l'applicazione
-
-### Passo 3: Completa la configurazione del server (se necessario)
-
-Se è la prima installazione, dovrai completare la configurazione:
-
-```bash
-ssh utente@server
-cd /var/www/gervis
-sudo ./deploy/scripts/setup-aws.sh
-```
-
-Lo script configurerà:
-- Nginx con il tuo dominio
-- HTTPS con Let's Encrypt (opzionale)
-- PM2 per l'avvio automatico al riavvio
-
-## Metodo 2: Deployment manuale (Alternativa)
-
-Se preferisci un approccio più manuale, segui questi passaggi:
-
-### Passo 1: Clona il repository sul server
-
-```bash
-ssh utente@server
-sudo mkdir -p /var/www/gervis
-sudo chown $USER:$USER /var/www/gervis
-git clone https://github.com/gtcapital1/gervis.git /var/www/gervis
-cd /var/www/gervis
-```
-
-### Passo 2: Configura l'ambiente
-
-```bash
-# Crea il file .env
-./create-env-file.sh
-
-# Configura l'ambiente
-sudo ./deploy/scripts/setup-aws.sh
-```
-
-## Verifica dell'installazione
-
-Dopo il deployment, verifica che tutto funzioni correttamente:
-
-```bash
-cd /var/www/gervis
-./deploy/scripts/check-app-status.sh
-```
-
-## Risoluzione dei problemi
-
-Se riscontri problemi:
-
-1. **Nginx mostra la pagina predefinita**:
-   ```bash
-   sudo ./deploy/scripts/fix-nginx.sh
+2. INSTALLAZIONE E CONFIGURAZIONE
+===================================================
+1. Clonare il repository GitHub
+   ```
+   git clone https://github.com/gtcapital1/gervis.git /var/www/gervis
+   cd /var/www/gervis
    ```
 
-2. **Database non configurato**:
-   ```bash
-   ./run-db-push.sh
+2. Rendere lo script di installazione eseguibile
+   ```
+   chmod +x setup-gervis-ubuntu.sh
    ```
 
-3. **L'applicazione non si avvia**:
-   ```bash
-   pm2 logs gervis
+3. Eseguire lo script di installazione come sudo
+   ```
+   sudo ./setup-gervis-ubuntu.sh
    ```
 
-4. **Errori di permessi**:
-   ```bash
-   sudo chown -R $USER:$USER /var/www/gervis
-   chmod +x deploy/scripts/*.sh
+4. Lo script configurerà:
+   - Dipendenze Node.js
+   - PostgreSQL 15 (credenziali: gervis:Oliver1@localhost:5432/gervis)
+   - PM2 per la gestione dell'applicazione
+   - Nginx come reverse proxy
+   - HTTPS con Let's Encrypt (se il dominio è configurato)
+
+3. RISOLUZIONE DEL PROBLEMA DELLA DIRECTORY PUBLIC
+===================================================
+Se il deployment restituisce errore 502 Bad Gateway, è probabilmente dovuto alla 
+struttura delle directory. Per risolvere:
+
+1. Rendere eseguibile lo script fix-public-path.sh:
+   ```
+   cd /var/www/gervis
+   chmod +x fix-public-path.sh
    ```
 
-## Note aggiuntive
+2. Eseguire lo script per creare i link simbolici corretti:
+   ```
+   ./fix-public-path.sh
+   ```
 
-- Per aggiornare l'applicazione in futuro, ripeti solo il Metodo 1
-- Le configurazioni (file .env, database) saranno preservate durante gli aggiornamenti
-- Assicurati che i DNS del tuo dominio puntino all'IP del server
+3. Riavviare l'applicazione:
+   ```
+   sudo pm2 restart gervis
+   ```
 
----
+4. Verificare che l'applicazione funzioni correttamente:
+   ```
+   sudo pm2 logs gervis
+   ```
 
-Per ulteriori dettagli, consulta il file `AWS-DEPLOY-README.md`.
+4. AGGIORNAMENTO DELL'APPLICAZIONE
+===================================================
+Per aggiornare l'applicazione con nuove versioni:
+
+1. Accedere alla directory dell'applicazione:
+   ```
+   cd /var/www/gervis
+   ```
+
+2. Scaricare gli aggiornamenti da GitHub:
+   ```
+   git pull origin main
+   ```
+
+3. Installare le dipendenze e ricostruire:
+   ```
+   npm install
+   npm run build
+   ```
+
+4. Eseguire lo script fix-public-path:
+   ```
+   ./fix-public-path.sh
+   ```
+
+5. Riavviare l'applicazione:
+   ```
+   sudo pm2 restart gervis
+   ```
+
+5. VERIFICA DELLO STATO
+===================================================
+- Verificare lo stato dell'applicazione:
+  ```
+  sudo pm2 status
+  ```
+  
+- Controllare i log dell'applicazione:
+  ```
+  sudo pm2 logs gervis
+  ```
+  
+- Verificare lo stato di Nginx:
+  ```
+  sudo systemctl status nginx
+  ```
+
+6. RISOLUZIONE PROBLEMI COMUNI
+===================================================
+- Problema 502 Bad Gateway:
+  Eseguire fix-public-path.sh e riavviare PM2
+
+- Problemi con il database:
+  ```
+  sudo -u postgres psql -c "ALTER USER gervis WITH PASSWORD 'Oliver1';"
+  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gervis TO gervis;"
+  ```
+
+- Controllare i log Nginx per errori:
+  ```
+  sudo tail -f /var/log/nginx/error.log
+  ```
+
+- Reimpostare il database (se necessario):
+  ```
+  sudo -u postgres psql -c "DROP DATABASE gervis;"
+  sudo -u postgres psql -c "CREATE DATABASE gervis OWNER gervis;"
+  ```
+
+===================================================
+NOTA: Questo documento contiene informazioni sensibili.
+Conserva in modo sicuro e non condividere pubblicamente.
+===================================================
