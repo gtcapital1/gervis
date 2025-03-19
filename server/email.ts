@@ -1,55 +1,40 @@
 import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig() {
+  // Forziamo l'uso delle credenziali di Aruba
   return {
-    host: process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtps.aruba.it',
-    port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '465'),
+    host: 'smtps.aruba.it',
+    port: 465,
     secure: true, // Per Aruba, la porta 465 è sempre secure
-    user: process.env.EMAIL_USER || process.env.SMTP_USER || 'registration@gervis.it',
-    pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS,
-    from: process.env.EMAIL_FROM || process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER || 'registration@gervis.it'
+    user: 'registration@gervis.it',
+    pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASS || '88900Gervis!',
+    from: 'registration@gervis.it'
   };
 }
 
 // Supporta sia il formato EMAIL_ che SMTP_ delle variabili ambiente
 const emailConfig = getEmailConfig();
 
-// Proviamo una configurazione alternativa per il server di Aruba
-let transportOptions;
+// Configurazione SMTP per Aruba con opzioni specifiche per compatibilità
+const options: SMTPTransport.Options = {
+  host: emailConfig.host,
+  port: emailConfig.port,
+  secure: true, // Per la porta 465 deve essere true
+  auth: {
+    user: emailConfig.user,
+    pass: emailConfig.pass
+  },
+  tls: {
+    rejectUnauthorized: false, // Non verificare il certificato
+    minVersion: 'TLSv1', // Usa versione minima di TLS
+    ciphers: 'SSLv3', // Prova con SSLv3 per retrocompatibilità
+  },
+  debug: true // Abilita il debug per vedere maggiori informazioni
+};
 
-// Per Aruba utilizziamo configurazioni specifiche per risolvere problemi SSL
-if (emailConfig.host.includes('aruba.it')) {
-  transportOptions = {
-    host: emailConfig.host,
-    port: emailConfig.port,
-    secure: true, // Per la porta 465 deve essere true
-    auth: {
-      user: emailConfig.user,
-      pass: emailConfig.pass,
-    },
-    tls: {
-      rejectUnauthorized: false, // Non verificare il certificato
-      minVersion: 'TLSv1', // Usa versione minima di TLS
-      ciphers: 'SSLv3', // Prova con SSLv3 per retrocompatibilità
-    },
-    debug: true // Abilita il debug per vedere maggiori informazioni
-  };
-} else {
-  // Configurazione standard per altri server
-  transportOptions = {
-    host: emailConfig.host,
-    port: emailConfig.port,
-    secure: emailConfig.port === 465,
-    auth: {
-      user: emailConfig.user,
-      pass: emailConfig.pass,
-    }
-  };
-}
-
-// Crea il transporter con le opzioni appropriate
-const transporter = nodemailer.createTransport(transportOptions);
+const transporter = nodemailer.createTransport(options);
 
 // English content
 const englishContent = {
