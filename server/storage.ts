@@ -25,6 +25,12 @@ export interface IStorage {
   getUserByField(field: string, value: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<User>): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  getPendingUsers(): Promise<User[]>;
+  approveUser(id: number): Promise<User>;
+  rejectUser(id: number): Promise<User>;
+  deleteUser(id: number): Promise<boolean>;
+  isAdminEmail(email: string): Promise<boolean>;
   
   // Client Methods
   getClient(id: number): Promise<Client | undefined>;
@@ -142,6 +148,52 @@ export class PostgresStorage implements IStorage {
     }
     
     return result[0];
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    const result = await db.select().from(users);
+    return result;
+  }
+
+  async getPendingUsers(): Promise<User[]> {
+    const result = await db.select().from(users).where(eq(users.approvalStatus, 'pending'));
+    return result;
+  }
+
+  async approveUser(id: number): Promise<User> {
+    const result = await db.update(users)
+      .set({ approvalStatus: 'approved' })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error(`User with id ${id} not found`);
+    }
+    
+    return result[0];
+  }
+
+  async rejectUser(id: number): Promise<User> {
+    const result = await db.update(users)
+      .set({ approvalStatus: 'rejected' })
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!result[0]) {
+      throw new Error(`User with id ${id} not found`);
+    }
+    
+    return result[0];
+  }
+
+  async deleteUser(id: number): Promise<boolean> {
+    const result = await db.delete(users).where(eq(users.id, id)).returning();
+    return result.length > 0;
+  }
+
+  async isAdminEmail(email: string): Promise<boolean> {
+    // Amministratore specifico (hardcoded per motivi di sicurezza)
+    return email === 'gianmarco.trapasso@gmail.com';
   }
   
   // Client Methods

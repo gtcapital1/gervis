@@ -2,6 +2,10 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Definizione degli stati di approvazione
+export const APPROVAL_STATUSES = ["pending", "approved", "rejected"] as const;
+export type ApprovalStatus = typeof APPROVAL_STATUSES[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -17,6 +21,7 @@ export const users = pgTable("users", {
   companyLogo: text("company_logo"), // Campo per il logo aziendale
   companyInfo: text("company_info"), // Campo per le informazioni societarie aggiuntive
   role: text("role").default("advisor"),
+  approvalStatus: text("approval_status").default("pending"), // Stato di approvazione: pending, approved, rejected
   isPro: boolean("is_pro").default(false),
   proSince: timestamp("pro_since"),
   isEmailVerified: boolean("is_email_verified").default(false),
@@ -24,6 +29,7 @@ export const users = pgTable("users", {
   verificationTokenExpires: timestamp("verification_token_expires"),
   verificationPin: text("verification_pin"), // PIN a 4 cifre per la verifica
   registrationCompleted: boolean("registration_completed").default(false), // Flag che indica se la registrazione è stata completata
+  createdAt: timestamp("created_at").defaultNow(), // Data di creazione dell'utente
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
