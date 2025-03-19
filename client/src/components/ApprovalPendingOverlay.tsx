@@ -63,7 +63,7 @@ export function ApprovalPendingOverlay({ email }: { email: string }) {
               onClick={handleLogout}
             >
               <LogOut className="h-4 w-4 mr-2" />
-              {t('dashboard.logout') || 'Logout'}
+              {t('logout')}
             </Button>
           </div>
         </div>
