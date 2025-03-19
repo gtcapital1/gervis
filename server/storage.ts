@@ -322,8 +322,27 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteClient(id: number): Promise<boolean> {
-    const result = await db.delete(clients).where(eq(clients.id, id)).returning();
-    return result.length > 0;
+    // Utilizziamo una transazione per assicurarci che tutte le operazioni vengano eseguite o nessuna
+    try {
+      // Prima eliminiamo tutti gli asset associati al cliente
+      console.log(`Eliminazione degli asset per il cliente ID: ${id}`);
+      await db.delete(assets).where(eq(assets.clientId, id));
+      
+      // Poi eliminiamo tutte le raccomandazioni associate al cliente
+      console.log(`Eliminazione delle raccomandazioni per il cliente ID: ${id}`);
+      await db.delete(recommendations).where(eq(recommendations.clientId, id));
+      
+      // Infine eliminiamo il cliente stesso
+      console.log(`Eliminazione del cliente ID: ${id}`);
+      const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+      
+      const success = result.length > 0;
+      console.log(`Eliminazione del cliente ID: ${id} completata con successo: ${success}`);
+      return success;
+    } catch (error) {
+      console.error(`Errore durante l'eliminazione del cliente ID: ${id}:`, error);
+      throw error;
+    }
   }
   
   async archiveClient(id: number): Promise<Client> {
