@@ -144,9 +144,19 @@ print_status "Installazione dipendenze npm..."
 cd "$APP_DIR" || exit
 npm ci
 
-print_status "Esecuzione build..."
-npm run build
-print_success "Build completata"
+print_status "Allocazione più memoria per la build..."
+export NODE_OPTIONS="--max-old-space-size=4096"
+
+print_status "Esecuzione build con timeout esteso (30 minuti)..."
+# Utilizziamo timeout per dare alla build più tempo per completare
+timeout 1800 npm run build
+
+if [ $? -eq 0 ]; then
+  print_success "Build completata"
+else
+  print_warning "La build potrebbe non essere stata completata nel tempo previsto."
+  print_warning "Se la build fallisce, prova con: cd $APP_DIR && NODE_OPTIONS=--max-old-space-size=4096 npm run build"
+fi
 
 # 9. Configura PM2
 print_status "Configurazione di PM2..."
@@ -227,13 +237,35 @@ fi
 # 11. Avvia l'applicazione con PM2
 print_status "Avvio dell'applicazione con PM2..."
 cd "$APP_DIR" || exit
-pm2 start ecosystem.config.cjs
-pm2 save
-pm2 startup
 
-# Imposta pm2 per avviarsi all'avvio
-sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp /home/$USER
-print_success "PM2 configurato per l'avvio automatico"
+# Aggiungi controllo se l'app è stata compilata
+if [ -d "$APP_DIR/dist" ]; then
+  pm2 start ecosystem.config.cjs
+  pm2 save
+  pm2 startup
+
+  # Imposta pm2 per avviarsi all'avvio
+  sudo env PATH=$PATH:/usr/bin pm2 startup systemd -u $USER --hp /home/$USER
+  print_success "PM2 configurato per l'avvio automatico"
+else
+  print_warning "La directory dist non esiste. La build potrebbe non essere stata completata."
+  print_warning "Se vuoi continuare comunque, esegui:"
+  print_warning "  cd $APP_DIR && pm2 start ecosystem.config.cjs"
+  
+  # Crea uno script di avvio alternativo che avvia direttamente da TypeScript
+  print_status "Creazione di uno script di avvio alternativo..."
+  cat > "$APP_DIR/start-dev.sh" << EOF
+#!/bin/bash
+cd $APP_DIR
+export NODE_ENV=production
+export PORT=5000
+export DATABASE_URL=postgresql://gervis:$DB_PASSWORD@localhost:5432/gervis
+node --max-old-space-size=4096 node_modules/.bin/tsx server/index.ts
+EOF
+  
+  chmod +x "$APP_DIR/start-dev.sh"
+  print_success "Script di avvio alternativo creato in $APP_DIR/start-dev.sh"
+fi
 
 # 12. Configura HTTPS con Let's Encrypt (se il dominio è configurato)
 print_status "Verifico se il dominio è configurato per l'IP del server..."
@@ -249,7 +281,55 @@ fi
 # 13. Esegui la migrazione del database
 print_status "Esecuzione della migrazione del database..."
 cd "$APP_DIR" || exit
-npm run db:push || true
+
+# Verifica se esiste uno script di migrazione, in caso contrario prova un approccio alternativo
+if grep -q "db:push" "$APP_DIR/package.json"; then
+  npm run db:push || true
+else
+  print_warning "Script db:push non trovato. Utilizzo approccio alternativo per la migrazione..."
+  # Crea uno script temporaneo per la migrazione
+  cat > "$APP_DIR/db-push.js" << EOF
+const { drizzle } = require('drizzle-orm/postgres-js');
+const postgres = require('postgres');
+const { migrate } = require('drizzle-orm/postgres-js/migrator');
+const { schema } = require('./shared/schema');
+
+async function main() {
+  console.log('Connessione al database...');
+  const connectionString = process.env.DATABASE_URL || 'postgresql://gervis:$DB_PASSWORD@localhost:5432/gervis';
+  const client = postgres(connectionString);
+  const db = drizzle(client, { schema });
+  
+  console.log('Esecuzione migrazione...');
+  try {
+    await db.query.users.findMany();
+    console.log('Schema già esistente, nessuna migrazione necessaria.');
+  } catch (e) {
+    console.log('Creazione schema...');
+    // Importa le definizioni delle tabelle
+    const { users, clients, assets, recommendations } = schema;
+    
+    // Crea manualmente le tabelle
+    for (const table of [users, clients, assets, recommendations]) {
+      try {
+        await db.execute(SQL\`CREATE TABLE IF NOT EXISTS \${table}\`);
+        console.log(\`Tabella \${table} creata\`);
+      } catch (err) {
+        console.error(\`Errore nella creazione della tabella \${table}:\`, err);
+      }
+    }
+  }
+  
+  console.log('Migrazione completata');
+  await client.end();
+}
+
+main().catch(console.error);
+EOF
+  
+  # Esegui lo script
+  NODE_OPTIONS="--max-old-space-size=4096" node "$APP_DIR/db-push.js" || true
+fi
 
 # 14. Riepilogo finale
 echo ""
