@@ -1,133 +1,136 @@
-===================================================
-ISTRUZIONI PER IL DEPLOYMENT DI GERVIS SU AWS
-===================================================
+# Istruzioni per il Deployment di Gervis Financial
 
-1. PREPARAZIONE DEL SERVER
-===================================================
-- Accedere all'istanza EC2 t3.medium (15.237.238.255)
-- Assicurarsi di utilizzare Ubuntu 22.04 LTS
+## 1. Prerequisiti Server
 
-2. INSTALLAZIONE E CONFIGURAZIONE
-===================================================
-1. Clonare il repository GitHub
-   ```
-   git clone https://github.com/gtcapital1/gervis.git /var/www/gervis
-   cd /var/www/gervis
-   ```
+Assicurati che il server abbia installato:
+- Ubuntu Server 22.04 LTS
+- Node.js v20 o superiore
+- PM2 (npm install -g pm2)
+- PostgreSQL 15
+- Nginx
 
-2. Rendere lo script di installazione eseguibile
-   ```
-   chmod +x setup-gervis-ubuntu.sh
-   ```
+## 2. Preparazione del Repository
 
-3. Eseguire lo script di installazione come sudo
-   ```
-   sudo ./setup-gervis-ubuntu.sh
-   ```
+1. Eseguire il commit delle modifiche recenti:
+```bash
+git add .
+git commit -m "Implementazione supporto email Aruba e configurazioni deployment"
+git push origin main
+```
 
-4. Lo script configurerà:
-   - Dipendenze Node.js
-   - PostgreSQL 15 (credenziali: gervis:Oliver1@localhost:5432/gervis)
-   - PM2 per la gestione dell'applicazione
-   - Nginx come reverse proxy
-   - HTTPS con Let's Encrypt (se il dominio è configurato)
+## 3. Deployment sul Server
 
-3. RISOLUZIONE DEL PROBLEMA DELLA DIRECTORY PUBLIC
-===================================================
-Se il deployment restituisce errore 502 Bad Gateway, è probabilmente dovuto alla 
-struttura delle directory. Per risolvere:
+### Metodo Automatico
+Utilizza lo script di deployment automatico:
 
-1. Rendere eseguibile lo script fix-public-path.sh:
-   ```
-   cd /var/www/gervis
-   chmod +x fix-public-path.sh
-   ```
+1. Carica lo script sul server:
+```bash
+scp deploy-scripts/deploy.sh user@server-ip:/tmp/
+```
 
-2. Eseguire lo script per creare i link simbolici corretti:
-   ```
-   ./fix-public-path.sh
-   ```
+2. Esegui lo script di deployment:
+```bash
+ssh user@server-ip "chmod +x /tmp/deploy.sh && /tmp/deploy.sh"
+```
 
-3. Riavviare l'applicazione:
-   ```
-   sudo pm2 restart gervis
-   ```
+### Metodo Manuale
+Se preferisci un approccio manuale:
 
-4. Verificare che l'applicazione funzioni correttamente:
-   ```
-   sudo pm2 logs gervis
-   ```
+1. Accedi al server via SSH:
+```bash
+ssh user@server-ip
+```
 
-4. AGGIORNAMENTO DELL'APPLICAZIONE
-===================================================
-Per aggiornare l'applicazione con nuove versioni:
+2. Aggiorna o clona il repository:
+```bash
+cd /var/www/gervis
+git pull origin main
+```
 
-1. Accedere alla directory dell'applicazione:
-   ```
-   cd /var/www/gervis
-   ```
+3. Installa le dipendenze:
+```bash
+npm install
+```
 
-2. Scaricare gli aggiornamenti da GitHub:
-   ```
-   git pull origin main
-   ```
+4. Esegui la build:
+```bash
+npm run build
+```
 
-3. Installare le dipendenze e ricostruire:
-   ```
-   npm install
-   npm run build
-   ```
+5. Correggi il path della directory public:
+```bash
+chmod +x fix-public-path.sh
+./fix-public-path.sh
+```
 
-4. Eseguire lo script fix-public-path:
-   ```
-   ./fix-public-path.sh
-   ```
+6. Configura il file `.env` (se non esiste):
+```bash
+# Usa lo script create-env-file.sh per generare il file .env localmente
+# Poi copia il file sul server
+scp .env user@server-ip:/var/www/gervis/
+```
 
-5. Riavviare l'applicazione:
-   ```
-   sudo pm2 restart gervis
-   ```
+7. Riavvia l'applicazione:
+```bash
+pm2 restart gervis
+```
 
-5. VERIFICA DELLO STATO
-===================================================
-- Verificare lo stato dell'applicazione:
-  ```
-  sudo pm2 status
-  ```
-  
-- Controllare i log dell'applicazione:
-  ```
-  sudo pm2 logs gervis
-  ```
-  
-- Verificare lo stato di Nginx:
-  ```
-  sudo systemctl status nginx
-  ```
+## 4. Configurazione SMTP Aruba
 
-6. RISOLUZIONE PROBLEMI COMUNI
-===================================================
-- Problema 502 Bad Gateway:
-  Eseguire fix-public-path.sh e riavviare PM2
+Il file `.env` dovrebbe contenere le seguenti configurazioni per Aruba:
 
-- Problemi con il database:
-  ```
-  sudo -u postgres psql -c "ALTER USER gervis WITH PASSWORD 'Oliver1';"
-  sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE gervis TO gervis;"
-  ```
+```
+# Email (impostazioni Aruba)
+SMTP_HOST=smtps.aruba.it
+SMTP_PORT=465
+SMTP_USER=registration@gervis.it
+SMTP_PASS=88900Gervis!
+SMTP_FROM=registration@gervis.it
 
-- Controllare i log Nginx per errori:
-  ```
-  sudo tail -f /var/log/nginx/error.log
-  ```
+# Anche nel formato EMAIL_ per compatibilità
+EMAIL_HOST=smtps.aruba.it
+EMAIL_PORT=465
+EMAIL_USER=registration@gervis.it
+EMAIL_PASSWORD=88900Gervis!
+EMAIL_FROM=registration@gervis.it
+```
 
-- Reimpostare il database (se necessario):
-  ```
-  sudo -u postgres psql -c "DROP DATABASE gervis;"
-  sudo -u postgres psql -c "CREATE DATABASE gervis OWNER gervis;"
-  ```
+## 5. Verifica del Deployment
 
-===================================================
-NOTA: Questo documento contiene informazioni sensibili.
-Conserva in modo sicuro e non condividere pubblicamente.
-===================================================
+1. Controlla lo stato del servizio:
+```bash
+pm2 status gervis
+```
+
+2. Verifica i log per eventuali errori:
+```bash
+pm2 logs gervis
+```
+
+3. Testa l'applicazione nel browser visitando l'URL del sito.
+
+## 6. Risoluzione Problemi Comuni
+
+### Directory Public Non Trovata
+```bash
+cd /var/www/gervis
+./fix-public-path.sh
+```
+
+### Errori di Permessi
+```bash
+sudo chown -R $USER:$USER /var/www/gervis
+chmod +x fix-public-path.sh
+chmod +x run-db-push.sh
+```
+
+### Problemi con PostgreSQL
+Verifica che PostgreSQL sia in esecuzione:
+```bash
+sudo systemctl status postgresql
+```
+
+Se necessario, riavvia:
+```bash
+sudo systemctl restart postgresql
+```

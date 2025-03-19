@@ -1,75 +1,71 @@
 #!/bin/bash
 
-# Script per generare il file .env per l'applicazione Gervis
-# Questo script crea un file .env configurato per l'ambiente di produzione
-
-set -e
-
-# Colori per l'output
+# Colori per output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Funzioni per i messaggi
-print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+echo -e "${GREEN}=== Creazione del file .env per il server Gervis ===${NC}"
 
-# Directory corrente
-CURRENT_DIR=$(pwd)
-print_status "Directory corrente: $CURRENT_DIR"
+# Percorso del file .env
+ENV_FILE=".env"
 
-# Generare un session secret se non specificato
-SESSION_SECRET=$(openssl rand -hex 32)
+# Controlla se il file .env esiste già
+if [ -f "$ENV_FILE" ]; then
+  echo "Il file .env esiste già."
+  read -p "Vuoi sovrascriverlo? (s/n): " SOVRASCRIVERE
+  if [ "$SOVRASCRIVERE" != "s" ]; then
+    echo "Operazione annullata."
+    exit 0
+  fi
+fi
 
-# Imposta le variabili di default
-DB_HOST=${DB_HOST:-"localhost"}
-DB_PORT=${DB_PORT:-"5432"}
-DB_USER=${DB_USER:-"gervis"}
-DB_PASSWORD=${DB_PASSWORD:-"Oliver1"}
-DB_NAME=${DB_NAME:-"gervis"}
-PORT=${PORT:-"5000"}
-NODE_ENV=${NODE_ENV:-"production"}
-HOST=${HOST:-"0.0.0.0"}
-BASE_URL=${BASE_URL:-"https://gervis.it"}
-
-# Crea il file .env
-cat > "$CURRENT_DIR/.env" << EOF
-# File di configurazione per Gervis
-
+# Crea il file .env con le impostazioni di base
+cat > $ENV_FILE << EOL
 # Ambiente
-NODE_ENV=$NODE_ENV
-PORT=$PORT
-HOST=$HOST
-BASE_URL=$BASE_URL
+NODE_ENV=production
+
+# Server
+PORT=5000
+HOST=0.0.0.0
 
 # Database
-DATABASE_URL=postgresql://$DB_USER:$DB_PASSWORD@$DB_HOST:$DB_PORT/$DB_NAME
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=gervis
+DB_PASSWORD=Oliver1
+DB_NAME=gervis
+
+# Base URL
+BASE_URL=https://gervis.it
 
 # Sessione
-SESSION_SECRET=$SESSION_SECRET
+SESSION_SECRET=gervisSuperSecretKey2024!
 
-# SMTP (per invio email)
-# Impostare queste variabili per abilitare l'invio di email
-EMAIL_HOST="${EMAIL_HOST:-"smtps.aruba.it"}"
-EMAIL_PORT="${EMAIL_PORT:-"465"}"
-EMAIL_USER="${EMAIL_USER:-"registration@gervis.it"}"
-EMAIL_PASSWORD="${EMAIL_PASSWORD:-""}" # Lasciare vuoto per sicurezza, va impostato manualmente
-EMAIL_FROM="${EMAIL_FROM:-"registration@gervis.it"}"
-EOF
+# Email (impostazioni Aruba)
+SMTP_HOST=smtps.aruba.it
+SMTP_PORT=465
+SMTP_USER=registration@gervis.it
+SMTP_PASS=88900Gervis!
+SMTP_FROM=registration@gervis.it
 
-# Imposta i permessi corretti
-chmod 600 "$CURRENT_DIR/.env"
+# Anche nel formato EMAIL_ per compatibilità
+EMAIL_HOST=smtps.aruba.it
+EMAIL_PORT=465
+EMAIL_USER=registration@gervis.it
+EMAIL_PASSWORD=88900Gervis!
+EMAIL_FROM=registration@gervis.it
+EOL
 
-print_success "File .env creato con successo in $CURRENT_DIR/.env"
-print_status "Configurazione:"
-print_status "- Node.js ambiente: $NODE_ENV"
-print_status "- Server: $HOST:$PORT"
-print_status "- Database: postgresql://$DB_USER:****@$DB_HOST:$DB_PORT/$DB_NAME"
-print_status "- Base URL: $BASE_URL"
+echo -e "${GREEN}File .env creato con successo!${NC}"
+echo "Contenuto del file:"
+cat $ENV_FILE
+echo -e "${GREEN}=== Fine della creazione del file .env ===${NC}"
 
-print_warning "IMPORTANTE: Per utilizzare l'invio di email, devi impostare EMAIL_PASSWORD nel file .env"
-print_warning "Esegui: sudo nano /var/www/gervis/.env per impostare la password di Aruba"
+# Informazioni aggiuntive
+echo ""
+echo -e "${GREEN}Per applicare questo file sul server:${NC}"
+echo "1. Trasferisci il file sul server: scp .env user@server:/tmp/"
+echo "2. Accedi al server: ssh user@server"
+echo "3. Sposta il file: sudo mv /tmp/.env /var/www/gervis/.env"
+echo "4. Riavvia l'applicazione: sudo pm2 restart gervis"
