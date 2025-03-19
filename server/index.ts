@@ -5,6 +5,20 @@ import { setupVite, serveStatic, log } from "./vite";
 // Extend Express Request to include user property
 import session from "express-session";
 
+// Debug info per l'ambiente
+console.log("DEBUG INFO - Process Environment:");
+console.log("NODE_ENV:", process.env.NODE_ENV);
+console.log("HOST:", process.env.HOST);
+console.log("PORT:", process.env.PORT);
+console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
+console.log("BASE_URL:", process.env.BASE_URL);
+console.log("SMTP/EMAIL variables exist:", 
+  !!process.env.SMTP_USER || !!process.env.EMAIL_USER,
+  !!process.env.SMTP_PASS || !!process.env.EMAIL_PASSWORD);
+console.log("REPLIT specific:", 
+  "REPL_ID:", process.env.REPL_ID,
+  "REPL_OWNER:", process.env.REPL_OWNER);
+
 // Estendi SessionData con le nostre proprietà
 declare module "express-session" {
   interface SessionData {
@@ -14,6 +28,7 @@ declare module "express-session" {
 
 // La dichiarazione di Request.user è già definita in auth.ts
 
+console.log("DEBUG - Inizializzazione Express");
 const app = express();
 // Aumenta il limite per il payload JSON a 10MB per supportare upload di file più grandi
 app.use(express.json({ limit: '10mb' }));

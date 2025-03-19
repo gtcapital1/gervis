@@ -61,35 +61,75 @@ export class PostgresStorage implements IStorage {
   public sessionStore: session.Store;
   
   constructor() {
+    console.log("DEBUG - Inizializzazione PostgresStorage");
+    
     // Start with memory store for sessions
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // Clear expired sessions every day
-    });
+    try {
+      console.log("DEBUG - Creazione MemoryStore temporaneo per sessioni");
+      this.sessionStore = new MemoryStore({
+        checkPeriod: 86400000 // Clear expired sessions every day
+      });
+      console.log("DEBUG - MemoryStore creato con successo");
+    } catch (err) {
+      console.error("ERRORE - Fallita creazione MemoryStore:", err);
+      // Crea un dummy store per evitare errori null
+      this.sessionStore = new session.Store();
+    }
     
     // Set up PG session asynchronously
-    this.setupPgSession();
+    console.log("DEBUG - Avvio setup sessione PostgreSQL");
+    this.setupPgSession().catch(err => {
+      console.error("ERRORE - setupPgSession fallito nella promise:", err);
+    });
     
     // Log database status
-    console.log('PostgreSQL storage initialized with database connection');
+    console.log('DEBUG - PostgreSQL storage initialized with database connection');
   }
   
   private async setupPgSession() {
+    console.log("DEBUG - setupPgSession iniziato");
     try {
+      console.log("DEBUG - Importazione modulo pg");
       const pg = await import('pg');
+      
+      console.log("DEBUG - Verifico DATABASE_URL");
+      const dbUrl = process.env.DATABASE_URL;
+      if (!dbUrl) {
+        throw new Error("DATABASE_URL non è definito");
+      }
+      
+      console.log("DEBUG - Creazione pool di connessioni per sessione");
       // Create a separate connection for the session store
       const pool = new pg.default.Pool({
-        connectionString: process.env.DATABASE_URL
+        connectionString: dbUrl
       });
       
+      console.log("DEBUG - Test connessione pool");
+      // Test di connessione al database
+      const client = await pool.connect();
+      try {
+        console.log("DEBUG - Test query sul pool");
+        const result = await client.query('SELECT NOW()');
+        console.log("DEBUG - Test query riuscito:", result.rows[0]);
+      } catch (queryError) {
+        console.error("ERRORE - Test query fallito:", queryError);
+        throw queryError;
+      } finally {
+        client.release();
+        console.log("DEBUG - Client rilasciato");
+      }
+      
+      console.log("DEBUG - Inizializzazione PgSession");
       // Initialize session store with the pool
       this.sessionStore = new PgSession({
         pool: pool,
-        createTableIfMissing: true
+        createTableIfMissing: true,
+        tableName: 'session' // Nome tabella esplicito
       });
       
-      console.log('PostgreSQL session store initialized successfully');
+      console.log('DEBUG - PostgreSQL session store inizializzato con successo');
     } catch (error) {
-      console.error('Failed to setup PG session store:', error);
+      console.error('ERRORE CRITICO - Failed to setup PG session store:', error);
       // Continue using memory store if this fails
     }
   }

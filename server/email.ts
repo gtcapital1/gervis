@@ -3,18 +3,39 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig() {
-  // Utilizziamo le credenziali SMTP dalle variabili di ambiente
+  // Verifico tutte le variabili di ambiente email disponibili
+  console.log("DEBUG - Email config - Verifica variabili d'ambiente:");
+  console.log("SMTP_USER:", process.env.SMTP_USER ? "definito" : "non definito");
+  console.log("SMTP_PASS:", process.env.SMTP_PASS ? "definito" : "non definito");
+  console.log("SMTP_FROM:", process.env.SMTP_FROM ? "definito" : "non definito");
+  console.log("EMAIL_USER:", process.env.EMAIL_USER ? "definito" : "non definito");
+  console.log("EMAIL_PASSWORD:", process.env.EMAIL_PASSWORD ? "definito" : "non definito");
+  console.log("EMAIL_FROM:", process.env.EMAIL_FROM ? "definito" : "non definito");
+  
+  // Utilizziamo le credenziali SMTP dalle variabili di ambiente con fallback
+  const user = process.env.SMTP_USER || process.env.EMAIL_USER || 'registration@gervis.it';
+  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || '';
+  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || user;
+  
+  console.log("DEBUG - Email config - Configurazione risultante:");
+  console.log("Host:", 'smtps.aruba.it');
+  console.log("Port:", 465);
+  console.log("User:", user);
+  console.log("From:", from);
+  console.log("Password length:", pass ? pass.length : 0);
+  
   return {
     host: 'smtps.aruba.it',
     port: 465,
     secure: true, // Per Aruba, la porta 465 è sempre secure
-    user: process.env.SMTP_USER || 'registration@gervis.it',
-    pass: process.env.SMTP_PASS || '',
-    from: process.env.SMTP_USER || 'registration@gervis.it'
+    user,
+    pass,
+    from
   };
 }
 
 // Supporta sia il formato EMAIL_ che SMTP_ delle variabili ambiente
+console.log("DEBUG - Inizializzazione configurazione email");
 const emailConfig = getEmailConfig();
 
 // Configurazione SMTP per Aruba con opzioni specifiche per compatibilità
@@ -34,7 +55,18 @@ const options: SMTPTransport.Options = {
   debug: true // Abilita il debug per vedere maggiori informazioni
 };
 
+console.log("DEBUG - Creazione transporter nodemailer");
 const transporter = nodemailer.createTransport(options);
+
+// Verifica la connessione al server SMTP
+console.log("DEBUG - Verifica connessione SMTP...");
+transporter.verify()
+  .then(() => {
+    console.log("DEBUG - Connessione SMTP verificata con successo!");
+  })
+  .catch(err => {
+    console.error("ERRORE - Verifica connessione SMTP fallita:", err);
+  });
 
 // English content
 const englishContent = {
