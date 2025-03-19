@@ -164,14 +164,14 @@ cat > "$APP_DIR/ecosystem.config.cjs" << EOF
 module.exports = {
   apps: [{
     name: 'gervis',
-    script: '$APP_DIR/node_modules/.bin/tsx',
-    args: 'server/index.ts',
+    script: '$APP_DIR/dist/index.js',  // Usa il file JS compilato invece di tsx
     cwd: '$APP_DIR',
     instances: 1,
     exec_mode: 'fork',
     env: {
       NODE_ENV: 'production',
-      PORT: 5000
+      PORT: 5000,
+      DATABASE_URL: 'postgresql://gervis:$DB_PASSWORD@localhost:5432/gervis'
     },
     watch: false,
     max_memory_restart: '1G'
@@ -185,7 +185,7 @@ sudo bash -c "cat > /etc/nginx/sites-available/gervis << EOF
 server {
     listen 80;
     server_name $DOMAIN www.$DOMAIN $SERVER_IP;
-    root $APP_DIR/dist/client;
+    root $APP_DIR/dist/public;
 
     # Logging
     access_log /var/log/nginx/gervis.access.log;
@@ -198,14 +198,26 @@ server {
     gzip_proxied any;
     gzip_types application/javascript application/json application/xml text/css text/plain text/xml;
 
-    # Gestione dei file statici
+    # Gestione file statici specifici
     location ~* \\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 30d;
         add_header Cache-Control \"public, no-transform\";
+        try_files \\\$uri \\\$uri/ =404;
+    }
+
+    # Percorso specifico per la directory assets
+    location /assets/ {
+        expires 30d;
+        add_header Cache-Control \"public, no-transform\";
+        try_files \\\$uri \\\$uri/ =404;
     }
 
     # Proxy verso l'applicazione Node.js
     location / {
+        try_files \\\$uri \\\$uri/ @proxy;
+    }
+
+    location @proxy {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \\\$http_upgrade;
