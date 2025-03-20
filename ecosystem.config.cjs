@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'gervis',
-      script: 'dist/server/index.js',
+      script: 'index.js', // Modificato per usare index.js nella directory principale
       instances: 'max',
       exec_mode: 'cluster',
       autorestart: true,
