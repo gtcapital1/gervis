@@ -194,6 +194,9 @@ export async function sendVerificationPin(
       </div>
     `;
     
+    // Verifica e rigenera il transporter se necessario prima dell'invio
+    await ensureValidTransporter();
+    
     await transporter.sendMail({
       from: `"Gervis" <${emailConfig.from}>`,
       to: userEmail,
@@ -231,6 +234,9 @@ export async function sendVerificationEmail(
         <p style="margin-top: 30px;">${content.signature}</p>
       </div>
     `;
+    
+    // Verifica e rigenera il transporter se necessario prima dell'invio
+    await ensureValidTransporter();
     
     await transporter.sendMail({
       from: `"Gervis" <${emailConfig.from}>`,
