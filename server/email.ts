@@ -5,28 +5,34 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 function getEmailConfig() {
   // Verifico tutte le variabili di ambiente email disponibili
   console.log("DEBUG - Email config - Verifica variabili d'ambiente:");
+  console.log("SMTP_HOST:", process.env.SMTP_HOST ? "definito" : "non definito");
+  console.log("SMTP_PORT:", process.env.SMTP_PORT ? "definito" : "non definito");
   console.log("SMTP_USER:", process.env.SMTP_USER ? "definito" : "non definito");
   console.log("SMTP_PASS:", process.env.SMTP_PASS ? "definito" : "non definito");
   console.log("SMTP_FROM:", process.env.SMTP_FROM ? "definito" : "non definito");
+  console.log("EMAIL_HOST:", process.env.EMAIL_HOST ? "definito" : "non definito");
+  console.log("EMAIL_PORT:", process.env.EMAIL_PORT ? "definito" : "non definito");
   console.log("EMAIL_USER:", process.env.EMAIL_USER ? "definito" : "non definito");
   console.log("EMAIL_PASSWORD:", process.env.EMAIL_PASSWORD ? "definito" : "non definito");
   console.log("EMAIL_FROM:", process.env.EMAIL_FROM ? "definito" : "non definito");
   
   // Utilizziamo le credenziali SMTP dalle variabili di ambiente con fallback
+  const host = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtps.aruba.it';
+  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '465', 10);
   const user = process.env.SMTP_USER || process.env.EMAIL_USER || 'registration@gervis.it';
   const pass = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || '';
   const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || user;
   
   console.log("DEBUG - Email config - Configurazione risultante:");
-  console.log("Host:", 'smtps.aruba.it');
-  console.log("Port:", 465);
+  console.log("Host:", host);
+  console.log("Port:", port);
   console.log("User:", user);
   console.log("From:", from);
   console.log("Password length:", pass ? pass.length : 0);
   
   return {
-    host: 'smtps.aruba.it',
-    port: 465,
+    host,
+    port,
     secure: true, // Per Aruba, la porta 465 è sempre secure
     user,
     pass,
@@ -39,11 +45,11 @@ console.log("DEBUG - Inizializzazione configurazione email");
 const emailConfig = getEmailConfig();
 
 // Configurazione SMTP per Aruba con opzioni specifiche per compatibilità
-// Nuova configurazione semplificata per Aruba
-console.log("DEBUG - Utilizzo configurazione SMTP alternativa per Aruba");
+// Configurazione basata sulle variabili d'ambiente
+console.log("DEBUG - Utilizzo configurazione SMTP dalle variabili d'ambiente");
 const options: SMTPTransport.Options = {
-  host: 'smtps.aruba.it',
-  port: 465,
+  host: emailConfig.host,
+  port: emailConfig.port,
   secure: true, // usa TLS
   auth: {
     user: emailConfig.user,
