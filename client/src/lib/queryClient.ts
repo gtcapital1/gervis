@@ -1,150 +1,91 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// Funzione helper per verificare se una risposta è valida
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    let errorData;
-    let errorMessage = "";
-    
+    // Gestione degli errori di risposta
     try {
-      // Clone della risposta per evitare il consumo del body
-      const resClone = res.clone();
-      
-      // Prova a interpretare la risposta come JSON
+      const errorData = await res.json();
+      const error: any = new Error(errorData.message || `${res.status}: Errore`);
+      error.status = res.status;
+      error.data = errorData;
+      throw error;
+    } catch (jsonError) {
+      // Se non è JSON valido, controlla se è HTML
       try {
-        errorData = await resClone.json();
-        errorMessage = errorData.message || `${res.status}: Errore`;
-      } catch (jsonError) {
-        // Se non è un JSON valido, usa il testo raw
-        const text = await res.text() || res.statusText;
-        errorMessage = `${res.status}: ${text}`;
+        const text = await res.text();
+        if (text.trim().toLowerCase().startsWith('<!doctype') || 
+            text.trim().toLowerCase().startsWith('<html')) {
+          console.error("DIAGNOSI ERRORE: Il server ha restituito HTML invece di JSON");
+          console.error(`Status: ${res.status}, URL: ${res.url}`);
+          console.error(`Contenuto HTML (primi 200 caratteri): ${text.substring(0, 200)}`);
+          throw new Error(`Il server ha restituito HTML invece di JSON. Status: ${res.status}`);
+        } else {
+          throw new Error(`${res.status}: ${text || res.statusText}`);
+        }
+      } catch (textError) {
+        throw new Error(`${res.status}: Errore nel processare la risposta`);
       }
-    } catch (e) {
-      // Fallback nel caso in cui entrambi i tentativi falliscano
-      errorMessage = `${res.status}: Errore nel processare la risposta`;
     }
-    
-    // Crea un errore con i dettagli della risposta
-    const error: any = new Error(errorMessage);
-    error.status = res.status;
-    if (errorData) error.data = errorData;
-    throw error;
   }
 }
 
-// Simple function to perform API requests
+// Funzione principale per le richieste API
 export async function apiRequest(url: string, options?: RequestInit): Promise<any> {
   try {
-    // DRASTICO: Aggiungiamo timestamp per evitare caching
+    // Aggiungiamo timestamp per evitare caching
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
-    // Log esteso con più informazioni sulla richiesta
-    console.log(`[DEBUG API] Effettuo richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    // Debug richiesta
+    console.log(`[API] Richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
     
-    // Se è una richiesta di DELETE client, logging specifico
-    if (options?.method === 'DELETE' && url.includes('/api/clients/')) {
-      console.log(`[DEBUG ELIMINAZIONE] Avvio eliminazione client con URL: ${urlWithTimestamp}`);
-      console.log(`[DEBUG ELIMINAZIONE] Headers richiesta:`, options.headers || 'Default headers');
-    }
-    
-    const res = await fetch(urlWithTimestamp, {
-      headers: options?.body 
-        ? { 
-            "Content-Type": "application/json", 
-            "Accept": "application/json",
-            "Cache-Control": "no-cache, no-store, must-revalidate"
-          } 
-        : { 
-            "Accept": "application/json",
-            "Cache-Control": "no-cache, no-store, must-revalidate"
-          },
+    // Opzioni della richiesta con anti-cache headers
+    const requestOptions: RequestInit = {
+      headers: {
+        "Accept": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        ...(options?.body ? { "Content-Type": "application/json" } : {})
+      },
       credentials: "include",
-      ...options,
-    });
-
-    // Gestione potenziata per tutti i metodi
-    if (!res.ok) {
-      console.log(`[DEBUG API] Risposta non OK: status=${res.status}, statusText=${res.statusText}`);
-      
-      // Log completo di tutte le intestazioni per debug avanzato
-      const allHeaders: Record<string, string> = {};
-      res.headers.forEach((value, key) => {
-        allHeaders[key] = value;
-      });
-      console.log(`[DEBUG API] Tutte le intestazioni della risposta:`, allHeaders);
-      
-      try {
-        // Per i DELETE di clienti, log dettagliato
-        if (options?.method === 'DELETE' && url.includes('/api/clients/')) {
-          console.log(`[DEBUG ELIMINAZIONE] Ricevuta risposta per eliminazione client con status: ${res.status}`);
-        }
-        
-        // Crea una copia della risposta per non consumare il body
-        const resClone = res.clone();
-        
-        // Verifica il content type
-        const contentType = res.headers.get('content-type');
-        console.log(`[DEBUG API] Content-Type della risposta: ${contentType}`);
-        
-        // Prova sempre a leggere il contenuto della risposta, sia text che json
-        let responseText;
-        try {
-          responseText = await resClone.text();
-          console.log(`[DEBUG API] Testo risposta (primi 500 caratteri):`, responseText.substring(0, 500));
-          
-          // Prova a parsare come JSON per vedere se è un errore JSON valido
-          try {
-            const jsonData = JSON.parse(responseText);
-            console.log(`[DEBUG API] La risposta è un JSON valido:`, jsonData);
-          } catch (jsonError) {
-            console.log(`[DEBUG API] La risposta non è JSON valido`);
-          }
-        } catch (textError) {
-          console.error(`[DEBUG API] Impossibile leggere il testo della risposta:`, textError);
-        }
-        
-        // Se è HTML o ha l'aspetto di HTML, gestiscilo specificamente
-        if ((contentType && contentType.includes('text/html')) || 
-            (responseText && responseText.trim().toLowerCase().startsWith('<!doctype') || responseText.trim().toLowerCase().startsWith('<html'))) {
-          
-          // Log dell'inizio dell'HTML per capire che tipo di pagina è
-          console.error(`[DEBUG API] Risposta HTML ricevuta (primi 300 caratteri):`, responseText.substring(0, 300));
-          
-          // Se è un errore specifico di Nginx o Apache, lo catturiamo
-          if (responseText.includes('nginx') || responseText.includes('Apache')) {
-            console.error(`[DEBUG API] Rilevato errore del server web`);
-            throw new Error(`Il server web ha restituito una pagina di errore invece di JSON. Status: ${res.status}`);
-          }
-          
-          // Se contiene testo che suggerisce un errore di autenticazione
-          if (responseText.toLowerCase().includes('login') || responseText.toLowerCase().includes('authentication')) {
-            console.error(`[DEBUG API] Rilevato possibile reindirizzamento alla pagina di login`);
-            throw new Error(`Probabile problema di autenticazione. La richiesta è stata reindirizzata a una pagina di login.`);
-          }
-          
-          // Lanciamo un errore generico per HTML che includa informazioni per il debug
-          throw new Error(`Il server ha restituito HTML invece di JSON (status ${res.status}). Possibile errore di configurazione del server.`);
-        }
-        else {
-          // Continuiamo con la normale gestione degli errori
-          await throwIfResNotOk(res);
-        }
-      } catch (specialError) {
-        throw specialError;
-      }
-    }
-
+      ...options
+    };
+    
+    // Esecuzione della richiesta
+    const res = await fetch(urlWithTimestamp, requestOptions);
+    
+    // Verifica risposta valida
     await throwIfResNotOk(res);
+    
+    // Gestione risposta vuota
     if (res.status === 204) {
       return null; // No content
     }
+    
+    // Parsing risposta come JSON
     return await res.json();
   } catch (error) {
-    console.error(`API Request Error (${options?.method || 'GET'} ${url}):`, error);
+    // Log dettagliato dell'errore
+    console.error(`[API] Errore nella richiesta ${options?.method || 'GET'} ${url}:`, error);
+    
+    // Aggiunta diagnostica speciale per errori di parsing HTML
+    if (error instanceof Error && 
+        error.message && 
+        error.message.includes('HTML invece di JSON')) {
+      console.error('================== DIAGNOSTICA ERRORE ==================');
+      console.error('RILEVATO HTML NELLA RISPOSTA API - Timestamp:', new Date().toISOString());
+      console.error('Questo può indicare:');
+      console.error('1. Sessione scaduta/logout forzato');
+      console.error('2. Errore 500 nel server');
+      console.error('3. Problema nella configurazione routing');
+      console.error('4. Interferenza proxy/cache');
+      console.error('=====================================================');
+    }
+    
     throw error;
   }
 }
 
-// Helper function to perform HTTP requests with method and data
+// Helper per richieste HTTP tipizzate
 export async function httpRequest<T = any>(
   method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
   url: string,
@@ -154,7 +95,8 @@ export async function httpRequest<T = any>(
     method,
     headers: {
       "Content-Type": "application/json",
-      "Accept": "application/json"
+      "Accept": "application/json",
+      "Cache-Control": "no-cache, no-store, must-revalidate"
     },
     credentials: "include",
   };
@@ -168,15 +110,13 @@ export async function httpRequest<T = any>(
     }
   }
 
-  try {
-    return apiRequest(url, options) as Promise<T>;
-  } catch (error) {
-    console.error(`Errore nella richiesta ${method} a ${url}:`, error);
-    throw error;
-  }
+  return apiRequest(url, options) as Promise<T>;
 }
 
+// Configurazione per il comportamento in caso di risposta 401
 type UnauthorizedBehavior = "returnNull" | "throw";
+
+// Factory per funzione di query
 export const getQueryFn: <T>(options: {
   on401: UnauthorizedBehavior;
 }) => QueryFunction<T> =
@@ -184,6 +124,10 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
+      headers: {
+        "Accept": "application/json",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -194,6 +138,7 @@ export const getQueryFn: <T>(options: {
     return await res.json();
   };
 
+// Istanza del QueryClient con configurazioni predefinite
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
