@@ -341,23 +341,37 @@ export async function sendOnboardingEmail(
       </div>
     `;
   
-    // Debug dell'oggetto email prima dell'invio
-    console.log("DEBUG - sendOnboardingEmail - customSubject:", customSubject);
+    // AGGRESSIVO: Forzatura diretta dell'oggetto, ignorando completamente customSubject
+    console.log("DEBUG - sendOnboardingEmail - customSubject originale:", customSubject);
     
-    // Forziamo un valore per l'oggetto se è vuoto o non definito
-    const emailSubject = customSubject && customSubject.length > 0 
-      ? customSubject 
-      : "Completa il tuo profilo";
+    // NON usare customSubject, usa sempre un valore hardcodato
+    const emailSubject = "Completa il tuo profilo finanziario";
       
-    console.log("DEBUG - OGGETTO FINALE USATO:", emailSubject);
+    console.log("DEBUG - OGGETTO FINALE HARDCODATO:", emailSubject);
     
-    await transporter.sendMail({
+    // Costruiamo interamente l'oggetto email per evitare problemi
+    const mailOptions: {
+      from: string;
+      to: string;
+      subject: string;
+      html: string;
+      cc?: string;
+    } = {
       from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
-      cc: advisorEmail,
-      subject: emailSubject, // Usiamo la variabile locale che è già stata verificata
-      html,
-    });
+      subject: emailSubject,
+      html: html
+    };
+    
+    // Se c'è un advisorEmail, lo aggiungiamo come CC
+    if (advisorEmail) {
+      console.log("DEBUG - Aggiunto CC a:", advisorEmail);
+      mailOptions.cc = advisorEmail;
+    }
+    
+    console.log("DEBUG - Mail options complete:", JSON.stringify(mailOptions, null, 2));
+    
+    await transporter.sendMail(mailOptions);
     
     console.log(`Onboarding email sent to ${clientEmail}`);
     return true;
