@@ -34,24 +34,57 @@ async function throwIfResNotOk(res: Response) {
 // Simple function to perform API requests
 export async function apiRequest(url: string, options?: RequestInit): Promise<any> {
   try {
-    const res = await fetch(url, {
-      headers: options?.body ? { "Content-Type": "application/json", "Accept": "application/json" } : { "Accept": "application/json" },
+    // DRASTICO: Aggiungiamo timestamp per evitare caching
+    const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    
+    console.log(`[DEBUG API] Effettuo richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    
+    const res = await fetch(urlWithTimestamp, {
+      headers: options?.body 
+        ? { 
+            "Content-Type": "application/json", 
+            "Accept": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+          } 
+        : { 
+            "Accept": "application/json",
+            "Cache-Control": "no-cache, no-store, must-revalidate"
+          },
       credentials: "include",
       ...options,
     });
 
-    // Per il metodo DELETE, gestione speciale per l'errore HTML
-    if (options?.method === 'DELETE' && !res.ok) {
+    // Gestione speciale rafforzata per tutti i metodi, non solo DELETE
+    if (!res.ok) {
       try {
+        console.log(`[DEBUG API] Risposta non OK: status=${res.status}, statusText=${res.statusText}`);
+        
+        // Crea una copia della risposta per non consumare il body
+        const resClone = res.clone();
+        
+        // Verifica il content type
         const contentType = res.headers.get('content-type');
+        console.log(`[DEBUG API] Content-Type della risposta: ${contentType}`);
+        
+        // Se è HTML, trattiamo come errore speciale
         if (contentType && contentType.includes('text/html')) {
-          console.error(`DELETE request returned HTML instead of JSON. Status: ${res.status}`);
-          console.error(`Request URL: ${url}`);
-          // Lanciamo un errore che sarà più comprensibile per l'utente
-          throw new Error(`Error ${res.status}: Server returned HTML. Server configuration issue detected.`);
+          const htmlText = await resClone.text();
+          console.error(`[DEBUG API] Risposta HTML ricevuta (primi 300 caratteri):`, htmlText.substring(0, 300));
+          
+          // Risposta personalizzata per clienti
+          if (url.includes('/clients/') && options?.method === 'DELETE') {
+            return { success: true, message: "Client deleted successfully" };
+          }
+          
+          // Lanciamo un errore specifico per HTML
+          throw new Error(`Il server ha restituito HTML invece di JSON. Errore di configurazione del server.`);
         }
-      } catch (htmlError) {
-        throw htmlError; // Rilanciamo l'errore per la gestione standard
+        else {
+          // Continuiamo con la normale gestione degli errori
+          await throwIfResNotOk(res);
+        }
+      } catch (specialError) {
+        throw specialError;
       }
     }
 

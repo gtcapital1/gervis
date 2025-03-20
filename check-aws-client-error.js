@@ -5,9 +5,12 @@
  * 1. Esegue una richiesta HTTP DELETE per eliminare un cliente specifico
  * 2. Mostra dettagli completi della risposta, incluse intestazioni e corpo
  * 3. Se la risposta è HTML invece di JSON, aiuta a diagnosticare il problema
+ * 4. Include header anti-cache per evitare problemi di caching
  * 
  * Uso: node check-aws-client-error.js YOUR_SITE_URL COOKIE_VALUE CLIENT_ID
  * Esempio: node check-aws-client-error.js https://gervis.it "connect.sid=s%3A..." 123
+ *
+ * UPDATED: Aggiunto supporto per anti-cache headers e timestamp nella URL
  */
 
 const https = require('https');
@@ -59,11 +62,18 @@ function makeRequest(baseUrl, clientId, cookieValue) {
     const urlObj = new URL(`${baseUrl}/api/clients/${clientId}`);
     const client = urlObj.protocol === 'https:' ? https : http;
     
+    // Aggiungi un timestamp alla URL per evitare caching
+    urlObj.searchParams.append('_t', Date.now());
+    
     const options = {
       method: 'DELETE',
       headers: {
         'Cookie': cookieValue,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
       }
     };
     

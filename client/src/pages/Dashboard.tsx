@@ -131,28 +131,55 @@ export default function Dashboard() {
     },
   });
   
-  // Delete client mutation
+  // Delete client mutation - versione completamente rivista
   const deleteClientMutation = useMutation({
     mutationFn: (clientId: number) => {
       console.log(`[DEBUG Frontend] Tentativo di eliminazione cliente ID: ${clientId}`);
-      return apiRequest(`/api/clients/${clientId}`, {
+      
+      // Aggiunto timestamp alla richiesta per evitare caching
+      return apiRequest(`/api/clients/${clientId}?_t=${Date.now()}`, {
         method: 'DELETE',
+        headers: {
+          "Cache-Control": "no-cache, no-store, must-revalidate",
+          "Pragma": "no-cache",
+          "Expires": "0"
+        }
       });
     },
     onSuccess: (data) => {
       console.log(`[DEBUG Frontend] Eliminazione cliente completata con successo:`, data);
+      
+      // Invalidiamo la query per aggiornare l'elenco clienti
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      
+      // Toast di successo
       toast({
-        title: "Client deleted",
-        description: "The client has been permanently deleted.",
+        title: t('dashboard.client_deleted'),
+        description: t('dashboard.client_deleted_success'),
       });
+      
+      // Chiudi il dialog di conferma
       setIsDeleteDialogOpen(false);
     },
     onError: (error) => {
+      // Log dettagliato dell'errore
       console.error(`[DEBUG Frontend] Errore nell'eliminazione cliente:`, error);
+      
+      // Gestione speciale per errori HTML dal server
+      let errorMessage = error.message || "Errore durante l'eliminazione del cliente";
+      if (errorMessage.includes("HTML")) {
+        // Se è un errore HTML, mostrato un messaggio più specifico
+        errorMessage = "Errore di comunicazione con il server. Possibile problema di configurazione.";
+        
+        // Anche se riceviamo un errore, potremmo voler aggiornare comunque l'elenco
+        // in quanto il cliente potrebbe essere stato eliminato nonostante l'errore nella risposta
+        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+      }
+      
+      // Toast di errore
       toast({
-        title: "Error",
-        description: "Failed to delete client. Please check console logs for details.",
+        title: t('common.error'),
+        description: errorMessage,
         variant: "destructive",
       });
     },
