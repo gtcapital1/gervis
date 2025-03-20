@@ -241,13 +241,12 @@ Grazie per la tua fiducia e collaborazione.`
       
       // Controlla se è stata inviata un'email o solo generato un link
       if (data.emailSent) {
-        // Se è stata inviata un'email, mostra un toast appropriato e chiudi il dialog
+        // Se è stata inviata un'email, mostra un toast appropriato
         toast({
           title: t('client.email_sent'),  // Usando traduzioni
           description: t('client.email_sent_success'),
         });
-        // Solo se è stata inviata un'email chiudiamo il dialog
-        setIsEmailDialogOpen(false);
+        // Il dialog viene già chiuso nella funzione handleSendEmail
       } else {
         // Se è stato solo generato un link, mostra un toast differente
         toast({
@@ -256,12 +255,6 @@ Grazie per la tua fiducia e collaborazione.`
         });
         // Non chiudiamo il dialog se stiamo solo generando un link
       }
-      
-      // Debug per verificare lo stato
-      console.log("DEBUG - Dopo onSuccess:");
-      console.log("DEBUG - Link generato:", data.link);
-      console.log("DEBUG - Email inviata:", data.emailSent ? "Sì" : "No");
-      console.log("DEBUG - Dialog chiuso:", data.emailSent ? "Sì" : "No");
     },
     onError: () => {
       toast({

@@ -7,6 +7,7 @@ console.log("INFO - File .env caricato, variabili d'ambiente disponibili");
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { autorunCascadeFix } from "./migrations/autorun-cascade-fix";
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -71,6 +72,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Esegui automaticamente il fix dei vincoli CASCADE DELETE all'avvio dell'applicazione
+  // Modalità silenziosa per non intasare i log in prod
+  try {
+    await autorunCascadeFix(true);
+    console.log("DEBUG - Fix vincoli CASCADE eseguito con successo");
+  } catch (error) {
+    console.error("ERRORE - Impossibile eseguire il fix vincoli CASCADE:", error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
