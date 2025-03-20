@@ -61,16 +61,16 @@ export default function Features() {
     },
     {
       icon: <TrendingUp className="h-7 w-7 text-green-400" />,
-      title: "Daily Market Update",
-      description: "Receive daily updates on financial markets with AI-powered analysis and interact with our AI chatbot to get answers to your questions about market trends and economic insights.",
+      title: t('features.daily_market_update.title'),
+      description: t('features.daily_market_update.description'),
       learnMoreColor: "text-green-400",
       isComingSoon: true,
       plusFeature: true
     },
     {
       icon: <UserCog className="h-7 w-7 text-purple-400" />,
-      title: "Junior Sales Assistant",
-      description: "AI-powered assistant that provides daily follow-up suggestions for core clients, identifies engagement opportunities, and helps you prioritize client interactions based on data analysis.",
+      title: t('features.junior_sales_assistant.title'),
+      description: t('features.junior_sales_assistant.description'),
       learnMoreColor: "text-purple-400",
       isComingSoon: true,
       plusFeature: true

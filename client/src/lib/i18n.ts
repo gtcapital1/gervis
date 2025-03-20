@@ -627,6 +627,14 @@ const resourcesEn = {
         title: "Centralized Client Management",
         description: "Easily organize and manage client profiles, documents, and communications in a single platform."
       },
+      daily_market_update: {
+        title: "Daily Market Update",
+        description: "Receive daily updates on financial markets with AI-powered analysis and interact with our AI chatbot to get answers to your questions about market trends and economic insights."
+      },
+      junior_sales_assistant: {
+        title: "Junior Sales Assistant",
+        description: "AI-powered assistant that provides daily follow-up suggestions for core clients, identifies engagement opportunities, and helps you prioritize client interactions based on data analysis."
+      },
       wealth_assessment: {
         title: "Wealth Assessment",
         description: "Detailed analysis of client assets with intuitive visualizations and comprehensive reporting."
