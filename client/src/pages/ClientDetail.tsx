@@ -242,16 +242,16 @@ Grazie per la tua fiducia e collaborazione.`
       if (data.emailSent) {
         // Se è stata inviata un'email, mostra un toast appropriato e chiudi il dialog
         toast({
-          title: "Email inviata",
-          description: `L'email di onboarding è stata inviata con successo a ${client.email}.`,
+          title: t('client.email_sent'),  // Usando traduzioni
+          description: t('client.email_sent_success'),
         });
         // Solo se è stata inviata un'email chiudiamo il dialog
         setIsEmailDialogOpen(false);
       } else {
         // Se è stato solo generato un link, mostra un toast differente
         toast({
-          title: "Link generato",
-          description: `Link di onboarding generato con successo in italiano.`,
+          title: t('client.link_generated'),  // Usando traduzioni
+          description: t('client.link_generated_success'),
         });
         // Non chiudiamo il dialog se stiamo solo generando un link
       }
