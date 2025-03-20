@@ -76,6 +76,14 @@ const clientFormSchema = z.object({
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
 
+// Definizione dell'interfaccia per i parametri di onboarding
+interface OnboardingParams {
+  language: 'english' | 'italian';
+  customMessage: string;
+  customSubject?: string;
+  sendEmail?: boolean;
+}
+
 export default function ClientDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -218,7 +226,7 @@ Grazie per la tua fiducia e collaborazione.`
   }
   
   const sendOnboardingMutation = useMutation({
-    mutationFn: (params: { language: 'english' | 'italian', customMessage: string, subject?: string, sendEmail?: boolean }) => {
+    mutationFn: (params: OnboardingParams) => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
         body: JSON.stringify(params),
