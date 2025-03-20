@@ -341,11 +341,14 @@ export async function sendOnboardingEmail(
       </div>
     `;
   
+    // Debug dell'oggetto email prima dell'invio
+    console.log("DEBUG - sendOnboardingEmail - customSubject:", customSubject);
+    
     await transporter.sendMail({
       from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
-      subject: customSubject || content.subject,
+      subject: customSubject || "Completa il tuo profilo", // Garantiamo sempre un oggetto predefinito fisso
       html,
     });
     
