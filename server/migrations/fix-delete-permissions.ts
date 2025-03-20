@@ -33,17 +33,15 @@ async function fixDeletePermissions() {
   }
 }
 
-// Esegui la funzione se lo script viene eseguito direttamente
-if (require.main === module) {
-  fixDeletePermissions()
-    .then(result => {
-      console.log(result);
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(err => {
-      console.error("Errore:", err);
-      process.exit(1);
-    });
-}
+// Esegui la funzione immediatamente
+fixDeletePermissions()
+  .then(result => {
+    console.log(result);
+    process.exit(result.success ? 0 : 1);
+  })
+  .catch(err => {
+    console.error("Errore:", err);
+    process.exit(1);
+  });
 
 export { fixDeletePermissions };

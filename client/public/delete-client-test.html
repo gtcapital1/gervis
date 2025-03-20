@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Eliminazione Cliente</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .btn {
+            padding: 10px 15px;
+            background-color: #0070f3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-delete {
+            background-color: #e53e3e;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #c6f6d5;
+            border: 1px solid #38a169;
+        }
+        .error {
+            background-color: #fed7d7;
+            border: 1px solid #e53e3e;
+        }
+        input, button {
+            margin: 5px 0;
+        }
+        pre {
+            white-space: pre-wrap;
+            background-color: #eee;
+            padding: 10px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Test Eliminazione Cliente</h1>
+        
+        <div>
+            <h2>Login</h2>
+            <div>
+                <label for="email">Email:</label>
+                <input type="email" id="email" value="test@example.com">
+            </div>
+            <div>
+                <label for="password">Password:</label>
+                <input type="password" id="password" value="password">
+            </div>
+            <button id="loginBtn" class="btn">Accedi</button>
+        </div>
+
+        <div id="clientSection" style="display: none; margin-top: 30px;">
+            <h2>Clienti</h2>
+            <button id="loadClientsBtn" class="btn">Carica Clienti</button>
+            <div id="clientsContainer"></div>
+        </div>
+
+        <div id="resultContainer" style="display: none;"></div>
+    </div>
+
+    <script>
+        // Elementi DOM
+        const loginBtn = document.getElementById('loginBtn');
+        const loadClientsBtn = document.getElementById('loadClientsBtn');
+        const clientSection = document.getElementById('clientSection');
+        const clientsContainer = document.getElementById('clientsContainer');
+        const resultContainer = document.getElementById('resultContainer');
+        
+        // Variabili globali
+        let loggedIn = false;
+        let currentUser = null;
+
+        // Gestione login
+        loginBtn.addEventListener('click', async () => {
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    loggedIn = true;
+                    currentUser = data.user;
+                    clientSection.style.display = 'block';
+                    showResult('Login effettuato con successo', true);
+                    console.log('User data:', data.user);
+                } else {
+                    showResult(`Errore login: ${data.message}`, false);
+                }
+            } catch (error) {
+                showResult(`Errore durante il login: ${error.message}`, false);
+            }
+        });
+
+        // Carica clienti
+        loadClientsBtn.addEventListener('click', async () => {
+            if (!loggedIn) {
+                showResult('Devi prima effettuare il login', false);
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/clients');
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    renderClients(data.clients);
+                } else {
+                    showResult(`Errore caricamento clienti: ${data.message}`, false);
+                }
+            } catch (error) {
+                showResult(`Errore durante il caricamento clienti: ${error.message}`, false);
+            }
+        });
+
+        // Rendering clienti
+        function renderClients(clients) {
+            clientsContainer.innerHTML = '';
+            
+            if (clients.length === 0) {
+                clientsContainer.innerHTML = '<p>Nessun cliente trovato</p>';
+                return;
+            }
+
+            const clientsList = document.createElement('div');
+            clients.forEach(client => {
+                const clientDiv = document.createElement('div');
+                clientDiv.style.padding = '10px';
+                clientDiv.style.margin = '10px 0';
+                clientDiv.style.border = '1px solid #ddd';
+                clientDiv.style.borderRadius = '4px';
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.innerText = 'Elimina';
+                deleteBtn.className = 'btn btn-delete';
+                deleteBtn.onclick = () => deleteClient(client.id);
+                
+                clientDiv.innerHTML = `
+                    <strong>ID:</strong> ${client.id}<br>
+                    <strong>Nome:</strong> ${client.firstName} ${client.lastName}<br>
+                    <strong>Email:</strong> ${client.email}<br>
+                `;
+                clientDiv.appendChild(deleteBtn);
+                
+                clientsList.appendChild(clientDiv);
+            });
+            
+            clientsContainer.appendChild(clientsList);
+        }
+
+        // Eliminazione cliente
+        async function deleteClient(clientId) {
+            if (!confirm(`Sei sicuro di voler eliminare il cliente con ID ${clientId}?`)) {
+                return;
+            }
+
+            try {
+                console.log(`Tentativo di eliminazione cliente ID: ${clientId}`);
+                
+                const response = await fetch(`/api/clients/${clientId}`, {
+                    method: 'DELETE'
+                });
+                
+                // Registra gli header della risposta
+                console.log('Response headers:', response.headers);
+                
+                // Verifica il tipo di contenuto
+                const contentType = response.headers.get('content-type');
+                console.log('Content-Type:', contentType);
+                
+                let data;
+                if (contentType && contentType.includes('application/json')) {
+                    data = await response.json();
+                    console.log('Response data:', data);
+                } else {
+                    const textData = await response.text();
+                    console.log('Response text:', textData);
+                    showResult(`Errore: La risposta non è in formato JSON. Risposta del server: ${textData.substring(0, 200)}...`, false);
+                    return;
+                }
+                
+                if (response.ok && data.success) {
+                    showResult(`Cliente con ID ${clientId} eliminato con successo`, true);
+                    loadClientsBtn.click(); // Ricarica la lista clienti
+                } else {
+                    showResult(`Errore eliminazione cliente: ${data.message}`, false);
+                }
+            } catch (error) {
+                console.error('Error while deleting client:', error);
+                showResult(`Errore durante l'eliminazione: ${error.message}`, false);
+            }
+        }
+
+        // Mostra risultato
+        function showResult(message, success) {
+            resultContainer.innerHTML = '';
+            resultContainer.style.display = 'block';
+            
+            const resultDiv = document.createElement('div');
+            resultDiv.className = `result ${success ? 'success' : 'error'}`;
+            resultDiv.textContent = message;
+            
+            resultContainer.appendChild(resultDiv);
+        }
+    </script>
+</body>
+</html>
