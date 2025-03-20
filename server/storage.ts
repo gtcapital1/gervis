@@ -491,12 +491,40 @@ export class PostgresStorage implements IStorage {
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {
+    console.log(`DEBUG - getClientByToken chiamato con token: ${token}`);
+    
+    // Prima facciamo una query senza controllo data per debuggare
+    const checkClient = await db.select().from(clients).where(
+      eq(clients.onboardingToken, token)
+    );
+    
+    if (checkClient.length === 0) {
+      console.log(`DEBUG - Nessun cliente trovato con token: ${token}`);
+      return undefined;
+    }
+    
+    const now = new Date();
+    const expiryDate = checkClient[0].tokenExpiry as Date;
+    
+    console.log(`DEBUG - Token trovato per cliente ID: ${checkClient[0].id}`);
+    console.log(`DEBUG - Data corrente: ${now.toISOString()}`);
+    console.log(`DEBUG - Data scadenza token: ${expiryDate?.toISOString()}`);
+    console.log(`DEBUG - Token scaduto? ${expiryDate < now}`);
+    
+    // Ora eseguiamo la query con il controllo di scadenza corretto
     const result = await db.select().from(clients).where(
       and(
         eq(clients.onboardingToken, token),
-        gt(clients.tokenExpiry as any, new Date())
+        gt(clients.tokenExpiry as any, now)
       )
     );
+    
+    if (result.length === 0) {
+      console.log(`DEBUG - Token scaduto o non valido`);
+    } else {
+      console.log(`DEBUG - Token valido, cliente trovato: ${result[0].id}`);
+    }
+    
     return result[0];
   }
   
