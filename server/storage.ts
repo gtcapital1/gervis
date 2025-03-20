@@ -40,7 +40,7 @@ export interface IStorage {
   createClient(client: InsertClient): Promise<Client>;
   updateClient(id: number, client: Partial<Client>): Promise<Client>;
   deleteClient(id: number): Promise<boolean>;
-  generateOnboardingToken(clientId: number, language?: 'english' | 'italian', customMessage?: string, advisorEmail?: string): Promise<string>;
+  generateOnboardingToken(clientId: number, language?: 'english' | 'italian', customMessage?: string, advisorEmail?: string, customSubject?: string): Promise<string>;
   archiveClient(id: number): Promise<Client>;
   restoreClient(id: number): Promise<Client>;
   updateClientPassword(clientId: number, password: string): Promise<boolean>;
@@ -528,7 +528,15 @@ export class PostgresStorage implements IStorage {
     return result[0];
   }
   
-  async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english', customMessage?: string, advisorEmail?: string): Promise<string> {
+  async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english', customMessage?: string, advisorEmail?: string, customSubject?: string): Promise<string> {
+    // Log di debug aggiuntivi per verificare se l'oggetto email è passato correttamente
+    console.log("DEBUG Storage - generateOnboardingToken ricevuto questi parametri:");
+    console.log(`DEBUG Storage - clientId: ${clientId}`);
+    console.log(`DEBUG Storage - language: ${language}`);
+    console.log(`DEBUG Storage - customMessage: ${customMessage || "(non specificato)"}`);
+    console.log(`DEBUG Storage - advisorEmail: ${advisorEmail || "(non specificato)"}`);
+    console.log(`DEBUG Storage - customSubject: ${customSubject || "(non specificato)"}`);
+    
     const client = await this.getClient(clientId);
     if (!client) {
       throw new Error(`Client with id ${clientId} not found`);
