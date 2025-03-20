@@ -21,7 +21,8 @@ import {
   Users,
   Settings,
   KeyRound,
-  Info
+  Info,
+  Link2
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
@@ -117,10 +118,7 @@ export default function ClientDetail() {
   };
   // Usando una funzione che definisce correttamente il tipo
   // Variabile fittizia compatibile con il tipo atteso
-  const setForceRefresh = (value: number): void => {
-    // Non fare nulla
-    console.log("ForceRefresh received value:", value);
-  };
+  const [forceRefresh, setForceRefresh] = useState<number>(0);
 
   // For sending onboarding form
   // State for the onboarding link
@@ -827,7 +825,7 @@ ${user?.name || ""}`
           clientId={clientId}
           onAssetsUpdated={() => {
             // Increment force refresh counter to force a query cache bypass
-            setForceRefresh(prev => prev + 1);
+            setForceRefresh((prev: number) => prev + 1);
             // Also directly refetch assets
             refetchAssets();
           }}
