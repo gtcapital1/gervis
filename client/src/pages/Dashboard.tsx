@@ -134,11 +134,13 @@ export default function Dashboard() {
   // Delete client mutation
   const deleteClientMutation = useMutation({
     mutationFn: (clientId: number) => {
+      console.log(`[DEBUG Frontend] Tentativo di eliminazione cliente ID: ${clientId}`);
       return apiRequest(`/api/clients/${clientId}`, {
         method: 'DELETE',
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log(`[DEBUG Frontend] Eliminazione cliente completata con successo:`, data);
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
       toast({
         title: "Client deleted",
@@ -146,10 +148,11 @@ export default function Dashboard() {
       });
       setIsDeleteDialogOpen(false);
     },
-    onError: () => {
+    onError: (error) => {
+      console.error(`[DEBUG Frontend] Errore nell'eliminazione cliente:`, error);
       toast({
         title: "Error",
-        description: "Failed to delete client. Please try again.",
+        description: "Failed to delete client. Please check console logs for details.",
         variant: "destructive",
       });
     },

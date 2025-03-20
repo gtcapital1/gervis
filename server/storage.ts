@@ -323,24 +323,61 @@ export class PostgresStorage implements IStorage {
   
   async deleteClient(id: number): Promise<boolean> {
     // Utilizziamo una transazione per assicurarci che tutte le operazioni vengano eseguite o nessuna
+    console.log(`[DEBUG deleteClient] Avvio eliminazione del cliente ID: ${id}`);
+    
     try {
+      // Verifichiamo se il cliente esiste
+      const clientExists = await db.select().from(clients).where(eq(clients.id, id));
+      console.log(`[DEBUG deleteClient] Verifica esistenza cliente: ${JSON.stringify(clientExists)}`);
+      
+      if (clientExists.length === 0) {
+        console.log(`[DEBUG deleteClient] Cliente ID: ${id} non trovato`);
+        return false;
+      }
+      
       // Prima eliminiamo tutti gli asset associati al cliente
-      console.log(`Eliminazione degli asset per il cliente ID: ${id}`);
-      await db.delete(assets).where(eq(assets.clientId, id));
+      console.log(`[DEBUG deleteClient] Ricerca asset per il cliente ID: ${id}`);
+      const clientAssets = await db.select().from(assets).where(eq(assets.clientId, id));
+      console.log(`[DEBUG deleteClient] Trovati ${clientAssets.length} asset da eliminare`);
+      
+      console.log(`[DEBUG deleteClient] Eliminazione degli asset per il cliente ID: ${id}`);
+      const assetDeleteResult = await db.delete(assets).where(eq(assets.clientId, id)).returning();
+      console.log(`[DEBUG deleteClient] Risultato eliminazione asset: ${assetDeleteResult.length} eliminati`);
       
       // Poi eliminiamo tutte le raccomandazioni associate al cliente
-      console.log(`Eliminazione delle raccomandazioni per il cliente ID: ${id}`);
-      await db.delete(recommendations).where(eq(recommendations.clientId, id));
+      console.log(`[DEBUG deleteClient] Ricerca raccomandazioni per il cliente ID: ${id}`);
+      const clientRecommendations = await db.select().from(recommendations).where(eq(recommendations.clientId, id));
+      console.log(`[DEBUG deleteClient] Trovate ${clientRecommendations.length} raccomandazioni da eliminare`);
+      
+      console.log(`[DEBUG deleteClient] Eliminazione delle raccomandazioni per il cliente ID: ${id}`);
+      const recDeleteResult = await db.delete(recommendations).where(eq(recommendations.clientId, id)).returning();
+      console.log(`[DEBUG deleteClient] Risultato eliminazione raccomandazioni: ${recDeleteResult.length} eliminate`);
       
       // Infine eliminiamo il cliente stesso
-      console.log(`Eliminazione del cliente ID: ${id}`);
-      const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+      console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id}`);
       
-      const success = result.length > 0;
-      console.log(`Eliminazione del cliente ID: ${id} completata con successo: ${success}`);
-      return success;
+      try {
+        const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+        const success = result.length > 0;
+        console.log(`[DEBUG deleteClient] Query SQL eseguita con successo. Risultato: ${JSON.stringify(result)}`);
+        console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id} completata con successo: ${success}`);
+        return success;
+      } catch (deleteError) {
+        console.error(`[DEBUG deleteClient] Errore specifico nella query DELETE:`, deleteError);
+        // Tentiamo di ottenere più informazioni sull'errore
+        if (deleteError instanceof Error) {
+          console.error(`[DEBUG deleteClient] Tipo errore: ${deleteError.name}, Messaggio: ${deleteError.message}`);
+          console.error(`[DEBUG deleteClient] Stack trace: ${deleteError.stack}`);
+        }
+        throw deleteError;
+      }
     } catch (error) {
-      console.error(`Errore durante l'eliminazione del cliente ID: ${id}:`, error);
+      console.error(`[DEBUG deleteClient] Errore durante l'eliminazione del cliente ID: ${id}:`, error);
+      // Otteniamo più informazioni sull'errore
+      if (error instanceof Error) {
+        console.error(`[DEBUG deleteClient] Tipo errore: ${error.name}, Messaggio: ${error.message}`);
+        console.error(`[DEBUG deleteClient] Stack trace: ${error.stack}`);
+      }
       throw error;
     }
   }

@@ -243,21 +243,32 @@ ${user?.name || ""}`
     },
   });
 
-  function handleSendOnboardingForm() {
-    // If the dialog is not open, open it
-    if (!onboardingLink) {
-      // Usa sempre italiano come lingua per l'invio dell'email
-      // Set default message based on Italian
-      setEmailMessage(defaultEmailMessages["italian"]);
-      setIsEmailDialogOpen(true);
-    } else {
-      // If the link already exists, reset it
-      setOnboardingLink(null);
-    }
+  function handleGenerateOnboardingLink() {
+    // Genera direttamente il link di onboarding senza aprire il dialog
+    console.log("[DEBUG] Generazione link onboarding...");
+    
+    // Imposta il messaggio standard in italiano
+    setEmailMessage(defaultEmailMessages["italian"]);
+    
+    // Invochiamo direttamente la mutazione per generare il link
+    sendOnboardingMutation.mutate({
+      language: emailLanguage,
+      customMessage: emailMessage
+    });
   }
   
-  // Non è più necessaria la funzione handleLanguageChange perché la lingua viene ereditata automaticamente
+  function handleOpenEmailDialog() {
+    // Apre il dialog per personalizzare l'email prima di inviarla
+    setIsEmailDialogOpen(true);
+  }
   
+  function handleGenerateNewLink() {
+    // Reset del link esistente e generazione di uno nuovo
+    setOnboardingLink(null);
+    handleGenerateOnboardingLink();
+  }
+  
+  // Funzione che invia l'email con il link di onboarding
   function handleSendEmail() {
     sendOnboardingMutation.mutate({
       language: emailLanguage,
@@ -379,9 +390,16 @@ ${user?.name || ""}`
                       >
                         {t('client.copy_link')}
                       </Button>
+                      <Button 
+                        className="bg-accent hover:bg-accent/90"
+                        onClick={handleOpenEmailDialog}
+                      >
+                        <Send className="mr-2 h-4 w-4" />
+                        {t('client.send_email')}
+                      </Button>
                       <Button
                         variant="outline"
-                        onClick={() => setOnboardingLink(null)}
+                        onClick={handleGenerateNewLink}
                       >
                         {t('client.generate_new_link')}
                       </Button>
@@ -392,12 +410,12 @@ ${user?.name || ""}`
                   </div>
                 ) : (
                   <Button 
-                    onClick={handleSendOnboardingForm}
+                    onClick={handleGenerateOnboardingLink}
                     disabled={sendOnboardingMutation.isPending}
                     className="bg-accent hover:bg-accent/90"
                   >
                     <Send className="mr-2 h-4 w-4" />
-                    {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_email')}
+                    {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
                   </Button>
                 )}
               </CardContent>
@@ -834,6 +852,22 @@ ${user?.name || ""}`
                   L'email verrà inviata in italiano
                 </p>
               </div>
+            </div>
+            
+            {/* Link di onboarding */}
+            <div className="rounded-lg border bg-card p-3">
+              <div className="flex items-center space-x-2 mb-2">
+                <Link2 className="h-4 w-4 text-amber-500" />
+                <p className="text-sm font-semibold">
+                  {t('client.onboarding_link')}
+                </p>
+              </div>
+              <div className="bg-muted rounded-md p-2 overflow-x-auto">
+                <p className="text-xs font-mono break-all">{onboardingLink || t('client.no_link_available')}</p>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                {t('client.link_included_in_email')}
+              </p>
             </div>
             
             <div className="space-y-2">
