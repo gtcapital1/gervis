@@ -256,6 +256,7 @@ Grazie per la tua fiducia e collaborazione.`
     sendOnboardingMutation.mutate({
       language: emailLanguage,
       customMessage: emailMessage,
+      customSubject: emailSubject,
       sendEmail: false  // Non inviare l'email durante la generazione del link
     });
   }
@@ -282,7 +283,7 @@ Grazie per la tua fiducia e collaborazione.`
     sendOnboardingMutation.mutate({
       language: emailLanguage,
       customMessage: emailMessage,
-      subject: emailSubject,
+      customSubject: emailSubject,
       sendEmail: true  // Qui vogliamo esplicitamente inviare l'email
     });
   }
