@@ -225,6 +225,7 @@ Grazie per la tua fiducia e collaborazione.`
     updateClientMutation.mutate(data);
   }
   
+  // Mutation per gestire l'onboarding
   const sendOnboardingMutation = useMutation({
     mutationFn: (params: OnboardingParams) => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
@@ -264,8 +265,8 @@ Grazie per la tua fiducia e collaborazione.`
     },
     onError: () => {
       toast({
-        title: "Error",
-        description: "Failed to generate onboarding link. Please try again.",
+        title: t('common.error'),
+        description: t('client.link_generation_failed'),
         variant: "destructive",
       });
     },
