@@ -43,46 +43,24 @@ export default function Features() {
   const features = [
     {
       icon: <Users className="h-7 w-7 text-secondary" />,
-      title: t('features.onboarding.title'),
-      description: t('features.onboarding.description'),
+      title: t('features.smart_crm.title'),
+      description: t('features.smart_crm.description'),
       learnMoreColor: "text-secondary",
       isComingSoon: false
     },
     {
-      icon: <LayoutDashboard className="h-7 w-7 text-accent" />,
-      title: t('features.client_management.title'),
-      description: t('features.client_management.description'),
-      learnMoreColor: "text-accent",
-      isComingSoon: false
-    },
-    {
-      icon: <TrendingUp className="h-7 w-7 text-green-400" />,
-      title: t('features.daily_market_update.title'),
-      description: t('features.daily_market_update.description'),
-      learnMoreColor: "text-green-400",
-      isComingSoon: true,
-      plusFeature: true
-    },
-    {
       icon: <UserCog className="h-7 w-7 text-purple-400" />,
-      title: t('features.junior_sales_assistant.title'),
-      description: t('features.junior_sales_assistant.description'),
+      title: t('features.junior_assistant.title'),
+      description: t('features.junior_assistant.description'),
       learnMoreColor: "text-purple-400",
       isComingSoon: true,
       plusFeature: true
     },
     {
-      icon: <LineChart className="h-7 w-7 text-secondary" />,
-      title: t('features.wealth_assessment.title'),
-      description: t('features.wealth_assessment.description'),
-      learnMoreColor: "text-secondary",
-      isComingSoon: true
-    },
-    {
-      icon: <BarChart className="h-7 w-7 text-accent" />,
-      title: t('features.ai_allocation.title'),
-      description: t('features.ai_allocation.description'),
-      learnMoreColor: "text-accent",
+      icon: <LineChart className="h-7 w-7 text-green-400" />,
+      title: t('features.portfolio_intelligence.title'),
+      description: t('features.portfolio_intelligence.description'),
+      learnMoreColor: "text-green-400",
       isComingSoon: true
     },
   ];

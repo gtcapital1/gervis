@@ -80,6 +80,18 @@ const resourcesIt = {
       title: "Cosa offriamo",
       subtitle: "Strumenti completi per migliorare il tuo servizio di consulenza e offrire valore aggiunto ai tuoi clienti.",
       learn_more: "Scopri di Più",
+      smart_crm: {
+        title: "Smart CRM",
+        description: "Semplifica l'onboarding dei clienti con moduli digitali e raccolta dati automatizzata. Organizza e gestisci facilmente i profili dei clienti, i documenti e le comunicazioni in un'unica piattaforma centralizzata."
+      },
+      junior_assistant: {
+        title: "Junior Assistant",
+        description: "Assistant basato su IA che fornisce suggerimenti quotidiani di follow-up per i clienti principali e aggiornamenti sui mercati finanziari. Interagisci con il nostro chatbot AI per ottenere risposte sulle tendenze di mercato e approfondimenti economici."
+      },
+      portfolio_intelligence: {
+        title: "Portfolio Intelligence",
+        description: "Analisi dettagliata del patrimonio dei clienti con visualizzazioni intuitive e reportistica completa. Suggerimenti di allocazione degli asset basati su algoritmi avanzati di intelligenza artificiale per ottimizzare i portafogli."
+      },
       onboarding: {
         title: "Onboarding Cliente Digitalizzato",
         description: "Semplifica e accelera il processo di onboarding dei clienti con moduli digitali e raccolta dati automatizzata."
@@ -619,6 +631,18 @@ const resourcesEn = {
       title: "What We Offer",
       subtitle: "Comprehensive tools to enhance your consulting service and provide added value to your clients.",
       learn_more: "Learn More",
+      smart_crm: {
+        title: "Smart CRM",
+        description: "Simplify client onboarding with digital forms and automated data collection. Easily organize and manage client profiles, documents, and communications in a single centralized platform."
+      },
+      junior_assistant: {
+        title: "Junior Assistant",
+        description: "AI-powered assistant that provides daily follow-up suggestions for core clients and financial market updates. Interact with our AI chatbot to get answers about market trends and economic insights."
+      },
+      portfolio_intelligence: {
+        title: "Portfolio Intelligence",
+        description: "Detailed analysis of client assets with intuitive visualizations and comprehensive reporting. Asset allocation suggestions based on advanced artificial intelligence algorithms to optimize portfolios."
+      },
       onboarding: {
         title: "Digitized Client Onboarding",
         description: "Simplify and accelerate client onboarding with digital forms and automated data collection."
