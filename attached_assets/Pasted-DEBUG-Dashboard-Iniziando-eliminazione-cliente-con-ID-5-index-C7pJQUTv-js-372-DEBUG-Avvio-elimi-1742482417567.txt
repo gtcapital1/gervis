@@ -1,0 +1,61 @@
+DEBUG Dashboard - Iniziando eliminazione cliente con ID: 5
+index-C7pJQUTv.js:372 [DEBUG] Avvio eliminazione cliente 5
+index-C7pJQUTv.js:48 [API] Richiesta: DELETE /api/clients/5?_t=1742482388289&_t=1742482388290
+index-C7pJQUTv.js:48 [API] DELETE request: Extra headers added for: /api/clients/5?_t=1742482388289&_t=1742482388290
+index-C7pJQUTv.js:48 [API] DELETE response content-type: text/html; charset=UTF-8
+index-C7pJQUTv.js:48 [API] Rilevata risposta HTML per richiesta DELETE!
+Xn @ index-C7pJQUTv.js:48
+await in Xn
+mutationFn @ index-C7pJQUTv.js:372
+fn @ index-C7pJQUTv.js:48
+v @ index-C7pJQUTv.js:48
+start @ index-C7pJQUTv.js:48
+execute @ index-C7pJQUTv.js:48
+await in execute
+mutate @ index-C7pJQUTv.js:48
+(anonymous) @ index-C7pJQUTv.js:48
+J @ index-C7pJQUTv.js:372
+EY @ index-C7pJQUTv.js:37
+TY @ index-C7pJQUTv.js:37
+kY @ index-C7pJQUTv.js:37
+y3 @ index-C7pJQUTv.js:37
+WD @ index-C7pJQUTv.js:37
+(anonymous) @ index-C7pJQUTv.js:37
+KA @ index-C7pJQUTv.js:40
+gD @ index-C7pJQUTv.js:37
+g5 @ index-C7pJQUTv.js:37
+SA @ index-C7pJQUTv.js:37
+KY @ index-C7pJQUTv.js:37Understand this errorAI
+index-C7pJQUTv.js:48 [API] Primi 200 caratteri della risposta HTML: <!doctype html>
+<html lang="en">
+  <head>
+    <style data-vite-theme="" data-inject-first="">:root {
+      --background: 240 10% 3.9%;
+--foreground: 0 0% 98%;
+--muted: 240 3.7% 15.9%;
+--muted-foregrou
+Xn @ index-C7pJQUTv.js:48
+await in Xn
+mutationFn @ index-C7pJQUTv.js:372
+fn @ index-C7pJQUTv.js:48
+v @ index-C7pJQUTv.js:48
+start @ index-C7pJQUTv.js:48
+execute @ index-C7pJQUTv.js:48
+await in execute
+mutate @ index-C7pJQUTv.js:48
+(anonymous) @ index-C7pJQUTv.js:48
+J @ index-C7pJQUTv.js:372
+EY @ index-C7pJQUTv.js:37
+TY @ index-C7pJQUTv.js:37
+kY @ index-C7pJQUTv.js:37
+y3 @ index-C7pJQUTv.js:37
+WD @ index-C7pJQUTv.js:37
+(anonymous) @ index-C7pJQUTv.js:37
+KA @ index-C7pJQUTv.js:40
+gD @ index-C7pJQUTv.js:37
+g5 @ index-C7pJQUTv.js:37
+SA @ index-C7pJQUTv.js:37
+KY @ index-C7pJQUTv.js:37Understand this errorAI
+index-C7pJQUTv.js:48 [API] Stato HTTP OK ma risposta HTML. Simulando risposta JSON di successo.
+index-C7pJQUTv.js:372 [DEBUG] Eliminazione cliente completata con successo: {success: true, message: 'Client deleted successfully (bypass HTML response)'}
+index-C7pJQUTv.js:372 DEBUG Dashboard - Cliente eliminato con successo: 5
