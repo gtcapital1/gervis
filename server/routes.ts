@@ -647,7 +647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/clients/:id/onboarding-token', isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
-      const { language = 'italian', customMessage, sendEmail = false } = req.body;
+      const { language = 'italian', customMessage, customSubject, sendEmail = false } = req.body;
       
       if (isNaN(clientId)) {
         return res.status(400).json({ success: false, message: 'Invalid client ID' });
@@ -701,7 +701,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             language as 'english' | 'italian',
             customMessage,
             advisor?.signature || undefined,
-            advisor?.email
+            advisor?.email,
+            customSubject
           );
         } catch (emailError) {
           console.error("Failed to send onboarding email:", emailError);

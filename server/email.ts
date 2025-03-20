@@ -345,7 +345,7 @@ export async function sendOnboardingEmail(
       from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
-      subject: content.subject,
+      subject: customSubject || content.subject,
       html,
     });
     
