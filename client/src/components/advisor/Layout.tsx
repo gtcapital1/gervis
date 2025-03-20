@@ -33,8 +33,13 @@ export function Layout({ children }: LayoutProps) {
   const { user, logoutMutation } = useAuth();
   const { t, i18n } = useTranslation();
   
-  // Keep track of current language
+  // Keep track of current language - update when i18n.language changes
   const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
+  
+  // Update currentLanguage when i18n.language changes
+  useEffect(() => {
+    setCurrentLanguage(i18n.language);
+  }, [i18n.language]);
   
   // Check if the user is an admin
   const isAdmin = user?.email === "gianmarco.trapasso@gmail.com" || user?.role === "admin";
@@ -43,7 +48,8 @@ export function Layout({ children }: LayoutProps) {
   const toggleLanguage = () => {
     const newLang = currentLanguage === "en" ? "it" : "en";
     i18n.changeLanguage(newLang);
-    setCurrentLanguage(newLang);
+    // Save language preference to localStorage for persistence
+    localStorage.setItem('preferredLanguage', newLang);
     console.log("Lingua cambiata a:", newLang);
   };
   
@@ -139,7 +145,7 @@ export function Layout({ children }: LayoutProps) {
           onClick={toggleLanguage}
         >
           <Globe className="mr-3 h-5 w-5 text-green-500" />
-          {currentLanguage === "en" ? "Switch to Italian" : "Passa all'inglese"}
+          {t(`language.${currentLanguage === "en" ? "it" : "en"}`)}
         </div>
         <div 
           className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer"
