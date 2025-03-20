@@ -143,17 +143,15 @@ async function fixCascadeConstraints() {
   }
 }
 
-// Esegui la migrazione se questo file viene eseguito direttamente
-if (require.main === module) {
-  fixCascadeConstraints()
-    .then(() => {
-      console.log('Script completato con successo');
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error('Script fallito con errore:', error);
-      process.exit(1);
-    });
-}
+// Esegui la migrazione immediatamente senza controllo del modulo
+fixCascadeConstraints()
+  .then(() => {
+    console.log('Script completato con successo');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('Script fallito con errore:', error);
+    process.exit(1);
+  });
 
 export default fixCascadeConstraints;
