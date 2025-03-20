@@ -121,8 +121,12 @@ export default function ClientDetail() {
   const [forceRefresh, setForceRefresh] = useState<number>(0);
 
   // For sending onboarding form
-  // State for the onboarding link
-  const [onboardingLink, setOnboardingLink] = useState<string | null>(null);
+  // State for the onboarding link with localStorage persistence
+  const [onboardingLink, setOnboardingLink] = useState<string | null>(() => {
+    // Inizializza da localStorage se esiste
+    const storedLink = localStorage.getItem(`onboardingLink_${clientId}`);
+    return storedLink ? storedLink : null;
+  });
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   // La lingua dell'email viene sempre impostata su italiano
   const { i18n } = useTranslation();
@@ -223,6 +227,8 @@ ${user?.name || ""}`
       });
     },
     onSuccess: (data: { token: string, link: string, language: 'english' | 'italian' }) => {
+      // Salva il link nel localStorage per persistenza
+      localStorage.setItem(`onboardingLink_${clientId}`, data.link);
       setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       toast({
@@ -263,6 +269,7 @@ ${user?.name || ""}`
   
   function handleGenerateNewLink() {
     // Reset del link esistente e generazione di uno nuovo
+    localStorage.removeItem(`onboardingLink_${clientId}`);
     setOnboardingLink(null);
     handleGenerateOnboardingLink();
   }
