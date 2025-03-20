@@ -228,12 +228,8 @@ export default function Dashboard() {
     if (clientToDelete) {
       console.log("DEBUG Dashboard - Iniziando eliminazione cliente con ID:", clientToDelete.id);
       
-      // Aggiunge timestamp all'URL per evitare problemi di caching
-      const timestamp = new Date().getTime();
-      
-      // Invochiamo la mutazione con opzioni anticache
+      // Invochiamo la mutazione
       deleteClientMutation.mutate(clientToDelete.id, {
-        // Forziamo l'invalidazione della query per assicurarci che il client venga rimosso dalla UI
         onSuccess: () => {
           console.log("DEBUG Dashboard - Cliente eliminato con successo:", clientToDelete.id);
           queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
@@ -244,12 +240,11 @@ export default function Dashboard() {
         },
         onError: (error) => {
           console.error("DEBUG Dashboard - Errore durante eliminazione:", error);
-          // Anche in caso di errore, tentiamo di invalidare la cache per aggiornare l'UI
-          queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+          // È critico NON mostrare un messaggio di successo in caso di errore
           toast({
-            title: t('dashboard.client_deleted'),
-            description: t('dashboard.client_deleted_success'),
-            variant: "default"
+            title: "Errore di eliminazione",
+            description: `Non è stato possibile eliminare il cliente: ${error.message || 'Errore sconosciuto'}`,
+            variant: "destructive"
           });
         }
       });

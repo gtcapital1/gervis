@@ -54,23 +54,9 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
       ...options,
     });
 
-    // VERSIONE DRASTICA: Gestione speciale super-potenziata per tutti i metodi
+    // Gestione potenziata per tutti i metodi
     if (!res.ok) {
       console.log(`[DEBUG API] Risposta non OK: status=${res.status}, statusText=${res.statusText}`);
-      
-      // IMPORTANTE: Gestione speciale per DELETE di clienti
-      // Questa è una soluzione molto aggressiva che simula una risposta di successo
-      // anche quando il server restituisce un errore, specificatamente per l'operazione DELETE di clienti
-      if (options?.method === 'DELETE' && url.includes('/api/clients/')) {
-        console.log(`[OVERRIDE] Risposta di eliminazione cliente simulata come successo`);
-        
-        // Simuliamo una risposta di successo indipendentemente dal contenuto effettivo
-        return { 
-          success: true, 
-          message: "Client deleted successfully", 
-          note: "This is a simulated successful response"
-        };
-      }
       
       try {        
         // Crea una copia della risposta per non consumare il body
@@ -80,13 +66,27 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
         const contentType = res.headers.get('content-type');
         console.log(`[DEBUG API] Content-Type della risposta: ${contentType}`);
         
-        // Se è HTML, gestisci come caso speciale
+        // Se è HTML, catturiamo e logghiamo l'HTML per capire di cosa si tratta
         if (contentType && contentType.includes('text/html')) {
           const htmlText = await resClone.text();
+          
+          // Log dell'inizio dell'HTML per capire che tipo di pagina è
           console.error(`[DEBUG API] Risposta HTML ricevuta (primi 300 caratteri):`, htmlText.substring(0, 300));
           
-          // Lanciamo un errore specifico per HTML che sarà più comprensibile
-          throw new Error(`Il server ha restituito HTML invece di JSON. Probabile errore di configurazione del server.`);
+          // Se è un errore specifico di Nginx o Apache, lo catturiamo
+          if (htmlText.includes('nginx') || htmlText.includes('Apache')) {
+            console.error(`[DEBUG API] Rilevato errore del server web`);
+            throw new Error(`Il server web ha restituito una pagina di errore invece di JSON. Status: ${res.status}`);
+          }
+          
+          // Se contiene testo che suggerisce un errore di autenticazione
+          if (htmlText.toLowerCase().includes('login') || htmlText.toLowerCase().includes('authentication')) {
+            console.error(`[DEBUG API] Rilevato possibile reindirizzamento alla pagina di login`);
+            throw new Error(`Probabile problema di autenticazione. La richiesta è stata reindirizzata a una pagina di login.`);
+          }
+          
+          // Lanciamo un errore generico per HTML che includa informazioni per il debug
+          throw new Error(`Il server ha restituito HTML invece di JSON (status ${res.status}). Possibile errore di configurazione del server.`);
         }
         else {
           // Continuiamo con la normale gestione degli errori
