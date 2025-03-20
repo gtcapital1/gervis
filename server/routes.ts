@@ -741,19 +741,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Se arriviamo qui, l'email è stata inviata con successo
           emailSent = true;
           console.log(`Email di onboarding inviata con successo a ${client.email}`);
-        } catch (emailError) {
+        } catch (emailError: any) {
           console.error("ERRORE CRITICO - Invio email onboarding fallito:", emailError);
           
-          // Restituiamo un errore al client perché l'invio della mail è fallito
-          if (sendEmail) {
-            return res.status(500).json({ 
-              success: false, 
-              message: "Errore nell'invio dell'email di onboarding", 
-              error: String(emailError),
-              token, // Restituiamo comunque il token in modo che il frontend possa decidere cosa fare
-              link
-            });
-          }
+          // Estrazione dettagli errore più specifici
+          const errorDetails = {
+            message: emailError.message || "Errore sconosciuto",
+            code: emailError.code || "UNKNOWN_ERROR",
+            command: emailError.command || null,
+            response: emailError.response || null,
+            responseCode: emailError.responseCode || null
+          };
+          
+          console.error("DEBUG - Dettagli errore email:", JSON.stringify(errorDetails, null, 2));
+          
+          // Restituiamo un errore al client con dettagli più specifici
+          return res.status(500).json({ 
+            success: false, 
+            message: "Errore nell'invio dell'email di onboarding", 
+            error: String(emailError),
+            errorDetails,
+            token, // Restituiamo comunque il token in modo che il frontend possa decidere cosa fare
+            link,
+            emailSent: false
+          });
         }
       }
       
@@ -829,16 +840,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`Email inviata con successo a ${client.email}`);
         res.json({ success: true, message: "Email sent successfully" });
-      } catch (emailError) {
+      } catch (emailError: any) {
         // Log dettagliato dell'errore
         console.error("ERRORE CRITICO - Invio email fallito:", emailError);
+        
+        // Estrazione dettagli errore più specifici
+        const errorDetails = {
+          message: emailError.message || "Errore sconosciuto",
+          code: emailError.code || "UNKNOWN_ERROR",
+          command: emailError.command || null,
+          response: emailError.response || null,
+          responseCode: emailError.responseCode || null,
+          stack: emailError.stack || "No stack trace available"
+        };
+        
+        console.error("DEBUG - Dettagli errore email:", JSON.stringify(errorDetails, null, 2));
         
         // Inviamo i dettagli dell'errore al frontend
         res.status(500).json({ 
           success: false, 
           message: "Failed to send email", 
           error: String(emailError),
-          errorDetails: emailError instanceof Error ? emailError.stack : "No stack trace available"
+          errorDetails
         });
       }
     } catch (error) {
