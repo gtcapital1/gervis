@@ -996,6 +996,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive client
+  app.post('/api/clients/:id/archive', isAuthenticated, async (req, res) => {
+    try {
+      console.log("[INFO] Ricevuta richiesta di archiviazione cliente");
+      const clientId = parseInt(req.params.id);
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid client ID" 
+        });
+      }
+      
+      // Verifica se il cliente esiste
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Client not found" 
+        });
+      }
+      
+      // Verifica che il consulente possa archiviare questo cliente
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Not authorized to archive this client" 
+        });
+      }
+      
+      console.log(`[INFO] Archiviazione cliente ID: ${clientId}`);
+      const archivedClient = await storage.archiveClient(clientId);
+      
+      res.json({
+        success: true,
+        message: "Client archived successfully",
+        client: archivedClient
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore archiviazione cliente:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to archive client",
+        error: error.message
+      });
+    }
+  });
+  
+  // Restore client from archive
+  app.post('/api/clients/:id/restore', isAuthenticated, async (req, res) => {
+    try {
+      console.log("[INFO] Ricevuta richiesta di ripristino cliente");
+      const clientId = parseInt(req.params.id);
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Invalid client ID" 
+        });
+      }
+      
+      // Verifica se il cliente esiste
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ 
+          success: false, 
+          message: "Client not found" 
+        });
+      }
+      
+      // Verifica che il consulente possa ripristinare questo cliente
+      if (client.advisorId !== req.user?.id) {
+        return res.status(403).json({ 
+          success: false, 
+          message: "Not authorized to restore this client" 
+        });
+      }
+      
+      console.log(`[INFO] Ripristino cliente ID: ${clientId}`);
+      const restoredClient = await storage.restoreClient(clientId);
+      
+      res.json({
+        success: true,
+        message: "Client restored successfully",
+        client: restoredClient
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore ripristino cliente:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to restore client",
+        error: error.message
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

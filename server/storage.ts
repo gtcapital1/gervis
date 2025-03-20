@@ -408,31 +408,63 @@ export class PostgresStorage implements IStorage {
   }
   
   async archiveClient(id: number): Promise<Client> {
-    console.log(`[INFO] Archiviazione cliente ID: ${id}`);
+    console.log(`[INFO] Archiviazione cliente ID: ${id} - Inizio processo`);
     
     try {
-      // Verifichiamo se il cliente esiste
-      const clientExists = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
+      // STEP 1: Verifichiamo che il cliente esista
+      console.log(`[INFO] Verifica esistenza cliente ID: ${id}`);
+      const existingClient = await this.getClient(id);
       
-      if (clientExists.length === 0) {
-        console.log(`[INFO] Cliente ID: ${id} non trovato per archiviazione`);
+      if (!existingClient) {
+        console.log(`[ERROR] Cliente ID: ${id} non trovato per archiviazione`);
         throw new Error(`Client with id ${id} not found`);
       }
       
-      // Aggiorniamo lo stato di archiviazione
-      const result = await db.update(clients)
-        .set({ isArchived: true })
-        .where(eq(clients.id, id))
-        .returning();
+      console.log(`[INFO] Cliente ID: ${id} trovato, procedo con archiviazione`);
       
-      if (!result[0]) {
-        throw new Error(`Failed to archive client with id ${id}`);
+      // STEP 2: Aggiorniamo lo stato di archiviazione con Drizzle ORM
+      console.log(`[INFO] Aggiornamento stato archiviazione per cliente ID: ${id}`);
+      try {
+        const result = await db.update(clients)
+          .set({ isArchived: true })
+          .where(eq(clients.id, id))
+          .returning();
+        
+        if (!result[0]) {
+          console.log(`[ERROR] Nessun risultato restituito dall'operazione di archiviazione per cliente ID: ${id}`);
+          throw new Error(`Failed to archive client with id ${id} - No result returned`);
+        }
+        
+        console.log(`[INFO] Cliente ID: ${id} archiviato con successo tramite Drizzle ORM`);
+        return result[0];
+      } catch (drizzleError) {
+        // STEP 3: Fallback in caso di errore con Drizzle ORM
+        console.log(`[WARNING] Errore con Drizzle ORM durante archiviazione cliente ID: ${id}, tento approccio SQL diretto`);
+        console.error(drizzleError);
+        
+        try {
+          // Utilizzo SQL diretto come fallback
+          const sqlResult = await pgClient`
+            UPDATE ${clients}
+            SET "isArchived" = true
+            WHERE id = ${id}
+            RETURNING *
+          `;
+          
+          if (!sqlResult || sqlResult.length === 0) {
+            console.log(`[ERROR] Fallback SQL: Nessun cliente archiviato con ID: ${id}`);
+            throw new Error(`Failed to archive client with id ${id} - SQL direct approach failed`);
+          }
+          
+          console.log(`[INFO] Fallback SQL: Cliente ID: ${id} archiviato con successo`);
+          return sqlResult[0];
+        } catch (sqlError) {
+          console.error(`[ERROR] Anche l'approccio SQL diretto è fallito per cliente ID: ${id}`, sqlError);
+          throw new Error(`Failed to archive client with id ${id} - Both approaches failed`);
+        }
       }
-      
-      console.log(`[INFO] Cliente ID: ${id} archiviato con successo`);
-      return result[0];
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'archiviazione del cliente ID: ${id}:`, error);
+      console.error(`[ERROR] Errore fatale durante l'archiviazione del cliente ID: ${id}:`, error);
       throw error;
     }
   }
