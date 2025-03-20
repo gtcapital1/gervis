@@ -325,49 +325,111 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteClient(id: number): Promise<boolean> {
-    // Utilizziamo una transazione per assicurarci che tutte le operazioni vengano eseguite o nessuna
     console.log(`[DEBUG deleteClient] Avvio eliminazione del cliente ID: ${id}`);
     
+    // Utilizziamo una transazione esplicita per garantire l'atomicità dell'operazione
+    const connection = await db.connection().connect();
+    
     try {
-      // Verifichiamo se il cliente esiste
-      const clientExists = await db.select().from(clients).where(eq(clients.id, id));
+      await connection.execute(sql`BEGIN`);
+      
+      // 1. Verifichiamo se il cliente esiste
+      const clientExists = await connection.select().from(clients).where(eq(clients.id, id));
       console.log(`[DEBUG deleteClient] Verifica esistenza cliente: ${JSON.stringify(clientExists)}`);
       
       if (clientExists.length === 0) {
         console.log(`[DEBUG deleteClient] Cliente ID: ${id} non trovato`);
+        await connection.execute(sql`ROLLBACK`);
+        connection.release();
         return false;
       }
       
-      // Prima eliminiamo tutti gli asset associati al cliente
-      console.log(`[DEBUG deleteClient] Ricerca asset per il cliente ID: ${id}`);
-      const clientAssets = await db.select().from(assets).where(eq(assets.clientId, id));
-      console.log(`[DEBUG deleteClient] Trovati ${clientAssets.length} asset da eliminare`);
+      // 2. Diagnostica - Verifichiamo l'esistenza di asset e raccomandazioni prima dell'eliminazione
+      const clientAssets = await connection.select().from(assets).where(eq(assets.clientId, id));
+      console.log(`[DEBUG deleteClient] Trovati ${clientAssets.length} asset collegati al cliente`);
       
-      console.log(`[DEBUG deleteClient] Eliminazione degli asset per il cliente ID: ${id}`);
-      const assetDeleteResult = await db.delete(assets).where(eq(assets.clientId, id)).returning();
-      console.log(`[DEBUG deleteClient] Risultato eliminazione asset: ${assetDeleteResult.length} eliminati`);
+      const clientRecommendations = await connection.select().from(recommendations).where(eq(recommendations.clientId, id));
+      console.log(`[DEBUG deleteClient] Trovate ${clientRecommendations.length} raccomandazioni collegate al cliente`);
       
-      // Poi eliminiamo tutte le raccomandazioni associate al cliente
-      console.log(`[DEBUG deleteClient] Ricerca raccomandazioni per il cliente ID: ${id}`);
-      const clientRecommendations = await db.select().from(recommendations).where(eq(recommendations.clientId, id));
-      console.log(`[DEBUG deleteClient] Trovate ${clientRecommendations.length} raccomandazioni da eliminare`);
+      // 3. Verifichiamo che i vincoli CASCADE DELETE siano correttamente configurati
+      const constraintCheck = await connection.execute(sql`
+        SELECT EXISTS (
+          SELECT FROM information_schema.table_constraints 
+          WHERE constraint_name = 'assets_client_id_fkey' 
+          AND constraint_type = 'FOREIGN KEY'
+        ) AS assets_constraint_exists,
+        EXISTS (
+          SELECT FROM information_schema.table_constraints 
+          WHERE constraint_name = 'recommendations_client_id_fkey' 
+          AND constraint_type = 'FOREIGN KEY'
+        ) AS recommendations_constraint_exists,
+        (SELECT confdeltype FROM pg_constraint c
+         JOIN pg_namespace n ON n.oid = c.connamespace
+         WHERE conname = 'assets_client_id_fkey'
+         AND n.nspname = 'public') as assets_delete_rule,
+        (SELECT confdeltype FROM pg_constraint c
+         JOIN pg_namespace n ON n.oid = c.connamespace
+         WHERE conname = 'recommendations_client_id_fkey'
+         AND n.nspname = 'public') as recommendations_delete_rule;
+      `);
       
-      console.log(`[DEBUG deleteClient] Eliminazione delle raccomandazioni per il cliente ID: ${id}`);
-      const recDeleteResult = await db.delete(recommendations).where(eq(recommendations.clientId, id)).returning();
-      console.log(`[DEBUG deleteClient] Risultato eliminazione raccomandazioni: ${recDeleteResult.length} eliminate`);
+      console.log(`[DEBUG deleteClient] Stato vincoli: ${JSON.stringify(constraintCheck[0])}`);
       
-      // Infine eliminiamo il cliente stesso
-      console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id}`);
+      // Verifichiamo se i vincoli di CASCADE DELETE non sono configurati correttamente
+      // 'c' rappresenta CASCADE, 'a' rappresenta NO ACTION, 'r' rappresenta RESTRICT
+      const assetsConstraintExists = constraintCheck[0]?.assets_constraint_exists;
+      const recommendationsConstraintExists = constraintCheck[0]?.recommendations_constraint_exists;
+      const assetsDeleteRule = constraintCheck[0]?.assets_delete_rule;
+      const recommendationsDeleteRule = constraintCheck[0]?.recommendations_delete_rule;
       
+      const constraintsConfigured = assetsConstraintExists && recommendationsConstraintExists && 
+                                   assetsDeleteRule === 'c' && recommendationsDeleteRule === 'c';
+      
+      console.log(`[DEBUG deleteClient] Vincoli CASCADE configurati correttamente: ${constraintsConfigured}`);
+      
+      // Se i vincoli non sono configurati correttamente, ricorriamo all'eliminazione manuale
+      if (!constraintsConfigured) {
+        console.log(`[DEBUG deleteClient] Utilizzo eliminazione manuale (i vincoli CASCADE non sono configurati correttamente)`);
+        
+        // Eliminiamo manualmente gli asset
+        await connection.delete(assets).where(eq(assets.clientId, id));
+        console.log(`[DEBUG deleteClient] Asset eliminati manualmente`);
+        
+        // Eliminiamo manualmente le raccomandazioni
+        await connection.delete(recommendations).where(eq(recommendations.clientId, id));
+        console.log(`[DEBUG deleteClient] Raccomandazioni eliminate manualmente`);
+      }
+      
+      // 4. Eliminiamo il cliente (con CASCADE automatico se i vincoli sono configurati)
       try {
-        const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+        const result = await connection.delete(clients).where(eq(clients.id, id)).returning();
         const success = result.length > 0;
-        console.log(`[DEBUG deleteClient] Query SQL eseguita con successo. Risultato: ${JSON.stringify(result)}`);
-        console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id} completata con successo: ${success}`);
+        
+        if (success) {
+          // Commit della transazione
+          await connection.execute(sql`COMMIT`);
+          console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id} completata con successo`);
+        } else {
+          // Rollback in caso di problemi
+          await connection.execute(sql`ROLLBACK`);
+          console.log(`[DEBUG deleteClient] Nessuna riga eliminata per il cliente ID: ${id}`);
+        }
+        
+        // 5. Verifica finale - Controlliamo che effettivamente il cliente non esista più
+        const finalCheck = await connection.select().from(clients).where(eq(clients.id, id));
+        console.log(`[DEBUG deleteClient] Verifica finale: ${finalCheck.length === 0 ? 'Cliente eliminato' : 'Cliente ancora presente'}`);
+        
+        // 6. E Che anche asset e raccomandazioni siano stati eliminati
+        const finalAssetsCheck = await connection.select().from(assets).where(eq(assets.clientId, id));
+        const finalRecommendationsCheck = await connection.select().from(recommendations).where(eq(recommendations.clientId, id));
+        console.log(`[DEBUG deleteClient] Asset rimasti: ${finalAssetsCheck.length}, Raccomandazioni rimaste: ${finalRecommendationsCheck.length}`);
+        
         return success;
       } catch (deleteError) {
+        // Rollback in caso di errore
+        await connection.execute(sql`ROLLBACK`);
         console.error(`[DEBUG deleteClient] Errore specifico nella query DELETE:`, deleteError);
-        // Tentiamo di ottenere più informazioni sull'errore
+        
         if (deleteError instanceof Error) {
           console.error(`[DEBUG deleteClient] Tipo errore: ${deleteError.name}, Messaggio: ${deleteError.message}`);
           console.error(`[DEBUG deleteClient] Stack trace: ${deleteError.stack}`);
@@ -375,13 +437,23 @@ export class PostgresStorage implements IStorage {
         throw deleteError;
       }
     } catch (error) {
+      // Assicuriamoci che la transazione venga annullata in caso di errore
+      try {
+        await connection.execute(sql`ROLLBACK`);
+      } catch (rollbackError) {
+        console.error(`[DEBUG deleteClient] Errore durante il rollback:`, rollbackError);
+      }
+      
       console.error(`[DEBUG deleteClient] Errore durante l'eliminazione del cliente ID: ${id}:`, error);
-      // Otteniamo più informazioni sull'errore
+      
       if (error instanceof Error) {
         console.error(`[DEBUG deleteClient] Tipo errore: ${error.name}, Messaggio: ${error.message}`);
         console.error(`[DEBUG deleteClient] Stack trace: ${error.stack}`);
       }
       throw error;
+    } finally {
+      // Rilasciamo sempre la connessione
+      connection.release();
     }
   }
   

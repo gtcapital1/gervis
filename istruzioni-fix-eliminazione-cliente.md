@@ -1,74 +1,97 @@
-# Istruzioni per la correzione dell'eliminazione dei clienti
+# Istruzioni per risolvere i problemi di eliminazione dei clienti
 
-Questo documento contiene le istruzioni per applicare la correzione che risolve il problema dell'eliminazione dei clienti nell'ambiente AWS.
+Questo documento contiene le istruzioni per risolvere i problemi di eliminazione dei clienti nell'ambiente AWS.
 
-## 1. Problema risolto
+## Problema
 
-Il problema riguarda l'impossibilità di eliminare i clienti nell'ambiente AWS a causa di permessi database insufficienti e di gestione inadeguata della cascata di eliminazione per gli asset e le raccomandazioni associate.
+Quando si tenta di eliminare un cliente, l'operazione può fallire perché:
+1. Le tabelle `assets` e `recommendations` non hanno vincoli CASCADE DELETE configurati correttamente
+2. L'utente del database non ha i permessi DELETE necessari su tutte le tabelle
+3. La procedura di eliminazione non utilizza correttamente le transazioni
 
-## 2. Soluzioni implementate
+## Soluzione
 
-1. **Miglioramento della gestione dell'eliminazione a cascata**:
-   - La funzione `deleteClient` ora elimina prima tutti gli asset e le raccomandazioni associati al cliente
-   - Aggiunta la gestione degli errori durante l'eliminazione
+Abbiamo implementato diverse correzioni per risolvere il problema:
 
-2. **Script di correzione dei permessi**:
-   - Creato uno script per concedere i permessi DELETE all'utente del database
-   - Lo script concede permessi per le tabelle clients, assets e recommendations
+1. Un nuovo script di migrazione che configura correttamente i vincoli CASCADE DELETE
+2. Un nuovo script di migrazione che corregge i permessi del database
+3. Un'implementazione migliorata del metodo `deleteClient` che utilizza transazioni esplicite
+4. Uno script che esegue tutte le correzioni in sequenza
 
-## 3. Istruzioni per l'aggiornamento
+## Come applicare le correzioni
 
-### Passo 1: Carica i file sul server AWS
+### Metodo 1: Applicazione singola (per ambiente di sviluppo e testing)
 
-```bash
-# Copia il pacchetto sul server
-scp gervis-update-clientdelete-fix.tar.gz ubuntu@SERVER_IP:/tmp/
-
-# Accedi al server
-ssh ubuntu@SERVER_IP
-
-# Estrai il pacchetto nella directory dell'applicazione
-cd /var/www/gervis
-sudo tar -xzf /tmp/gervis-update-clientdelete-fix.tar.gz
-```
-
-### Passo 2: Applica la correzione dei permessi
+1. Carica questa directory in un ambiente di sviluppo
+2. Assicurati che le variabili d'ambiente siano configurate correttamente (in particolare `DATABASE_URL`)
+3. Esegui lo script `run-db-fixes.sh`:
 
 ```bash
-# Esegui lo script di correzione dei permessi
-cd /var/www/gervis
-sudo chmod +x fix-aws-delete-permissions.sh
-sudo ./fix-aws-delete-permissions.sh
+chmod +x run-db-fixes.sh
+./run-db-fixes.sh
 ```
 
-### Passo 3: Riavvia l'applicazione
+### Metodo 2: Esecuzione durante il deployment (per produzione)
+
+1. Copia i seguenti file nell'ambiente di produzione:
+   - `server/migrations/fix-cascade-delete.ts`
+   - `server/migrations/fix-delete-permissions.ts`
+   - `server/migrations/run-all-fixes.ts`
+   - `server/storage.ts` (contiene la nuova implementazione di `deleteClient`)
+   - `run-db-fixes.sh`
+
+2. Esegui lo script di correzione:
 
 ```bash
-# Riavvia l'applicazione per applicare le modifiche
-sudo pm2 restart gervis
+cd /var/www/gervis  # o la directory di deploy
+chmod +x run-db-fixes.sh
+./run-db-fixes.sh
 ```
 
-### Passo 4: Verifica la correzione
-
-Accedi all'interfaccia web di Gervis e prova a eliminare un cliente. L'operazione dovrebbe ora completarsi con successo.
-
-## 4. Rollback (in caso di problemi)
-
-Se si verificassero problemi, è possibile ripristinare la versione precedente:
+3. Riavvia l'applicazione:
 
 ```bash
-# Accedi al server
-ssh ubuntu@SERVER_IP
-
-# Ripristina la versione precedente dal backup
-cd /var/www/gervis
-sudo git checkout HEAD~1 -- server/storage.ts
-
-# Riavvia l'applicazione
-sudo pm2 restart gervis
+pm2 restart gervis
 ```
 
-## 5. Note aggiuntive
+## Verifica
 
-- I log dell'applicazione si trovano in `/home/ubuntu/pm2/logs/gervis-error.0.log` e `/home/ubuntu/pm2/logs/gervis-out.0.log`
-- In caso di problemi persistenti, controlla i log per dettagli specifici sull'errore
+Per verificare che le correzioni siano state applicate correttamente:
+
+1. Accedi alla dashboard degli advisor
+2. Crea un nuovo cliente di test con alcuni asset e raccomandazioni
+3. Prova a eliminare il cliente
+4. Controlla nei log dell'applicazione che l'eliminazione sia avvenuta correttamente
+
+## Log di debug
+
+Se l'eliminazione del cliente fallisce ancora, controlla i log dell'applicazione:
+
+```bash
+pm2 logs gervis
+```
+
+Cerca messaggi di debug che iniziano con `[DEBUG deleteClient]` che forniscono informazioni dettagliate sul processo di eliminazione.
+
+## Spiegazione tecnica
+
+### 1. Fix CASCADE DELETE
+
+Lo script `fix-cascade-delete.ts` rimuove e ricrea i vincoli di chiave esterna sulle tabelle `assets` e `recommendations`, aggiungendo l'opzione `ON DELETE CASCADE`. Questo fa sì che quando un cliente viene eliminato, tutti i suoi asset e raccomandazioni vengano eliminati automaticamente.
+
+### 2. Fix Permessi DELETE
+
+Lo script `fix-delete-permissions.ts` concede i permessi DELETE all'utente corrente del database su tutte le tabelle necessarie.
+
+### 3. Implementazione migliorata di deleteClient
+
+La nuova implementazione di `deleteClient` in `storage.ts`:
+- Utilizza transazioni esplicite per garantire l'atomicità dell'operazione
+- Verifica se i vincoli CASCADE sono configurati correttamente
+- Se non lo sono, esegue l'eliminazione manuale degli asset e delle raccomandazioni
+- Esegue verifiche finali per confermare che tutto sia stato eliminato
+- Gestisce correttamente il rilascio delle connessioni anche in caso di errori
+
+## Supporto
+
+Se riscontri problemi nell'applicazione di queste correzioni, contatta il team di sviluppo.
