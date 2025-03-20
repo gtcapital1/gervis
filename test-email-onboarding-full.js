@@ -8,8 +8,10 @@
  * Uso: node test-email-onboarding-full.js
  */
 
-require('dotenv').config();
-const nodemailer = require('nodemailer');
+import dotenv from 'dotenv';
+import nodemailer from 'nodemailer';
+
+dotenv.config();
 
 // Funzione di supporto per ottenere le credenziali email
 function getEmailConfig() {
