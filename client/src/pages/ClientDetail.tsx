@@ -331,6 +331,9 @@ Grazie per la tua fiducia e collaborazione.`
       customSubject: emailSubject,
       sendEmail: true  // Qui vogliamo esplicitamente inviare l'email
     });
+    
+    // Chiudi immediatamente il dialog dopo l'invio
+    setIsEmailDialogOpen(false);
   }
   
   function formatDate(date: Date | string | null) {
