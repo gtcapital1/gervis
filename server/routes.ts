@@ -711,19 +711,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Invia l'email solo se il flag sendEmail è true
       // Nota: customMessage può essere undefined, in tal caso verrà usato il messaggio predefinito
+      let emailSent = false; // Traccia se l'email è stata effettivamente inviata con successo
+      
       if (sendEmail) {
+        // Get advisor information
+        const advisor = await storage.getUser(req.user.id);
+        
+        // Get client name parts
+        const firstName = client.firstName || client.name.split(' ')[0];
+        const lastName = client.lastName || client.name.split(' ').slice(1).join(' ');
+        
+        // Debug per l'oggetto email
+        console.log("DEBUG - Invio email onboarding:");
+        console.log("DEBUG - customSubject:", customSubject);
+        
         try {
-          // Get advisor information
-          const advisor = await storage.getUser(req.user.id);
-          
-          // Get client name parts
-          const firstName = client.firstName || client.name.split(' ')[0];
-          const lastName = client.lastName || client.name.split(' ').slice(1).join(' ');
-          
-          // Debug per l'oggetto email
-          console.log("DEBUG - Invio email onboarding:");
-          console.log("DEBUG - customSubject:", customSubject);
-          
           // Send the onboarding email
           await sendOnboardingEmail(
             client.email,
@@ -736,20 +738,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
             advisor?.email,
             customSubject
           );
+          // Se arriviamo qui, l'email è stata inviata con successo
+          emailSent = true;
+          console.log(`Email di onboarding inviata con successo a ${client.email}`);
         } catch (emailError) {
-          console.error("Failed to send onboarding email:", emailError);
-          // We don't need to fail the whole request if just the email fails
+          console.error("ERRORE CRITICO - Invio email onboarding fallito:", emailError);
+          
+          // Restituiamo un errore al client perché l'invio della mail è fallito
+          if (sendEmail) {
+            return res.status(500).json({ 
+              success: false, 
+              message: "Errore nell'invio dell'email di onboarding", 
+              error: String(emailError),
+              token, // Restituiamo comunque il token in modo che il frontend possa decidere cosa fare
+              link
+            });
+          }
         }
       }
       
-      // Aggiungiamo il flag emailSent nella risposta 
-      // per far sapere al frontend se l'email è stata inviata o meno
       // Log aggiuntivi per debug
       console.log("DEBUG ROUTES - Valori inviati nella risposta:");
       console.log("DEBUG ROUTES - token:", token);
       console.log("DEBUG ROUTES - link:", link);
       console.log("DEBUG ROUTES - language:", language);
-      console.log("DEBUG ROUTES - emailSent:", sendEmail);
+      console.log("DEBUG ROUTES - sendEmail richiesto:", sendEmail);
+      console.log("DEBUG ROUTES - emailSent effettivo:", emailSent);
       console.log("DEBUG ROUTES - customSubject ricevuto:", customSubject);
       
       res.json({ 
@@ -757,7 +771,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         token,
         link,
         language,
-        emailSent: sendEmail,  // Includiamo il valore del flag sendEmail nella risposta
+        emailSent: emailSent,  // Ora questo riflette lo stato EFFETTIVO dell'invio, non la richiesta
         debug: {
           customSubject: customSubject || "(non specificato)",
           customSubjectProvided: !!customSubject,
@@ -796,20 +810,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the advisor (for signature)
       const advisor = await storage.getUser(req.user?.id as number);
       
-      // Send email
-      await sendCustomEmail(
-        client.email,
-        subject,
-        message,
-        language as 'english' | 'italian',
-        undefined,
-        advisor?.signature || undefined
-      );
+      // Registriamo i dettagli della richiesta email
+      console.log("DEBUG - Dettagli invio email custom:");
+      console.log("DEBUG - Destinatario:", client.email);
+      console.log("DEBUG - Oggetto:", subject);
+      console.log("DEBUG - Lingua:", language);
       
-      res.json({ success: true, message: "Email sent successfully" });
+      try {
+        // Send email
+        await sendCustomEmail(
+          client.email,
+          subject,
+          message,
+          language as 'english' | 'italian',
+          undefined,
+          advisor?.signature || undefined
+        );
+        
+        console.log(`Email inviata con successo a ${client.email}`);
+        res.json({ success: true, message: "Email sent successfully" });
+      } catch (emailError) {
+        // Log dettagliato dell'errore
+        console.error("ERRORE CRITICO - Invio email fallito:", emailError);
+        
+        // Inviamo i dettagli dell'errore al frontend
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to send email", 
+          error: String(emailError),
+          errorDetails: emailError instanceof Error ? emailError.stack : "No stack trace available"
+        });
+      }
     } catch (error) {
-      console.error("Error sending email:", error);
-      res.status(500).json({ success: false, message: "Failed to send email" });
+      console.error("Error in send-email route:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to process email request", 
+        error: String(error) 
+      });
     }
   });
   
