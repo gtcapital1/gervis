@@ -741,6 +741,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Se arriviamo qui, l'email è stata inviata con successo
           emailSent = true;
           console.log(`Email di onboarding inviata con successo a ${client.email}`);
+          
+          // Log dettagliati anche in caso di successo
+          console.log("DEBUG - Dettagli email inviata con successo:");
+          console.log("DEBUG - Destinatario:", client.email);
+          console.log("DEBUG - Nome:", firstName, lastName);
+          console.log("DEBUG - Link:", link);
+          console.log("DEBUG - Lingua:", language);
+          console.log("DEBUG - Advisor email:", advisor?.email);
+          console.log("DEBUG - Signature presente:", !!advisor?.signature);
         } catch (emailError: any) {
           console.error("ERRORE CRITICO - Invio email onboarding fallito:", emailError);
           
@@ -839,6 +848,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
         
         console.log(`Email inviata con successo a ${client.email}`);
+        
+        // Log dettagliati anche in caso di successo
+        console.log("DEBUG - Dettagli email custom inviata con successo:");
+        console.log("DEBUG - Destinatario:", client.email);
+        console.log("DEBUG - Oggetto:", subject);
+        console.log("DEBUG - Lingua:", language);
+        console.log("DEBUG - Signature presente:", !!advisor?.signature);
+        
         res.json({ success: true, message: "Email sent successfully" });
       } catch (emailError: any) {
         // Log dettagliato dell'errore
