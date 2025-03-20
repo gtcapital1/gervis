@@ -37,7 +37,14 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     // DRASTICO: Aggiungiamo timestamp per evitare caching
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
+    // Log esteso con più informazioni sulla richiesta
     console.log(`[DEBUG API] Effettuo richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    
+    // Se è una richiesta di DELETE client, logging specifico
+    if (options?.method === 'DELETE' && url.includes('/api/clients/')) {
+      console.log(`[DEBUG ELIMINAZIONE] Avvio eliminazione client con URL: ${urlWithTimestamp}`);
+      console.log(`[DEBUG ELIMINAZIONE] Headers richiesta:`, options.headers || 'Default headers');
+    }
     
     const res = await fetch(urlWithTimestamp, {
       headers: options?.body 
@@ -58,7 +65,19 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     if (!res.ok) {
       console.log(`[DEBUG API] Risposta non OK: status=${res.status}, statusText=${res.statusText}`);
       
-      try {        
+      // Log completo di tutte le intestazioni per debug avanzato
+      const allHeaders: Record<string, string> = {};
+      res.headers.forEach((value, key) => {
+        allHeaders[key] = value;
+      });
+      console.log(`[DEBUG API] Tutte le intestazioni della risposta:`, allHeaders);
+      
+      try {
+        // Per i DELETE di clienti, log dettagliato
+        if (options?.method === 'DELETE' && url.includes('/api/clients/')) {
+          console.log(`[DEBUG ELIMINAZIONE] Ricevuta risposta per eliminazione client con status: ${res.status}`);
+        }
+        
         // Crea una copia della risposta per non consumare il body
         const resClone = res.clone();
         
@@ -66,21 +85,38 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
         const contentType = res.headers.get('content-type');
         console.log(`[DEBUG API] Content-Type della risposta: ${contentType}`);
         
-        // Se è HTML, catturiamo e logghiamo l'HTML per capire di cosa si tratta
-        if (contentType && contentType.includes('text/html')) {
-          const htmlText = await resClone.text();
+        // Prova sempre a leggere il contenuto della risposta, sia text che json
+        let responseText;
+        try {
+          responseText = await resClone.text();
+          console.log(`[DEBUG API] Testo risposta (primi 500 caratteri):`, responseText.substring(0, 500));
+          
+          // Prova a parsare come JSON per vedere se è un errore JSON valido
+          try {
+            const jsonData = JSON.parse(responseText);
+            console.log(`[DEBUG API] La risposta è un JSON valido:`, jsonData);
+          } catch (jsonError) {
+            console.log(`[DEBUG API] La risposta non è JSON valido`);
+          }
+        } catch (textError) {
+          console.error(`[DEBUG API] Impossibile leggere il testo della risposta:`, textError);
+        }
+        
+        // Se è HTML o ha l'aspetto di HTML, gestiscilo specificamente
+        if ((contentType && contentType.includes('text/html')) || 
+            (responseText && responseText.trim().toLowerCase().startsWith('<!doctype') || responseText.trim().toLowerCase().startsWith('<html'))) {
           
           // Log dell'inizio dell'HTML per capire che tipo di pagina è
-          console.error(`[DEBUG API] Risposta HTML ricevuta (primi 300 caratteri):`, htmlText.substring(0, 300));
+          console.error(`[DEBUG API] Risposta HTML ricevuta (primi 300 caratteri):`, responseText.substring(0, 300));
           
           // Se è un errore specifico di Nginx o Apache, lo catturiamo
-          if (htmlText.includes('nginx') || htmlText.includes('Apache')) {
+          if (responseText.includes('nginx') || responseText.includes('Apache')) {
             console.error(`[DEBUG API] Rilevato errore del server web`);
             throw new Error(`Il server web ha restituito una pagina di errore invece di JSON. Status: ${res.status}`);
           }
           
           // Se contiene testo che suggerisce un errore di autenticazione
-          if (htmlText.toLowerCase().includes('login') || htmlText.toLowerCase().includes('authentication')) {
+          if (responseText.toLowerCase().includes('login') || responseText.toLowerCase().includes('authentication')) {
             console.error(`[DEBUG API] Rilevato possibile reindirizzamento alla pagina di login`);
             throw new Error(`Probabile problema di autenticazione. La richiesta è stata reindirizzata a una pagina di login.`);
           }
