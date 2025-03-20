@@ -1,35 +1,73 @@
 #!/bin/bash
-# Script per eseguire tutte le correzioni del database relative all'eliminazione dei clienti
-# Questo script è utile sia in fase di sviluppo che in produzione
 
-echo "Esecuzione delle correzioni del database per l'eliminazione dei clienti..."
+# Script per eseguire i fix del database
+# Questo script automatizza l'esecuzione degli script di migrazione
+# per correggere problemi di configurazione del database
 
-# Controlla se NODE_ENV è impostato
-if [ -z "$NODE_ENV" ]; then
-  echo "NODE_ENV non impostato, utilizzo development come default"
-  export NODE_ENV=development
-fi
+echo "╔═════════════════════════════════════════════════════════╗"
+echo "║ Gervis - Script per la correzione del database           ║"
+echo "╚═════════════════════════════════════════════════════════╝"
 
-echo "Ambiente: $NODE_ENV"
-
-# Esegui lo script di correzione principale
-npx tsx server/migrations/run-all-fixes.ts
-
-# Verifica il risultato
-if [ $? -eq 0 ]; then
-  echo "✅ Correzioni del database eseguite con successo!"
-else
-  echo "❌ Si è verificato un errore durante l'esecuzione delle correzioni del database"
+# Assicurati che il codice TypeScript sia disponibile
+if [ ! -d "server/migrations" ]; then
+  echo "❌ Errore: La directory server/migrations non esiste."
+  echo "   Assicurati di eseguire questo script dalla directory principale del progetto."
   exit 1
 fi
 
-# Aggiunge una nota sul come verificare il funzionamento
-echo ""
-echo "Per verificare che le correzioni funzionino correttamente:"
-echo "1. Accedi alla dashboard degli advisor"
-echo "2. Crea un nuovo cliente di test"
-echo "3. Aggiungi asset e raccomandazioni al cliente"
-echo "4. Prova a eliminare il cliente"
-echo "5. Controlla che il cliente e tutti i suoi dati correlati siano stati eliminati correttamente"
+# Verifica che node e tsx siano disponibili
+command -v node >/dev/null 2>&1 || { 
+  echo "❌ Errore: Node.js non è installato"; 
+  echo "   Installa Node.js ed esegui nuovamente lo script."; 
+  exit 1; 
+}
 
-exit 0
+command -v npx >/dev/null 2>&1 || { 
+  echo "❌ Errore: npx non è disponibile"; 
+  echo "   Esegui 'npm install -g npx' ed esegui nuovamente lo script."; 
+  exit 1; 
+}
+
+echo "✅ Prerequisiti verificati"
+
+# Verifica che il file .env esista
+if [ ! -f ".env" ]; then
+  echo "⚠️ Attenzione: File .env non trovato."
+  echo "   Assicurati che DATABASE_URL sia configurato correttamente."
+  
+  # Se esiste .env.example, offri di copiarlo
+  if [ -f ".env.example" ]; then
+    echo -n "   Vuoi copiare .env.example in .env? (s/n): "
+    read resp
+    if [ "$resp" = "s" ]; then
+      cp .env.example .env
+      echo "   File .env creato da .env.example. Modifica il file con i valori corretti."
+    fi
+  fi
+fi
+
+echo "📦 Installo dipendenze necessarie..."
+npm install --no-save dotenv postgres
+
+echo "🛠️ Esecuzione fix database..."
+npx tsx server/migrations/run-all-fixes.ts
+
+# Verifica il codice di uscita
+if [ $? -eq 0 ]; then
+  echo ""
+  echo "✅ Fix database completati con successo!"
+  echo ""
+  echo "I vincoli CASCADE DELETE sono stati configurati correttamente."
+  echo "Ora dovresti essere in grado di eliminare i clienti senza errori."
+else
+  echo ""
+  echo "❌ Si è verificato un errore durante l'esecuzione dei fix."
+  echo ""
+  echo "Verifica i messaggi di errore sopra e assicurati che:"
+  echo "- DATABASE_URL sia configurato correttamente nel file .env"
+  echo "- Il database sia accessibile"
+  echo "- L'utente del database abbia i permessi necessari"
+fi
+
+echo ""
+echo "Esecuzione script completata."

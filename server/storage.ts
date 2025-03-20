@@ -5,13 +5,14 @@ import {
   recommendations, type Recommendation, type InsertRecommendation
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
-import { db } from './db';
+import { db, sql as pgClient } from './db';
 import { sendOnboardingEmail } from './email';
 import { promisify } from 'util';
+import { Pool } from 'pg';
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -327,133 +328,139 @@ export class PostgresStorage implements IStorage {
   async deleteClient(id: number): Promise<boolean> {
     console.log(`[DEBUG deleteClient] Avvio eliminazione del cliente ID: ${id}`);
     
-    // Utilizziamo una transazione esplicita per garantire l'atomicità dell'operazione
-    const connection = await db.connection().connect();
-    
     try {
-      await connection.execute(sql`BEGIN`);
-      
       // 1. Verifichiamo se il cliente esiste
-      const clientExists = await connection.select().from(clients).where(eq(clients.id, id));
-      console.log(`[DEBUG deleteClient] Verifica esistenza cliente: ${JSON.stringify(clientExists)}`);
+      const clientExists = await db.select().from(clients).where(eq(clients.id, id));
+      console.log(`[DEBUG deleteClient] Verifica esistenza cliente: ${clientExists.length > 0}`);
       
       if (clientExists.length === 0) {
         console.log(`[DEBUG deleteClient] Cliente ID: ${id} non trovato`);
-        await connection.execute(sql`ROLLBACK`);
-        connection.release();
         return false;
       }
       
       // 2. Diagnostica - Verifichiamo l'esistenza di asset e raccomandazioni prima dell'eliminazione
-      const clientAssets = await connection.select().from(assets).where(eq(assets.clientId, id));
+      const clientAssets = await db.select().from(assets).where(eq(assets.clientId, id));
       console.log(`[DEBUG deleteClient] Trovati ${clientAssets.length} asset collegati al cliente`);
       
-      const clientRecommendations = await connection.select().from(recommendations).where(eq(recommendations.clientId, id));
+      const clientRecommendations = await db.select().from(recommendations).where(eq(recommendations.clientId, id));
       console.log(`[DEBUG deleteClient] Trovate ${clientRecommendations.length} raccomandazioni collegate al cliente`);
       
-      // 3. Verifichiamo che i vincoli CASCADE DELETE siano correttamente configurati
-      const constraintCheck = await connection.execute(sql`
-        SELECT EXISTS (
-          SELECT FROM information_schema.table_constraints 
-          WHERE constraint_name = 'assets_client_id_fkey' 
-          AND constraint_type = 'FOREIGN KEY'
-        ) AS assets_constraint_exists,
-        EXISTS (
-          SELECT FROM information_schema.table_constraints 
-          WHERE constraint_name = 'recommendations_client_id_fkey' 
-          AND constraint_type = 'FOREIGN KEY'
-        ) AS recommendations_constraint_exists,
-        (SELECT confdeltype FROM pg_constraint c
-         JOIN pg_namespace n ON n.oid = c.connamespace
-         WHERE conname = 'assets_client_id_fkey'
-         AND n.nspname = 'public') as assets_delete_rule,
-        (SELECT confdeltype FROM pg_constraint c
-         JOIN pg_namespace n ON n.oid = c.connamespace
-         WHERE conname = 'recommendations_client_id_fkey'
-         AND n.nspname = 'public') as recommendations_delete_rule;
-      `);
+      // 3. Usiamo pgClient direttamente per eseguire query raw SQL con transazione
+      console.log('[DEBUG deleteClient] Avvio transazione SQL diretta');
       
-      console.log(`[DEBUG deleteClient] Stato vincoli: ${JSON.stringify(constraintCheck[0])}`);
-      
-      // Verifichiamo se i vincoli di CASCADE DELETE non sono configurati correttamente
-      // 'c' rappresenta CASCADE, 'a' rappresenta NO ACTION, 'r' rappresenta RESTRICT
-      const assetsConstraintExists = constraintCheck[0]?.assets_constraint_exists;
-      const recommendationsConstraintExists = constraintCheck[0]?.recommendations_constraint_exists;
-      const assetsDeleteRule = constraintCheck[0]?.assets_delete_rule;
-      const recommendationsDeleteRule = constraintCheck[0]?.recommendations_delete_rule;
-      
-      const constraintsConfigured = assetsConstraintExists && recommendationsConstraintExists && 
-                                   assetsDeleteRule === 'c' && recommendationsDeleteRule === 'c';
-      
-      console.log(`[DEBUG deleteClient] Vincoli CASCADE configurati correttamente: ${constraintsConfigured}`);
-      
-      // Se i vincoli non sono configurati correttamente, ricorriamo all'eliminazione manuale
-      if (!constraintsConfigured) {
-        console.log(`[DEBUG deleteClient] Utilizzo eliminazione manuale (i vincoli CASCADE non sono configurati correttamente)`);
-        
-        // Eliminiamo manualmente gli asset
-        await connection.delete(assets).where(eq(assets.clientId, id));
-        console.log(`[DEBUG deleteClient] Asset eliminati manualmente`);
-        
-        // Eliminiamo manualmente le raccomandazioni
-        await connection.delete(recommendations).where(eq(recommendations.clientId, id));
-        console.log(`[DEBUG deleteClient] Raccomandazioni eliminate manualmente`);
-      }
-      
-      // 4. Eliminiamo il cliente (con CASCADE automatico se i vincoli sono configurati)
       try {
-        const result = await connection.delete(clients).where(eq(clients.id, id)).returning();
-        const success = result.length > 0;
+        // Avvio transazione
+        await pgClient`BEGIN`;
+        
+        // Verifichiamo i vincoli CASCADE
+        const constraintCheck = await pgClient`
+          SELECT EXISTS (
+            SELECT FROM information_schema.table_constraints 
+            WHERE constraint_name = 'assets_client_id_fkey' 
+            AND constraint_type = 'FOREIGN KEY'
+          ) AS assets_constraint_exists,
+          EXISTS (
+            SELECT FROM information_schema.table_constraints 
+            WHERE constraint_name = 'recommendations_client_id_fkey' 
+            AND constraint_type = 'FOREIGN KEY'
+          ) AS recommendations_constraint_exists,
+          (SELECT confdeltype FROM pg_constraint c
+           JOIN pg_namespace n ON n.oid = c.connamespace
+           WHERE conname = 'assets_client_id_fkey'
+           AND n.nspname = 'public') as assets_delete_rule,
+          (SELECT confdeltype FROM pg_constraint c
+           JOIN pg_namespace n ON n.oid = c.connamespace
+           WHERE conname = 'recommendations_client_id_fkey'
+           AND n.nspname = 'public') as recommendations_delete_rule
+        `;
+        
+        console.log(`[DEBUG deleteClient] Stato vincoli: ${JSON.stringify(constraintCheck[0])}`);
+        
+        // Verifichiamo se i vincoli sono configurati
+        const assetsConstraintExists = constraintCheck[0]?.assets_constraint_exists;
+        const recommendationsConstraintExists = constraintCheck[0]?.recommendations_constraint_exists;
+        const assetsDeleteRule = constraintCheck[0]?.assets_delete_rule;
+        const recommendationsDeleteRule = constraintCheck[0]?.recommendations_delete_rule;
+        
+        const constraintsConfigured = assetsConstraintExists && recommendationsConstraintExists && 
+                                    assetsDeleteRule === 'c' && recommendationsDeleteRule === 'c';
+        
+        console.log(`[DEBUG deleteClient] Vincoli CASCADE configurati correttamente: ${constraintsConfigured}`);
+        
+        // Se i vincoli non sono configurati correttamente, eseguiamo manualmente l'eliminazione
+        if (!constraintsConfigured) {
+          console.log(`[DEBUG deleteClient] Utilizzo eliminazione manuale con SQL diretto`);
+          
+          // Elimina prima gli asset
+          await pgClient`DELETE FROM assets WHERE client_id = ${id}`;
+          console.log(`[DEBUG deleteClient] Asset eliminati manualmente con SQL diretto`);
+          
+          // Poi elimina le raccomandazioni
+          await pgClient`DELETE FROM recommendations WHERE client_id = ${id}`;
+          console.log(`[DEBUG deleteClient] Raccomandazioni eliminate manualmente con SQL diretto`);
+        }
+        
+        // Infine elimina il cliente
+        const deleteResult = await pgClient`DELETE FROM clients WHERE id = ${id} RETURNING id`;
+        const success = deleteResult.length > 0;
         
         if (success) {
-          // Commit della transazione
-          await connection.execute(sql`COMMIT`);
+          await pgClient`COMMIT`;
           console.log(`[DEBUG deleteClient] Eliminazione del cliente ID: ${id} completata con successo`);
         } else {
-          // Rollback in caso di problemi
-          await connection.execute(sql`ROLLBACK`);
+          await pgClient`ROLLBACK`;
           console.log(`[DEBUG deleteClient] Nessuna riga eliminata per il cliente ID: ${id}`);
         }
         
-        // 5. Verifica finale - Controlliamo che effettivamente il cliente non esista più
-        const finalCheck = await connection.select().from(clients).where(eq(clients.id, id));
-        console.log(`[DEBUG deleteClient] Verifica finale: ${finalCheck.length === 0 ? 'Cliente eliminato' : 'Cliente ancora presente'}`);
+        // Verifica finale dell'eliminazione
+        const finalCheckResult = await pgClient`SELECT EXISTS(SELECT 1 FROM clients WHERE id = ${id}) as exists`;
+        const clientExists = finalCheckResult[0]?.exists || false;
         
-        // 6. E Che anche asset e raccomandazioni siano stati eliminati
-        const finalAssetsCheck = await connection.select().from(assets).where(eq(assets.clientId, id));
-        const finalRecommendationsCheck = await connection.select().from(recommendations).where(eq(recommendations.clientId, id));
-        console.log(`[DEBUG deleteClient] Asset rimasti: ${finalAssetsCheck.length}, Raccomandazioni rimaste: ${finalRecommendationsCheck.length}`);
+        console.log(`[DEBUG deleteClient] Verifica finale: ${!clientExists ? 'Cliente eliminato' : 'Cliente ancora presente'}`);
+        
+        // Verifichiamo anche gli asset e le raccomandazioni
+        const assetsExistResult = await pgClient`SELECT COUNT(*) as count FROM assets WHERE client_id = ${id}`;
+        const recommendationsExistResult = await pgClient`SELECT COUNT(*) as count FROM recommendations WHERE client_id = ${id}`;
+        
+        console.log(`[DEBUG deleteClient] Asset rimasti: ${assetsExistResult[0]?.count || 0}, Raccomandazioni rimaste: ${recommendationsExistResult[0]?.count || 0}`);
         
         return success;
-      } catch (deleteError) {
-        // Rollback in caso di errore
-        await connection.execute(sql`ROLLBACK`);
-        console.error(`[DEBUG deleteClient] Errore specifico nella query DELETE:`, deleteError);
-        
-        if (deleteError instanceof Error) {
-          console.error(`[DEBUG deleteClient] Tipo errore: ${deleteError.name}, Messaggio: ${deleteError.message}`);
-          console.error(`[DEBUG deleteClient] Stack trace: ${deleteError.stack}`);
+      } catch (error) {
+        // In caso di errore, assicuriamoci di fare rollback
+        try {
+          await pgClient`ROLLBACK`;
+        } catch (rollbackError) {
+          console.error(`[DEBUG deleteClient] Errore durante il rollback:`, rollbackError);
         }
-        throw deleteError;
+        
+        console.error(`[DEBUG deleteClient] Errore durante l'eliminazione SQL del cliente ID: ${id}:`, error);
+        
+        // Proviamo con un approccio più semplice come fallback
+        console.log(`[DEBUG deleteClient] Tentativo eliminazione di fallback con Drizzle ORM`);
+        
+        try {
+          // Prima eliminiamo gli asset
+          await db.delete(assets).where(eq(assets.clientId, id));
+          
+          // Poi le raccomandazioni
+          await db.delete(recommendations).where(eq(recommendations.clientId, id));
+          
+          // Infine il cliente
+          const result = await db.delete(clients).where(eq(clients.id, id)).returning();
+          return result.length > 0;
+        } catch (fallbackError) {
+          console.error(`[DEBUG deleteClient] Anche l'eliminazione di fallback è fallita:`, fallbackError);
+          throw fallbackError;
+        }
       }
     } catch (error) {
-      // Assicuriamoci che la transazione venga annullata in caso di errore
-      try {
-        await connection.execute(sql`ROLLBACK`);
-      } catch (rollbackError) {
-        console.error(`[DEBUG deleteClient] Errore durante il rollback:`, rollbackError);
-      }
-      
-      console.error(`[DEBUG deleteClient] Errore durante l'eliminazione del cliente ID: ${id}:`, error);
+      console.error(`[DEBUG deleteClient] Errore grave durante l'eliminazione del cliente ID: ${id}:`, error);
       
       if (error instanceof Error) {
         console.error(`[DEBUG deleteClient] Tipo errore: ${error.name}, Messaggio: ${error.message}`);
         console.error(`[DEBUG deleteClient] Stack trace: ${error.stack}`);
       }
       throw error;
-    } finally {
-      // Rilasciamo sempre la connessione
-      connection.release();
     }
   }
   

@@ -1,97 +1,105 @@
-# Istruzioni per risolvere i problemi di eliminazione dei clienti
+# Istruzioni per correggere l'eliminazione dei clienti
 
-Questo documento contiene le istruzioni per risolvere i problemi di eliminazione dei clienti nell'ambiente AWS.
+Questa documentazione spiega come risolvere i problemi di eliminazione dei clienti nell'applicazione Gervis.
 
 ## Problema
 
-Quando si tenta di eliminare un cliente, l'operazione può fallire perché:
-1. Le tabelle `assets` e `recommendations` non hanno vincoli CASCADE DELETE configurati correttamente
-2. L'utente del database non ha i permessi DELETE necessari su tutte le tabelle
-3. La procedura di eliminazione non utilizza correttamente le transazioni
+Quando si tenta di eliminare un cliente, potrebbe verificarsi un errore che impedisce l'eliminazione a causa di vincoli di integrità referenziale nel database. Questo accade perché:
+
+1. Il cliente ha asset o raccomandazioni collegati
+2. I vincoli tra le tabelle non sono configurati con l'opzione CASCADE DELETE
 
 ## Soluzione
 
-Abbiamo implementato diverse correzioni per risolvere il problema:
+Per risolvere il problema, è necessario modificare i vincoli di integrità referenziale nel database in modo che l'eliminazione di un cliente comporti automaticamente l'eliminazione di tutti gli asset e le raccomandazioni collegati.
 
-1. Un nuovo script di migrazione che configura correttamente i vincoli CASCADE DELETE
-2. Un nuovo script di migrazione che corregge i permessi del database
-3. Un'implementazione migliorata del metodo `deleteClient` che utilizza transazioni esplicite
-4. Uno script che esegue tutte le correzioni in sequenza
+## Passi per l'applicazione della correzione
 
-## Come applicare le correzioni
-
-### Metodo 1: Applicazione singola (per ambiente di sviluppo e testing)
-
-1. Carica questa directory in un ambiente di sviluppo
-2. Assicurati che le variabili d'ambiente siano configurate correttamente (in particolare `DATABASE_URL`)
-3. Esegui lo script `run-db-fixes.sh`:
+### 1. Accedi al server di produzione
 
 ```bash
+ssh utente@indirizzo-server
+cd /var/www/gervis
+```
+
+### 2. Esegui lo script di correzione del database
+
+Lo script `run-db-fixes.sh` automatizza tutto il processo di correzione. Per eseguirlo:
+
+```bash
+# Rendi lo script eseguibile (solo la prima volta)
 chmod +x run-db-fixes.sh
+
+# Esegui lo script
 ./run-db-fixes.sh
 ```
 
-### Metodo 2: Esecuzione durante il deployment (per produzione)
+Lo script:
+1. Verifica che tutte le dipendenze necessarie siano installate
+2. Controlla la configurazione del database
+3. Modifica i vincoli di integrità referenziale impostando CASCADE DELETE
+4. Verifica che tutto sia stato configurato correttamente
 
-1. Copia i seguenti file nell'ambiente di produzione:
-   - `server/migrations/fix-cascade-delete.ts`
-   - `server/migrations/fix-delete-permissions.ts`
-   - `server/migrations/run-all-fixes.ts`
-   - `server/storage.ts` (contiene la nuova implementazione di `deleteClient`)
-   - `run-db-fixes.sh`
+### 3. Verifica il successo dell'operazione
 
-2. Esegui lo script di correzione:
+Al termine dell'esecuzione, dovresti vedere un messaggio che conferma che i vincoli CASCADE DELETE sono stati configurati correttamente.
 
-```bash
-cd /var/www/gervis  # o la directory di deploy
-chmod +x run-db-fixes.sh
-./run-db-fixes.sh
+Se tutto è andato a buon fine, ora dovresti essere in grado di eliminare i clienti senza errori, anche se hanno asset o raccomandazioni collegati.
+
+## Esecuzione manuale (solo se necessario)
+
+Se per qualche motivo lo script automatico non funziona, puoi eseguire le query SQL manualmente:
+
+```sql
+-- Inizia una transazione
+BEGIN;
+
+-- Rimuovi i vincoli esistenti
+ALTER TABLE assets DROP CONSTRAINT IF EXISTS assets_client_id_fkey;
+ALTER TABLE recommendations DROP CONSTRAINT IF EXISTS recommendations_client_id_fkey;
+
+-- Ricrea i vincoli con CASCADE DELETE
+ALTER TABLE assets 
+ADD CONSTRAINT assets_client_id_fkey 
+FOREIGN KEY (client_id) 
+REFERENCES clients(id) 
+ON DELETE CASCADE;
+
+ALTER TABLE recommendations 
+ADD CONSTRAINT recommendations_client_id_fkey 
+FOREIGN KEY (client_id) 
+REFERENCES clients(id) 
+ON DELETE CASCADE;
+
+-- Commit delle modifiche
+COMMIT;
 ```
 
-3. Riavvia l'applicazione:
+## Verifica dei vincoli
 
-```bash
-pm2 restart gervis
+Per verificare che i vincoli siano configurati correttamente:
+
+```sql
+SELECT 
+  tc.constraint_name, 
+  tc.table_name, 
+  kcu.column_name, 
+  ccu.table_name AS foreign_table_name,
+  ccu.column_name AS foreign_column_name,
+  rc.delete_rule
+FROM 
+  information_schema.table_constraints AS tc 
+  JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+  JOIN information_schema.constraint_column_usage AS ccu 
+    ON ccu.constraint_name = tc.constraint_name
+  JOIN information_schema.referential_constraints AS rc
+    ON rc.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.table_name IN ('assets', 'recommendations');
 ```
 
-## Verifica
-
-Per verificare che le correzioni siano state applicate correttamente:
-
-1. Accedi alla dashboard degli advisor
-2. Crea un nuovo cliente di test con alcuni asset e raccomandazioni
-3. Prova a eliminare il cliente
-4. Controlla nei log dell'applicazione che l'eliminazione sia avvenuta correttamente
-
-## Log di debug
-
-Se l'eliminazione del cliente fallisce ancora, controlla i log dell'applicazione:
-
-```bash
-pm2 logs gervis
-```
-
-Cerca messaggi di debug che iniziano con `[DEBUG deleteClient]` che forniscono informazioni dettagliate sul processo di eliminazione.
-
-## Spiegazione tecnica
-
-### 1. Fix CASCADE DELETE
-
-Lo script `fix-cascade-delete.ts` rimuove e ricrea i vincoli di chiave esterna sulle tabelle `assets` e `recommendations`, aggiungendo l'opzione `ON DELETE CASCADE`. Questo fa sì che quando un cliente viene eliminato, tutti i suoi asset e raccomandazioni vengano eliminati automaticamente.
-
-### 2. Fix Permessi DELETE
-
-Lo script `fix-delete-permissions.ts` concede i permessi DELETE all'utente corrente del database su tutte le tabelle necessarie.
-
-### 3. Implementazione migliorata di deleteClient
-
-La nuova implementazione di `deleteClient` in `storage.ts`:
-- Utilizza transazioni esplicite per garantire l'atomicità dell'operazione
-- Verifica se i vincoli CASCADE sono configurati correttamente
-- Se non lo sono, esegue l'eliminazione manuale degli asset e delle raccomandazioni
-- Esegue verifiche finali per confermare che tutto sia stato eliminato
-- Gestisce correttamente il rilascio delle connessioni anche in caso di errori
+Per i vincoli configurati correttamente, il valore di `delete_rule` dovrebbe essere `CASCADE`.
 
 ## Supporto
 
-Se riscontri problemi nell'applicazione di queste correzioni, contatta il team di sviluppo.
+Se riscontri problemi nell'applicazione di questa correzione, contatta il team di supporto tecnico di Gervis.
