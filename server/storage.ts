@@ -445,7 +445,7 @@ export class PostgresStorage implements IStorage {
         try {
           // Utilizzo SQL diretto come fallback
           const sqlResult = await pgClient`
-            UPDATE ${clients}
+            UPDATE clients
             SET "isArchived" = true
             WHERE id = ${id}
             RETURNING *
@@ -457,7 +457,7 @@ export class PostgresStorage implements IStorage {
           }
           
           console.log(`[INFO] Fallback SQL: Cliente ID: ${id} archiviato con successo`);
-          return sqlResult[0];
+          return sqlResult[0] as Client;
         } catch (sqlError) {
           console.error(`[ERROR] Anche l'approccio SQL diretto è fallito per cliente ID: ${id}`, sqlError);
           throw new Error(`Failed to archive client with id ${id} - Both approaches failed`);
@@ -470,31 +470,68 @@ export class PostgresStorage implements IStorage {
   }
   
   async restoreClient(id: number): Promise<Client> {
-    console.log(`[INFO] Ripristino cliente archiviato ID: ${id}`);
+    console.log(`[INFO] Ripristino cliente archiviato ID: ${id} - Inizio processo`);
     
     try {
-      // Verifichiamo se il cliente esiste
-      const clientExists = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
+      // STEP 1: Verifichiamo che il cliente esista
+      console.log(`[INFO] Verifica esistenza cliente ID: ${id}`);
+      const existingClient = await this.getClient(id);
       
-      if (clientExists.length === 0) {
-        console.log(`[INFO] Cliente ID: ${id} non trovato per ripristino`);
+      if (!existingClient) {
+        console.log(`[ERROR] Cliente ID: ${id} non trovato per ripristino`);
         throw new Error(`Client with id ${id} not found`);
       }
       
-      // Ripristiniamo il cliente rimuovendo lo stato di archiviazione
-      const result = await db.update(clients)
-        .set({ isArchived: false })
-        .where(eq(clients.id, id))
-        .returning();
-      
-      if (!result[0]) {
-        throw new Error(`Failed to restore client with id ${id}`);
+      if (existingClient.isArchived !== true) {
+        console.log(`[WARNING] Cliente ID: ${id} non è archiviato, non serve ripristinarlo`);
+        return existingClient; // Ritorna il cliente già non archiviato
       }
       
-      console.log(`[INFO] Cliente ID: ${id} ripristinato con successo`);
-      return result[0];
+      console.log(`[INFO] Cliente ID: ${id} trovato, procedo con il ripristino`);
+      
+      // STEP 2: Ripristiniamo il cliente con Drizzle ORM
+      console.log(`[INFO] Aggiornamento stato archiviazione per cliente ID: ${id}`);
+      try {
+        const result = await db.update(clients)
+          .set({ isArchived: false })
+          .where(eq(clients.id, id))
+          .returning();
+        
+        if (!result[0]) {
+          console.log(`[ERROR] Nessun risultato restituito dall'operazione di ripristino per cliente ID: ${id}`);
+          throw new Error(`Failed to restore client with id ${id} - No result returned`);
+        }
+        
+        console.log(`[INFO] Cliente ID: ${id} ripristinato con successo tramite Drizzle ORM`);
+        return result[0];
+      } catch (drizzleError) {
+        // STEP 3: Fallback in caso di errore con Drizzle ORM
+        console.log(`[WARNING] Errore con Drizzle ORM durante ripristino cliente ID: ${id}, tento approccio SQL diretto`);
+        console.error(drizzleError);
+        
+        try {
+          // Utilizzo SQL diretto come fallback
+          const sqlResult = await pgClient`
+            UPDATE clients
+            SET "isArchived" = false
+            WHERE id = ${id}
+            RETURNING *
+          `;
+          
+          if (!sqlResult || sqlResult.length === 0) {
+            console.log(`[ERROR] Fallback SQL: Nessun cliente ripristinato con ID: ${id}`);
+            throw new Error(`Failed to restore client with id ${id} - SQL direct approach failed`);
+          }
+          
+          console.log(`[INFO] Fallback SQL: Cliente ID: ${id} ripristinato con successo`);
+          return sqlResult[0] as Client;
+        } catch (sqlError) {
+          console.error(`[ERROR] Anche l'approccio SQL diretto è fallito per cliente ID: ${id}`, sqlError);
+          throw new Error(`Failed to restore client with id ${id} - Both approaches failed`);
+        }
+      }
     } catch (error) {
-      console.error(`[ERROR] Errore durante il ripristino del cliente ID: ${id}:`, error);
+      console.error(`[ERROR] Errore fatale durante il ripristino del cliente ID: ${id}:`, error);
       throw error;
     }
   }
