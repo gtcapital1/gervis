@@ -108,7 +108,7 @@ const italianContent = {
   buttonText: 'Completa il Mio Profilo',
   expiry: 'Questo link scadrà tra 7 giorni per motivi di sicurezza.',
   questions: 'Se hai domande, non esitare a contattarmi direttamente.',
-  signature: 'Cordiali saluti,',
+  signature: '',
   team: 'Consulente Finanziario'
 };
 
@@ -319,10 +319,8 @@ export async function sendOnboardingEmail(
     const signatureHtml = advisorSignature 
       ? containsSignaturePhrase
           ? `<p style="white-space: pre-line; margin-top: 30px;">${advisorSignature}</p>`
-          : `<p style="margin-top: 30px;">${content.signature}</p>
-             <p style="white-space: pre-line;">${advisorSignature}</p>`
-      : `<p style="margin-top: 30px;">${content.signature}</p>
-         <p>${content.team}</p>`;
+          : `<p style="white-space: pre-line; margin-top: 30px;">${advisorSignature}</p>`
+      : `<p style="margin-top: 30px;">${content.team}</p>`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
