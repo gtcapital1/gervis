@@ -647,7 +647,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/clients/:id/onboarding-token', isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.id);
-      const { language = 'italian', customMessage } = req.body;
+      const { language = 'italian', customMessage, sendEmail = false } = req.body;
       
       if (isNaN(clientId)) {
         return res.status(400).json({ success: false, message: 'Invalid client ID' });
@@ -681,8 +681,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapasso.replit.app`;
       const link = `${baseUrl}/onboarding?token=${token}`;
       
-      // If customMessage is provided, send an email with the link
-      if (customMessage) {
+      // Invia l'email solo se il flag sendEmail è true
+      if (sendEmail && customMessage) {
         try {
           // Get advisor information
           const advisor = await storage.getUser(req.user.id);

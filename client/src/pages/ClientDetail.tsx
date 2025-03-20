@@ -242,16 +242,17 @@ ${user?.name || ""}`
   });
 
   function handleGenerateOnboardingLink() {
-    // Genera direttamente il link di onboarding senza aprire il dialog
+    // Genera direttamente il link di onboarding senza aprire il dialog e senza inviare l'email
     console.log("[DEBUG] Generazione link onboarding...");
     
     // Imposta il messaggio standard in italiano
     setEmailMessage(defaultEmailMessages["italian"]);
     
-    // Invochiamo direttamente la mutazione per generare il link
+    // Invochiamo direttamente la mutazione per generare il link, senza inviare l'email
     sendOnboardingMutation.mutate({
       language: emailLanguage,
-      customMessage: emailMessage
+      customMessage: emailMessage,
+      sendEmail: false  // Non inviare l'email durante la generazione del link
     });
   }
   
@@ -268,9 +269,11 @@ ${user?.name || ""}`
   
   // Funzione che invia l'email con il link di onboarding
   function handleSendEmail() {
+    // Invia l'email con il link di onboarding
     sendOnboardingMutation.mutate({
       language: emailLanguage,
-      customMessage: emailMessage
+      customMessage: emailMessage,
+      sendEmail: true  // Qui vogliamo esplicitamente inviare l'email
     });
   }
   

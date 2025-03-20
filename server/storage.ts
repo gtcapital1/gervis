@@ -73,7 +73,7 @@ export class PostgresStorage implements IStorage {
     } catch (err) {
       console.error("ERRORE - Fallita creazione MemoryStore:", err);
       // Crea un dummy store per evitare errori null
-      const MemoryStore = memorystore(session);
+      const MemoryStore = createMemoryStore(session);
       this.sessionStore = new MemoryStore({
         checkPeriod: 86400000 // Clear expired sessions every day
       });
