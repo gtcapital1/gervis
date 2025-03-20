@@ -724,20 +724,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("DEBUG - Invio email onboarding:");
           console.log("DEBUG - customSubject:", customSubject);
           
-          // Send the onboarding email
-          await sendOnboardingEmail(
-            client.email,
-            firstName,
-            lastName,
-            link,
-            language as 'english' | 'italian',
-            customMessage,
-            advisor?.signature || undefined,
-            advisor?.email,
-            customSubject
-          );
+          // Send the onboarding email con gestione errori migliorata
+          console.log("🔍 routes.ts - Prima di chiamare sendOnboardingEmail con i seguenti parametri:");
+          console.log("  - email:", client.email);
+          console.log("  - firstName:", firstName);
+          console.log("  - lastName:", lastName);
+          console.log("  - link:", link);
+          console.log("  - language:", language);
+          console.log("  - customMessage:", customMessage ? "presente" : "non presente");
+          console.log("  - advisorSignature:", advisor?.signature ? "presente" : "non presente");
+          console.log("  - advisorEmail:", advisor?.email || "non presente");
+          console.log("  - customSubject:", customSubject || "non presente");
+          
+          try {
+            await sendOnboardingEmail(
+              client.email,
+              firstName,
+              lastName,
+              link,
+              language as 'english' | 'italian',
+              customMessage,
+              advisor?.signature || undefined,
+              advisor?.email,
+              customSubject
+            );
+            console.log("✅ routes.ts - Email inviata con successo");
+          } catch (emailError) {
+            console.error("❌ routes.ts - ERRORE durante l'invio dell'email:", emailError);
+            // Continua l'esecuzione anche in caso di errore nell'invio email
+          }
         } catch (emailError) {
-          console.error("Failed to send onboarding email:", emailError);
+          console.error("❌ routes.ts - Errore esterno nella gestione del token:", emailError);
           // We don't need to fail the whole request if just the email fails
         }
       }

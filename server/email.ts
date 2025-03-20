@@ -61,12 +61,42 @@ const options: SMTPTransport.Options = {
 // Ma è comunque importante notare che vogliamo evitare il pooling per evitare problemi con alcuni server
 
 console.log("DEBUG - Creazione transporter nodemailer");
-// Aggiungi debug logger per nodemailer
-const transporter = nodemailer.createTransport(options);
 
-// Abilita modalità di debug estesa
-if (process.env.NODE_ENV !== 'production') {
-  transporter.set('debug', true);
+// Crea una funzione per ottenere un transporter sempre funzionante
+function createSmtpTransporter() {
+  console.log("🔧 Creazione nuovo transporter SMTP...");
+  
+  const newTransporter = nodemailer.createTransport(options);
+  
+  // Abilita modalità di debug estesa
+  if (process.env.NODE_ENV !== 'production') {
+    newTransporter.set('debug', true);
+  }
+  
+  return newTransporter;
+}
+
+// Create reusable transporter
+let transporter = createSmtpTransporter();
+
+// Funzione per verificare e ricrecare il transporter se necessario
+async function ensureValidTransporter() {
+  try {
+    await transporter.verify();
+    return true;
+  } catch (error) {
+    console.error("⚠️ Transporter SMTP non valido, ricreo la connessione:", error);
+    transporter = createSmtpTransporter();
+    
+    try {
+      await transporter.verify();
+      console.log("✅ Nuovo transporter SMTP verificato con successo");
+      return true;
+    } catch (retryError) {
+      console.error("❌ Impossibile creare un transporter SMTP valido anche dopo retry:", retryError);
+      return false;
+    }
+  }
 }
 
 // Log aggiuntivo per verificare che le credenziali siano state impostate correttamente
@@ -260,6 +290,9 @@ export async function sendCustomEmail(
       attachments: attachments || []
     };
     
+    // Verifica e rigenera il transporter se necessario
+    await ensureValidTransporter();
+    
     const info = await transporter.sendMail(mailOptions);
     console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
     return true;
@@ -384,11 +417,59 @@ export async function sendOnboardingEmail(
       mailOptions.cc = advisorEmail;
     }
     
-    console.log("DEBUG - Mail options complete:", JSON.stringify(mailOptions, null, 2));
+    console.log("DEBUG - Mail options complete:", JSON.stringify({
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      cc: mailOptions.cc || "(nessun CC)",
+      htmlLength: mailOptions.html.length
+    }, null, 2));
     
-    await transporter.sendMail(mailOptions);
-    
-    console.log(`Onboarding email sent to ${clientEmail}`);
+    try {
+      console.log("🔍 INVIO EMAIL - Tentativo di invio email in corso...");
+      
+      // Timeout 30 secondi per evitare blocchi indefiniti
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout invio email (30s)")), 30000);
+      });
+      
+      // Invia email con timeout di sicurezza
+      const result = await Promise.race([
+        transporter.sendMail(mailOptions),
+        timeoutPromise
+      ]);
+      
+      console.log(`✅ Onboarding email inviata con successo a ${clientEmail}`, 
+        typeof result === 'object' && result ? `(ID: ${(result as any).messageId})` : '');
+    } catch (smtpError) {
+      console.error("❌ Errore SMTP durante invio email:", smtpError);
+      
+      // Analizza errori comuni SMTP
+      const errorString = String(smtpError);
+      if (errorString.includes("ECONNREFUSED")) {
+        console.error("❌ Impossibile connettersi al server SMTP. Verificare la configurazione host/porta.");
+      } else if (errorString.includes("ETIMEDOUT")) {
+        console.error("❌ Connessione al server SMTP scaduta. Possibile problema di rete.");
+      } else if (errorString.includes("EAUTH")) {
+        console.error("❌ Autenticazione SMTP fallita. Verificare nome utente e password.");
+      } else if (errorString.includes("EMESSAGE")) {
+        console.error("❌ Formato del messaggio non valido.");
+      } else if (errorString.includes("421 4.7.0")) {
+        console.error("❌ Troppe connessioni o richieste al server SMTP. Limite di rate superato.");
+      }
+      
+      // Prova a ricostruire una nuova connessione
+      try {
+        console.log("🔍 Tentativo di verificare la connessione SMTP dopo l'errore...");
+        await transporter.verify();
+        console.log("✅ La connessione SMTP è ancora funzionante nonostante l'errore precedente");
+      } catch (verifyError) {
+        console.error("❌ La connessione SMTP è compromessa:", verifyError);
+      }
+      
+      // Propaga l'errore originale
+      throw smtpError;
+    }
     return true;
   } catch (error) {
     console.error('❌ ERRORE INVIO EMAIL ONBOARDING:', error);
