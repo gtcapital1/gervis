@@ -882,39 +882,35 @@ ${user?.name || ""}`
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email-content">{t('client.email_content')}</Label>
+              <div className="flex justify-between items-center">
+                <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-accent" />
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Destinatario: </strong>{client.email}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                <strong>Oggetto: </strong>Completa il tuo Profilo Finanziario
+              </p>
               <Textarea 
                 id="email-content"
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
-                className="min-h-[200px] font-mono text-sm"
+                className="min-h-[350px] font-mono text-sm"
                 placeholder={t('client.email_placeholder')}
               />
-              <p className="text-xs text-muted-foreground">
-                {t('client.email_personalization_tip')}
-              </p>
-            </div>
-            
-            {/* Anteprima dell'email */}
-            <div className="space-y-2">
-              <Label htmlFor="email-preview">{t('client.email_preview')}</Label>
-              <div className="border rounded-md p-4 bg-card">
-                <div className="prose prose-sm max-w-none">
-                  <p><strong>A: </strong>{client.email}</p>
-                  <p><strong>Oggetto: </strong>Completa il tuo Profilo Finanziario</p>
-                  <hr className="my-2" />
-                  <div className="whitespace-pre-line">
-                    {emailMessage}
-                  </div>
-                  <div className="mt-3 p-2 border rounded bg-accent/10 text-accent-foreground">
-                    <p className="text-center font-medium">
-                      [Pulsante "Completa il Mio Profilo"]
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-3">
-                    Questo link scadrà tra 7 giorni per motivi di sicurezza.
-                  </p>
-                </div>
+              <div className="flex items-center space-x-2 mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md">
+                <Info className="h-4 w-4" />
+                <p>
+                  {t('client.email_personalization_tip')}
+                </p>
+              </div>
+              <div className="bg-accent/10 text-accent-foreground p-2 rounded-md mt-2">
+                <p className="text-xs text-center">
+                  Il link di onboarding e il pulsante "Completa il Mio Profilo" verranno aggiunti automaticamente in fondo all'email
+                </p>
               </div>
             </div>
           </div>
