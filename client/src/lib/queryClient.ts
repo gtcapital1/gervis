@@ -178,12 +178,57 @@ export async function httpRequest<T = any>(
         error.message && 
         (error.message.includes('HTML') || error.message.includes('json'))) {
       
-      console.warn(`[HTTP] Errore DELETE speciale gestito per ${url}:`, error.message);
+      console.warn(`[HTTP] Errore DELETE speciale per ${url}:`, error.message);
       
-      // Per risposte DELETE con errori di parsing, simula una risposta di successo
-      if (window.location.hostname !== 'localhost') {
-        console.warn('[HTTP] DELETE fallito ma simuliamo successo per evitare problemi su produzione');
-        return { success: true, message: "Operation completed (simulated)" } as unknown as T;
+      // Per la versione fix, non simuliamo più un successo falso
+      // ma eseguiamo un secondo tentativo con un timestamp diverso e cache busting aggressivo
+      console.warn('[HTTP] Tentativo di recupero con richiesta diretta...');
+      
+      // Creiamo un URL con un timestamp casuale per evitare la cache
+      const randomParam = `_nocache=${Date.now()}_${Math.random().toString(36).substring(2, 10)}`;
+      const urlWithNocache = `${url}${url.includes('?') ? '&' : '?'}${randomParam}`;
+      
+      // Impostiamo header ancora più aggressivi contro la cache
+      (options.headers as Record<string, string>)["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0";
+      (options.headers as Record<string, string>)["Pragma"] = "no-cache";
+      (options.headers as Record<string, string>)["Expires"] = "-1";
+      (options.headers as Record<string, string>)["X-Force-Content-Type"] = "application/json";
+      (options.headers as Record<string, string>)["X-Debug-Delete"] = "true";
+      
+      // Tentiamo un recupero con fetch diretto con log dettagliati
+      try {
+        console.log('[HTTP] Esecuzione richiesta di recupero a:', urlWithNocache);
+        const response = await fetch(urlWithNocache, options);
+        console.log('[HTTP] Risposta di recupero ricevuta:', response.status, response.statusText);
+        
+        // Se la risposta è 2xx, consideriamo l'operazione riuscita
+        if (response.ok) {
+          try {
+            // Tentiamo di parsare JSON se possibile
+            const data = await response.json();
+            console.log('[HTTP] Richiesta di recupero riuscita con JSON:', data);
+            return data as T;
+          } catch (parseError) {
+            // Se il parse fallisce ma la risposta è ok, potrebbe essere una risposta vuota valida
+            if (response.status === 204 || response.headers.get('content-length') === '0') {
+              console.log('[HTTP] Risposta vuota 204/vuota considerata valida');
+              return { success: true, message: "Operation completed (server confirmed)" } as unknown as T;
+            }
+            
+            // Se è produzione e c'è un errore di parsing ma HTTP è ok, registriamo ma lanciamo l'errore
+            console.error('[HTTP] Errore parsing recovery ma status HTTP ok:', response.status);
+            throw new Error(`Server response ok (${response.status}) but content parsing failed`);
+          }
+        } else {
+          // Leggiamo il corpo della risposta per diagnostica
+          const responseText = await response.text();
+          console.error('[HTTP] Risposta di recupero fallita:', response.status, responseText.substring(0, 200));
+          throw new Error(`Recovery request failed with status ${response.status}`);
+        }
+      } catch (recoveryError) {
+        console.error('[HTTP] Tentativo di recupero fallito:', recoveryError);
+        // Rilancia l'errore originale
+        throw error;
       }
     }
     
