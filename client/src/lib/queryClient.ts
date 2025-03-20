@@ -33,17 +33,37 @@ async function throwIfResNotOk(res: Response) {
 
 // Simple function to perform API requests
 export async function apiRequest(url: string, options?: RequestInit): Promise<any> {
-  const res = await fetch(url, {
-    headers: options?.body ? { "Content-Type": "application/json" } : {},
-    credentials: "include",
-    ...options,
-  });
+  try {
+    const res = await fetch(url, {
+      headers: options?.body ? { "Content-Type": "application/json", "Accept": "application/json" } : { "Accept": "application/json" },
+      credentials: "include",
+      ...options,
+    });
 
-  await throwIfResNotOk(res);
-  if (res.status === 204) {
-    return null; // No content
+    // Per il metodo DELETE, gestione speciale per l'errore HTML
+    if (options?.method === 'DELETE' && !res.ok) {
+      try {
+        const contentType = res.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          console.error(`DELETE request returned HTML instead of JSON. Status: ${res.status}`);
+          console.error(`Request URL: ${url}`);
+          // Lanciamo un errore che sarà più comprensibile per l'utente
+          throw new Error(`Error ${res.status}: Server returned HTML. Server configuration issue detected.`);
+        }
+      } catch (htmlError) {
+        throw htmlError; // Rilanciamo l'errore per la gestione standard
+      }
+    }
+
+    await throwIfResNotOk(res);
+    if (res.status === 204) {
+      return null; // No content
+    }
+    return await res.json();
+  } catch (error) {
+    console.error(`API Request Error (${options?.method || 'GET'} ${url}):`, error);
+    throw error;
   }
-  return await res.json();
 }
 
 // Helper function to perform HTTP requests with method and data

@@ -228,35 +228,40 @@ Grazie per la tua fiducia e collaborazione.`
   // Mutation per gestire l'onboarding
   const sendOnboardingMutation = useMutation({
     mutationFn: (params: OnboardingParams) => {
+      console.log("DEBUG - Parametri onboarding:", params);
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
         body: JSON.stringify(params),
       });
     },
     onSuccess: (data: { token: string, link: string, language: 'english' | 'italian', emailSent?: boolean }) => {
+      // Log per verificare i dati ricevuti dal server
+      console.log("DEBUG - Risposta onboarding:", data);
+      
       // Salva il link nel localStorage per persistenza
       localStorage.setItem(`onboardingLink_${clientId}`, data.link);
       setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       
       // Controlla se è stata inviata un'email o solo generato un link
-      if (data.emailSent) {
+      if (data.emailSent === true) {
         // Se è stata inviata un'email, mostra un toast appropriato
         toast({
-          title: t('client.email_sent'),  // Usando traduzioni
+          title: t('client.email_sent'),
           description: t('client.email_sent_success'),
         });
         // Il dialog viene già chiuso nella funzione handleSendEmail
       } else {
         // Se è stato solo generato un link, mostra un toast differente
         toast({
-          title: t('client.link_generated'),  // Usando traduzioni
+          title: t('client.link_generated'),
           description: t('client.link_generated_success'),
         });
         // Non chiudiamo il dialog se stiamo solo generando un link
       }
     },
-    onError: () => {
+    onError: (error) => {
+      console.error("DEBUG - Errore onboarding:", error);
       toast({
         title: t('common.error'),
         description: t('client.link_generation_failed'),
