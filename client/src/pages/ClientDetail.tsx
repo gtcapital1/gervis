@@ -825,7 +825,7 @@ ${user?.name || ""}`
           clientId={clientId}
           onAssetsUpdated={() => {
             // Increment force refresh counter to force a query cache bypass
-            setForceRefresh((prev: number) => prev + 1);
+            setForceRefresh(forceRefresh + 1);
             // Also directly refetch assets
             refetchAssets();
           }}
