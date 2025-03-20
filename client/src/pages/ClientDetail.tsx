@@ -141,7 +141,7 @@ export default function ClientDetail() {
   // Impostiamo sempre italiano come lingua predefinita per l'email
   const emailLanguage = "italian";
   const [emailMessage, setEmailMessage] = useState<string>("");
-  const [emailSubject, setEmailSubject] = useState<string>("Completa il tuo Profilo Finanziario");
+  const [emailSubject, setEmailSubject] = useState<string>("Completa il tuo profilo");
   
   // Initialize default email messages
   const defaultEmailMessages = {

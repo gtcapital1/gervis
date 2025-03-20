@@ -100,7 +100,7 @@ const englishContent = {
 
 // Italian content
 const italianContent = {
-  subject: 'Completa il tuo Profilo Finanziario',
+  subject: 'Completa il tuo profilo',
   title: '', // Removed per client request
   greeting: (firstName: string, lastName: string) => `Gentile ${firstName} ${lastName},`,
   invitation: 'Ti invito personalmente a completare la nostra semplice procedura iniziale. Questa breve valutazione mi permetterà di comprendere meglio la tua situazione finanziaria e i tuoi obiettivi, così da offrirti una consulenza realmente su misura per te.',
