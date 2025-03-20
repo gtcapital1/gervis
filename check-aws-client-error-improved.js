@@ -16,10 +16,11 @@ const http = require('http');
 const url = require('url');
 
 async function main() {
-  // Controlla argomenti da riga di comando
+  // Validazione parametri
   if (process.argv.length < 5) {
-    console.error('Utilizzo: node check-aws-client-error-improved.js URL COOKIE_VALUE CLIENT_ID');
-    console.error('Esempio: node check-aws-client-error-improved.js https://gervis.it "connect.sid=s%3A..." 123');
+    console.error('Errore: parametri insufficienti');
+    console.log('Uso: node check-aws-client-error-improved.js BASE_URL COOKIE_VALUE CLIENT_ID');
+    console.log('Esempio: node check-aws-client-error-improved.js https://gervis.it "connect.sid=s%3A..." 123');
     process.exit(1);
   }
 
@@ -27,59 +28,117 @@ async function main() {
   const cookieValue = process.argv[3];
   const clientId = process.argv[4];
 
+  console.log(`🔍 Script diagnostico eliminazione client - ID ${clientId} su ${baseUrl}`);
+  console.log('-----------------------------------------------------------');
+
+  // Fase 1: Esegui la richiesta DELETE
+  console.log(`\n1️⃣ Tentativo di eliminazione client ID=${clientId}:`);
   try {
-    console.log(`\n[INFO] Tentativo di eliminazione cliente ID ${clientId} su ${baseUrl}`);
-    console.log('[INFO] Invio richiesta DELETE...');
+    const deleteResponse = await makeRequest(baseUrl, clientId, cookieValue);
+    analyzeResponse(deleteResponse);
+
+    // Fase 2: Verifica se il cliente è stato realmente eliminato
+    console.log(`\n2️⃣ Verifica eliminazione (GET client ID=${clientId}):`);
+    const verifyResponse = await makeRequest(baseUrl, clientId, cookieValue, 'GET');
     
-    const response = await makeRequest(baseUrl, clientId, cookieValue);
-    console.log(`\n[SUCCESS] Risposta ricevuta dal server con stato ${response.statusCode}`);
-    
-    // Mostra dettagli completi della risposta
-    analyzeResponse(response);
+    if (verifyResponse.statusCode === 404 || 
+       (verifyResponse.contentType.includes('json') && 
+        verifyResponse.body.includes('not found'))) {
+      console.log('✅ Cliente correttamente eliminato (Risposta 404 o "not found")');
+    } else {
+      console.log('❌ ERRORE: Il cliente NON risulta eliminato! Risposta:', verifyResponse.statusCode);
+      analyzeResponse(verifyResponse);
+      
+      // Fase 3: Recovery - Prova di nuovo con header più aggressivi
+      console.log(`\n3️⃣ Tentativo di recupero (DELETE forzato client ID=${clientId}):`);
+      
+      const recoveryResponse = await makeRequest(baseUrl, clientId, cookieValue, 'DELETE', true);
+      analyzeResponse(recoveryResponse);
+      
+      // Verifica di nuovo dopo il recovery
+      console.log(`\n4️⃣ Verifica finale eliminazione (GET client ID=${clientId}):`);
+      const finalVerifyResponse = await makeRequest(baseUrl, clientId, cookieValue, 'GET');
+      
+      if (finalVerifyResponse.statusCode === 404 || 
+         (finalVerifyResponse.contentType.includes('json') && 
+          finalVerifyResponse.body.includes('not found'))) {
+        console.log('✅ Cliente eliminato dopo il tentativo di recupero');
+      } else {
+        console.log('❌ ERRORE CRITICO: Impossibile eliminare il cliente anche dopo il recovery!');
+        analyzeResponse(finalVerifyResponse);
+      }
+    }
   } catch (error) {
-    console.error(`\n[ERROR] Si è verificato un errore: ${error.message}`);
+    console.error('Errore durante le operazioni:', error);
   }
 }
 
-function makeRequest(baseUrl, clientId, cookieValue) {
+// Funzione per eseguire una richiesta HTTP
+function makeRequest(baseUrl, clientId, cookieValue, method = 'DELETE', recovery = false) {
   return new Promise((resolve, reject) => {
-    // Aggiungi timestamp per evitare caching
+    const parsedUrl = url.parse(baseUrl);
     const timestamp = Date.now();
-    const deleteUrl = `${baseUrl}/api/clients/${clientId}?_t=${timestamp}`;
-    const parsedUrl = url.parse(deleteUrl);
+    const randomId = Math.random().toString(36).substring(2, 10);
     
-    // Scegli il modulo HTTP appropriato in base al protocollo
-    const httpModule = parsedUrl.protocol === 'https:' ? https : http;
+    // Costruisce il path per la richiesta
+    let path = `/api/clients/${clientId}?_t=${timestamp}`;
+    if (recovery) {
+      path += `&_recovery=true&_nocache=${randomId}`;
+    }
     
-    const options = {
-      method: 'DELETE',
-      hostname: parsedUrl.hostname,
-      path: parsedUrl.path,
-      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
-      headers: {
-        'Cookie': cookieValue,
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0',
-        'X-Requested-With': 'XMLHttpRequest',
-        'Accept': 'application/json'
-      }
+    // Prepara gli header
+    const headers = {
+      'Cookie': cookieValue,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '-1'
     };
-
-    console.log(`[DEBUG] Richiesta: ${options.method} ${options.hostname}${options.path}`);
-    console.log('[DEBUG] Cookie: ' + cookieValue.substring(0, 15) + '...');
     
-    const req = httpModule.request(options, (res) => {
-      let responseBody = '';
+    // Aggiunge header speciali per prevenire errori con le risposte HTML
+    if (method === 'DELETE' || recovery) {
+      headers['X-Requested-With'] = 'XMLHttpRequest';
+      headers['X-No-HTML-Response'] = 'true';
+    }
+    
+    // Aggiunge header speciali per il recovery
+    if (recovery) {
+      headers['X-Force-Content-Type'] = 'application/json';
+      headers['X-Recovery-Delete'] = 'true';
+    }
+    
+    // Configurazione richiesta
+    const options = {
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+      path: path,
+      method: method,
+      headers: headers
+    };
+    
+    console.log(`Esecuzione ${method} a ${options.hostname}${options.path}`);
+    
+    // Sceglie il protocollo corretto
+    const requester = parsedUrl.protocol === 'https:' ? https : http;
+    
+    // Esegue la richiesta
+    const req = requester.request(options, (res) => {
+      let data = '';
       
       res.on('data', (chunk) => {
-        responseBody += chunk;
+        data += chunk;
       });
       
       res.on('end', () => {
-        // Aggiungi il corpo della risposta all'oggetto response
-        res.body = responseBody;
-        resolve(res);
+        const contentType = res.headers['content-type'] || '';
+        
+        resolve({
+          statusCode: res.statusCode,
+          headers: res.headers,
+          contentType: contentType,
+          body: data
+        });
       });
     });
     
@@ -91,61 +150,40 @@ function makeRequest(baseUrl, clientId, cookieValue) {
   });
 }
 
+// Funzione per analizzare e mostrare la risposta
 function analyzeResponse(response) {
-  console.log('\n[RESPONSE] DETTAGLI RISPOSTA:');
-  console.log(`Status Code: ${response.statusCode}`);
-  console.log(`Status Message: ${response.statusMessage}`);
+  console.log(`Stato HTTP: ${response.statusCode}`);
+  console.log(`Content-Type: ${response.contentType}`);
   
-  console.log('\n[RESPONSE] HEADERS:');
-  Object.keys(response.headers).forEach(key => {
-    console.log(`${key}: ${response.headers[key]}`);
-  });
-  
-  console.log('\n[RESPONSE] CONTENT-TYPE:');
-  const contentType = response.headers['content-type'] || 'unknown';
-  console.log(contentType);
-  
-  console.log('\n[RESPONSE] BODY:');
-  console.log(response.body.substring(0, 500) + (response.body.length > 500 ? '...' : ''));
-  
-  // Analisi avanzata della risposta
-  if (contentType.includes('application/json')) {
+  // Controlla se la risposta è HTML quando dovrebbe essere JSON
+  if (response.contentType.includes('html')) {
+    console.log('⚠️ ATTENZIONE: Risposta HTML ricevuta invece di JSON!');
+    console.log('Primi 300 caratteri della risposta HTML:');
+    console.log(response.body.substring(0, 300) + '...');
+  } else if (response.contentType.includes('json')) {
     try {
+      // Se è JSON, mostra in formato più leggibile
       const jsonResponse = JSON.parse(response.body);
-      console.log('\n[RESPONSE] JSON PARSATO:');
+      console.log('Risposta JSON:');
       console.log(JSON.stringify(jsonResponse, null, 2));
-    } catch (error) {
-      console.error('\n[ERROR] Il Content-Type indica JSON ma il parsing è fallito:');
-      console.error(error.message);
+    } catch (e) {
+      // Se il parsing JSON fallisce
+      console.log('⚠️ ERRORE parsing JSON. Risposta completa:');
+      console.log(response.body);
     }
-  } else if (contentType.includes('text/html')) {
-    console.log('\n[WARNING] Il server ha risposto con HTML invece di JSON!');
-    console.log('[WARNING] Questo è probabilmente causato da un errore 500 server o una configurazione Nginx errata');
-    
-    // Cerca indizi nel corpo HTML
-    if (response.body.includes('504 Gateway Time-out')) {
-      console.log('\n[DIAGNOSI] Rilevato errore 504 Gateway Timeout');
-      console.log('[SOLUZIONE] Aumentare i timeout in Nginx e PM2');
-    } else if (response.body.includes('502 Bad Gateway')) {
-      console.log('\n[DIAGNOSI] Rilevato errore 502 Bad Gateway');
-      console.log('[SOLUZIONE] Verificare che PM2 stia eseguendo correttamente l\'applicazione');
-    } else if (response.body.toLowerCase().includes('error') && response.body.toLowerCase().includes('database')) {
-      console.log('\n[DIAGNOSI] Possibile errore del database');
-      console.log('[SOLUZIONE] Controllare i log del database e le query SQL');
-    }
+  } else {
+    // Tipo di risposta non riconosciuto
+    console.log('Risposta non riconosciuta (non JSON né HTML):');
+    console.log(response.body);
   }
   
-  // Consigli generali
-  console.log('\n[CONSIGLI]:');
-  if (response.statusCode >= 500) {
-    console.log('- Controllare i log del server in /var/log/nginx/error.log');
-    console.log('- Controllare i log dell\'applicazione con: pm2 logs gervis');
-    console.log('- Eseguire lo script fix-aws-delete-issue.sh per correggere problemi comuni');
-  } else if (response.statusCode === 401) {
-    console.log('- Sessione non valida. Effettuare nuovamente il login e copiare il nuovo cookie');
-  } else if (response.statusCode === 404) {
-    console.log('- Il cliente specificato non esiste o l\'endpoint API non è corretto');
-  }
+  // Mostra header critici per debug
+  console.log('Header HTTP rilevanti:');
+  ['content-type', 'cache-control', 'set-cookie'].forEach(header => {
+    if (response.headers[header]) {
+      console.log(`${header}: ${response.headers[header]}`);
+    }
+  });
 }
 
-main();
+main().catch(console.error);

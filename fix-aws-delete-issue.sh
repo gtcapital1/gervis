@@ -1,92 +1,206 @@
 #!/bin/bash
-# Script per correggere il problema di eliminazione client su AWS
-# Il problema si verifica quando il server restituisce HTML invece di JSON
+# Script per risolvere definitivamente il problema di eliminazione client su AWS
+# Esegue una serie di operazioni per garantire che le eliminazioni funzionino
 
-echo "Correzione problema delete client su AWS Ubuntu..."
+set -e  # Termina in caso di errori
 
-# 1. Verificare la configurazione di Nginx
-echo "Verifica configurazione Nginx..."
-if [ -f "/etc/nginx/sites-available/default" ]; then
-  # Backup della configurazione originale
-  sudo cp /etc/nginx/sites-available/default /etc/nginx/sites-available/default.bak
+echo "🔧 Script di risoluzione problemi eliminazione client su AWS"
+echo "------------------------------------------------------------"
 
-  # Aggiornare la configurazione per passare le richieste DELETE correttamente
-  cat > /tmp/nginx_fix.conf << 'EOL'
-server {
-    listen 80;
-    listen [::]:80;
-    server_name _;
+# Controlla se siamo in un ambiente AWS
+is_aws() {
+  if grep -q "amazon" /etc/os-release 2>/dev/null || grep -q "amzn" /etc/os-release 2>/dev/null; then
+    return 0  # È AWS
+  else
+    return 1  # Non è AWS
+  fi
+}
 
-    location / {
+# 1. Fix vincolo CASCADE sulla tabella assets
+fix_cascade_constraints() {
+  echo "📊 Configurazione vincoli CASCADE per assets collegati ai clienti..."
+  
+  cat > /tmp/fix_cascade.sql <<EOF
+-- Script per aggiungere vincoli CASCADE alle tabelle che riferiscono clients
+ALTER TABLE assets DROP CONSTRAINT IF EXISTS "assets_clientId_fkey";
+ALTER TABLE assets ADD CONSTRAINT "assets_clientId_fkey" 
+  FOREIGN KEY ("clientId") REFERENCES "clients"(id) ON DELETE CASCADE;
+
+ALTER TABLE recommendations DROP CONSTRAINT IF EXISTS "recommendations_clientId_fkey";
+ALTER TABLE recommendations ADD CONSTRAINT "recommendations_clientId_fkey" 
+  FOREIGN KEY ("clientId") REFERENCES "clients"(id) ON DELETE CASCADE;
+
+-- Verifica vincoli
+SELECT 
+    tc.constraint_name, 
+    tc.table_name, 
+    kcu.column_name, 
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name,
+    rc.delete_rule
+FROM 
+    information_schema.table_constraints AS tc 
+    JOIN information_schema.key_column_usage AS kcu
+      ON tc.constraint_name = kcu.constraint_name
+    JOIN information_schema.constraint_column_usage AS ccu 
+      ON ccu.constraint_name = tc.constraint_name
+    JOIN information_schema.referential_constraints AS rc
+      ON rc.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY' AND ccu.table_name = 'clients';
+EOF
+
+  if [ -n "$DATABASE_URL" ]; then
+    psql "$DATABASE_URL" -f /tmp/fix_cascade.sql
+    echo "✅ Vincoli CASCADE aggiornati con successo"
+  else
+    echo "❌ DATABASE_URL non impostato, impossibile modificare vincoli"
+    return 1
+  fi
+}
+
+# 2. Fix configurazione Nginx per assicurare header Content-Type corretti
+fix_nginx_config() {
+  echo "🌐 Configurazione Nginx per gestire correttamente le risposte API..."
+  
+  NGINX_CONF_PATH="/etc/nginx/conf.d/app.conf"
+  if [ ! -f "$NGINX_CONF_PATH" ]; then
+    if [ -d "/etc/nginx/sites-available" ]; then
+      NGINX_CONF_PATH="/etc/nginx/sites-available/default"
+    else
+      echo "❌ Configurazione Nginx non trovata"
+      return 1
+    fi
+  fi
+  
+  # Backup
+  sudo cp "$NGINX_CONF_PATH" "${NGINX_CONF_PATH}.bak"
+  
+  # Controlla se esiste già la configurazione dei content type
+  if grep -q "application/json" "$NGINX_CONF_PATH"; then
+    echo "ℹ️ Configurazione content-type già presente"
+  else
+    # Aggiungi una location per forzare JSON per le richieste API
+    sudo tee -a "$NGINX_CONF_PATH" > /dev/null <<EOF
+
+    # Configurazione speciale per API json
+    location ~* ^/api/.* {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host \$host;
+        proxy_cache_bypass \$http_upgrade;
         
-        # Fix per error 413 Request Entity Too Large
-        client_max_body_size 10M;
+        # Force JSON per le operazioni DELETE
+        proxy_set_header Accept 'application/json';
+        proxy_set_header Content-Type 'application/json';
         
-        # Timeout più lunghi per operazioni più complesse
-        proxy_connect_timeout 600;
-        proxy_send_timeout 600;
-        proxy_read_timeout 600;
-        send_timeout 600;
+        # Se è presente header X-Force-Content-Type, forza application/json
+        if (\$http_x_force_content_type) {
+            add_header Content-Type 'application/json' always;
+        }
+        
+        # Se è presente header X-No-HTML-Response, assicura content-type JSON
+        if (\$http_x_no_html_response) {
+            add_header Content-Type 'application/json' always;
+        }
+        
+        # Log dettagliati per debug
+        error_log /var/log/nginx/api_error.log debug;
+        access_log /var/log/nginx/api_access.log;
     }
+EOF
+    echo "✅ Configurazione Nginx aggiornata con regole Content-Type"
+  fi
+  
+  # Riavvia Nginx
+  echo "🔄 Riavvio Nginx per applicare le modifiche..."
+  sudo systemctl restart nginx || sudo service nginx restart
+  echo "✅ Nginx riavviato con successo"
 }
-EOL
 
-  # Installare la nuova configurazione
-  sudo cp /tmp/nginx_fix.conf /etc/nginx/sites-available/default
-  sudo nginx -t && sudo systemctl restart nginx
-  echo "Configurazione Nginx aggiornata."
-else
-  echo "File di configurazione Nginx non trovato in /etc/nginx/sites-available/default"
-fi
-
-# 2. Aggiornare il file index.js per assicurarsi che gestisca correttamente le risposte HTML invece di JSON
-echo "Aggiornamento applicazione per gestire correttamente le risposte non-JSON..."
-
-if [ -f "/var/www/gervis/server/index.js" ]; then
-  # Backup del file originale
-  cp /var/www/gervis/server/index.js /var/www/gervis/server/index.js.bak
+# 3. Testa funzionalità di eliminazione
+test_delete_functionality() {
+  echo "🧪 Test funzionalità di eliminazione client..."
   
-  # Aggiungi middleware per assicurarsi che tutte le risposte siano JSON
-  cat >> /var/www/gervis/server/index.js << 'EOL'
-
-// Middleware aggiunto dal fix-aws-delete-issue.sh per assicurare risposte JSON coerenti
-app.use((req, res, next) => {
-  // Salva il metodo originale res.send
-  const originalSend = res.send;
+  # Usa POST per creare un cliente di test
+  echo "1. Creazione cliente di test..."
+  CLIENT_ID=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"firstName":"Test","lastName":"DeleteTest","email":"delete_test@example.com","phone":"123456789"}' \
+    http://localhost:5000/api/clients | 
+    grep -o '"id":[0-9]*' | cut -d':' -f2)
   
-  // Sovrascrive res.send per controllare il content-type
-  res.send = function(body) {
-    if (!res.headersSent) {
-      // Assicurati che le risposte siano JSON per le richieste API
-      if (req.path.startsWith('/api/') && !res.getHeader('Content-Type')) {
-        res.setHeader('Content-Type', 'application/json');
-      }
-    }
-    
-    // Chiama il metodo originale
-    return originalSend.call(this, body);
-  };
+  if [ -z "$CLIENT_ID" ]; then
+    echo "❌ Impossibile creare cliente di test"
+    return 1
+  fi
   
-  next();
-});
-EOL
+  echo "✅ Cliente di test creato con ID: $CLIENT_ID"
   
-  echo "File index.js aggiornato con middleware per Content-Type JSON."
-else
-  echo "File index.js non trovato in /var/www/gervis/server/"
-fi
+  # Attendi un attimo
+  sleep 1
+  
+  # Usa DELETE per eliminare il cliente
+  echo "2. Eliminazione cliente di test..."
+  DELETE_RESULT=$(curl -s -X DELETE \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json" \
+    -H "Cache-Control: no-cache, no-store, must-revalidate" \
+    -H "Pragma: no-cache" \
+    -H "Expires: -1" \
+    -H "X-Requested-With: XMLHttpRequest" \
+    -H "X-No-HTML-Response: true" \
+    -H "X-Force-Content-Type: application/json" \
+    "http://localhost:5000/api/clients/$CLIENT_ID?_t=$(date +%s)")
+  
+  echo "Risposta DELETE: $DELETE_RESULT"
+  
+  # Verifica che il cliente sia effettivamente eliminato
+  echo "3. Verifica eliminazione..."
+  sleep 1
+  VERIFY_RESULT=$(curl -s -X GET \
+    -H "Accept: application/json" \
+    -H "Cache-Control: no-cache" \
+    "http://localhost:5000/api/clients/$CLIENT_ID")
+  
+  if echo "$VERIFY_RESULT" | grep -q "not found" || echo "$VERIFY_RESULT" | grep -q "\"success\":false"; then
+    echo "✅ Cliente eliminato correttamente"
+  else
+    echo "❌ Cliente NON eliminato: $VERIFY_RESULT"
+    return 1
+  fi
+}
 
-# 3. Riavvia il servizio PM2
-echo "Riavvio dell'applicazione..."
-cd /var/www/gervis && pm2 restart gervis
-echo "Applicazione riavviata."
+# Esegui le operazioni
+main() {
+  echo "📌 Ambiente: $(uname -a)"
+  if is_aws; then
+    echo "☁️ Rilevato ambiente AWS"
+  else
+    echo "💻 Ambiente non-AWS (locale/Replit)"
+  fi
+  
+  echo ""
+  echo "1️⃣ Aggiornamento vincoli database"
+  fix_cascade_constraints
+  
+  echo ""
+  echo "2️⃣ Aggiornamento configurazione web server"
+  if is_aws; then
+    fix_nginx_config
+  else
+    echo "⏩ Saltato: non necessario in ambiente non-AWS"
+  fi
+  
+  echo ""
+  echo "3️⃣ Test funzionalità delete"
+  test_delete_functionality
+  
+  echo ""
+  echo "✨ Operazioni completate"
+  echo "Se il test ha avuto successo, le eliminazioni ora funzionano correttamente!"
+}
 
-echo "Correzione completata. Si prega di testare l'eliminazione del cliente."
+# Esegui
+main
