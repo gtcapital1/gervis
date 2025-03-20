@@ -692,6 +692,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const firstName = client.firstName || client.name.split(' ')[0];
           const lastName = client.lastName || client.name.split(' ').slice(1).join(' ');
           
+          // Debug per l'oggetto email
+          console.log("DEBUG - Invio email onboarding:");
+          console.log("DEBUG - customSubject:", customSubject);
+          
           // Send the onboarding email
           await sendOnboardingEmail(
             client.email,

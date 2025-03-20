@@ -275,7 +275,13 @@ Grazie per la tua fiducia e collaborazione.`
     if (!emailMessage) {
       setEmailMessage(defaultEmailMessages["italian"]);
     }
+    // Lasciamo inalterato l'oggetto email, in modo che l'utente possa modificarlo
+    // e le modifiche vengano mantenute
     setIsEmailDialogOpen(true);
+    
+    // Debug per vedere i valori attuali
+    console.log("DEBUG - Apertura dialog email:");
+    console.log("DEBUG - emailSubject corrente:", emailSubject);
   }
   
   function handleGenerateNewLink() {
@@ -287,6 +293,10 @@ Grazie per la tua fiducia e collaborazione.`
   
   // Funzione che invia l'email con il link di onboarding
   function handleSendEmail() {
+    // Stampa di debug per vedere il valore dell'oggetto email
+    console.log("DEBUG - Invio email client-side:");
+    console.log("DEBUG - emailSubject:", emailSubject);
+    
     // Invia l'email con il link di onboarding
     sendOnboardingMutation.mutate({
       language: emailLanguage,
