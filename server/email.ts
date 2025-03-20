@@ -280,6 +280,19 @@ export async function sendOnboardingEmail(
   advisorEmail?: string,
   customSubject?: string
 ) {
+  console.log("🔍 DIAGNOSTICA INVIO EMAIL - Inizio funzione sendOnboardingEmail");
+  console.log("🔍 DIAGNOSTICA - Parametri completi:", {
+    clientEmail,
+    firstName,
+    lastName,
+    onboardingLinkPrefix: onboardingLink.substring(0, 30) + "...",
+    language,
+    customMessageProvided: !!customMessage,
+    advisorSignatureProvided: !!advisorSignature,
+    advisorEmail,
+    customSubject
+  });
+  
   try {
     // Select content based on language
     const content = language === 'english' ? englishContent : italianContent;
@@ -378,7 +391,19 @@ export async function sendOnboardingEmail(
     console.log(`Onboarding email sent to ${clientEmail}`);
     return true;
   } catch (error) {
-    console.error('Error sending onboarding email:', error);
+    console.error('❌ ERRORE INVIO EMAIL ONBOARDING:', error);
+    console.error('❌ DETTAGLI ERROR:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
+    
+    // Verifica SMTP
+    console.log("🔍 Tentativo di verifica SMTP dopo errore...");
+    try {
+      transporter.verify()
+        .then(() => console.log("✅ SMTP è ancora funzionante dopo l'errore"))
+        .catch(e => console.error("❌ SMTP non funziona:", e));
+    } catch (e) {
+      console.error("❌ Impossibile verificare SMTP:", e);
+    }
+    
     throw error;
   }
 }
