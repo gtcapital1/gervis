@@ -216,7 +216,7 @@ ${user?.name || ""}`
   }
   
   const sendOnboardingMutation = useMutation({
-    mutationFn: (params: { language: 'english' | 'italian', customMessage: string }) => {
+    mutationFn: (params: { language: 'english' | 'italian', customMessage: string, sendEmail?: boolean }) => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
         body: JSON.stringify(params),

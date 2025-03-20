@@ -682,7 +682,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const link = `${baseUrl}/onboarding?token=${token}`;
       
       // Invia l'email solo se il flag sendEmail è true
-      if (sendEmail && customMessage) {
+      // Nota: customMessage può essere undefined, in tal caso verrà usato il messaggio predefinito
+      if (sendEmail) {
         try {
           // Get advisor information
           const advisor = await storage.getUser(req.user.id);
