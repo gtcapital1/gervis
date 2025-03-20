@@ -229,23 +229,32 @@ Grazie per la tua fiducia e collaborazione.`
   const sendOnboardingMutation = useMutation({
     mutationFn: (params: OnboardingParams) => {
       console.log("DEBUG - Parametri onboarding:", params);
+      
+      // IMPORTANTE: Parametro separato "sendEmail" per determinare l'azione
+      const isSendingEmail = params.sendEmail === true;
+      console.log("DEBUG - isSendingEmail:", isSendingEmail);
+      
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
         body: JSON.stringify(params),
       });
     },
-    onSuccess: (data: { token: string, link: string, language: 'english' | 'italian', emailSent?: boolean }) => {
+    onSuccess: (data: { token: string, link: string, language: 'english' | 'italian', emailSent?: boolean }, variables) => {
       // Log per verificare i dati ricevuti dal server
       console.log("DEBUG - Risposta onboarding:", data);
+      console.log("DEBUG - Variables usate nella chiamata:", variables);
       
       // Salva il link nel localStorage per persistenza
       localStorage.setItem(`onboardingLink_${clientId}`, data.link);
       setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
       
-      // Controlla se è stata inviata un'email o solo generato un link
-      if (data.emailSent === true) {
-        // Se è stata inviata un'email, mostra un toast appropriato
+      // MODIFICA CRUCIALE: Usiamo direttamente i parametri della richiesta
+      // per determinare quale messaggio toast mostrare
+      const didRequestEmailSending = variables.sendEmail === true;
+      
+      if (didRequestEmailSending) {
+        // Se abbiamo richiesto l'invio email, mostra messaggio appropriato
         toast({
           title: t('client.email_sent'),
           description: t('client.email_sent_success'),

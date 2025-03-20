@@ -344,11 +344,18 @@ export async function sendOnboardingEmail(
     // Debug dell'oggetto email prima dell'invio
     console.log("DEBUG - sendOnboardingEmail - customSubject:", customSubject);
     
+    // Forziamo un valore per l'oggetto se è vuoto o non definito
+    const emailSubject = customSubject && customSubject.length > 0 
+      ? customSubject 
+      : "Completa il tuo profilo";
+      
+    console.log("DEBUG - OGGETTO FINALE USATO:", emailSubject);
+    
     await transporter.sendMail({
       from: `"Gervis" <${emailConfig.from}>`,
       to: clientEmail,
       cc: advisorEmail,
-      subject: customSubject || "Completa il tuo profilo", // Garantiamo sempre un oggetto predefinito fisso
+      subject: emailSubject, // Usiamo la variabile locale che è già stata verificata
       html,
     });
     
