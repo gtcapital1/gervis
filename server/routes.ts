@@ -670,11 +670,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate the onboarding token
+      // IMPORTANTE: Passiamo anche il customSubject alla funzione generateOnboardingToken
+      // in modo che venga loggato anche lì per debug
       const token = await storage.generateOnboardingToken(
         clientId,
         language as 'english' | 'italian',
         customMessage,
-        req.user.email
+        req.user.email,
+        customSubject // Aggiungiamo il parametro customSubject
       );
       
       // Generate a link from the token
