@@ -714,11 +714,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // Aggiungiamo il flag emailSent nella risposta 
+      // per far sapere al frontend se l'email è stata inviata o meno
       res.json({ 
         success: true, 
         token,
         link,
-        language
+        language,
+        emailSent: sendEmail  // Includiamo il valore del flag sendEmail nella risposta
       });
     } catch (error) {
       console.error('Error generating onboarding token:', error);

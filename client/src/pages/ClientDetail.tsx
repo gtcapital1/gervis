@@ -232,17 +232,35 @@ Grazie per la tua fiducia e collaborazione.`
         body: JSON.stringify(params),
       });
     },
-    onSuccess: (data: { token: string, link: string, language: 'english' | 'italian' }) => {
+    onSuccess: (data: { token: string, link: string, language: 'english' | 'italian', emailSent?: boolean }) => {
       // Salva il link nel localStorage per persistenza
       localStorage.setItem(`onboardingLink_${clientId}`, data.link);
       setOnboardingLink(data.link);
       queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
-      toast({
-        title: "Onboarding link generated",
-        description: `Successfully generated an onboarding link in ${data.language === 'english' ? 'English' : 'Italian'}.`,
-      });
-      // Close the email dialog
-      setIsEmailDialogOpen(false);
+      
+      // Controlla se è stata inviata un'email o solo generato un link
+      if (data.emailSent) {
+        // Se è stata inviata un'email, mostra un toast appropriato e chiudi il dialog
+        toast({
+          title: "Email inviata",
+          description: `L'email di onboarding è stata inviata con successo a ${client.email}.`,
+        });
+        // Solo se è stata inviata un'email chiudiamo il dialog
+        setIsEmailDialogOpen(false);
+      } else {
+        // Se è stato solo generato un link, mostra un toast differente
+        toast({
+          title: "Link generato",
+          description: `Link di onboarding generato con successo in italiano.`,
+        });
+        // Non chiudiamo il dialog se stiamo solo generando un link
+      }
+      
+      // Debug per verificare lo stato
+      console.log("DEBUG - Dopo onSuccess:");
+      console.log("DEBUG - Link generato:", data.link);
+      console.log("DEBUG - Email inviata:", data.emailSent ? "Sì" : "No");
+      console.log("DEBUG - Dialog chiuso:", data.emailSent ? "Sì" : "No");
     },
     onError: () => {
       toast({
@@ -257,8 +275,16 @@ Grazie per la tua fiducia e collaborazione.`
     // Genera direttamente il link di onboarding senza aprire il dialog e senza inviare l'email
     console.log("[DEBUG] Generazione link onboarding...");
     
-    // Imposta il messaggio standard in italiano
-    setEmailMessage(defaultEmailMessages["italian"]);
+    // Imposta il messaggio standard in italiano, ma solo se l'email non è già stata personalizzata
+    // In questo modo non sovrascriviamo il messaggio personalizzato dall'utente
+    if (!emailMessage) {
+      setEmailMessage(defaultEmailMessages["italian"]);
+    }
+    
+    // Debug per vedere i valori prima dell'invio
+    console.log("DEBUG - Prima di generare il link:");
+    console.log("DEBUG - emailSubject corrente:", emailSubject);
+    console.log("DEBUG - emailMessage lunghezza:", emailMessage?.length || 0);
     
     // Invochiamo direttamente la mutazione per generare il link, senza inviare l'email
     sendOnboardingMutation.mutate({
