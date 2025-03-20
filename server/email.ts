@@ -82,12 +82,24 @@ console.log("Auth password impostata:", !!emailConfig.pass);
 
 // Verifica la connessione al server SMTP
 console.log("DEBUG - Verifica connessione SMTP...");
+console.log(`DEBUG - Tentativo connessione a ${emailConfig.host}:${emailConfig.port} con utente ${emailConfig.user}`);
 transporter.verify()
   .then(() => {
     console.log("DEBUG - Connessione SMTP verificata con successo!");
   })
   .catch(err => {
-    console.error("ERRORE - Verifica connessione SMTP fallita:", err);
+    console.error("ERRORE CRITICO - Verifica connessione SMTP fallita:");
+    console.error("Dettagli host:", emailConfig.host);
+    console.error("Dettagli porta:", emailConfig.port);
+    console.error("Dettagli utente:", emailConfig.user);
+    console.error("Messaggio di errore:", err.message);
+    console.error("Stack trace completo:", err.stack);
+    if (err.code) console.error("Codice errore:", err.code);
+    if (err.errno) console.error("Errno:", err.errno);
+    if (err.syscall) console.error("Syscall:", err.syscall);
+    if (err.hostname) console.error("Hostname:", err.hostname);
+    if (err.command) console.error("Comando SMTP fallito:", err.command);
+    if (err.response) console.error("Risposta server:", err.response);
   });
 
 // English content
@@ -286,9 +298,11 @@ export async function sendOnboardingEmail(
   advisorEmail?: string,
   customSubject?: string
 ) {
+  console.log(`DEBUG - Inizio sendOnboardingEmail per ${clientEmail}`);
   try {
     // Select content based on language
     const content = language === 'english' ? englishContent : italianContent;
+    console.log(`DEBUG - Lingua selezionata: ${language}`);
     
     // Process custom message if provided
     // Remove salutations that might be duplicated in the email
@@ -378,13 +392,31 @@ export async function sendOnboardingEmail(
     }
     
     console.log("DEBUG - Mail options complete:", JSON.stringify(mailOptions, null, 2));
+    console.log(`DEBUG - Tentativo invio email a ${clientEmail} tramite ${emailConfig.host}:${emailConfig.port}`);
     
-    await transporter.sendMail(mailOptions);
+    // Invio effettivo dell'email
+    console.log("DEBUG - Chiamata transporter.sendMail iniziata");
+    const info = await transporter.sendMail(mailOptions);
+    console.log("DEBUG - Chiamata transporter.sendMail completata con successo");
+    console.log(`DEBUG - Dettagli risposta SMTP:`, JSON.stringify(info));
     
     console.log(`Onboarding email sent to ${clientEmail}`);
     return true;
-  } catch (error) {
-    console.error('Error sending onboarding email:', error);
+  } catch (error: any) {
+    console.error('ERROR - Errore critico invio onboarding email:');
+    console.error(`ERROR - Destinatario: ${clientEmail}`);
+    console.error(`ERROR - Host SMTP: ${emailConfig.host}:${emailConfig.port}`);
+    console.error(`ERROR - Messaggio errore: ${error.message}`);
+    console.error(`ERROR - Stack trace: ${error.stack}`);
+    
+    // Log dettagliato degli errori SMTP
+    if (error.code) console.error("ERROR - Codice errore:", error.code);
+    if (error.command) console.error("ERROR - Comando SMTP fallito:", error.command);
+    if (error.response) console.error("ERROR - Risposta server SMTP:", error.response);
+    if (error.responseCode) console.error("ERROR - Codice risposta:", error.responseCode);
+    if (error.rejected) console.error("ERROR - Destinatari rifiutati:", error.rejected);
+    
+    // Rilancia l'errore per la gestione a livello più alto
     throw error;
   }
 }
