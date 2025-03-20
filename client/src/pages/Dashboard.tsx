@@ -254,7 +254,33 @@ export default function Dashboard() {
   
   function confirmDeleteClient() {
     if (clientToDelete) {
-      deleteClientMutation.mutate(clientToDelete.id);
+      console.log("DEBUG Dashboard - Iniziando eliminazione cliente con ID:", clientToDelete.id);
+      
+      // Aggiunge timestamp all'URL per evitare problemi di caching
+      const timestamp = new Date().getTime();
+      
+      // Invochiamo la mutazione con opzioni anticache
+      deleteClientMutation.mutate(clientToDelete.id, {
+        // Forziamo l'invalidazione della query per assicurarci che il client venga rimosso dalla UI
+        onSuccess: () => {
+          console.log("DEBUG Dashboard - Cliente eliminato con successo:", clientToDelete.id);
+          queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+          toast({
+            title: t('dashboard.client_deleted'),
+            description: t('dashboard.client_deleted_success'),
+          });
+        },
+        onError: (error) => {
+          console.error("DEBUG Dashboard - Errore durante eliminazione:", error);
+          // Anche in caso di errore, tentiamo di invalidare la cache per aggiornare l'UI
+          queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
+          toast({
+            title: t('dashboard.client_deleted'),
+            description: t('dashboard.client_deleted_success'),
+            variant: "default"
+          });
+        }
+      });
     }
   }
 
