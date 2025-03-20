@@ -88,6 +88,14 @@ const resourcesIt = {
         title: "Gestione Clienti Centralizzata",
         description: "Organizza e gestisci facilmente i profili dei clienti, i documenti e le comunicazioni in un'unica piattaforma."
       },
+      daily_market_update: {
+        title: "Aggiornamento Giornaliero dei Mercati",
+        description: "Ricevi aggiornamenti quotidiani sui mercati finanziari con analisi basata su IA e interagisci con il nostro chatbot AI per ottenere risposte sulle tendenze di mercato e approfondimenti economici."
+      },
+      junior_sales_assistant: {
+        title: "Assistente Commerciale Junior",
+        description: "Assistente basato su IA che fornisce suggerimenti quotidiani di follow-up per i clienti principali, identifica opportunità di coinvolgimento e ti aiuta a dare priorità alle interazioni con i clienti in base all'analisi dei dati."
+      },
       wealth_assessment: {
         title: "Valutazione Patrimoniale",
         description: "Analisi dettagliata del patrimonio dei clienti con visualizzazioni intuitive e reportistica completa."

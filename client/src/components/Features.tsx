@@ -1,4 +1,4 @@
-import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart, TrendingUp, Globe } from "lucide-react";
+import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart, TrendingUp, Globe, UserCog, MessagesSquare } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface FeatureCardProps {
@@ -62,8 +62,16 @@ export default function Features() {
     {
       icon: <TrendingUp className="h-7 w-7 text-green-400" />,
       title: "Daily Market Update",
-      description: "Receive daily updates on financial markets, trend analysis and key economic drivers to stay always informed about market developments.",
+      description: "Receive daily updates on financial markets with AI-powered analysis and interact with our AI chatbot to get answers to your questions about market trends and economic insights.",
       learnMoreColor: "text-green-400",
+      isComingSoon: true,
+      plusFeature: true
+    },
+    {
+      icon: <UserCog className="h-7 w-7 text-purple-400" />,
+      title: "Junior Sales Assistant",
+      description: "AI-powered assistant that provides daily follow-up suggestions for core clients, identifies engagement opportunities, and helps you prioritize client interactions based on data analysis.",
+      learnMoreColor: "text-purple-400",
       isComingSoon: true,
       plusFeature: true
     },
@@ -95,7 +103,7 @@ export default function Features() {
           </p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {features.map((feature, index) => (
             <FeatureCard
               key={index}
