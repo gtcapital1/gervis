@@ -1,4 +1,4 @@
-import { ArrowRight, Users, LayoutDashboard, LineChart, BarChart, TrendingUp, Globe, UserCog, MessagesSquare } from "lucide-react";
+import { Users, LayoutDashboard, LineChart, BarChart, TrendingUp, UserCog } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface FeatureCardProps {
@@ -30,13 +30,9 @@ function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon, p
           </span>
         )}
       </h3>
-      <p className="text-gray-400 mb-6">
+      <p className="text-gray-400">
         {description}
       </p>
-      <a href="#" className={`inline-flex items-center ${learnMoreColor} font-medium hover:opacity-80 transition-colors`}>
-        {t('features.learn_more')}
-        <ArrowRight className="h-5 w-5 ml-1" />
-      </a>
     </div>
   );
 }
