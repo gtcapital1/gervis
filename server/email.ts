@@ -277,7 +277,8 @@ export async function sendOnboardingEmail(
   language: EmailLanguage = 'english',
   customMessage?: string,
   advisorSignature?: string,
-  advisorEmail?: string
+  advisorEmail?: string,
+  customSubject?: string
 ) {
   try {
     // Select content based on language

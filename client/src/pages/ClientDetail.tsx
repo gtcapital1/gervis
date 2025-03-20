@@ -133,6 +133,7 @@ export default function ClientDetail() {
   // Impostiamo sempre italiano come lingua predefinita per l'email
   const emailLanguage = "italian";
   const [emailMessage, setEmailMessage] = useState<string>("");
+  const [emailSubject, setEmailSubject] = useState<string>("Completa il tuo Profilo Finanziario");
   
   // Initialize default email messages
   const defaultEmailMessages = {
@@ -157,9 +158,7 @@ Condividendo alcune informazioni sulla tua situazione finanziaria e i tuoi obiet
 
 La procedura è rapida e semplice - richiederà solo circa 5 minuti del tuo tempo. Basta cliccare sul link qui sotto per iniziare.
 
-Grazie per la tua fiducia e collaborazione.
-
-${user?.name || ""}`
+Grazie per la tua fiducia e collaborazione.`
   };
   
   // Form for editing client information
@@ -219,7 +218,7 @@ ${user?.name || ""}`
   }
   
   const sendOnboardingMutation = useMutation({
-    mutationFn: (params: { language: 'english' | 'italian', customMessage: string, sendEmail?: boolean }) => {
+    mutationFn: (params: { language: 'english' | 'italian', customMessage: string, subject?: string, sendEmail?: boolean }) => {
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
         body: JSON.stringify(params),
@@ -283,6 +282,7 @@ ${user?.name || ""}`
     sendOnboardingMutation.mutate({
       language: emailLanguage,
       customMessage: emailMessage,
+      subject: emailSubject,
       sendEmail: true  // Qui vogliamo esplicitamente inviare l'email
     });
   }
@@ -855,32 +855,6 @@ ${user?.name || ""}`
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-6">
-            {/* La lingua dell'email è sempre in italiano */}
-            <div className="rounded-lg border bg-muted p-3">
-              <div className="flex items-center space-x-2">
-                <Info className="h-4 w-4 text-accent" />
-                <p className="text-sm text-muted-foreground">
-                  L'email verrà inviata in italiano
-                </p>
-              </div>
-            </div>
-            
-            {/* Link di onboarding */}
-            <div className="rounded-lg border bg-card p-3">
-              <div className="flex items-center space-x-2 mb-2">
-                <Link2 className="h-4 w-4 text-amber-500" />
-                <p className="text-sm font-semibold">
-                  {t('client.onboarding_link')}
-                </p>
-              </div>
-              <div className="bg-muted rounded-md p-2 overflow-x-auto">
-                <p className="text-xs font-mono break-all">{onboardingLink || t('client.no_link_available')}</p>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {t('client.link_included_in_email')}
-              </p>
-            </div>
-            
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
@@ -891,14 +865,22 @@ ${user?.name || ""}`
                   </p>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mb-2">
-                <strong>Oggetto: </strong>Completa il tuo Profilo Finanziario
-              </p>
+              
+              <div className="mb-4">
+                <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
+                <Input 
+                  id="email-subject"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              
               <Textarea 
                 id="email-content"
                 value={emailMessage}
                 onChange={(e) => setEmailMessage(e.target.value)}
-                className="min-h-[350px] font-mono text-sm"
+                className="min-h-[400px] font-mono text-sm"
                 placeholder={t('client.email_placeholder')}
               />
               <div className="flex items-center space-x-2 mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md">
