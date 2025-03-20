@@ -1,30 +1,50 @@
 #!/bin/bash
+# Script per correggere i vincoli CASCADE tra le tabelle
+# Questo script aggiorna i vincoli delle foreign key per garantire che quando viene eliminato un cliente
+# vengano eliminate a cascata anche le entità dipendenti (asset, recommendations)
+#
+# Eseguire questo script sul server di produzione con:
+# bash fix-cascade-delete.sh
 
-# Script per eseguire la migrazione fix-cascade-delete.ts sul server AWS
+echo "Aggiornamento vincoli CASCADE per le tabelle..."
 
-# Verifica l'esistenza della directory di destinazione
-mkdir -p /tmp/gervis-migrations
+# Connessione al database
+DB_URL="${DATABASE_URL:-postgresql://neondb_owner:password@db.example.com/neondb}"
 
-# Copia lo script di migrazione nella directory temporanea
-cp ./server/migrations/fix-cascade-delete.ts /tmp/gervis-migrations/
+# Rimuovere i vincoli esistenti e ricrearli con CASCADE
+psql "$DB_URL" <<EOF
+-- Eliminazione dei vincoli esistenti
+ALTER TABLE IF EXISTS assets 
+  DROP CONSTRAINT IF EXISTS assets_client_id_clients_id_fk;
 
-# Naviga nella directory principale dell'applicazione
-cd /var/www/gervis
+ALTER TABLE IF EXISTS recommendations 
+  DROP CONSTRAINT IF EXISTS recommendations_client_id_clients_id_fk;
 
-# Esegui lo script di migrazione con TSX
-echo "Esecuzione dello script di migrazione fix-cascade-delete.ts..."
-tsx /tmp/gervis-migrations/fix-cascade-delete.ts
+-- Ricreazione dei vincoli con CASCADE
+ALTER TABLE assets 
+  ADD CONSTRAINT assets_client_id_clients_id_fk 
+  FOREIGN KEY (client_id) 
+  REFERENCES clients(id) 
+  ON DELETE CASCADE;
 
-# Verifica il risultato dell'esecuzione
-if [ $? -eq 0 ]; then
-  echo "Migrazione completata con successo"
-else
-  echo "Errore durante l'esecuzione della migrazione"
-  exit 1
-fi
+ALTER TABLE recommendations 
+  ADD CONSTRAINT recommendations_client_id_clients_id_fk 
+  FOREIGN KEY (client_id) 
+  REFERENCES clients(id) 
+  ON DELETE CASCADE;
 
-# Pulizia
-echo "Pulizia file temporanei..."
-rm -rf /tmp/gervis-migrations
+-- Verifica vincoli 
+SELECT tc.table_name, tc.constraint_name, tc.constraint_type,
+       kcu.column_name, rc.update_rule, rc.delete_rule
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+  ON tc.constraint_name = kcu.constraint_name
+  AND tc.table_schema = kcu.table_schema
+JOIN information_schema.referential_constraints rc
+  ON tc.constraint_name = rc.constraint_name
+  AND tc.table_schema = rc.constraint_schema
+WHERE tc.constraint_type = 'FOREIGN KEY' 
+  AND tc.table_name IN ('assets', 'recommendations');
+EOF
 
-echo "Procedura completata"
+echo "Operazione completata. Vincoli CASCADE aggiornati correttamente."
