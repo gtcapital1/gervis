@@ -353,6 +353,8 @@ const resourcesIt = {
       link_copied: "Link copiato",
       link_copied_desc: "Link di onboarding copiato negli appunti.",
       copy_link: "Copia Link",
+      send_email: "Invia Email",
+      generate_link: "Genera Link Onboarding",
       generate_new_link: "Genera Nuovo Link",
       share_link_desc: "Condividi questo link con il tuo cliente per completare il processo di onboarding.",
       sending: "Invio in corso...",
