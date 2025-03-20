@@ -159,7 +159,6 @@ La procedura è rapida e semplice - richiederà solo circa 5 minuti del tuo temp
 
 Grazie per la tua fiducia e collaborazione.
 
-Cordiali saluti,
 ${user?.name || ""}`
   };
   
@@ -264,6 +263,10 @@ ${user?.name || ""}`
   
   function handleOpenEmailDialog() {
     // Apre il dialog per personalizzare l'email prima di inviarla
+    // Assicuriamoci che il messaggio email sia inizializzato
+    if (!emailMessage) {
+      setEmailMessage(defaultEmailMessages["italian"]);
+    }
     setIsEmailDialogOpen(true);
   }
   
@@ -890,6 +893,29 @@ ${user?.name || ""}`
               <p className="text-xs text-muted-foreground">
                 {t('client.email_personalization_tip')}
               </p>
+            </div>
+            
+            {/* Anteprima dell'email */}
+            <div className="space-y-2">
+              <Label htmlFor="email-preview">{t('client.email_preview')}</Label>
+              <div className="border rounded-md p-4 bg-card">
+                <div className="prose prose-sm max-w-none">
+                  <p><strong>A: </strong>{client.email}</p>
+                  <p><strong>Oggetto: </strong>Completa il tuo Profilo Finanziario</p>
+                  <hr className="my-2" />
+                  <div className="whitespace-pre-line">
+                    {emailMessage}
+                  </div>
+                  <div className="mt-3 p-2 border rounded bg-accent/10 text-accent-foreground">
+                    <p className="text-center font-medium">
+                      [Pulsante "Completa il Mio Profilo"]
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-3">
+                    Questo link scadrà tra 7 giorni per motivi di sicurezza.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
           <DialogFooter>
