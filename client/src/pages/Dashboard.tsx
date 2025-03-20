@@ -131,36 +131,23 @@ export default function Dashboard() {
     },
   });
   
-  // Delete client mutation - VERSIONE ULTRA AGGRESSIVA
+  // Delete client mutation
   const deleteClientMutation = useMutation({
     mutationFn: (clientId: number) => {
-      console.log(`[SUPER AGGRESSIVE DELETE] Attempting to delete client ${clientId}`);
+      console.log(`[DEBUG] Avvio eliminazione cliente ${clientId}`);
       
-      // Modifica radicale: invece di usare apiRequest standard, 
-      // simuliamo direttamente una risposta di successo
-      try {
-        // Per logging, facciamo comunque la chiamata API in background
-        fetch(`/api/clients/${clientId}?_t=${Date.now()}`, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        }).catch(e => console.log("Background delete attempt error (ignored):", e));
-        
-        // Ma restituiamo comunque successo, indipendentemente dal risultato effettivo
-        console.log("[BYPASS] Simulazione risposta delete cliente riuscita");
-        return Promise.resolve({ success: true, message: "Client deleted successfully" });
-      } catch (err) {
-        console.error("[BYPASS-ERROR] Errore nella simulazione:", err);
-        // Anche in caso di errore, simuliamo successo
-        return Promise.resolve({ success: true, message: "Client deleted successfully" });
-      }
+      // Utilizziamo apiRequest standard per garantire la corretta gestione degli errori
+      return apiRequest(`/api/clients/${clientId}?_t=${Date.now()}`, {
+        method: 'DELETE',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
     },
     onSuccess: (data) => {
-      console.log(`[DEBUG Frontend] Eliminazione cliente completata con successo:`, data);
+      console.log(`[DEBUG] Eliminazione cliente completata con successo:`, data);
       
       // Invalidiamo la query per aggiornare l'elenco clienti
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
@@ -173,35 +160,20 @@ export default function Dashboard() {
       
       // Chiudi il dialog di conferma
       setIsDeleteDialogOpen(false);
-      
-      // Aggiungiamo ritardo per evitare race conditions
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      }, 500);
     },
     onError: (error) => {
-      // Log dettagliato dell'errore
-      console.error(`[DEBUG Frontend] Errore nell'eliminazione cliente:`, error);
+      // Log dettagliato dell'errore per debugging
+      console.error(`[ERROR] Errore nell'eliminazione cliente:`, error);
       
-      // AGGRESSIVO: ANCHE IN CASO DI ERRORE SIMULA SUCCESSO PER L'UTENTE
-      console.log("[AGGRESSIVE OVERRIDE] Simulazione risposta di successo anche in caso di errore");
-      
-      // Invalidiamo la query per aggiornare l'elenco clienti
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      
-      // Toast di successo ANCHE dopo errore
+      // Mostriamo un messaggio di errore all'utente
       toast({
-        title: t('dashboard.client_deleted'),
-        description: t('dashboard.client_deleted_success'),
+        title: "Errore",
+        description: "Non è stato possibile eliminare il cliente. Si prega di riprovare.",
+        variant: "destructive",
       });
       
       // Chiudi il dialog di conferma
       setIsDeleteDialogOpen(false);
-      
-      // Aggiungiamo ritardo per evitare race conditions
-      setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      }, 500);
     },
   });
 
