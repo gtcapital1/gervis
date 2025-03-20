@@ -302,39 +302,64 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Delete client
   app.delete('/api/clients/:id', isAuthenticated, async (req, res) => {
+    console.log(`[DEBUG] Ricevuta richiesta DELETE per cliente ID: ${req.params.id} - Query params:`, req.query);
     try {
+      // Verifica autenticazione
       if (!req.user || !req.user.id) {
+        console.log(`[DEBUG] DELETE client - Autenticazione fallita`);
         return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
       }
       
       const clientId = parseInt(req.params.id);
       if (isNaN(clientId)) {
+        console.log(`[DEBUG] DELETE client - ID client non valido: ${req.params.id}`);
         return res.status(400).json({ success: false, message: 'Invalid client ID' });
       }
       
+      console.log(`[DEBUG] DELETE client ${clientId} - Verifica esistenza cliente`);
       // Get client from database
       const client = await storage.getClient(clientId);
       
       if (!client) {
+        console.log(`[DEBUG] DELETE client ${clientId} - Cliente non trovato`);
         return res.status(404).json({ success: false, message: 'Client not found' });
       }
       
+      console.log(`[DEBUG] DELETE client ${clientId} - Verifica autorizzazioni: advisorId=${client.advisorId}, userId=${req.user.id}`);
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user.id) {
+        console.log(`[DEBUG] DELETE client ${clientId} - Non autorizzato (client.advisorId=${client.advisorId}, req.user.id=${req.user.id})`);
         return res.status(403).json({ success: false, message: 'Not authorized to delete this client' });
       }
       
+      console.log(`[DEBUG] DELETE client ${clientId} - Avvio processo di eliminazione`);
       // Delete the client
       const success = await storage.deleteClient(clientId);
       
       if (success) {
-        res.json({ success: true, message: 'Client deleted successfully' });
+        console.log(`[DEBUG] DELETE client ${clientId} - Eliminazione riuscita, invio risposta con success=true`);
+        const responseObj = { success: true, message: 'Client deleted successfully' };
+        console.log(`[DEBUG] DELETE client ${clientId} - Payload risposta:`, JSON.stringify(responseObj));
+        res.json(responseObj);
       } else {
+        console.log(`[DEBUG] DELETE client ${clientId} - Eliminazione fallita, invio risposta con status 500`);
         res.status(500).json({ success: false, message: 'Failed to delete client' });
       }
     } catch (error) {
-      console.error('Error deleting client:', error);
-      res.status(500).json({ success: false, message: 'An error occurred while deleting client', error: String(error) });
+      console.error(`[ERROR] Errore durante l'eliminazione del cliente:`, error);
+      console.log(`[DEBUG] DELETE client - Errore catturato, invio risposta con status 500`);
+      
+      // Log dettagliato dello stack trace
+      if (error instanceof Error) {
+        console.error(`[ERROR] Stack trace:`, error.stack);
+      }
+      
+      res.status(500).json({ 
+        success: false, 
+        message: 'An error occurred while deleting client', 
+        error: String(error),
+        timestamp: new Date().toISOString()
+      });
     }
   });
   

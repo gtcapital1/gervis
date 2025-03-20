@@ -45,11 +45,50 @@ app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  
+  // Genera un ID univoco per la richiesta
+  const reqId = `${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+  
+  // Log all'inizio della richiesta per l'eliminazione dei client
+  if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
+    console.log(`[DEBUG REQ ${reqId}] Inizio richiesta DELETE client: ${path}`);
+    console.log(`[DEBUG REQ ${reqId}] Headers: ${JSON.stringify(req.headers)}`);
+  }
 
+  // Override del metodo json originale
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
+    
+    // Log specifico per l'operazione di eliminazione client
+    if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
+      console.log(`[DEBUG RES ${reqId}] Invio risposta JSON a richiesta DELETE client: ${path}`);
+      console.log(`[DEBUG RES ${reqId}] Stato: ${res.statusCode}`);
+      console.log(`[DEBUG RES ${reqId}] Risposta: ${JSON.stringify(bodyJson)}`);
+      console.log(`[DEBUG RES ${reqId}] Content-Type: ${res.getHeader('content-type')}`);
+    }
+    
     return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+  
+  // Override del metodo send originale
+  const originalSend = res.send;
+  res.send = function(body) {
+    // Log specifico per l'operazione di eliminazione client
+    if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
+      console.log(`[DEBUG RES ${reqId}] Invio risposta SEND a richiesta DELETE client: ${path}`);
+      console.log(`[DEBUG RES ${reqId}] Stato: ${res.statusCode}`);
+      console.log(`[DEBUG RES ${reqId}] Content-Type: ${res.getHeader('content-type')}`);
+      
+      if (body) {
+        const bodyPreview = typeof body === 'string' ? body.substring(0, 100) : 
+                           (typeof body === 'object' ? JSON.stringify(body).substring(0, 100) : 
+                           String(body).substring(0, 100));
+        console.log(`[DEBUG RES ${reqId}] Preview risposta: ${bodyPreview}...`);
+      }
+    }
+    
+    return originalSend.call(this, body);
   };
 
   res.on("finish", () => {
@@ -60,11 +99,16 @@ app.use((req, res, next) => {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
 
-      if (logLine.length > 80) {
+      if (logLine.length > 80 && !path.match(/\/api\/clients\/\d+$/) && req.method !== "DELETE") {
         logLine = logLine.slice(0, 79) + "…";
       }
 
       log(logLine);
+      
+      // Log di completamento per l'eliminazione client
+      if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
+        console.log(`[DEBUG FIN ${reqId}] Completata richiesta DELETE client: ${path} con stato ${res.statusCode} in ${duration}ms`);
+      }
     }
   });
 
@@ -84,12 +128,45 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
+    
+    // ID univoco per l'errore per facilitare il tracciamento nei log
+    const errorId = `err-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+    
+    // Log dettagliato per tutti gli errori
+    console.error(`[ERROR ${errorId}] Errore in ${req.method} ${req.path}:`);
+    console.error(`[ERROR ${errorId}] Messaggio: ${message}`);
+    console.error(`[ERROR ${errorId}] Stato: ${status}`);
+    
+    // Log stack trace quando disponibile
+    if (err.stack) {
+      console.error(`[ERROR ${errorId}] Stack trace:\n${err.stack}`);
+    }
+    
+    // Log extra dettagliato per gli errori in operazioni di eliminazione client
+    if (req.path.startsWith("/api/clients") && req.path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
+      console.error(`[ERROR ${errorId}] Errore critico in operazione DELETE client: ${req.path}`);
+      console.error(`[ERROR ${errorId}] Headers: ${JSON.stringify(req.headers)}`);
+      console.error(`[ERROR ${errorId}] Query params: ${JSON.stringify(req.query)}`);
+      if (req.user) {
+        console.error(`[ERROR ${errorId}] User ID: ${req.user.id}`);
+      } else {
+        console.error(`[ERROR ${errorId}] User non autenticato`);
+      }
+    }
+    
+    // Invio risposta JSON all'utente
+    res.status(status).json({ 
+      message,
+      errorId,
+      timestamp: new Date().toISOString(),
+      path: req.path
+    });
+    
+    // Nota: rimuoviamo il "throw err" per evitare di terminare il processo Node
+    // in caso di errore gestito. Questo migliora la stabilità del server.
   });
 
   // importantly only setup vite in development and after
