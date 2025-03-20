@@ -408,29 +408,63 @@ export class PostgresStorage implements IStorage {
   }
   
   async archiveClient(id: number): Promise<Client> {
-    const result = await db.update(clients)
-      .set({ isArchived: true })
-      .where(eq(clients.id, id))
-      .returning();
+    console.log(`[INFO] Archiviazione cliente ID: ${id}`);
     
-    if (!result[0]) {
-      throw new Error(`Client with id ${id} not found`);
+    try {
+      // Verifichiamo se il cliente esiste
+      const clientExists = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
+      
+      if (clientExists.length === 0) {
+        console.log(`[INFO] Cliente ID: ${id} non trovato per archiviazione`);
+        throw new Error(`Client with id ${id} not found`);
+      }
+      
+      // Aggiorniamo lo stato di archiviazione
+      const result = await db.update(clients)
+        .set({ isArchived: true })
+        .where(eq(clients.id, id))
+        .returning();
+      
+      if (!result[0]) {
+        throw new Error(`Failed to archive client with id ${id}`);
+      }
+      
+      console.log(`[INFO] Cliente ID: ${id} archiviato con successo`);
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'archiviazione del cliente ID: ${id}:`, error);
+      throw error;
     }
-    
-    return result[0];
   }
   
   async restoreClient(id: number): Promise<Client> {
-    const result = await db.update(clients)
-      .set({ isArchived: false })
-      .where(eq(clients.id, id))
-      .returning();
+    console.log(`[INFO] Ripristino cliente archiviato ID: ${id}`);
     
-    if (!result[0]) {
-      throw new Error(`Client with id ${id} not found`);
+    try {
+      // Verifichiamo se il cliente esiste
+      const clientExists = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
+      
+      if (clientExists.length === 0) {
+        console.log(`[INFO] Cliente ID: ${id} non trovato per ripristino`);
+        throw new Error(`Client with id ${id} not found`);
+      }
+      
+      // Ripristiniamo il cliente rimuovendo lo stato di archiviazione
+      const result = await db.update(clients)
+        .set({ isArchived: false })
+        .where(eq(clients.id, id))
+        .returning();
+      
+      if (!result[0]) {
+        throw new Error(`Failed to restore client with id ${id}`);
+      }
+      
+      console.log(`[INFO] Cliente ID: ${id} ripristinato con successo`);
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Errore durante il ripristino del cliente ID: ${id}:`, error);
+      throw error;
     }
-    
-    return result[0];
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {
