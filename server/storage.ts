@@ -588,22 +588,50 @@ export class PostgresStorage implements IStorage {
       throw new Error(`Client with id ${clientId} not found`);
     }
     
-    // Generate a random token
-    const token = randomBytes(16).toString('hex');
+    // Verifica se esiste già un token valido per questo cliente
+    let token = client.onboardingToken;
+    let tokenExpiry = client.tokenExpiry;
+    let needsNewToken = true;
     
-    // Set token expiry to 7 days from now
-    const expiry = new Date();
-    expiry.setDate(expiry.getDate() + 7);
+    if (token && tokenExpiry) {
+      // Controlla se il token esistente è ancora valido (non scaduto)
+      const now = new Date();
+      const expiryDate = new Date(tokenExpiry);
+      
+      if (expiryDate > now) {
+        // Il token esistente è ancora valido, lo riutilizziamo
+        console.log(`DEBUG Storage - Riutilizzo token esistente per cliente ID: ${clientId}`);
+        needsNewToken = false;
+      } else {
+        console.log(`DEBUG Storage - Token esistente scaduto per cliente ID: ${clientId}, ne genero uno nuovo`);
+      }
+    } else {
+      console.log(`DEBUG Storage - Nessun token esistente per cliente ID: ${clientId}, ne genero uno nuovo`);
+    }
     
-    // Update client with token and expiry
-    await this.updateClient(clientId, { 
-      onboardingToken: token,
-      tokenExpiry: expiry
-    });
+    // Se necessario, generiamo un nuovo token
+    if (needsNewToken) {
+      // Generate a random token
+      token = randomBytes(16).toString('hex');
+      
+      // Set token expiry to 7 days from now
+      const expiry = new Date();
+      expiry.setDate(expiry.getDate() + 7);
+      tokenExpiry = expiry;
+      
+      // Update client with token and expiry
+      await this.updateClient(clientId, { 
+        onboardingToken: token,
+        tokenExpiry: expiry
+      });
+      
+      console.log(`DEBUG Storage - Nuovo token generato per cliente ID: ${clientId}: ${token}`);
+    }
 
-    // Generate onboarding link
+    // Generate onboarding link (solo per debug)
     const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapasso.replit.app`;
     const onboardingLink = `${baseUrl}/onboarding?token=${token}`;
+    console.log(`DEBUG Storage - Link onboarding: ${onboardingLink}`);
     
     // Get advisor information (to include signature)
     const advisor = client.advisorId ? await this.getUser(client.advisorId) : undefined;
@@ -612,7 +640,7 @@ export class PostgresStorage implements IStorage {
     // Non inviamo più l'email qui per evitare duplicazioni
     // L'email viene inviata solamente in server/routes.ts
     
-    return token;
+    return token as string;
   }
   
   // Asset Methods
