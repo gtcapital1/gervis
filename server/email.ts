@@ -341,13 +341,15 @@ export async function sendOnboardingEmail(
       </div>
     `;
   
-    // AGGRESSIVO: Forzatura diretta dell'oggetto, ignorando completamente customSubject
+    // CORRETTO: Rispetta la scelta dell'utente per l'oggetto dell'email
     console.log("DEBUG - sendOnboardingEmail - customSubject originale:", customSubject);
     
-    // NON usare customSubject, usa sempre un valore hardcodato
-    const emailSubject = "Completa il tuo profilo finanziario";
+    // Utilizziamo prioritariamente il valore fornito dall'utente, con fallback solo se vuoto
+    const emailSubject = customSubject && customSubject.trim().length > 0 
+      ? customSubject 
+      : "Completa il tuo profilo";
       
-    console.log("DEBUG - OGGETTO FINALE HARDCODATO:", emailSubject);
+    console.log("DEBUG - OGGETTO FINALE USATO (scelto dall'utente o fallback):", emailSubject);
     
     // Costruiamo interamente l'oggetto email per evitare problemi
     const mailOptions: {

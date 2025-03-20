@@ -716,12 +716,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Aggiungiamo il flag emailSent nella risposta 
       // per far sapere al frontend se l'email è stata inviata o meno
+      // Log aggiuntivi per debug
+      console.log("DEBUG ROUTES - Valori inviati nella risposta:");
+      console.log("DEBUG ROUTES - token:", token);
+      console.log("DEBUG ROUTES - link:", link);
+      console.log("DEBUG ROUTES - language:", language);
+      console.log("DEBUG ROUTES - emailSent:", sendEmail);
+      console.log("DEBUG ROUTES - customSubject ricevuto:", customSubject);
+      
       res.json({ 
         success: true, 
         token,
         link,
         language,
-        emailSent: sendEmail  // Includiamo il valore del flag sendEmail nella risposta
+        emailSent: sendEmail,  // Includiamo il valore del flag sendEmail nella risposta
+        debug: {
+          customSubject: customSubject || "(non specificato)",
+          customSubjectProvided: !!customSubject,
+          customSubjectLength: customSubject ? customSubject.length : 0
+        }
       });
     } catch (error) {
       console.error('Error generating onboarding token:', error);
