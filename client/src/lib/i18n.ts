@@ -831,7 +831,14 @@ const resourcesEn = {
       submit: "Submit Profile",
       error: "Error submitting profile",
       success: "Profile submitted successfully!",
-      success_message: "Thank you for completing your financial profile. Your financial advisor will review your information and contact you soon."
+      success_message: "Thank you for completing your financial profile. Your financial advisor will review your information and contact you soon.",
+      personal_interests_title: "Personal Interests",
+      personal_interests_desc: "Share your personal interests to help us provide you with a unique and personalized financial advisory experience",
+      your_interests: "Your interests",
+      interests_selection_desc: "Select topics that interest you to allow us to better understand your passions",
+      interests_notes: "Additional notes about your interests",
+      interests_notes_placeholder: "Tell us more about your interests or other passions not listed...",
+      optional_field: "This field is optional"
     },
     risk_profiles: {
       conservative: "Conservative",
