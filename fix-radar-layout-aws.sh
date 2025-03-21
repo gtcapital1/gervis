@@ -1,101 +1,49 @@
 #!/bin/bash
 
-# Script completo per applicare le modifiche al layout del radar chart e asset
-# su ambiente AWS o di sviluppo
+# Script per applicare automaticamente le modifiche radar/interests su AWS
+# Questo script deve essere eseguito sulla macchina AWS
 
-echo "==========================================================="
-echo "    FIX LAYOUT PAGINA CLIENTE E GRAFICO RADAR"
-echo "==========================================================="
-echo "Questo script applica i seguenti miglioramenti:"
-echo "- Grafico radar posizionato a destra (2/3 larghezza)"
-echo "- Sezione informazioni personali più stretta (1/3 larghezza)"
-echo "- Box asset con sfondo nero e testo bianco"
-echo "- Rimozione delle sezioni duplicate (Esperienza e Orizzonte)"
-echo ""
+# Colori per output
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m' # No Color
 
-# Funzione per controllare errori
-check_error() {
-  if [ $? -ne 0 ]; then
-    echo "❌ ERRORE: $1"
-    echo "Interrompo l'esecuzione."
-    exit 1
-  fi
-}
+# Directory di lavoro
+APP_DIR="/opt/gervis"
+BACKUP_DIR="/opt/gervis/backups/$(date +%Y%m%d%H%M%S)"
 
-# 1. Pull delle ultime modifiche
-echo "1️⃣ Aggiornamento del codice dal repository Git..."
-git fetch origin main
-check_error "Impossibile scaricare le ultime modifiche"
+echo -e "${YELLOW}Script di correzione layout radar e interessi di investimento...${NC}"
 
-git reset --hard origin/main
-check_error "Impossibile resettare alla versione remota"
-
-echo "✅ Codice aggiornato alla versione più recente"
-
-# 2. Pulizia completa della cache
-echo ""
-echo "2️⃣ Pulizia completa della cache e file temporanei..."
-rm -rf node_modules/.cache
-rm -rf node_modules/.vite
-rm -rf client/node_modules/.cache
-rm -rf client/node_modules/.vite
-rm -rf dist
-rm -rf client/dist
-rm -rf .parcel-cache
-rm -rf client/.parcel-cache
-check_error "Errore durante la pulizia della cache"
-
-echo "✅ Cache pulita con successo"
-
-# 3. Reinstallazione delle dipendenze
-echo ""
-echo "3️⃣ Reinstallazione delle dipendenze..."
-npm ci
-check_error "Errore durante l'installazione delle dipendenze"
-
-echo "✅ Dipendenze reinstallate correttamente"
-
-# 4. Compilazione dell'applicazione
-echo ""
-echo "4️⃣ Compilazione dell'applicazione..."
-NODE_ENV=production npm run build
-check_error "Errore durante la compilazione"
-
-echo "✅ Applicazione compilata con successo"
-
-# 5. Riavvio del servizio
-echo ""
-echo "5️⃣ Riavvio del servizio..."
-
-# Controllo se siamo in un ambiente che usa PM2
-if command -v pm2 &> /dev/null; then
-  echo "Rilevato PM2, riavvio del servizio..."
-  
-  # Verifica se esiste un processo gervis
-  if pm2 list | grep -q "gervis"; then
-    pm2 reload gervis
-    check_error "Errore durante il riavvio di PM2"
-    echo "✅ Applicazione riavviata con PM2"
-  else
-    echo "⚠️ Processo 'gervis' non trovato in PM2."
-    echo "Avvio nuovo processo..."
-    pm2 start npm --name "gervis" -- start
-  fi
-else
-  echo "⚠️ PM2 non rilevato. Riavvio manuale necessario:"
-  echo "   npm start"
+# Verifica se il file di pacchetto esiste
+if [ ! -f "${APP_DIR}/radar-interest-changes.tar.gz" ]; then
+  echo -e "${RED}File pacchetto non trovato. Assicurati di aver caricato radar-interest-changes.tar.gz in ${APP_DIR}${NC}"
+  exit 1
 fi
 
-echo ""
-echo "==========================================================="
-echo "    OPERAZIONE COMPLETATA ✨"
-echo "==========================================================="
-echo ""
-echo "Se non vedi ancora le modifiche:"
-echo "1. Svuota la cache del browser (Ctrl+F5 o Cmd+Shift+R)"
-echo "2. Verifica che il servizio sia in esecuzione"
-echo "3. Controlla i log per eventuali errori:"
-echo "   PM2: pm2 logs gervis"
-echo "   NPM: npm run dev"
-echo ""
-echo "Il layout del profilo cliente è stato aggiornato con successo!"
+# Crea directory di backup
+mkdir -p ${BACKUP_DIR}
+echo -e "${YELLOW}Creazione backup in ${BACKUP_DIR}...${NC}"
+
+# Backup del file originale
+cp ${APP_DIR}/client/src/components/advisor/ClientEditDialog.tsx ${BACKUP_DIR}/
+
+# Estrai il pacchetto
+echo -e "${YELLOW}Estraendo il pacchetto di modifiche...${NC}"
+tar -xzvf ${APP_DIR}/radar-interest-changes.tar.gz -C ${APP_DIR}
+
+# Applica le modifiche
+echo -e "${YELLOW}Applicando le modifiche...${NC}"
+cp ${APP_DIR}/radar-interest-changes/ClientEditDialog.tsx ${APP_DIR}/client/src/components/advisor/ClientEditDialog.tsx
+
+# Ricostruisci l'applicazione
+echo -e "${YELLOW}Ricostruendo l'applicazione...${NC}"
+cd ${APP_DIR}
+npm run build
+
+# Riavvia il servizio
+echo -e "${YELLOW}Riavviando il servizio...${NC}"
+pm2 restart gervis-web
+
+echo -e "${GREEN}Modifiche applicate con successo!${NC}"
+echo -e "${GREEN}Backup del file originale disponibile in: ${BACKUP_DIR}${NC}"
