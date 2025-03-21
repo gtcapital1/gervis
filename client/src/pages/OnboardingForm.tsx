@@ -29,7 +29,8 @@ import {
   ASSET_CATEGORIES, 
   EXPERIENCE_LEVELS,
   INVESTMENT_GOALS,
-  INVESTMENT_HORIZONS
+  INVESTMENT_HORIZONS,
+  PERSONAL_INTERESTS
 } from "@shared/schema";
 
 // Define the form schema
@@ -837,7 +838,6 @@ export default function OnboardingForm() {
                       />
                       <input 
                         type="hidden" 
-                        name={`assets.${index}.category`} 
                         value={category}
                         {...form.register(`assets.${index}.category`)}
                       />
