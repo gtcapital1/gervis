@@ -6,7 +6,7 @@ import {
   clientLogs, type ClientLog, type InsertClientLog
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt, sql } from 'drizzle-orm';
+import { eq, and, gt, sql, desc } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
@@ -769,7 +769,7 @@ export class PostgresStorage implements IStorage {
       const result = await db.select()
         .from(clientLogs)
         .where(eq(clientLogs.clientId, clientId))
-        .orderBy(clientLogs.createdAt, 'desc');
+        .orderBy(desc(clientLogs.createdAt));
       return result;
     } catch (error) {
       console.error(`[ERROR] Errore durante il recupero dei log per il cliente ID: ${clientId}:`, error);
@@ -786,7 +786,7 @@ export class PostgresStorage implements IStorage {
       }
 
       const result = await db.insert(clientLogs)
-        .values(insertLog)
+        .values([insertLog])
         .returning();
       
       return result[0];
