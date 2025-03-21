@@ -106,7 +106,8 @@ export default function ClientDetail() {
   
   // Estrai il client e gli asset dalla risposta
   const client = clientData?.client;
-  const assets = clientData?.assets || [];
+  // Filtra gli asset per mostrare solo quelli con valore maggiore di 0
+  const assets = (clientData?.assets || []).filter(asset => asset.value > 0);
   const recommendations = clientData?.recommendations || [];
   
   // Define the asset type to fix TypeScript errors
@@ -613,6 +614,59 @@ Grazie per la tua fiducia e collaborazione.`
                         </Badge>
                       )}
                     </div>
+                    
+                    {/* Grafico a ragno per gli obiettivi di investimento */}
+                    {(client.retirementInterest || client.wealthGrowthInterest || 
+                      client.incomeGenerationInterest || client.capitalPreservationInterest || 
+                      client.estatePlanningInterest) && (
+                      <div className="mt-4">
+                        <span className="text-sm font-medium block mb-2">{t('client.investment_goals')}:</span>
+                        <div className="h-[300px] w-full">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RadarChart outerRadius={90} data={[
+                              {
+                                goal: t('investment_goals.retirement'),
+                                value: client.retirementInterest || 0,
+                                fullMark: 5
+                              },
+                              {
+                                goal: t('investment_goals.wealth_growth'),
+                                value: client.wealthGrowthInterest || 0,
+                                fullMark: 5
+                              },
+                              {
+                                goal: t('investment_goals.income_generation'),
+                                value: client.incomeGenerationInterest || 0,
+                                fullMark: 5
+                              },
+                              {
+                                goal: t('investment_goals.capital_preservation'),
+                                value: client.capitalPreservationInterest || 0,
+                                fullMark: 5
+                              },
+                              {
+                                goal: t('investment_goals.estate_planning'),
+                                value: client.estatePlanningInterest || 0,
+                                fullMark: 5
+                              }
+                            ]}>
+                              <PolarGrid />
+                              <PolarAngleAxis dataKey="goal" />
+                              <PolarRadiusAxis angle={90} domain={[0, 5]} />
+                              <Radar 
+                                name={t('client.investment_priorities')} 
+                                dataKey="value" 
+                                stroke="#3b82f6" 
+                                fill="#3b82f6" 
+                                fillOpacity={0.5} 
+                              />
+                              <Legend />
+                              <Tooltip />
+                            </RadarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
                     
                     <div>
                       <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
