@@ -550,46 +550,28 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                 <FormField
                   control={form.control}
                   name="investmentGoals"
-                  render={() => (
+                  render={({ field }) => (
                     <FormItem>
                       <div className="mb-2">
                         <FormLabel>{t('client_edit.investment_goals')}</FormLabel>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                        {investmentGoalOptions.map((goal) => (
-                          <FormField
-                            key={goal}
-                            control={form.control}
-                            name="investmentGoals"
-                            render={({ field }) => {
-                              return (
-                                <FormItem
-                                  key={goal}
-                                  className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3"
-                                >
-                                  <FormControl>
-                                    <Checkbox
-                                      checked={field.value?.includes(goal)}
-                                      onCheckedChange={(checked) => {
-                                        return checked
-                                          ? field.onChange([...field.value, goal])
-                                          : field.onChange(
-                                              field.value?.filter(
-                                                (value) => value !== goal
-                                              )
-                                            )
-                                      }}
-                                    />
-                                  </FormControl>
-                                  <FormLabel className="font-normal cursor-pointer">
-                                    {goal.split('_').join(' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                  </FormLabel>
-                                </FormItem>
-                              )
-                            }}
-                          />
-                        ))}
-                      </div>
+                      <Select 
+                        onValueChange={(value) => field.onChange([value])}
+                        defaultValue={field.value?.[0]}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder={t('client_edit.select_primary_goal')} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {investmentGoalOptions.map((goal) => (
+                            <SelectItem key={goal} value={goal}>
+                              {goal.split('_').join(' ').replace(/\b\w/g, c => c.toUpperCase())}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -597,7 +579,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
 
                 {/* Investment Interests Sliders */}
                 <div className="border rounded-md p-4 mt-6">
-                  <h3 className="text-lg font-medium mb-2">{t('client.investment_priorities')}</h3>
+                  <h3 className="text-lg font-medium text-muted-foreground mb-2">Priorities</h3>
                   <FormDescription className="mb-4">
                     Valuta l'interesse del cliente per i seguenti obiettivi di investimento su una scala da 1 a 5:
                     (1 = non interessa per niente, 5 = interessa molto)
