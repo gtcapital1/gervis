@@ -251,9 +251,11 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-            {/* Personal Information */}
-            <Card>
-              <CardHeader>
+            {/* Container flex per il layout 2/5 - 3/5 */}
+            <div className="flex flex-col md:flex-row gap-6">
+              {/* Personal Information (2/5) */}
+              <Card className="w-full md:w-[40%]">
+                <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <HomeIcon className="mr-2 h-5 w-5 text-primary" />
                   {t('client_edit.personal_info')}
@@ -447,8 +449,8 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
               </CardContent>
             </Card>
             
-            {/* Investment Profile */}
-            <Card>
+            {/* Investment Profile (3/5) */}
+            <Card className="w-full md:w-[60%]">
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <ArrowRight className="mr-2 h-5 w-5 text-primary" />
@@ -750,6 +752,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                 </div>
               </CardContent>
             </Card>
+            </div> {/* Fine del contenitore flex 2/5 - 3/5 */}
             
             {/* Assets */}
             <Card>
