@@ -111,7 +111,7 @@ export default function ClientLogs() {
   const form = useForm<LogFormValues>({
     resolver: zodResolver(logFormSchema),
     defaultValues: {
-      type: "note",
+      type: "call",
       title: "",
       content: "",
       emailSubject: "",
@@ -286,7 +286,7 @@ export default function ClientLogs() {
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="text-3xl font-bold tracking-tight text-black">
             {t("Log del cliente")} - {client.firstName} {client.lastName}
           </h1>
           <p className="text-muted-foreground">{client.email}</p>
@@ -321,7 +321,6 @@ export default function ClientLogs() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="email">{t("Email")}</SelectItem>
-                          <SelectItem value="note">{t("Nota")}</SelectItem>
                           <SelectItem value="call">{t("Chiamata")}</SelectItem>
                           <SelectItem value="meeting">{t("Incontro")}</SelectItem>
                         </SelectContent>
@@ -415,21 +414,57 @@ export default function ClientLogs() {
                               )}
                             >
                               {field.value ? (
-                                format(field.value, "PPP", { locale: it })
+                                format(field.value, "PPP HH:mm", { locale: it })
                               ) : (
-                                <span>{t("Seleziona una data")}</span>
+                                <span>{t("Seleziona una data e ora")}</span>
                               )}
                               <CalendarClock className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
+                          <div className="p-2">
+                            <Calendar
+                              mode="single"
+                              selected={field.value}
+                              onSelect={field.onChange}
+                              initialFocus
+                            />
+                            <div className="flex items-center justify-between mt-4 px-3">
+                              <div className="grid gap-1">
+                                <label className="text-sm font-medium">{t("Ora")}</label>
+                                <select 
+                                  className="border border-input bg-background rounded p-1"
+                                  value={field.value ? field.value.getHours() : 12}
+                                  onChange={(e) => {
+                                    const date = new Date(field.value || new Date());
+                                    date.setHours(parseInt(e.target.value));
+                                    field.onChange(date);
+                                  }}
+                                >
+                                  {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                                    <option key={hour} value={hour}>{hour.toString().padStart(2, '0')}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div className="grid gap-1">
+                                <label className="text-sm font-medium">{t("Minuti")}</label>
+                                <select
+                                  className="border border-input bg-background rounded p-1"
+                                  value={field.value ? field.value.getMinutes() : 0}
+                                  onChange={(e) => {
+                                    const date = new Date(field.value || new Date());
+                                    date.setMinutes(parseInt(e.target.value));
+                                    field.onChange(date);
+                                  }}
+                                >
+                                  {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                                    <option key={minute} value={minute}>{minute.toString().padStart(2, '0')}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          </div>
                         </PopoverContent>
                       </Popover>
                       <FormDescription>
