@@ -773,7 +773,7 @@ export default function OnboardingForm() {
               
               <div className="grid grid-cols-1 gap-6">
                 {categoryOptions.map((category, index) => (
-                  <div key={category} className="bg-accent/30 p-4 rounded-md">
+                  <div key={category} className="bg-gray-100/60 p-4 rounded-md">
                     <h4 className="font-medium mb-3">{t(`asset_categories.${category}`)}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
@@ -865,7 +865,7 @@ export default function OnboardingForm() {
                             htmlFor={`interest-${interest}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {interest.charAt(0).toUpperCase() + interest.slice(1).replace('_', ' ')}
+                            {t(`personal_interests.${interest}`)}
                           </label>
                         </div>
                       ))}

@@ -284,6 +284,27 @@ const resourcesIt = {
       cryptocurrencies: "Criptovalute",
       other: "Altri Asset"
     },
+    personal_interests: {
+      travel: "Viaggi",
+      sports: "Sport",
+      technology: "Tecnologia",
+      art: "Arte",
+      music: "Musica",
+      cinema: "Cinema",
+      literature: "Letteratura",
+      cooking: "Cucina",
+      fashion: "Moda",
+      photography: "Fotografia",
+      environment: "Ambiente",
+      philanthropy: "Filantropia",
+      health: "Salute",
+      education: "Istruzione",
+      real_estate: "Immobiliare",
+      entrepreneurship: "Imprenditoria",
+      financial_markets: "Mercati Finanziari",
+      politics: "Politica",
+      science: "Scienza"
+    },
     language: {
       en: "Inglese",
       it: "Italiano"
@@ -954,6 +975,27 @@ const resourcesEn = {
       venture_capital: "Venture Capital",
       cryptocurrencies: "Cryptocurrencies",
       other: "Other Assets"
+    },
+    personal_interests: {
+      travel: "Travel",
+      sports: "Sports",
+      technology: "Technology",
+      art: "Art",
+      music: "Music",
+      cinema: "Cinema",
+      literature: "Literature",
+      cooking: "Cooking",
+      fashion: "Fashion",
+      photography: "Photography",
+      environment: "Environment",
+      philanthropy: "Philanthropy",
+      health: "Health",
+      education: "Education",
+      real_estate: "Real Estate",
+      entrepreneurship: "Entrepreneurship",
+      financial_markets: "Financial Markets",
+      politics: "Politics",
+      science: "Science"
     },
     language: {
       en: "English",
