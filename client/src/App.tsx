@@ -52,7 +52,6 @@ function Router() {
         path="/admin" 
         component={AdminPanel}
       />
-
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route path="/onboarding" component={OnboardingForm} />
       <Route path="/onboarding/:token" component={OnboardingForm} />
