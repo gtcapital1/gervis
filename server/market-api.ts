@@ -489,131 +489,69 @@ export async function validateTicker(req: Request, res: Response) {
   }
 }
 
-// Funzione per recuperare le notizie finanziarie
+// Funzione per recuperare le notizie finanziarie da Financial Modeling Prep API
 export async function getFinancialNews(req: Request, res: Response) {
   try {
     // Ottieni il parametro di filtro per le notizie (globale o italia)
     const filter = req.query.filter as string || 'global';
+    const cacheKey = `financial_news_${filter}`;
     
-    // Per questioni di stabilità, dato che l'API esterna aveva problemi di autenticazione,
-    // forniamo delle notizie finanziarie simulate basate su diversi paesi/regioni
-    
-    // Set di notizie globali
-    const globalNews: NewsItem[] = [
-      {
-        title: "Wall Street: nuovi record per gli indici statunitensi",
-        description: "Gli indici di Wall Street hanno raggiunto nuovi massimi storici, trainati dalle performance positive dei titoli tecnologici e dai dati sull'occupazione migliori delle attese.",
-        url: "https://example.com/news/global/1",
-        urlToImage: "https://via.placeholder.com/800x400?text=Wall+Street+Records",
-        publishedAt: new Date().toISOString(),
-        source: {
-          name: "Financial Times"
-        }
-      },
-      {
-        title: "Nasdaq supera la soglia dei 20.000 punti",
-        description: "L'indice dei titoli tecnologici americani ha superato per la prima volta nella storia la soglia dei 20.000 punti, spinto dal rally dell'intelligenza artificiale.",
-        url: "https://example.com/news/global/2",
-        urlToImage: "https://via.placeholder.com/800x400?text=Nasdaq+20000",
-        publishedAt: new Date(Date.now() - 2600000).toISOString(),
-        source: {
-          name: "Bloomberg"
-        }
-      },
-      {
-        title: "La Fed mantiene i tassi di interesse invariati",
-        description: "La Federal Reserve ha deciso di mantenere invariati i tassi di interesse, segnalando una possibile riduzione nel prossimo trimestre se l'inflazione continuerà a scendere.",
-        url: "https://example.com/news/global/3",
-        urlToImage: "https://via.placeholder.com/800x400?text=Fed+Decision",
-        publishedAt: new Date(Date.now() - 5200000).toISOString(),
-        source: {
-          name: "Wall Street Journal"
-        }
-      },
-      {
-        title: "Nuove politiche monetarie della BCE",
-        description: "La Banca Centrale Europea ha annunciato nuove misure per contrastare l'inflazione e sostenere la crescita economica nell'eurozona.",
-        url: "https://example.com/news/global/4",
-        urlToImage: "https://via.placeholder.com/800x400?text=BCE+Policies",
-        publishedAt: new Date(Date.now() - 7800000).toISOString(),
-        source: {
-          name: "Economia Europa"
-        }
-      },
-      {
-        title: "Settore tecnologico: investimenti record nell'AI",
-        description: "Il settore tecnologico ha registrato investimenti record nelle tecnologie di intelligenza artificiale, con oltre 300 miliardi di dollari di investimenti globali previsti per il 2025.",
-        url: "https://example.com/news/global/5",
-        urlToImage: "https://via.placeholder.com/800x400?text=AI+Investments",
-        publishedAt: new Date(Date.now() - 9400000).toISOString(),
-        source: {
-          name: "Tech Insider"
-        }
-      }
-    ];
-    
-    // Set di notizie italiane
-    const italiaNews: NewsItem[] = [
-      {
-        title: "FTSE MIB: il listino milanese chiude in positivo",
-        description: "Il principale indice della borsa di Milano ha chiuso la seduta in rialzo dell'1,2%, trainato dal settore bancario e dalle utilities.",
-        url: "https://example.com/news/italia/1",
-        urlToImage: "https://via.placeholder.com/800x400?text=FTSE+MIB",
-        publishedAt: new Date().toISOString(),
-        source: {
-          name: "Il Sole 24 Ore"
-        }
-      },
-      {
-        title: "Crescita PIL italiano: previsioni positive per il 2025",
-        description: "Secondo le ultime stime del Ministero dell'Economia, l'Italia potrebbe crescere più del previsto nel 2025, trainata dall'export e dai consumi interni.",
-        url: "https://example.com/news/italia/2",
-        urlToImage: "https://via.placeholder.com/800x400?text=PIL+Italia",
-        publishedAt: new Date(Date.now() - 3600000).toISOString(),
-        source: {
-          name: "Economia Italia"
-        }
-      },
-      {
-        title: "Mercato immobiliare: segnali di ripresa nel residenziale",
-        description: "Il mercato immobiliare italiano mostra segnali di ripresa, specialmente nel segmento residenziale. Aumentano le compravendite nelle grandi città.",
-        url: "https://example.com/news/italia/3",
-        urlToImage: "https://via.placeholder.com/800x400?text=Immobiliare+Italia",
-        publishedAt: new Date(Date.now() - 7200000).toISOString(),
-        source: {
-          name: "Repubblica Economia"
-        }
-      },
-      {
-        title: "Le banche italiane registrano utili record",
-        description: "Il settore bancario italiano ha registrato nel primo trimestre utili record, superando le aspettative degli analisti e mostrando una forte resilienza.",
-        url: "https://example.com/news/italia/4",
-        urlToImage: "https://via.placeholder.com/800x400?text=Banche+Italiane",
-        publishedAt: new Date(Date.now() - 10800000).toISOString(),
-        source: {
-          name: "Milano Finanza"
-        }
-      },
-      {
-        title: "Nuovi incentivi per le imprese italiane",
-        description: "Il governo ha annunciato nuovi incentivi fiscali per le imprese italiane che investono in digitalizzazione e sostenibilità ambientale.",
-        url: "https://example.com/news/italia/5",
-        urlToImage: "https://via.placeholder.com/800x400?text=Incentivi+Imprese",
-        publishedAt: new Date(Date.now() - 14400000).toISOString(),
-        source: {
-          name: "Corriere Economia"
-        }
-      }
-    ];
-    
-    // Restituisci le notizie in base al filtro
-    if (filter === 'italia') {
-      res.json(italiaNews);
-    } else {
-      res.json(globalNews);
+    // Controlla se abbiamo dati cached
+    const cachedData = getFromCache(cacheKey);
+    if (cachedData) {
+      return res.json(cachedData);
     }
+    
+    const apiKey = process.env.FINANCIAL_API_KEY;
+    if (!apiKey) {
+      throw new Error("API key non configurata per Financial Modeling Prep");
+    }
+    
+    let newsItems: NewsItem[] = [];
+    let apiUrl = '';
+    
+    if (filter === 'italia') {
+      // Per notizie italiane, utilizziamo i ticker italiani
+      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?tickers=ISP.MI,ENI.MI,ENEL.MI,UCG.MI,TIT.MI&limit=10&apikey=${apiKey}`;
+    } else {
+      // Per notizie globali
+      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=10&apikey=${apiKey}`;
+    }
+    
+    console.log(`Recupero notizie finanziarie per ${filter}`);
+    const response = await fetch(apiUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Errore API: ${response.status} ${response.statusText}`);
+    }
+    
+    const data = await response.json();
+    
+    if (Array.isArray(data)) {
+      newsItems = data.map(item => ({
+        title: item.title,
+        description: item.text,
+        url: item.url,
+        urlToImage: item.image || "",
+        publishedAt: item.publishedDate,
+        source: {
+          name: item.site
+        }
+      }));
+      
+      // Cache dei risultati per 15 minuti (900000 ms)
+      saveToCache(cacheKey, newsItems, 900000);
+    } else {
+      console.error("Formato di risposta API inatteso:", data);
+      throw new Error("Formato di risposta API inatteso");
+    }
+    
+    res.json(newsItems);
   } catch (error) {
     console.error("Errore nel recupero delle notizie finanziarie:", error);
-    res.status(500).json({ error: "Errore nel recupero delle notizie finanziarie" });
+    
+    // In caso di errore, restituiamo un array vuoto di notizie
+    // piuttosto che dati fittizi, seguendo il principio di data integrity
+    res.json([]);
   }
 }

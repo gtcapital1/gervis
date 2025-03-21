@@ -41,10 +41,11 @@ interface MarketIndex {
 interface StockTicker {
   symbol: string;
   name: string;
-  price: number;
-  change: number;
-  changePercent: number;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
   currency?: string;
+  dataUnavailable?: boolean;
 }
 
 interface NewsItem {
@@ -204,8 +205,16 @@ const StockTickerCard = ({
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center">
-          <div className="text-2xl font-bold">{ticker.currency || "$"}{ticker.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-          <PriceChange change={ticker.change} changePercent={ticker.changePercent} />
+          <div className="text-2xl font-bold">
+            {ticker.dataUnavailable || ticker.price === null ? 
+              "N/A" : 
+              `${ticker.currency || "$"}${ticker.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+            }
+          </div>
+          {ticker.dataUnavailable ? 
+            <span className="text-muted-foreground">N/A</span> : 
+            <PriceChange change={ticker.change} changePercent={ticker.changePercent} />
+          }
         </div>
       </CardContent>
     </Card>
