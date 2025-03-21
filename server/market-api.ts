@@ -140,7 +140,8 @@ export async function getMarketIndices(req: Request, res: Response) {
             price: parseFloat(data.price.toFixed(2)),
             change: parseFloat(data.change.toFixed(2)),
             changePercent: parseFloat(data.changesPercentage.toFixed(2)),
-            country: index.country
+            country: index.country,
+            currency: "$"
           };
         } else {
           // Se non abbiamo dati, usiamo i dati fissi come fallback
@@ -164,7 +165,8 @@ export async function getMarketIndices(req: Request, res: Response) {
           price: fallbackData.price,
           change: fallbackData.price * (fallbackData.changePercent / 100),
           changePercent: fallbackData.changePercent,
-          country: index.country
+          country: index.country,
+          currency: fallbackData.currency
         };
       }
     });
@@ -188,7 +190,8 @@ export async function getMarketIndices(req: Request, res: Response) {
         price: data.price,
         change: data.price * (data.changePercent / 100),
         changePercent: data.changePercent,
-        country: index.country
+        country: index.country,
+        currency: data.currency
       };
     });
     
