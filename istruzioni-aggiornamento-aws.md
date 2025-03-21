@@ -1,92 +1,84 @@
-# Istruzioni per l'aggiornamento di Gervis su AWS
+# Istruzioni per l'aggiornamento su AWS - Interessi Personali
 
-Segui queste istruzioni per aggiornare l'applicazione Gervis su AWS con il supporto per gli interessi personali.
+Questo documento fornisce istruzioni dettagliate per applicare l'aggiornamento degli interessi personali al server AWS.
 
-## 1. Aggiornamento del codice
+## Panoramica dell'aggiornamento
 
-Accedi alla tua macchina AWS tramite SSH e aggiorna il codice con Git:
+Questo aggiornamento aggiunge:
+- Nuove colonne alla tabella `clients`
+- Interfaccia utente aggiornata per il modulo di onboarding
+- Traduzioni per gli interessi personali in italiano e inglese
+
+## Procedura di aggiornamento
+
+### 1. Creazione del pacchetto di aggiornamento
 
 ```bash
+# Eseguire dal repository locale
+./create-update-package.sh
+```
+
+### 2. Trasferimento e installazione su AWS
+
+```bash
+# Trasferire il pacchetto al server
+scp gervis-deploy-update.tar.gz ubuntu@IP_SERVER:/tmp/
+
+# Collegarsi al server
+ssh ubuntu@IP_SERVER
+
+# Sul server AWS
 cd /var/www/gervis
-git pull
+sudo mv /tmp/gervis-deploy-update.tar.gz .
+sudo tar xzf gervis-deploy-update.tar.gz
 ```
 
-## 2. Aggiunta delle nuove colonne al database
-
-Esegui lo script per aggiungere le nuove colonne al database:
+### 3. Esecuzione dello script di migrazione del database
 
 ```bash
+# Sul server AWS
 cd /var/www/gervis
-chmod +x add-personal-interests-aws.sh
-./add-personal-interests-aws.sh
+sudo node server/migrations/add-personal-interests.ts
 ```
 
-### In alternativa, esegui manualmente le query SQL
-
-Se preferisci eseguire manualmente le query SQL, accedi al database e usa i seguenti comandi:
+### 4. Riavvio dell'applicazione
 
 ```bash
-sudo -u postgres psql -d gervis
+# Riavvio di PM2
+sudo pm2 restart gervis
 ```
 
-Nel terminale psql, esegui:
+### 5. Verifica dell'aggiornamento
 
-```sql
--- Aggiunta campo per interessi personali
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS personal_interests TEXT[];
-
--- Aggiunta campo per note aggiuntive sugli interessi
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS personal_interests_notes TEXT;
-
--- Aggiunta campi per rating degli obiettivi di investimento (1-5)
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS retirement_interest INTEGER;
-
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS wealth_growth_interest INTEGER;
-
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS income_generation_interest INTEGER;
-
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS capital_preservation_interest INTEGER;
-
-ALTER TABLE IF EXISTS clients
-ADD COLUMN IF NOT EXISTS estate_planning_interest INTEGER;
-```
-
-## 3. Riavvio dell'applicazione
-
-Riavvia l'applicazione per applicare le modifiche:
-
-```bash
-cd /var/www/gervis
-pm2 restart gervis
-```
-
-## 4. Verifica della funzionalità
-
-Accedi all'applicazione web e prova a creare un nuovo cliente o modificare un cliente esistente, verificando che la sezione degli interessi personali sia disponibile nel form di onboarding.
+1. Accedere all'applicazione come consulente
+2. Creare un nuovo cliente di test
+3. Generare un link di onboarding
+4. Verificare che nel modulo di onboarding appaia la sezione per gli interessi personali
+5. Completare il modulo includendo interessi personali
+6. Verificare che i dati vengano salvati correttamente
 
 ## Risoluzione dei problemi
 
-Se incontri problemi con l'aggiornamento, verifica i log di PM2:
+Se si verificano errori durante l'aggiornamento:
 
+1. Controllare i log di PM2:
 ```bash
-pm2 logs gervis
+sudo pm2 logs gervis
 ```
 
-Per ripristinare le modifiche al database in caso di errori:
-
-```sql
--- Da eseguire in psql se necessario
-ALTER TABLE clients DROP COLUMN IF EXISTS personal_interests;
-ALTER TABLE clients DROP COLUMN IF EXISTS personal_interests_notes;
-ALTER TABLE clients DROP COLUMN IF EXISTS retirement_interest;
-ALTER TABLE clients DROP COLUMN IF EXISTS wealth_growth_interest;
-ALTER TABLE clients DROP COLUMN IF EXISTS income_generation_interest;
-ALTER TABLE clients DROP COLUMN IF EXISTS capital_preservation_interest;
-ALTER TABLE clients DROP COLUMN IF EXISTS estate_planning_interest;
+2. Verificare lo stato del database:
+```bash
+sudo -u postgres psql -d gervis -c "SELECT column_name FROM information_schema.columns WHERE table_name='clients' AND column_name LIKE '%interest%';"
 ```
+
+3. Ripristino (se necessario):
+```bash
+# Ripristinare il backup del database (se creato prima dell'aggiornamento)
+sudo -u postgres psql -d gervis -f /path/to/backup.sql
+```
+
+## Contatti per supporto
+
+Per assistenza durante l'aggiornamento contattare:
+- Email: support@gervis.it
+- Telefono: [Numero di supporto]
