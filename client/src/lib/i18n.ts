@@ -246,7 +246,14 @@ const resourcesIt = {
       submit: "Invia Profilo",
       error: "Errore nell'invio del profilo",
       success: "Profilo inviato con successo!",
-      success_message: "Grazie per aver completato il tuo profilo finanziario. Il tuo consulente finanziario esaminerà le tue informazioni e ti contatterà presto."
+      success_message: "Grazie per aver completato il tuo profilo finanziario. Il tuo consulente finanziario esaminerà le tue informazioni e ti contatterà presto.",
+      personal_interests_title: "Interessi Personali",
+      personal_interests_desc: "Condividi i tuoi interessi personali per aiutarci a offrirti un'esperienza di consulenza finanziaria unica e personalizzata",
+      your_interests: "I tuoi interessi",
+      interests_selection_desc: "Seleziona gli argomenti che ti interessano per permetterci di conoscere meglio le tue passioni",
+      interests_notes: "Note aggiuntive sui tuoi interessi",
+      interests_notes_placeholder: "Raccontaci qualcosa in più sui tuoi interessi o altre passioni non presenti nell'elenco...",
+      optional_field: "Questo campo è opzionale"
     },
     risk_profiles: {
       conservative: "Conservativo",

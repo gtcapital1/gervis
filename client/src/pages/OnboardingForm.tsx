@@ -112,12 +112,7 @@ export default function OnboardingForm() {
   const experienceLevelOptions = EXPERIENCE_LEVELS as unknown as [string, ...string[]];
   const investmentHorizonOptions = INVESTMENT_HORIZONS as unknown as [string, ...string[]];
   const investmentGoalOptions = INVESTMENT_GOALS as unknown as [string, ...string[]];
-  const personalInterestOptions = [
-    "travel", "sports", "technology", "art", "music", "cinema", 
-    "literature", "cooking", "fashion", "photography", "environment", 
-    "philanthropy", "health", "education", "real_estate", "entrepreneurship", 
-    "financial_markets", "politics", "science"
-  ] as unknown as [string, ...string[]];
+  const personalInterestOptions = PERSONAL_INTERESTS as unknown as [string, ...string[]];
 
   // Define the client response type
   type ClientResponse = {
@@ -858,9 +853,9 @@ export default function OnboardingForm() {
           
           <Card>
             <CardHeader>
-              <CardTitle>Interessi Personali</CardTitle>
+              <CardTitle>{t('onboarding.personal_interests_title')}</CardTitle>
               <CardDescription>
-                Condividi i tuoi interessi personali per aiutarci a offrirti un'esperienza di consulenza finanziaria unica e personalizzata
+                {t('onboarding.personal_interests_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -869,9 +864,9 @@ export default function OnboardingForm() {
                 name="personalInterests"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>I tuoi interessi</FormLabel>
+                    <FormLabel>{t('onboarding.your_interests')}</FormLabel>
                     <FormDescription>
-                      Seleziona gli argomenti che ti interessano per permetterci di conoscere meglio le tue passioni
+                      {t('onboarding.interests_selection_desc')}
                     </FormDescription>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
                       {personalInterestOptions.map(interest => (
@@ -890,7 +885,7 @@ export default function OnboardingForm() {
                             htmlFor={`interest-${interest}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {interest.charAt(0).toUpperCase() + interest.slice(1).replace('_', ' ')}
+                            {t(`personal_interests.${interest}`)}
                           </label>
                         </div>
                       ))}
@@ -905,16 +900,16 @@ export default function OnboardingForm() {
                 name="personalInterestsNotes"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Note aggiuntive sui tuoi interessi</FormLabel>
+                    <FormLabel>{t('onboarding.interests_notes')}</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder="Raccontaci qualcosa in più sui tuoi interessi o altre passioni non presenti nell'elenco..." 
+                        placeholder={t('onboarding.interests_notes_placeholder')}
                         className="resize-none"
                         {...field} 
                       />
                     </FormControl>
                     <FormDescription>
-                      Questo campo è opzionale
+                      {t('onboarding.optional_field')}
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
