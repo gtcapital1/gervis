@@ -70,16 +70,16 @@ const MAIN_INDICES = [
 ];
 
 // Dati fissi per indici di mercato (non cambiano ad ogni richiesta)
-const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number }> = {
-  "^GSPC": { price: 5254.45, changePercent: 0.32 },
-  "^DJI": { price: 39187.63, changePercent: 0.18 },
-  "^IXIC": { price: 16379.35, changePercent: 0.64 },
-  "^FTSE": { price: 8152.92, changePercent: 0.22 },
-  "^FTSEMIB.MI": { price: 34337.24, changePercent: 0.36 },
-  "^GDAXI": { price: 18464.90, changePercent: 0.41 },
-  "^FCHI": { price: 8184.75, changePercent: 0.25 },
-  "^VIX": { price: 13.16, changePercent: -1.94 },
-  "^HSI": { price: 16963.87, changePercent: 0.83 }
+const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number, currency: string }> = {
+  "^GSPC": { price: 5071.63, changePercent: 0.42, currency: "$" },
+  "^DJI": { price: 38239.85, changePercent: 0.68, currency: "$" },
+  "^IXIC": { price: 15927.90, changePercent: 0.32, currency: "$" },
+  "^FTSE": { price: 7930.96, changePercent: 0.18, currency: "£" },
+  "^FTSEMIB.MI": { price: 33987.03, changePercent: 0.85, currency: "€" },
+  "^GDAXI": { price: 17842.85, changePercent: 0.23, currency: "€" },
+  "^FCHI": { price: 8142.72, changePercent: 0.54, currency: "€" },
+  "^VIX": { price: 14.08, changePercent: -2.36, currency: "$" },
+  "^HSI": { price: 16512.92, changePercent: -0.43, currency: "HK$" }
 };
 
 // Funzione per recuperare i dati degli indici principali
@@ -197,36 +197,36 @@ export async function getMarketIndices(req: Request, res: Response) {
 }
 
 // Dati fissi per ticker popolari (fallback in caso di API non disponibile)
-const FIXED_TICKER_DATA: Record<string, { price: number, changePercent: number }> = {
-  "AAPL": { price: 168.82, changePercent: 0.89 },
-  "MSFT": { price: 425.52, changePercent: 1.23 },
-  "GOOGL": { price: 147.68, changePercent: 0.76 },
-  "AMZN": { price: 178.12, changePercent: 1.45 },
-  "META": { price: 493.78, changePercent: 2.18 },
-  "TSLA": { price: 172.63, changePercent: -0.72 },
-  "NVDA": { price: 925.61, changePercent: 3.24 },
-  "NFLX": { price: 628.47, changePercent: 0.53 },
-  "PYPL": { price: 63.45, changePercent: -0.34 },
-  "INTC": { price: 42.65, changePercent: -1.23 },
-  "AMD": { price: 174.12, changePercent: 2.78 },
-  "CSCO": { price: 48.74, changePercent: 0.21 },
-  "ADBE": { price: 475.89, changePercent: 1.67 },
-  "DIS": { price: 115.47, changePercent: 0.92 },
-  "V": { price: 278.63, changePercent: 0.75 },
-  "MA": { price: 462.81, changePercent: 0.83 },
-  "JPM": { price: 195.24, changePercent: 1.12 },
-  "BAC": { price: 36.78, changePercent: 0.54 },
-  "WMT": { price: 60.45, changePercent: 0.31 },
-  "JNJ": { price: 152.32, changePercent: -0.23 },
-  "PG": { price: 161.55, changePercent: 0.12 },
-  "KO": { price: 61.28, changePercent: 0.42 },
-  "PEP": { price: 171.36, changePercent: 0.35 },
-  "ENI.MI": { price: 14.78, changePercent: 1.23 },
-  "ENEL.MI": { price: 6.24, changePercent: 0.85 },
-  "ISP.MI": { price: 3.12, changePercent: 1.47 },
-  "UCG.MI": { price: 30.45, changePercent: 2.12 },
-  "STM.MI": { price: 42.56, changePercent: 1.78 },
-  "TIT.MI": { price: 0.24, changePercent: -0.76 }
+const FIXED_TICKER_DATA: Record<string, { price: number, changePercent: number, currency: string }> = {
+  "AAPL": { price: 169.96, changePercent: 0.24, currency: "$" },
+  "MSFT": { price: 416.78, changePercent: 0.32, currency: "$" },
+  "GOOGL": { price: 146.95, changePercent: 0.41, currency: "$" },
+  "AMZN": { price: 176.84, changePercent: 0.65, currency: "$" },
+  "META": { price: 486.18, changePercent: 0.72, currency: "$" },
+  "TSLA": { price: 171.05, changePercent: -0.42, currency: "$" },
+  "NVDA": { price: 879.19, changePercent: 0.84, currency: "$" },
+  "NFLX": { price: 612.32, changePercent: 0.28, currency: "$" },
+  "PYPL": { price: 62.41, changePercent: -0.16, currency: "$" },
+  "INTC": { price: 40.96, changePercent: -0.35, currency: "$" },
+  "AMD": { price: 170.48, changePercent: 0.64, currency: "$" },
+  "CSCO": { price: 48.56, changePercent: 0.12, currency: "$" },
+  "ADBE": { price: 465.32, changePercent: 0.54, currency: "$" },
+  "DIS": { price: 114.92, changePercent: 0.38, currency: "$" },
+  "V": { price: 277.45, changePercent: 0.28, currency: "$" },
+  "MA": { price: 458.19, changePercent: 0.31, currency: "$" },
+  "JPM": { price: 196.62, changePercent: 0.48, currency: "$" },
+  "BAC": { price: 36.54, changePercent: 0.21, currency: "$" },
+  "WMT": { price: 59.87, changePercent: 0.15, currency: "$" },
+  "JNJ": { price: 152.05, changePercent: -0.14, currency: "$" },
+  "PG": { price: 161.24, changePercent: 0.08, currency: "$" },
+  "KO": { price: 60.93, changePercent: 0.24, currency: "$" },
+  "PEP": { price: 170.85, changePercent: 0.16, currency: "$" },
+  "ENI.MI": { price: 14.55, changePercent: 0.42, currency: "€" },
+  "ENEL.MI": { price: 6.13, changePercent: 0.26, currency: "€" },
+  "ISP.MI": { price: 3.05, changePercent: 0.59, currency: "€" },
+  "UCG.MI": { price: 30.17, currency: "€", changePercent: 0.85 },
+  "STM.MI": { price: 41.92, changePercent: 0.64, currency: "€" },
+  "TIT.MI": { price: 0.235, changePercent: -0.32, currency: "€" }
 };
 
 // Funzione per recuperare dati per ticker specifici

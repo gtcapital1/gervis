@@ -42,6 +42,7 @@ interface StockTicker {
   price: number;
   change: number;
   changePercent: number;
+  currency?: string;
 }
 
 interface NewsItem {
@@ -198,7 +199,7 @@ const StockTickerCard = ({
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center">
-          <div className="text-2xl font-bold">{ticker.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <div className="text-2xl font-bold">{ticker.currency || "$"}{ticker.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
           <PriceChange change={ticker.change} changePercent={ticker.changePercent} />
         </div>
       </CardContent>
