@@ -592,6 +592,162 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                     </FormItem>
                   )}
                 />
+
+                {/* Investment Interests Sliders */}
+                <div className="border rounded-md p-4 mt-6">
+                  <h3 className="text-lg font-medium mb-2">{t('client.investment_priorities')}</h3>
+                  <FormDescription className="mb-4">
+                    Valuta l'interesse del cliente per i seguenti obiettivi di investimento su una scala da 1 a 5:
+                    (1 = non interessa per niente, 5 = interessa molto)
+                  </FormDescription>
+                  
+                  <div className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="retirementInterest"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between mb-2">
+                            <FormLabel>{t('investment_goals.retirement')}</FormLabel>
+                            <span className="text-sm font-medium">{field.value}/5</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="w-full accent-black"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Non interessa</span>
+                            <span>Interessa molto</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="wealthGrowthInterest"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between mb-2">
+                            <FormLabel>{t('investment_goals.wealth_growth')}</FormLabel>
+                            <span className="text-sm font-medium">{field.value}/5</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="w-full accent-black"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Non interessa</span>
+                            <span>Interessa molto</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="incomeGenerationInterest"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between mb-2">
+                            <FormLabel>{t('investment_goals.income_generation')}</FormLabel>
+                            <span className="text-sm font-medium">{field.value}/5</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="w-full accent-black"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Non interessa</span>
+                            <span>Interessa molto</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="capitalPreservationInterest"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between mb-2">
+                            <FormLabel>{t('investment_goals.capital_preservation')}</FormLabel>
+                            <span className="text-sm font-medium">{field.value}/5</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="w-full accent-black"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Non interessa</span>
+                            <span>Interessa molto</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="estatePlanningInterest"
+                      render={({ field }) => (
+                        <FormItem>
+                          <div className="flex items-center justify-between mb-2">
+                            <FormLabel>{t('investment_goals.estate_planning')}</FormLabel>
+                            <span className="text-sm font-medium">{field.value}/5</span>
+                          </div>
+                          <FormControl>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              className="w-full accent-black"
+                              {...field}
+                              onChange={(e) => field.onChange(parseInt(e.target.value))}
+                            />
+                          </FormControl>
+                          <div className="flex justify-between text-xs text-muted-foreground">
+                            <span>Non interessa</span>
+                            <span>Interessa molto</span>
+                          </div>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                </div>
               </CardContent>
             </Card>
             
