@@ -865,14 +865,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("DEBUG - Lingua:", language);
       
       try {
-        // Send email
+        // Send email and log it automatically
         await sendCustomEmail(
           client.email,
           subject,
           message,
           language as 'english' | 'italian',
           undefined,
-          advisor?.signature || undefined
+          advisor?.signature || undefined,
+          advisor?.email,  // CC all'advisor
+          client.id,       // ID del cliente per il log
+          req.user?.id,    // ID dell'advisor che ha inviato l'email
+          true             // Registra l'email nei log
         );
         
         console.log(`Email inviata con successo a ${client.email}`);
@@ -883,24 +887,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log("DEBUG - Oggetto:", subject);
         console.log("DEBUG - Lingua:", language);
         console.log("DEBUG - Signature presente:", !!advisor?.signature);
-        
-        // Registra l'email nei client logs
-        try {
-          await storage.createClientLog({
-            clientId: clientId,
-            type: "email",
-            title: "Email personalizzata",
-            content: message,
-            emailSubject: subject,
-            emailRecipients: client.email,
-            logDate: new Date(),
-            createdBy: req.user?.id
-          });
-          console.log("DEBUG - Email personalizzata registrata nei log del cliente");
-        } catch (logError) {
-          console.error("ERRORE - Impossibile registrare l'email nei log:", logError);
-          // Non interrompiamo il flusso se il log fallisce
-        }
         
         res.json({ success: true, message: "Email sent successfully" });
       } catch (emailError: any) {
