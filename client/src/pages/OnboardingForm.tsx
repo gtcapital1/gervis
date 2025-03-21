@@ -111,7 +111,12 @@ export default function OnboardingForm() {
   const experienceLevelOptions = EXPERIENCE_LEVELS as unknown as [string, ...string[]];
   const investmentHorizonOptions = INVESTMENT_HORIZONS as unknown as [string, ...string[]];
   const investmentGoalOptions = INVESTMENT_GOALS as unknown as [string, ...string[]];
-  const personalInterestOptions = PERSONAL_INTERESTS as unknown as [string, ...string[]];
+  const personalInterestOptions = [
+    "travel", "sports", "technology", "art", "music", "cinema", 
+    "literature", "cooking", "fashion", "photography", "environment", 
+    "philanthropy", "health", "education", "real_estate", "entrepreneurship", 
+    "financial_markets", "politics", "science"
+  ] as unknown as [string, ...string[]];
 
   // Define the client response type
   type ClientResponse = {
