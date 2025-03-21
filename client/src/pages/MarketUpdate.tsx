@@ -32,6 +32,7 @@ interface MarketIndex {
   price: number;
   change: number;
   changePercent: number;
+  country: string;
 }
 
 interface StockTicker {
@@ -227,33 +228,44 @@ const NewsCard = ({ news }: { news: NewsItem }) => {
 };
 
 // Componente per visualizzare un ticker azionario
-const StockTickerCard = ({ ticker, onRemove }: { ticker: StockTicker, onRemove: (symbol: string) => void }) => {
-  const isPositive = ticker.change >= 0;
-  
+const StockTickerCard = ({ 
+  ticker, 
+  onRemove,
+  onClick
+}: { 
+  ticker: StockTicker, 
+  onRemove: (symbol: string) => void,
+  onClick?: (symbol: string) => void
+}) => {
   return (
-    <Card className="overflow-hidden mb-3">
+    <Card className="overflow-hidden cursor-pointer relative" onClick={() => onClick && onClick(ticker.symbol)}>
+      <Button 
+        variant="ghost" 
+        size="icon" 
+        className="absolute right-2 top-2 z-10" 
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(ticker.symbol);
+        }}
+      >
+        <X className="h-4 w-4" />
+      </Button>
+      
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-lg flex items-center">
-              {ticker.name}
-              <Badge variant="outline" className="ml-2">{ticker.symbol}</Badge>
-            </CardTitle>
+        <div className="flex items-center">
+          <div className="mr-2">
+            <span className="text-lg">🇺🇸</span>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onRemove(ticker.symbol)}>
-            <X className="h-4 w-4" />
-          </Button>
+          <div>
+            <CardTitle className="text-lg text-black">{ticker.name}</CardTitle>
+            <CardDescription>{ticker.symbol}</CardDescription>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center">
           <div className="text-2xl font-bold">{ticker.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-          <div className="flex items-center">
-            <span className={isPositive ? "text-green-600 flex items-center" : "text-red-600 flex items-center"}>
-              {isPositive ? <ArrowUpRight className="h-4 w-4 mr-1" /> : <ArrowDownRight className="h-4 w-4 mr-1" />}
-              {isPositive ? "+" : ""}{ticker.change.toFixed(2)} ({ticker.changePercent.toFixed(2)}%)
-            </span>
-          </div>
+          <PriceChange change={ticker.change} changePercent={ticker.changePercent} />
         </div>
       </CardContent>
     </Card>
@@ -523,10 +535,26 @@ export default function MarketUpdate() {
 
         {/* Scheda degli indici principali */}
         <TabsContent value="indices">
-          <h2 className="text-2xl font-semibold mb-4">{t('market.main_indices') || "Indici Principali"}</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-black">{t('market.main_indices') || "Indici Principali"}</h2>
+          
+          {/* Sezione grafico per l'indice selezionato */}
+          {activeTab === "indices" && selectedIndex && (
+            <div className="mb-6">
+              <TimeframeSelector 
+                selectedTimeframe={selectedTimeframe} 
+                onChange={setSelectedTimeframe} 
+              />
+              
+              <ChartComponent 
+                symbol={selectedIndex}
+                timeframe={selectedTimeframe}
+                type="index"
+              />
+            </div>
+          )}
           
           {indicesLoading ? (
-            <div className="grid gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Card key={i} className="overflow-hidden">
                   <CardHeader className="pb-2">
@@ -553,14 +581,20 @@ export default function MarketUpdate() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {indices && indices.length > 0 ? (
                 indices.map((index: MarketIndex) => (
-                  <MarketIndexCard key={index.symbol} index={index} />
+                  <MarketIndexCard 
+                    key={index.symbol} 
+                    index={index} 
+                    onClick={(symbol) => {
+                      setSelectedIndex(symbol);
+                    }}
+                  />
                 ))
               ) : (
                 <div className="col-span-full">
                   <Card className="mb-6">
                     <CardContent className="flex flex-col items-center justify-center p-10">
                       <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-xl font-semibold text-center mb-2">
+                      <p className="text-xl font-semibold text-center mb-2 text-black">
                         {t('market.no_indices') || "Nessun indice disponibile"}
                       </p>
                       <p className="text-muted-foreground text-center mb-4">
@@ -628,11 +662,27 @@ export default function MarketUpdate() {
             </div>
           </div>
 
+          {/* Sezione grafico per lo stock o indice selezionato */}
+          {(activeTab === "stocks" && selectedStock) || (activeTab === "indices" && selectedIndex) ? (
+            <div className="mb-6">
+              <TimeframeSelector 
+                selectedTimeframe={selectedTimeframe} 
+                onChange={setSelectedTimeframe} 
+              />
+              
+              <ChartComponent 
+                symbol={activeTab === "stocks" ? selectedStock : selectedIndex}
+                timeframe={selectedTimeframe}
+                type={activeTab === "stocks" ? "stock" : "index"}
+              />
+            </div>
+          ) : null}
+          
           {userTickers.length === 0 ? (
             <Card className="mb-6">
               <CardContent className="flex flex-col items-center justify-center p-10">
                 <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-xl font-semibold text-center mb-2">
+                <p className="text-xl font-semibold text-center mb-2 text-black">
                   {t('market.no_tickers') || "Nessun ticker aggiunto"}
                 </p>
                 <p className="text-muted-foreground text-center mb-4">
@@ -641,9 +691,9 @@ export default function MarketUpdate() {
               </CardContent>
             </Card>
           ) : tickersLoading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <Card key={i} className="overflow-hidden mb-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Card key={i} className="overflow-hidden">
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <div className="h-5 bg-muted rounded animate-pulse w-1/3"></div>
@@ -669,12 +719,18 @@ export default function MarketUpdate() {
           ) : (
             <div>
               {tickersData && tickersData.length > 0 ? (
-                <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {tickersData.map((ticker) => (
                     <StockTickerCard 
                       key={ticker.symbol} 
                       ticker={ticker} 
-                      onRemove={handleRemoveTicker} 
+                      onRemove={handleRemoveTicker}
+                      onClick={(symbol) => {
+                        setSelectedStock(symbol);
+                        if (activeTab !== "stocks") {
+                          setActiveTab("stocks");
+                        }
+                      }}
                     />
                   ))}
                 </div>
@@ -682,7 +738,7 @@ export default function MarketUpdate() {
                 <Card className="mb-6">
                   <CardContent className="flex flex-col items-center justify-center p-10">
                     <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-xl font-semibold text-center mb-2">
+                    <p className="text-xl font-semibold text-center mb-2 text-black">
                       {t('market.no_ticker_data') || "Nessun dato disponibile"}
                     </p>
                     <p className="text-muted-foreground text-center mb-4">
