@@ -236,6 +236,23 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
   
   // Submit handler
   async function onSubmit(data: ClientEditFormValues) {
+    // Assicuriamo che i valori degli interessi siano convertiti correttamente 
+    // da stringhe a numeri prima di inviarli e siano del tipo numerico 
+    data.retirementInterest = Number(data.retirementInterest) || 1;
+    data.wealthGrowthInterest = Number(data.wealthGrowthInterest) || 1;
+    data.incomeGenerationInterest = Number(data.incomeGenerationInterest) || 1;
+    data.capitalPreservationInterest = Number(data.capitalPreservationInterest) || 1;
+    data.estatePlanningInterest = Number(data.estatePlanningInterest) || 1;
+    
+    // Log dei valori per debug
+    console.log("DEBUG - Valori interessi inviati:", {
+      retirement: data.retirementInterest,
+      wealthGrowth: data.wealthGrowthInterest,
+      incomeGeneration: data.incomeGenerationInterest,
+      capitalPreservation: data.capitalPreservationInterest,
+      estatePlanning: data.estatePlanningInterest
+    });
+    
     updateClientMutation.mutate(data);
   }
 
