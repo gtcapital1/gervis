@@ -225,9 +225,10 @@ export async function getFinancialNews(req: Request, res: Response) {
     
     // Utilizziamo NewsAPI per ottenere le notizie finanziarie
     // Documentazione: https://newsapi.org/docs/endpoints/top-headlines
+    console.log("Utilizzando API key:", apiKey); // Log per debugging
     const response = await axios.get('https://newsapi.org/v2/top-headlines', {
       params: {
-        apiKey,
+        apiKey: apiKey.trim(), // Assicuriamoci che non ci siano spazi
         category: 'business',
         language: 'it',
         pageSize: 20,

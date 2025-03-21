@@ -172,15 +172,26 @@ interface TickerSuggestion {
   name: string;
 }
 
+// Timeframes per grafici
+type TimeFrame = '1D' | '1W' | '1M' | '1Y' | '3Y' | '5Y' | '10Y';
+
+// Default US stocks
+const DEFAULT_US_STOCKS = [
+  "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "JPM", "V"
+];
+
 export default function MarketUpdate() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("indices");
   const [newTickerSymbol, setNewTickerSymbol] = useState("");
-  const [userTickers, setUserTickers] = useState<string[]>([]);
+  const [userTickers, setUserTickers] = useState<string[]>(DEFAULT_US_STOCKS);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [tickerSuggestions, setTickerSuggestions] = useState<TickerSuggestion[]>([]);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
+  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeFrame>('1D');
+  const [selectedIndex, setSelectedIndex] = useState<string>("^GSPC"); // S&P 500 come default
+  const [selectedStock, setSelectedStock] = useState<string>(DEFAULT_US_STOCKS[0]);
   const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Recupero dati degli indici principali
