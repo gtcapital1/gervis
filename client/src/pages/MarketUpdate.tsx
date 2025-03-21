@@ -180,6 +180,7 @@ export default function MarketUpdate() {
   const [userTickers, setUserTickers] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [tickerSuggestions, setTickerSuggestions] = useState<TickerSuggestion[]>([]);
+  const [showCommandDialog, setShowCommandDialog] = useState(false);
   const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Recupero dati degli indici principali
@@ -294,6 +295,46 @@ export default function MarketUpdate() {
     }
   };
 
+  // Funzione per gestire l'input del ticker e aggiornare i suggerimenti
+  const handleTickerInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase();
+    setNewTickerSymbol(value);
+    
+    // Cancella il timeout precedente se esiste
+    if (suggestionsTimeoutRef.current) {
+      clearTimeout(suggestionsTimeoutRef.current);
+    }
+    
+    // Se l'input è vuoto, nascondi i suggerimenti
+    if (!value || value.length < 2) {
+      setShowSuggestions(false);
+      setTickerSuggestions([]);
+      return;
+    }
+    
+    // Imposta un nuovo timeout per evitare troppe richieste durante la digitazione
+    suggestionsTimeoutRef.current = setTimeout(async () => {
+      // Esegui la query per ottenere i suggerimenti
+      const response = await fetch(`/api/market/ticker-suggestions?q=${encodeURIComponent(value)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setTickerSuggestions(data);
+        setShowSuggestions(data.length > 0);
+      }
+    }, 300);
+  };
+  
+  // Funzione per selezionare un suggerimento
+  const handleSelectSuggestion = (suggestion: TickerSuggestion) => {
+    setNewTickerSymbol(suggestion.symbol);
+    setShowSuggestions(false);
+    
+    // Opzionale: aggiungere immediatamente il ticker selezionato
+    if (!userTickers.includes(suggestion.symbol)) {
+      addTickerMutation.mutate(suggestion.symbol);
+    }
+  };
+
   // Utilizza i dati reali dall'API
   const indices: MarketIndex[] = indicesData as MarketIndex[] || [];
   
@@ -312,6 +353,35 @@ export default function MarketUpdate() {
         </Button>
       </div>
 
+      {/* Command Dialog per la ricerca avanzata di ticker */}
+      <CommandDialog open={showCommandDialog} onOpenChange={setShowCommandDialog}>
+        <CommandInput 
+          placeholder={t('market.search_tickers') || "Cerca ticker..."}
+          value={newTickerSymbol}
+          onValueChange={(value) => {
+            setNewTickerSymbol(value);
+            handleTickerInputChange({ target: { value } } as React.ChangeEvent<HTMLInputElement>);
+          }}
+        />
+        <CommandList>
+          <CommandEmpty>
+            {t('market.no_suggestions') || "Nessun suggerimento trovato"}
+          </CommandEmpty>
+          <CommandGroup heading={t('market.suggestions') || "Suggerimenti"}>
+            {tickerSuggestions.map((suggestion) => (
+              <CommandItem
+                key={suggestion.symbol}
+                onSelect={() => handleSelectSuggestion(suggestion)}
+                className="flex justify-between"
+              >
+                <span>{suggestion.symbol}</span>
+                <span className="text-muted-foreground">{suggestion.name}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </CommandDialog>
+      
       <Tabs defaultValue="indices" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-3 mb-4">
           <TabsTrigger value="indices" className="flex items-center">
@@ -390,14 +460,43 @@ export default function MarketUpdate() {
             <h2 className="text-2xl font-semibold">{t('market.your_tickers') || "I Tuoi Ticker"}</h2>
             
             <div className="flex w-full md:w-auto gap-2">
-              <Input
-                placeholder={t('market.add_ticker_placeholder') || "Aggiungi ticker (es. AAPL)"}
-                value={newTickerSymbol}
-                onChange={(e) => setNewTickerSymbol(e.target.value.toUpperCase())}
-                onKeyPress={handleAddTickerKeyPress}
-                className="max-w-xs"
-                disabled={addTickerMutation.isPending}
-              />
+              <div className="relative">
+                <div className="flex">
+                  <Input
+                    placeholder={t('market.add_ticker_placeholder') || "Aggiungi ticker (es. AAPL)"}
+                    value={newTickerSymbol}
+                    onChange={handleTickerInputChange}
+                    onKeyPress={handleAddTickerKeyPress}
+                    className="max-w-xs rounded-r-none"
+                    disabled={addTickerMutation.isPending}
+                  />
+                  <Button 
+                    variant="outline" 
+                    className="rounded-l-none border-l-0"
+                    onClick={() => setShowCommandDialog(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Lista di suggerimenti */}
+                {showSuggestions && tickerSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-background rounded-md shadow-lg border">
+                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
+                      {tickerSuggestions.map((suggestion) => (
+                        <li
+                          key={suggestion.symbol}
+                          className="cursor-pointer px-4 py-2 hover:bg-muted flex justify-between items-center"
+                          onClick={() => handleSelectSuggestion(suggestion)}
+                        >
+                          <span className="font-medium">{suggestion.symbol}</span>
+                          <span className="text-sm text-muted-foreground">{suggestion.name}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
               <Button 
                 onClick={handleAddTicker} 
                 disabled={!newTickerSymbol || addTickerMutation.isPending}
