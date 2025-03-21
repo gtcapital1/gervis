@@ -21,8 +21,7 @@ import {
   ArrowDownRight,
   Minus,
   Search,
-  Globe,
-  Flag
+  Globe
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -59,7 +58,7 @@ interface NewsItem {
 // I componenti TimeframeSelector e ChartComponent sono stati rimossi
 
 // Funzione per visualizzare la bandiera del paese corrispondente
-function Flag({ country, size = 24 }: { country: string, size?: number }) {
+function CountryFlag({ country, size = 24 }: { country: string, size?: number }) {
   const countryMap: Record<string, string> = {
     us: "🇺🇸",
     gb: "🇬🇧",
@@ -104,7 +103,7 @@ const MarketIndexCard = ({
       <CardHeader className="pb-2">
         <div className="flex items-center">
           <div className="mr-2">
-            <Flag country={index.country} size={20} />
+            <CountryFlag country={index.country} size={20} />
           </div>
           <div>
             <CardTitle className="text-lg text-white">{index.name}</CardTitle>
@@ -695,7 +694,7 @@ export default function MarketUpdate() {
                   className="rounded-none rounded-l-md"
                   onClick={() => setNewsFilter('global')}
                 >
-                  <Globe className="h-4 w-4 mr-1" />
+                  <span className="mr-1">🌎</span>
                   {t('market.global') || "Globali"}
                 </Button>
                 <Button 
@@ -704,7 +703,7 @@ export default function MarketUpdate() {
                   className="rounded-none rounded-r-md"
                   onClick={() => setNewsFilter('italia')}
                 >
-                  <Flag className="h-4 w-4 mr-1" />
+                  <span className="mr-1">🇮🇹</span>
                   {t('market.italy') || "Italia"}
                 </Button>
               </div>
