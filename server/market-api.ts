@@ -42,9 +42,11 @@ interface MarketIndex {
 interface StockTicker {
   symbol: string;
   name: string;
-  price: number;
-  change: number;
-  changePercent: number;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
+  currency?: string;
+  dataUnavailable?: boolean;
 }
 
 interface NewsItem {
@@ -111,15 +113,15 @@ export async function getMarketIndices(req: Request, res: Response) {
         // Il piano gratuito di Financial Modeling Prep è limitato solo alle azioni americane
         // Quindi controlliamo se l'indice è americano
         if (index.country !== 'us') {
-          // Per indici non americani, usiamo i dati fissi
-          const fallbackData = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
+          // Per indici non americani, mostriamo N/A invece di dati fissi
           return {
             symbol: index.symbol,
             name: index.name,
-            price: fallbackData.price,
-            change: fallbackData.price * (fallbackData.changePercent / 100),
-            changePercent: fallbackData.changePercent,
-            country: index.country
+            price: null,
+            change: null,
+            changePercent: null,
+            country: index.country,
+            dataUnavailable: true
           };
         }
         
@@ -276,17 +278,17 @@ export async function getTickerData(req: Request, res: Response) {
     // Array per i risultati
     let tickers: StockTicker[] = [];
     
-    // Per i ticker non americani, usiamo i dati fissi
+    // Per i ticker non americani, mostriamo N/A invece di dati fissi
     nonUsSymbols.forEach(symbol => {
       const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-      const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
       
       tickers.push({
         symbol,
         name: tickerInfo ? tickerInfo.name : symbol,
-        price: fallbackData.price,
-        change: fallbackData.price * (fallbackData.changePercent / 100),
-        changePercent: fallbackData.changePercent
+        price: null,
+        change: null,
+        changePercent: null,
+        dataUnavailable: true
       });
     });
     
@@ -318,48 +320,48 @@ export async function getTickerData(req: Request, res: Response) {
           const foundSymbols = usTickers.map(t => t.symbol);
           const missingSymbols = usSymbols.filter(s => !foundSymbols.includes(s));
           
-          // Aggiungiamo i ticker americani mancanti usando i dati fissi
+          // Aggiungiamo i ticker americani mancanti come dati non disponibili
           for (const symbol of missingSymbols) {
             const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-            const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
             
             tickers.push({
               symbol,
               name: tickerInfo ? tickerInfo.name : symbol,
-              price: fallbackData.price,
-              change: fallbackData.price * (fallbackData.changePercent / 100),
-              changePercent: fallbackData.changePercent
+              price: null,
+              change: null,
+              changePercent: null,
+              dataUnavailable: true
             });
           }
         } else {
-          // Se non abbiamo dati dall'API, usiamo i dati fissi per tutti i ticker americani
+          // Se non abbiamo dati dall'API, mostriamo N/A per tutti i ticker americani
           for (const symbol of usSymbols) {
             const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-            const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
             
             tickers.push({
               symbol,
               name: tickerInfo ? tickerInfo.name : symbol,
-              price: fallbackData.price,
-              change: fallbackData.price * (fallbackData.changePercent / 100),
-              changePercent: fallbackData.changePercent
+              price: null,
+              change: null,
+              changePercent: null,
+              dataUnavailable: true
             });
           }
         }
       } catch (apiError) {
         console.error("Errore nella chiamata API per ticker americani:", apiError);
         
-        // In caso di errore dell'API, usiamo i dati fissi per tutti i ticker americani
+        // In caso di errore dell'API, mostriamo N/A per tutti i ticker americani
         for (const symbol of usSymbols) {
           const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-          const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
           
           tickers.push({
             symbol,
             name: tickerInfo ? tickerInfo.name : symbol,
-            price: fallbackData.price,
-            change: fallbackData.price * (fallbackData.changePercent / 100),
-            changePercent: fallbackData.changePercent
+            price: null,
+            change: null,
+            changePercent: null,
+            dataUnavailable: true
           });
         }
       }
@@ -372,17 +374,17 @@ export async function getTickerData(req: Request, res: Response) {
   } catch (error) {
     console.error("Errore nel recupero dei dati dei ticker:", error);
     
-    // In caso di errore generale, restituire dati di fallback
+    // In caso di errore generale, restituire dati non disponibili
     const tickers: StockTicker[] = (req.query.symbols as string).split(',').map(symbol => {
       const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-      const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
       
       return {
         symbol,
         name: tickerInfo ? tickerInfo.name : symbol,
-        price: fallbackData.price,
-        change: fallbackData.price * (fallbackData.changePercent / 100),
-        changePercent: fallbackData.changePercent
+        price: null,
+        change: null,
+        changePercent: null,
+        dataUnavailable: true
       };
     });
     
