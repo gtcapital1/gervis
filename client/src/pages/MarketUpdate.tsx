@@ -81,7 +81,7 @@ const TimeframeSelector = ({
   );
 };
 
-// Componente grafico per indici e stocks (placeholder)
+// Componente grafico per indici e stocks (realistico)
 const ChartComponent = ({ 
   symbol, 
   timeframe, 
@@ -91,6 +91,77 @@ const ChartComponent = ({
   timeframe: TimeFrame,
   type?: 'index' | 'stock'
 }) => {
+  // Generiamo dati casuali per mostrare un grafico più realistico
+  const [data, setData] = useState<Array<{date: string, value: number}>>([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [priceInfo, setPriceInfo] = useState({
+    current: 0,
+    previous: 0,
+    change: 0,
+    isPositive: true
+  });
+  
+  // Effetto per generare dati simulati basati sul timeframe
+  useEffect(() => {
+    setChartLoading(true);
+    
+    // Simulazione caricamento dati da API
+    setTimeout(() => {
+      const numPoints = timeframe === '1D' ? 24 : 
+                      timeframe === '1W' ? 7 : 
+                      timeframe === '1M' ? 30 : 
+                      timeframe === '1Y' ? 12 : 
+                      timeframe === '3Y' ? 36 : 
+                      timeframe === '5Y' ? 20 : 40;
+      
+      // Genera un valore di base per il simbolo (basato sul suo nome)
+      const symbolValue = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0) % 100;
+      const baseValue = type === 'index' ? symbolValue * 100 + 1000 : symbolValue * 5 + 50;
+      
+      // Genera dati casuali con trend generale verso l'alto
+      const newData = Array.from({ length: numPoints }, (_, i) => {
+        // Aggiungiamo un po' di varianza ma con un trend generale
+        const variance = Math.random() * 20 - 10; // Varianza tra -10 e +10
+        const trend = (i / numPoints) * 15; // Trend generale positivo
+        const value = baseValue + variance + trend;
+        
+        // La data dipende dal timeframe
+        let date = new Date();
+        if (timeframe === '1D') {
+          date.setHours(date.getHours() - (numPoints - i - 1));
+          return { date: date.toLocaleTimeString(), value };
+        } else if (timeframe === '1W') {
+          date.setDate(date.getDate() - (numPoints - i - 1));
+          return { date: date.toLocaleDateString(), value };
+        } else if (timeframe === '1M') {
+          date.setDate(date.getDate() - (numPoints - i - 1));
+          return { date: date.toLocaleDateString(), value };
+        } else {
+          date.setMonth(date.getMonth() - (numPoints - i - 1));
+          return { date: date.toLocaleDateString(), value };
+        }
+      });
+      
+      // Aggiorna i dati
+      setData(newData);
+      
+      // Imposta le informazioni di prezzo
+      const currentPrice = newData[newData.length - 1].value;
+      const previousPrice = newData[0].value;
+      const priceChange = currentPrice - previousPrice;
+      
+      setPriceInfo({
+        current: currentPrice,
+        previous: previousPrice,
+        change: priceChange,
+        isPositive: priceChange >= 0
+      });
+      
+      setChartLoading(false);
+    }, 1000);
+  }, [symbol, timeframe, type]);
+  
+  // Rendering del componente grafico
   return (
     <Card className="mb-6">
       <CardHeader className="pb-0">
@@ -99,13 +170,66 @@ const ChartComponent = ({
             <CardTitle className="text-lg text-black">{symbol}</CardTitle>
             <CardDescription>{type === 'index' ? 'Indice' : 'Azione'} - Timeframe: {timeframe}</CardDescription>
           </div>
+          <div className="flex flex-col items-end">
+            {!chartLoading && (
+              <>
+                <span className="text-lg font-bold">
+                  {priceInfo.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </span>
+                <span className={priceInfo.isPositive ? "text-green-600 text-sm" : "text-red-600 text-sm"}>
+                  {priceInfo.isPositive ? "+" : ""}{priceInfo.change.toFixed(2)} ({((priceInfo.change / priceInfo.previous) * 100).toFixed(2)}%)
+                </span>
+              </>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
-        <div className="h-[200px] w-full bg-muted flex items-center justify-center rounded-md overflow-hidden my-2">
-          <LineChart className="h-16 w-16 text-muted-foreground opacity-50" />
-          <p className="ml-2 text-muted-foreground">Grafico in costruzione</p>
-        </div>
+        {chartLoading ? (
+          <div className="h-[300px] w-full bg-muted flex items-center justify-center rounded-md overflow-hidden my-2 animate-pulse">
+            <LineChart className="h-16 w-16 text-muted-foreground opacity-50" />
+            <p className="ml-2 text-muted-foreground">Caricamento dati...</p>
+          </div>
+        ) : (
+          <div className="h-[300px] w-full relative">
+            {/* Chart visualization - simuliamo con gradiente per semplicità */}
+            <div className="absolute inset-0 rounded-md overflow-hidden">
+              <div 
+                className={`h-full w-full ${priceInfo.isPositive ? 'bg-gradient-to-t from-green-100 to-transparent' : 'bg-gradient-to-t from-red-100 to-transparent'}`}
+              ></div>
+              
+              {/* Linea del grafico usando SVG */}
+              <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path 
+                  d={`M0,${100 - ((data[0]?.value || 0) / (Math.max(...data.map(d => d.value)) * 0.8) * 100)} ${data.map((point, index) => {
+                    const x = index / (data.length - 1) * 100;
+                    const y = 100 - ((point.value / (Math.max(...data.map(d => d.value)) * 0.8)) * 100);
+                    return `L${x},${y}`;
+                  }).join(' ')} L100,100 L0,100 Z`}
+                  fill={priceInfo.isPositive ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'}
+                  stroke="none"
+                />
+                <path 
+                  d={`M0,${100 - ((data[0]?.value || 0) / (Math.max(...data.map(d => d.value)) * 0.8) * 100)} ${data.map((point, index) => {
+                    const x = index / (data.length - 1) * 100;
+                    const y = 100 - ((point.value / (Math.max(...data.map(d => d.value)) * 0.8)) * 100);
+                    return `L${x},${y}`;
+                  }).join(' ')}`}
+                  fill="none"
+                  stroke={priceInfo.isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
+                  strokeWidth="0.5"
+                />
+              </svg>
+              
+              {/* Etichette temporali */}
+              <div className="absolute bottom-0 left-0 right-0 flex justify-between text-xs text-muted-foreground px-2">
+                <span>{data[0]?.date}</span>
+                <span>{data[Math.floor(data.length / 2)]?.date}</span>
+                <span>{data[data.length - 1]?.date}</span>
+              </div>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
@@ -470,17 +594,31 @@ export default function MarketUpdate() {
   // Utilizza i dati reali dall'API
   const indices: MarketIndex[] = indicesData as MarketIndex[] || [];
   
+  // Aggiornamento automatico dei dati ogni 60 secondi
+  useEffect(() => {
+    // Primo aggiornamento immediato
+    refreshAllData();
+    
+    // Aggiornamento periodico
+    const interval = setInterval(() => {
+      refreshAllData();
+    }, 60000);
+    
+    // Pulizia quando il componente viene smontato
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="container py-6">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">{t('market.title') || "Aggiornamento Mercati"}</h1>
+        <h1 className="text-3xl font-bold text-black">{t('market.title') || "Aggiornamento Mercati"}</h1>
         <Button 
           variant="outline" 
           className="flex items-center" 
           onClick={refreshAllData}
           disabled={indicesLoading || newsLoading || tickersLoading}
         >
-          <RefreshCw className="h-4 w-4 mr-2" />
+          <RefreshCw className={`h-4 w-4 mr-2 ${indicesLoading || newsLoading || tickersLoading ? 'animate-spin' : ''}`} />
           {t('market.refresh') || "Aggiorna Dati"}
         </Button>
       </div>
@@ -611,7 +749,7 @@ export default function MarketUpdate() {
         {/* Scheda dei ticker personalizzati */}
         <TabsContent value="stocks">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <h2 className="text-2xl font-semibold">{t('market.your_tickers') || "I Tuoi Ticker"}</h2>
+            <h2 className="text-2xl font-semibold text-black">{t('market.your_tickers') || "I Tuoi Ticker"}</h2>
             
             <div className="flex w-full md:w-auto gap-2">
               <div className="relative">
@@ -753,7 +891,7 @@ export default function MarketUpdate() {
 
         {/* Scheda delle notizie finanziarie */}
         <TabsContent value="news">
-          <h2 className="text-2xl font-semibold mb-4">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
+          <h2 className="text-2xl font-semibold mb-4 text-black">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
           
           {newsLoading ? (
             <div className="space-y-4">
