@@ -788,6 +788,10 @@ Grazie per la tua fiducia e collaborazione.`
                         <PieChart className="mr-2 h-4 w-4" />
                         {t('client.portfolio_overview')}
                       </TabsTrigger>
+                      <TabsTrigger value="assets">
+                        <BarChart className="mr-2 h-4 w-4" />
+                        {t('client.assets')}
+                      </TabsTrigger>
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
                         {t('client.recommendations')}
@@ -905,6 +909,98 @@ Grazie per la tua fiducia e collaborazione.`
                       )}
                     </TabsContent>
                     
+                    <TabsContent value="assets" className="space-y-6">
+                      {isLoadingAssets ? (
+                        <div className="flex justify-center items-center h-32">
+                          <p>{t('client.loading_assets')}</p>
+                        </div>
+                      ) : assets.length === 0 ? (
+                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
+                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setIsEditDialogOpen(true)}
+                          >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            {t('client.add_asset')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.real_estate')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "real_estate").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.equity')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.bonds')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "bonds").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.cash')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "cash").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            {assets.some(a => a.category === "private_equity") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.private_equity')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "private_equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "cryptocurrencies") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.cryptocurrencies')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "cryptocurrencies").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "venture_capital") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.venture_capital')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "venture_capital").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "other") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.other')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "other").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex justify-center mt-6">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setIsEditDialogOpen(true)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t('client.edit_assets')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                      
                     <TabsContent value="recommendations" className="space-y-4">
                       {user?.isPro ? (
                         <>
