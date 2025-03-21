@@ -22,7 +22,8 @@ import {
   Settings,
   KeyRound,
   Info,
-  Link2
+  Link2,
+  MessageSquare
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
@@ -423,6 +424,14 @@ Grazie per la tua fiducia e collaborazione.`
                 <Edit className="mr-2 h-4 w-4" />
                 <span className="hidden sm:inline">{t('client.edit_client')}</span>
                 <span className="sm:hidden">Modifica</span>
+              </Button>
+              <Button 
+                className="bg-primary hover:bg-primary/90 flex items-center"
+                onClick={() => setLocation(`/clients/${clientId}/logs`)}
+              >
+                <MessageSquare className="mr-2 h-4 w-4" />
+                <span className="hidden sm:inline">{t('client.view_logs') || "Visualizza log"}</span>
+                <span className="sm:hidden">Log</span>
               </Button>
             </div>
           </div>
