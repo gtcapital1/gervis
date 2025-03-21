@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { storage } from './storage';
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig() {
@@ -242,7 +243,10 @@ export async function sendCustomEmail(
   language: EmailLanguage = 'english',
   attachments?: any[],
   advisorSignature?: string,
-  advisorEmail?: string
+  advisorEmail?: string,
+  clientId?: number,
+  userId?: number,
+  logEmail: boolean = true
 ) {
   try {
     const content = language === 'english' ? englishContent : italianContent;
@@ -280,6 +284,27 @@ export async function sendCustomEmail(
     
     const info = await transporter.sendMail(mailOptions);
     console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
+    
+    // Registra l'email nei log del cliente se richiesto
+    if (logEmail && clientId) {
+      try {
+        await storage.createClientLog({
+          clientId: clientId,
+          type: "email",
+          title: `Email: ${subject}`,
+          content: message,
+          emailSubject: subject,
+          emailRecipients: clientEmail,
+          logDate: new Date(),
+          createdBy: userId
+        });
+        console.log(`Email to ${clientEmail} logged in client history`);
+      } catch (logError) {
+        console.error("Errore durante la registrazione dell'email nei log:", logError);
+        // Non interrompiamo il flusso se la registrazione nel log fallisce
+      }
+    }
+    
     return true;
   } catch (error) {
     console.error('Error sending email:', error);
@@ -296,7 +321,10 @@ export async function sendOnboardingEmail(
   customMessage?: string,
   advisorSignature?: string,
   advisorEmail?: string,
-  customSubject?: string
+  customSubject?: string,
+  clientId?: number,
+  userId?: number,
+  logEmail: boolean = true
 ) {
   console.log(`DEBUG - Inizio sendOnboardingEmail per ${clientEmail}`);
   try {
@@ -401,6 +429,34 @@ export async function sendOnboardingEmail(
     console.log(`DEBUG - Dettagli risposta SMTP:`, JSON.stringify(info));
     
     console.log(`Onboarding email sent to ${clientEmail}`);
+    
+    // Registra l'email nei log del cliente se richiesto
+    if (logEmail && clientId) {
+      try {
+        // Estrai il testo del messaggio dall'HTML per il log
+        let messageForLog = customMessage || content.invitation;
+        if (customMessage) {
+          // Già elaborato in precedenza
+          messageForLog = processedMessage;
+        }
+        
+        await storage.createClientLog({
+          clientId: clientId,
+          type: "email",
+          title: "Email di onboarding",
+          content: `Email di onboarding inviata in ${language === 'italian' ? 'italiano' : 'inglese'}\n\n${messageForLog}`,
+          emailSubject: emailSubject,
+          emailRecipients: clientEmail,
+          logDate: new Date(),
+          createdBy: userId
+        });
+        console.log(`Onboarding email to ${clientEmail} logged in client history`);
+      } catch (logError) {
+        console.error("Errore durante la registrazione dell'email di onboarding nei log:", logError);
+        // Non interrompiamo il flusso se la registrazione nel log fallisce
+      }
+    }
+    
     return true;
   } catch (error: any) {
     console.error('ERROR - Errore critico invio onboarding email:');
