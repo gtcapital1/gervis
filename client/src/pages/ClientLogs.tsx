@@ -47,6 +47,12 @@ import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Mail, Phone, CalendarClock, MessageSquare, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 
 // Form schema per i log
 const logFormSchema = z.object({
