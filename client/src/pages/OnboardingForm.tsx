@@ -240,6 +240,15 @@ export default function OnboardingForm() {
   
   async function onSubmit(data: OnboardingFormValues) {
     setFormError(null);
+    
+    // Imposta valori default di 3 per gli interessi di investimento
+    // se non sono specificati
+    if (!data.retirementInterest) data.retirementInterest = 3;
+    if (!data.wealthGrowthInterest) data.wealthGrowthInterest = 3;
+    if (!data.incomeGenerationInterest) data.incomeGenerationInterest = 3;
+    if (!data.capitalPreservationInterest) data.capitalPreservationInterest = 3; 
+    if (!data.estatePlanningInterest) data.estatePlanningInterest = 3;
+    
     try {
       mutation.mutate(data);
     } catch (error: any) {

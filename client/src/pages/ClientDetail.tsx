@@ -841,7 +841,7 @@ Grazie per la tua fiducia e collaborazione.`
                           {/* Right side: Pie chart */}
                           <div>
                             <h3 className="text-lg font-medium mb-3">{t('client.asset_split')}</h3>
-                            <div className="h-[280px] sm:h-[220px] flex items-center justify-center">
+                            <div className="h-[200px] sm:h-[180px] flex items-center justify-center">
                               {(() => {
                                 const COLORS = {
                                   equity: "#2563eb", // Medium dark blue
@@ -879,7 +879,7 @@ Grazie per la tua fiducia e collaborazione.`
                                         cx="50%"
                                         cy="50%"
                                         labelLine={false}
-                                        outerRadius={80}
+                                        outerRadius={65}
                                         fill="#8884d8"
                                         dataKey="value"
                                         nameKey="name"
