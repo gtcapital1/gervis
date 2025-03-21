@@ -589,7 +589,7 @@ Grazie per la tua fiducia e collaborazione.`
                   <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                     <div className="space-y-4 md:col-span-1">
                       <div>
                         <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
@@ -669,8 +669,8 @@ Grazie per la tua fiducia e collaborazione.`
                     {/* Mostro il grafico radar sempre quando il cliente è onboarded */}
                     {/* Grafico radar degli interessi di investimento nella colonna 2 */}
                     {client.isOnboarded && (
-                      <div className="md:col-span-2">
-                        <span className="text-sm font-medium block mb-2">{t('client.investment_priorities')}:</span>
+                      <div className="md:col-span-4">
+                        <span className="text-sm font-medium block mb-2">{t('client.investment_priorities')}</span>
                         <div className="h-[270px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <RadarChart outerRadius={90} data={[
@@ -738,38 +738,7 @@ Grazie per la tua fiducia e collaborazione.`
                       </div>
                     )}
                     
-                    {/* Sezione Obiettivi di Investimento */}
-                    <div>
-                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
-                      {client.investmentGoals && client.investmentGoals.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {client.investmentGoals.map(goal => (
-                            <Badge 
-                              key={goal} 
-                              className="capitalize"
-                              style={{
-                                backgroundColor: 
-                                  goal === "retirement" ? "#dbeafe" : // Very light blue
-                                  goal === "wealth_growth" ? "#bfdbfe" : // Light blue
-                                  goal === "income_generation" ? "#93c5fd" : // Medium light blue
-                                  goal === "capital_preservation" ? "#60a5fa" : // Medium blue
-                                  goal === "estate_planning" ? "#3b82f6" : // Medium dark blue
-                                  "#6b7280", // Gray default
-                                color: 
-                                  (goal === "retirement" || goal === "wealth_growth" || goal === "income_generation") 
-                                    ? "#1e3a8a" : "#ffffff"
-                              }}
-                            >
-                              {t(`investment_goals.${goal}`)}
-                            </Badge>
-                          ))}
-                        </div>
-                      ) : (
-                        <Badge variant="outline">
-                          {t('client.not_specified')}
-                        </Badge>
-                      )}
-                    </div>
+
                     
 
                   </div>
