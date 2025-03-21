@@ -2,7 +2,8 @@ import {
   users, type User, type InsertUser,
   clients, type Client, type InsertClient,
   assets, type Asset, type InsertAsset,
-  recommendations, type Recommendation, type InsertRecommendation
+  recommendations, type Recommendation, type InsertRecommendation,
+  clientLogs, type ClientLog, type InsertClientLog
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql } from 'drizzle-orm';
@@ -56,6 +57,12 @@ export interface IStorage {
   getRecommendationsByClient(clientId: number): Promise<Recommendation[]>;
   createRecommendation(recommendation: InsertRecommendation): Promise<Recommendation>;
   deleteRecommendation(id: number): Promise<boolean>;
+  
+  // Client Log Methods
+  getClientLogs(clientId: number): Promise<ClientLog[]>;
+  createClientLog(log: InsertClientLog): Promise<ClientLog>;
+  updateClientLog(id: number, log: Partial<ClientLog>): Promise<ClientLog>;
+  deleteClientLog(id: number): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -753,6 +760,76 @@ export class PostgresStorage implements IStorage {
     } catch (err) {
       console.error('Error verifying password:', err);
       return false;
+    }
+  }
+
+  // Client Log Methods
+  async getClientLogs(clientId: number): Promise<ClientLog[]> {
+    try {
+      const result = await db.select()
+        .from(clientLogs)
+        .where(eq(clientLogs.clientId, clientId))
+        .orderBy(clientLogs.createdAt, 'desc');
+      return result;
+    } catch (error) {
+      console.error(`[ERROR] Errore durante il recupero dei log per il cliente ID: ${clientId}:`, error);
+      throw error;
+    }
+  }
+
+  async createClientLog(insertLog: InsertClientLog): Promise<ClientLog> {
+    try {
+      // Verifichiamo che il cliente esista prima di creare il log
+      const client = await this.getClient(insertLog.clientId);
+      if (!client) {
+        throw new Error(`Client with id ${insertLog.clientId} not found`);
+      }
+
+      const result = await db.insert(clientLogs)
+        .values({
+          ...insertLog,
+          createdAt: new Date()
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error('[ERROR] Errore durante la creazione del log del cliente:', error);
+      throw error;
+    }
+  }
+
+  async updateClientLog(id: number, logUpdate: Partial<ClientLog>): Promise<ClientLog> {
+    try {
+      // Non permettiamo di modificare il clientId per mantenere l'integrità dei dati
+      const { clientId, ...updateData } = logUpdate;
+      
+      const result = await db.update(clientLogs)
+        .set(updateData)
+        .where(eq(clientLogs.id, id))
+        .returning();
+      
+      if (!result[0]) {
+        throw new Error(`Log with id ${id} not found`);
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'aggiornamento del log ID: ${id}:`, error);
+      throw error;
+    }
+  }
+
+  async deleteClientLog(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(clientLogs)
+        .where(eq(clientLogs.id, id))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'eliminazione del log ID: ${id}:`, error);
+      throw error;
     }
   }
 }

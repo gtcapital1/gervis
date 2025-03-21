@@ -187,3 +187,35 @@ export const insertRecommendationSchema = createInsertSchema(recommendations).pi
 
 export type InsertRecommendation = z.infer<typeof insertRecommendationSchema>;
 export type Recommendation = typeof recommendations.$inferSelect;
+
+// Tipi di log
+export const LOG_TYPES = ["email", "note", "call", "meeting"] as const;
+export type LogType = typeof LOG_TYPES[number];
+
+// Client Logs Schema
+export const clientLogs = pgTable("client_logs", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  type: text("type").notNull().$type<LogType>(),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  emailSubject: text("email_subject"), // Per i log di tipo email
+  emailRecipients: text("email_recipients"), // Per i log di tipo email
+  logDate: timestamp("log_date").notNull(), // Data e ora dell'interazione
+  createdAt: timestamp("created_at").defaultNow(), // Data e ora di registrazione del log
+  createdBy: integer("created_by").references(() => users.id), // Utente che ha creato il log
+});
+
+export const insertClientLogSchema = createInsertSchema(clientLogs).pick({
+  clientId: true,
+  type: true,
+  title: true,
+  content: true,
+  emailSubject: true,
+  emailRecipients: true,
+  logDate: true,
+  createdBy: true,
+});
+
+export type InsertClientLog = z.infer<typeof insertClientLogSchema>;
+export type ClientLog = typeof clientLogs.$inferSelect;
