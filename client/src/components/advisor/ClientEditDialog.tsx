@@ -79,6 +79,13 @@ const clientEditFormSchema = z.object({
   investmentHorizon: z.string().refine(val => INVESTMENT_HORIZONS.includes(val as any), {
     message: "Please select a valid investment horizon"
   }),
+  
+  // Investment interest ratings (1-5 scale)
+  retirementInterest: z.number().min(1).max(5),
+  wealthGrowthInterest: z.number().min(1).max(5),
+  incomeGenerationInterest: z.number().min(1).max(5),
+  capitalPreservationInterest: z.number().min(1).max(5),
+  estatePlanningInterest: z.number().min(1).max(5),
 
   // Assets
   assets: z.array(assetSchema).min(1, "Please add at least one asset")
@@ -125,6 +132,12 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
       investmentExperience: client.investmentExperience || "",
       investmentGoals: client.investmentGoals || [],
       investmentHorizon: client.investmentHorizon || "",
+      // Investment interest ratings (default to 3 if not set)
+      retirementInterest: client.retirementInterest || 3,
+      wealthGrowthInterest: client.wealthGrowthInterest || 3,
+      incomeGenerationInterest: client.incomeGenerationInterest || 3,
+      capitalPreservationInterest: client.capitalPreservationInterest || 3,
+      estatePlanningInterest: client.estatePlanningInterest || 3,
       assets: assets.map(asset => ({
         id: asset.id,
         category: asset.category,
@@ -153,6 +166,12 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         investmentExperience: client.investmentExperience || "",
         investmentGoals: client.investmentGoals || [],
         investmentHorizon: client.investmentHorizon || "",
+        // Investment interest ratings (default to 3 if not set)
+        retirementInterest: client.retirementInterest || 3,
+        wealthGrowthInterest: client.wealthGrowthInterest || 3,
+        incomeGenerationInterest: client.incomeGenerationInterest || 3,
+        capitalPreservationInterest: client.capitalPreservationInterest || 3,
+        estatePlanningInterest: client.estatePlanningInterest || 3,
         assets: assets.map(asset => ({
           id: asset.id,
           category: asset.category,
