@@ -166,12 +166,12 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         investmentExperience: client.investmentExperience || "",
         investmentGoals: client.investmentGoals || [],
         investmentHorizon: client.investmentHorizon || "",
-        // Investment interest ratings (default to 3 if not set)
-        retirementInterest: client.retirementInterest || 3,
-        wealthGrowthInterest: client.wealthGrowthInterest || 3,
-        incomeGenerationInterest: client.incomeGenerationInterest || 3,
-        capitalPreservationInterest: client.capitalPreservationInterest || 3,
-        estatePlanningInterest: client.estatePlanningInterest || 3,
+        // Utilizziamo i valori effettivi dal client senza default
+        retirementInterest: client.retirementInterest ?? 1,
+        wealthGrowthInterest: client.wealthGrowthInterest ?? 1,
+        incomeGenerationInterest: client.incomeGenerationInterest ?? 1,
+        capitalPreservationInterest: client.capitalPreservationInterest ?? 1,
+        estatePlanningInterest: client.estatePlanningInterest ?? 1,
         assets: assets.map(asset => ({
           id: asset.id,
           category: asset.category,
@@ -253,8 +253,8 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
             {/* Container flex per il layout 2/5 - 3/5 */}
             <div className="flex flex-col md:flex-row gap-6">
-              {/* Personal Information (2/5) */}
-              <Card className="w-full md:w-[40%]">
+              {/* Personal Information (2/5) - Allargata come richiesto */}
+              <Card className="w-full md:w-[45%]">
                 <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <HomeIcon className="mr-2 h-5 w-5 text-primary" />
@@ -449,8 +449,8 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
               </CardContent>
             </Card>
             
-            {/* Investment Profile (3/5) */}
-            <Card className="w-full md:w-[60%]">
+            {/* Investment Profile (3/5) - Adattato rispetto alla colonna sinistra */}
+            <Card className="w-full md:w-[55%]">
               <CardHeader>
                 <CardTitle className="flex items-center text-xl font-semibold">
                   <ArrowRight className="mr-2 h-5 w-5 text-primary" />
