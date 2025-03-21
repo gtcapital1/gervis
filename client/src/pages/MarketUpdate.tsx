@@ -214,6 +214,13 @@ export default function MarketUpdate() {
   } = useQuery<StockTicker[]>({
     queryKey: ['/api/market/tickers', userTickers],
     enabled: userTickers.length > 0,
+    queryFn: async () => {
+      const response = await fetch(`/api/market/tickers?symbols=${userTickers.join(',')}`);
+      if (!response.ok) {
+        throw new Error('Errore nel recupero dei dati dei ticker');
+      }
+      return response.json();
+    },
     retry: 1
   });
   
@@ -241,14 +248,22 @@ export default function MarketUpdate() {
       });
     },
     onSuccess: (data) => {
+      const tickerSymbol = data.symbol || newTickerSymbol.toUpperCase();
+      
       // Aggiungi il ticker alla lista dell'utente
-      if (!userTickers.includes(newTickerSymbol.toUpperCase())) {
-        setUserTickers([...userTickers, newTickerSymbol.toUpperCase()]);
+      if (!userTickers.includes(tickerSymbol)) {
+        const newTickers = [...userTickers, tickerSymbol];
+        setUserTickers(newTickers);
+        
+        // Forza un refresh dei dati ticker
+        setTimeout(() => {
+          refetchTickers();
+        }, 500);
       }
       setNewTickerSymbol("");
       toast({
         title: "Ticker aggiunto",
-        description: `${newTickerSymbol.toUpperCase()} è stato aggiunto alla tua lista.`,
+        description: `${tickerSymbol} è stato aggiunto alla tua lista.`,
       });
     },
     onError: (error) => {
