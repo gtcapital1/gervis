@@ -56,7 +56,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 // Form schema per i log
 const logFormSchema = z.object({
-  type: z.enum(["email", "note", "call", "meeting"], {
+  type: z.enum(["email", "call", "meeting"], {
     required_error: "Seleziona il tipo di log",
   }),
   title: z.string().min(1, {
