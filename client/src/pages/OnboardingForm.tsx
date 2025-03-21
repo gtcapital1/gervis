@@ -59,16 +59,23 @@ const onboardingFormSchema = z.object({
   investmentExperience: z.string().refine(val => EXPERIENCE_LEVELS.includes(val as any), {
     message: "Please select a valid experience level"
   }),
-  investmentGoals: z.array(z.string()).refine(
-    val => val.length > 0 && val.every(goal => INVESTMENT_GOALS.includes(goal as any)), {
-    message: "Please select at least one valid investment goal"
-  }),
   investmentHorizon: z.string().refine(val => INVESTMENT_HORIZONS.includes(val as any), {
     message: "Please select a valid investment horizon"
   }),
 
-  // Assets
-  assets: z.array(assetSchema).min(1, "Please add at least one asset")
+  // Interessi di investimento (scala 1-5)
+  retirementInterest: z.number().min(1).max(5),
+  wealthGrowthInterest: z.number().min(1).max(5),
+  incomeGenerationInterest: z.number().min(1).max(5),
+  capitalPreservationInterest: z.number().min(1).max(5),
+  estatePlanningInterest: z.number().min(1).max(5),
+  
+  // Interessi Personali
+  personalInterests: z.array(z.string()).optional(),
+  personalInterestsNotes: z.string().optional(),
+
+  // Assets (mantenuto per compatibilità ma gestito diversamente nell'interfaccia)
+  assets: z.array(assetSchema)
 });
 
 type OnboardingFormValues = z.infer<typeof onboardingFormSchema>;
@@ -104,6 +111,7 @@ export default function OnboardingForm() {
   const experienceLevelOptions = EXPERIENCE_LEVELS as unknown as [string, ...string[]];
   const investmentHorizonOptions = INVESTMENT_HORIZONS as unknown as [string, ...string[]];
   const investmentGoalOptions = INVESTMENT_GOALS as unknown as [string, ...string[]];
+  const personalInterestOptions = PERSONAL_INTERESTS as unknown as [string, ...string[]];
 
   // Define the client response type
   type ClientResponse = {
@@ -146,6 +154,13 @@ export default function OnboardingForm() {
     enabled: !!token
   });
   
+  // Prepara gli asset predefiniti con valore 0
+  const defaultAssets = ASSET_CATEGORIES.map(category => ({
+    value: 0,
+    category,
+    description: ""
+  }));
+
   // Form setup
   const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingFormSchema),
@@ -163,14 +178,21 @@ export default function OnboardingForm() {
       // Investment Profile
       riskProfile: "balanced", // Default to balanced risk
       investmentExperience: "none", // Default to no experience
-      investmentGoals: [], // No default goals
       investmentHorizon: "medium_term", // Default to medium term
       
-      // Assets
-      assets: [
-        // Start with one empty asset
-        { value: 0, category: "cash", description: "" }
-      ]
+      // Obiettivi di investimento con scala 1-5 (3 = valore neutro di default)
+      retirementInterest: 3,
+      wealthGrowthInterest: 3,
+      incomeGenerationInterest: 3,
+      capitalPreservationInterest: 3,
+      estatePlanningInterest: 3,
+      
+      // Interessi personali
+      personalInterests: [],
+      personalInterestsNotes: "",
+      
+      // Assets (precompilati con tutti i tipi e valore 0)
+      assets: defaultAssets
     }
   });
   
@@ -592,36 +614,223 @@ export default function OnboardingForm() {
                 )}
               />
 
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">{t('client.investment_goals')}</h3>
+                <FormDescription className="mb-4">
+                  Valuta il tuo interesse per i seguenti obiettivi di investimento su una scala da 1 a 5:
+                  (1 = non mi interessa per niente, 5 = mi interessa molto)
+                </FormDescription>
+                
+                <div className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="retirementInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>{t('investment_goals.retirement')}</FormLabel>
+                          <span className="text-sm font-medium">{field.value}/5</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            className="w-full"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Non mi interessa</span>
+                          <span>Mi interessa molto</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="wealthGrowthInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>{t('investment_goals.wealth_growth')}</FormLabel>
+                          <span className="text-sm font-medium">{field.value}/5</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            className="w-full"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Non mi interessa</span>
+                          <span>Mi interessa molto</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="incomeGenerationInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>{t('investment_goals.income_generation')}</FormLabel>
+                          <span className="text-sm font-medium">{field.value}/5</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            className="w-full"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Non mi interessa</span>
+                          <span>Mi interessa molto</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="capitalPreservationInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>{t('investment_goals.capital_preservation')}</FormLabel>
+                          <span className="text-sm font-medium">{field.value}/5</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            className="w-full"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Non mi interessa</span>
+                          <span>Mi interessa molto</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="estatePlanningInterest"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between mb-2">
+                          <FormLabel>{t('investment_goals.estate_planning')}</FormLabel>
+                          <span className="text-sm font-medium">{field.value}/5</span>
+                        </div>
+                        <FormControl>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            className="w-full"
+                            {...field}
+                            onChange={(e) => field.onChange(parseInt(e.target.value))}
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Non mi interessa</span>
+                          <span>Mi interessa molto</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Interessi Personali</CardTitle>
+              <CardDescription>
+                Seleziona i tuoi interessi personali per aiutarci a personalizzare meglio le nostre raccomandazioni
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="investmentGoals"
+                name="personalInterests"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('client.investment_goals')}</FormLabel>
+                    <FormLabel>I tuoi interessi</FormLabel>
                     <FormDescription>
-                      {t('client_edit.investment_goals')}
+                      Seleziona gli argomenti che ti interessano
                     </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                      {investmentGoalOptions.map(goal => (
-                        <div key={goal} className="flex items-center space-x-2">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                      {personalInterestOptions.map(interest => (
+                        <div key={interest} className="flex items-center space-x-2">
                           <Checkbox
-                            checked={field.value?.includes(goal)}
+                            checked={field.value?.includes(interest)}
                             onCheckedChange={(checked) => {
-                              const updatedGoals = checked
-                                ? [...(field.value || []), goal]
-                                : (field.value || []).filter((value) => value !== goal);
-                              field.onChange(updatedGoals);
+                              const updatedInterests = checked
+                                ? [...(field.value || []), interest]
+                                : (field.value || []).filter((value) => value !== interest);
+                              field.onChange(updatedInterests);
                             }}
+                            id={`interest-${interest}`}
                           />
                           <label 
-                            htmlFor={goal}
+                            htmlFor={`interest-${interest}`}
                             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                           >
-                            {t(`investment_goals.${goal}`)}
+                            {interest.charAt(0).toUpperCase() + interest.slice(1).replace('_', ' ')}
                           </label>
                         </div>
                       ))}
                     </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="personalInterestsNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note aggiuntive sui tuoi interessi</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Raccontaci qualcosa in più sui tuoi interessi o altre passioni non presenti nell'elenco..." 
+                        className="resize-none"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Questo campo è opzionale
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}

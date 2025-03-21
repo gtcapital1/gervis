@@ -56,6 +56,16 @@ export const EXPERIENCE_LEVELS = ["none", "beginner", "intermediate", "advanced"
 export type ExperienceLevel = typeof EXPERIENCE_LEVELS[number];
 
 // Investment Goals
+// Lista di interessi personali che possono essere selezionati dal cliente
+export const PERSONAL_INTERESTS = [
+  "travel", "sports", "technology", "art", "music", "cinema", 
+  "literature", "cooking", "fashion", "photography", "environment", 
+  "philanthropy", "health", "education", "real_estate", "entrepreneurship", 
+  "financial_markets", "politics", "science"
+] as const;
+export type PersonalInterest = typeof PERSONAL_INTERESTS[number];
+
+// Gli obiettivi di investimento ora utilizzano una scala da 1 a 5
 export const INVESTMENT_GOALS = ["retirement", "wealth_growth", "income_generation", "capital_preservation", "estate_planning"] as const;
 export type InvestmentGoal = typeof INVESTMENT_GOALS[number];
 
@@ -91,6 +101,15 @@ export const clients = pgTable("clients", {
   monthlyExpenses: integer("monthly_expenses"),
   dependents: integer("dependents"),
   employmentStatus: text("employment_status"),
+  // Nuovi campi per interessi personali e valutazione degli obiettivi di investimento
+  personalInterests: text("personal_interests").array(),
+  personalInterestsNotes: text("personal_interests_notes"),
+  // Scala da 1 a 5 per ogni obiettivo di investimento (1 = non interessa, 5 = interessa molto)
+  retirementInterest: integer("retirement_interest"),
+  wealthGrowthInterest: integer("wealth_growth_interest"),
+  incomeGenerationInterest: integer("income_generation_interest"),
+  capitalPreservationInterest: integer("capital_preservation_interest"),
+  estatePlanningInterest: integer("estate_planning_interest"),
   onboardingToken: text("onboarding_token"),
   tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
@@ -116,6 +135,15 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   monthlyExpenses: true,
   dependents: true,
   employmentStatus: true,
+  // Nuovi campi per interessi personali
+  personalInterests: true,
+  personalInterestsNotes: true,
+  // Campi per la valutazione degli obiettivi di investimento
+  retirementInterest: true,
+  wealthGrowthInterest: true,
+  incomeGenerationInterest: true,
+  capitalPreservationInterest: true,
+  estatePlanningInterest: true,
   advisorId: true,
 });
 
