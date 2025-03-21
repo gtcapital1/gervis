@@ -8,6 +8,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { autorunCascadeFix } from "./migrations/autorun-cascade-fix";
+import { autorunCreateClientLogs } from "./migrations/autorun-create-client-logs";
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -123,6 +124,15 @@ app.use((req, res, next) => {
     console.log("DEBUG - Fix vincoli CASCADE eseguito con successo");
   } catch (error) {
     console.error("ERRORE - Impossibile eseguire il fix vincoli CASCADE:", error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Esegui automaticamente la creazione della tabella client_logs
+  try {
+    await autorunCreateClientLogs(true);
+    console.log("DEBUG - Verifica tabella client_logs completata");
+  } catch (error) {
+    console.error("ERRORE - Impossibile verificare/creare la tabella client_logs:", error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

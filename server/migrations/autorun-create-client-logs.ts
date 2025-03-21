@@ -1,14 +1,14 @@
 /**
- * Questo script crea la tabella client_logs nel database per memorizzare le interazioni con i clienti.
+ * Script di migrazione automatica che viene eseguito all'avvio dell'applicazione
+ * per garantire che la tabella client_logs esista.
+ * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
 import { db } from "../db";
-import { SQL } from "drizzle-orm";
 import { sql } from "drizzle-orm/sql";
-import * as url from 'url';
 
-export async function createClientLogsTable() {
-  console.log("Creazione tabella client_logs...");
+export async function autorunCreateClientLogs(silent = false) {
+  if (!silent) console.log("Verifica tabella client_logs...");
   
   try {
     // Verifica se la tabella client_logs esiste già
@@ -23,9 +23,11 @@ export async function createClientLogsTable() {
     const exists = tableExists[0].exists;
     
     if (exists) {
-      console.log("La tabella client_logs esiste già.");
+      if (!silent) console.log("La tabella client_logs esiste già.");
       return;
     }
+    
+    if (!silent) console.log("Creazione tabella client_logs...");
     
     // Crea la tabella client_logs
     await db.execute(sql`
@@ -43,24 +45,9 @@ export async function createClientLogsTable() {
       );
     `);
     
-    console.log("Tabella client_logs creata con successo.");
+    if (!silent) console.log("Tabella client_logs creata con successo.");
   } catch (error) {
-    console.error("Errore durante la creazione della tabella client_logs:", error);
+    console.error("Errore durante la verifica/creazione della tabella client_logs:", error);
     throw error;
   }
-}
-
-// Per eseguire lo script direttamente
-const isMainModule = import.meta.url === url.pathToFileURL(process.argv[1]).href;
-
-if (isMainModule) {
-  createClientLogsTable()
-    .then(() => {
-      console.log("Migrazione completata.");
-      process.exit(0);
-    })
-    .catch((error) => {
-      console.error("Errore durante la migrazione:", error);
-      process.exit(1);
-    });
 }
