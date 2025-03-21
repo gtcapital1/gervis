@@ -51,25 +51,40 @@ const MAIN_INDICES = [
   { symbol: "^HSI", name: "Hang Seng", country: "hk" }
 ];
 
+// Dati fissi per indici di mercato (non cambiano ad ogni richiesta)
+const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number }> = {
+  "^GSPC": { price: 5234.54, changePercent: 0.75 },
+  "^DJI": { price: 39932.75, changePercent: 0.62 },
+  "^IXIC": { price: 16428.82, changePercent: 1.15 },
+  "^FTSE": { price: 7928.45, changePercent: 0.43 },
+  "^FTSEMIB.MI": { price: 33456.78, changePercent: 0.81 },
+  "^GDAXI": { price: 18243.69, changePercent: 0.56 },
+  "^FCHI": { price: 8124.32, changePercent: 0.38 },
+  "^VIX": { price: 14.32, changePercent: -3.42 },
+  "^HSI": { price: 16765.46, changePercent: -0.21 }
+};
+
 // Funzione per recuperare i dati degli indici principali
 export async function getMarketIndices(req: Request, res: Response) {
   try {
-    // Qui dovremmo fare una chiamata API a un servizio come Alpha Vantage, Yahoo Finance, ecc.
-    // Per semplicità, genereremo dati di esempio
-    
+    // Utilizziamo dati fissi che non cambiano ad ogni refresh
     const indices: MarketIndex[] = MAIN_INDICES.map(index => {
-      // Genera un prezzo casuale tra 1000 e 50000
-      const price = Math.random() * 49000 + 1000;
-      // Genera una variazione casuale tra -2% e 2%
-      const changePercent = (Math.random() * 4) - 2;
+      const data = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
+      const price = data.price;
+      const changePercent = data.changePercent;
       const change = price * (changePercent / 100);
+      
+      // Aggiungiamo una piccola variazione (max 0.05%) per simulare piccoli cambiamenti di mercato
+      // ma mantenere una certa stabilità
+      const smallVariation = (Math.random() * 0.1) - 0.05;
+      const adjustedPrice = price * (1 + smallVariation/100);
       
       return {
         symbol: index.symbol,
         name: index.name,
-        price,
-        change,
-        changePercent,
+        price: Math.round(adjustedPrice * 100) / 100,
+        change: Math.round(change * 100) / 100,
+        changePercent: Math.round(changePercent * 100) / 100,
         country: index.country
       };
     });
