@@ -584,7 +584,7 @@ Grazie per la tua fiducia e collaborazione.`
               </Card>
               
               {/* Second Box: Investment Profile */}
-              <Card>
+              <Card className="lg:col-span-4">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
