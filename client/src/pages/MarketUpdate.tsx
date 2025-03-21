@@ -59,7 +59,7 @@ const MarketIndexCard = ({ index }: { index: MarketIndex }) => {
       <CardHeader className="pb-2">
         <div className="flex justify-between items-center">
           <CardTitle className="text-lg">{index.name}</CardTitle>
-          <Badge variant={isPositive ? "success" : "destructive"} className="ml-2">
+          <Badge variant={isPositive ? "outline" : "destructive"} className={`ml-2 ${isPositive ? "bg-green-100 text-green-800" : ""}`}>
             {isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
             {index.changePercent.toFixed(2)}%
           </Badge>

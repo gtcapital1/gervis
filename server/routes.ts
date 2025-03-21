@@ -5,6 +5,7 @@ import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
+import { getMarketIndices, getTickerData, validateTicker, getFinancialNews } from "./market-api";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
