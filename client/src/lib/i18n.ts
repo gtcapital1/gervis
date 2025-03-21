@@ -591,6 +591,7 @@ const resourcesIt = {
 // English translations
 const resourcesEn = {
   translation: {
+
     admin: {
       admin_panel: "Admin Panel",
       welcome_admin: "Welcome to the Gervis administration panel. From here you can manage users and system settings.",
@@ -858,6 +859,7 @@ const resourcesEn = {
       expert: "Expert"
     },
     client: {
+      investment_priorities: "Investment Priorities",
       loading_details: "Loading client details...",
       error_loading: "Error loading client details.",
       back_to_dashboard: "Back to Dashboard",
