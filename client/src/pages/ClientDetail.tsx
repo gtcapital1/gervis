@@ -616,9 +616,8 @@ Grazie per la tua fiducia e collaborazione.`
                     </div>
                     
                     {/* Grafico a ragno per gli obiettivi di investimento */}
-                    {(client.retirementInterest || client.wealthGrowthInterest || 
-                      client.incomeGenerationInterest || client.capitalPreservationInterest || 
-                      client.estatePlanningInterest) && (
+                    {/* Mostro il grafico radar sempre quando il cliente è onboarded */}
+                    {client.isOnboarded && (
                       <div className="mt-4">
                         <span className="text-sm font-medium block mb-2">{t('client.investment_goals')}:</span>
                         <div className="h-[300px] w-full">
@@ -792,7 +791,7 @@ Grazie per la tua fiducia e collaborazione.`
                             <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
                             <div className="space-y-2">
                               {assets.map((asset) => (
-                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded">
+                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded bg-black text-white">
                                   <div className="flex items-center">
                                     <div className="w-2 h-2 rounded-full mr-2" 
                                       style={{
