@@ -492,9 +492,9 @@ Grazie per la tua fiducia e collaborazione.`
           
           <div className="space-y-6">
             {/* Top row: Personal Information and Investment Profile side by side */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 overflow-x-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 overflow-x-auto">
               {/* First Box: Personal Information */}
-              <Card>
+              <Card className="lg:col-span-1">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{t('client.personal_information')}</CardTitle>
                 </CardHeader>

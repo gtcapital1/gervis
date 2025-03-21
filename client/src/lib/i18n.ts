@@ -420,6 +420,7 @@ const resourcesIt = {
       asset_details: "Dettagli Asset",
       total: "Totale",
       asset_split: "Suddivisione Asset",
+      investment_priorities: "Priorità di investimento",
       recommendations_advice: "Le raccomandazioni e i consigli finanziari appariranno qui.",
       add_recommendation: "Aggiungi Raccomandazione",
       upgrade_pro: "Passa a PRO",
