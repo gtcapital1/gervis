@@ -651,7 +651,7 @@ Grazie per la tua fiducia e collaborazione.`
                             ]}>
                               <PolarGrid />
                               <PolarAngleAxis dataKey="goal" />
-                              <PolarRadiusAxis angle={90} domain={[0, 5]} />
+                              <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
                               <Radar 
                                 name={t('client.investment_priorities')} 
                                 dataKey="value" 
