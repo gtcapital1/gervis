@@ -3,6 +3,7 @@ import { useParams } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -58,7 +59,11 @@ const logFormSchema = z.object({
   content: z.string().min(1, {
     message: "Il contenuto è obbligatorio",
   }),
+  emailSubject: z.string().optional(),
+  emailRecipients: z.string().optional(),
+  logDate: z.date().default(() => new Date()),
   clientId: z.number(),
+  createdBy: z.number().optional(),
 });
 
 type LogFormValues = z.infer<typeof logFormSchema>;
@@ -70,7 +75,11 @@ type ClientLog = {
   type: "email" | "note" | "call" | "meeting";
   title: string;
   content: string;
+  emailSubject?: string | null;
+  emailRecipients?: string | null;
+  logDate: string;
   createdAt: string;
+  createdBy?: number | null;
 };
 
 // Tipo per i dettagli del cliente
@@ -99,7 +108,11 @@ export default function ClientLogs() {
       type: "note",
       title: "",
       content: "",
+      emailSubject: "",
+      emailRecipients: "",
+      logDate: new Date(),
       clientId: clientId,
+      createdBy: undefined,
     },
   });
 
@@ -344,6 +357,83 @@ export default function ClientLogs() {
                     </FormItem>
                   )}
                 />
+                
+                {form.watch("type") === "email" && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="emailSubject"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("Oggetto dell'email")}</FormLabel>
+                          <FormControl>
+                            <Input placeholder={t("Inserisci l'oggetto dell'email")} {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="emailRecipients"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("Destinatari")}</FormLabel>
+                          <FormControl>
+                            <Input placeholder={t("email@esempio.com, altro@esempio.com")} {...field} />
+                          </FormControl>
+                          <FormDescription>
+                            {t("Separare gli indirizzi email con una virgola")}
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+                
+                <FormField
+                  control={form.control}
+                  name="logDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>{t("Data dell'interazione")}</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, "PPP", { locale: it })
+                              ) : (
+                                <span>{t("Seleziona una data")}</span>
+                              )}
+                              <CalendarClock className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormDescription>
+                        {t("Data e ora dell'interazione con il cliente")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
                 <input type="hidden" {...form.register("clientId")} />
                 <DialogFooter>
                   <Button type="submit" disabled={createLogMutation.isPending}>
