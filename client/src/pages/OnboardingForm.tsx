@@ -776,72 +776,7 @@ export default function OnboardingForm() {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardHeader>
-              <CardTitle>Interessi Personali</CardTitle>
-              <CardDescription>
-                Seleziona i tuoi interessi personali per aiutarci a personalizzare meglio le nostre raccomandazioni
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="personalInterests"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>I tuoi interessi</FormLabel>
-                    <FormDescription>
-                      Seleziona gli argomenti che ti interessano
-                    </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                      {personalInterestOptions.map(interest => (
-                        <div key={interest} className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={field.value?.includes(interest)}
-                            onCheckedChange={(checked) => {
-                              const updatedInterests = checked
-                                ? [...(field.value || []), interest]
-                                : (field.value || []).filter((value) => value !== interest);
-                              field.onChange(updatedInterests);
-                            }}
-                            id={`interest-${interest}`}
-                          />
-                          <label 
-                            htmlFor={`interest-${interest}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {interest.charAt(0).toUpperCase() + interest.slice(1).replace('_', ' ')}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="personalInterestsNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Note aggiuntive sui tuoi interessi</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Raccontaci qualcosa in più sui tuoi interessi o altre passioni non presenti nell'elenco..." 
-                        className="resize-none"
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormDescription>
-                      Questo campo è opzionale
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
+
           
           <Card>
             <CardHeader className="space-y-1">
@@ -955,6 +890,73 @@ export default function OnboardingForm() {
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>Interessi Personali</CardTitle>
+              <CardDescription>
+                Condividi i tuoi interessi personali per aiutarci a offrirti un'esperienza di consulenza finanziaria unica e personalizzata
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="personalInterests"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>I tuoi interessi</FormLabel>
+                    <FormDescription>
+                      Seleziona gli argomenti che ti interessano per permetterci di conoscere meglio le tue passioni
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                      {personalInterestOptions.map(interest => (
+                        <div key={interest} className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={field.value?.includes(interest)}
+                            onCheckedChange={(checked) => {
+                              const updatedInterests = checked
+                                ? [...(field.value || []), interest]
+                                : (field.value || []).filter((value) => value !== interest);
+                              field.onChange(updatedInterests);
+                            }}
+                            id={`interest-${interest}`}
+                          />
+                          <label 
+                            htmlFor={`interest-${interest}`}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            {interest.charAt(0).toUpperCase() + interest.slice(1).replace('_', ' ')}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="personalInterestsNotes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Note aggiuntive sui tuoi interessi</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder="Raccontaci qualcosa in più sui tuoi interessi o altre passioni non presenti nell'elenco..." 
+                        className="resize-none"
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Questo campo è opzionale
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
           
