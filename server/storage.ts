@@ -780,16 +780,13 @@ export class PostgresStorage implements IStorage {
   async createClientLog(insertLog: InsertClientLog): Promise<ClientLog> {
     try {
       // Verifichiamo che il cliente esista prima di creare il log
-      const client = await this.getClient(insertLog.clientId);
+      const client = await this.getClient(insertLog.clientId || 0);
       if (!client) {
         throw new Error(`Client with id ${insertLog.clientId} not found`);
       }
 
       const result = await db.insert(clientLogs)
-        .values({
-          ...insertLog,
-          createdAt: new Date()
-        })
+        .values(insertLog)
         .returning();
       
       return result[0];

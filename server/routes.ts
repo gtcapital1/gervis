@@ -1206,6 +1206,176 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // API per i Log dei Clienti
+  app.get("/api/client-logs/:clientId", isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      if (isNaN(clientId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid client ID format"
+        });
+      }
+
+      // Verifica che l'utente abbia accesso a questo cliente
+      if (req.user?.role !== 'admin') {
+        const clients = await storage.getClientsByAdvisor(req.user?.id as number);
+        const hasAccess = clients.some(client => client.id === clientId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({
+            success: false,
+            message: "You don't have access to this client's logs"
+          });
+        }
+      }
+
+      console.log(`[INFO] Recupero log per cliente ID: ${clientId}`);
+      const logs = await storage.getClientLogs(clientId);
+      
+      res.json({
+        success: true,
+        logs
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore recupero log cliente:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve client logs",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.post("/api/client-logs", isAuthenticated, async (req, res) => {
+    try {
+      const { clientId, type, title, content } = req.body;
+      
+      if (!clientId || !type || !title || !content) {
+        return res.status(400).json({
+          success: false,
+          message: "Missing required fields"
+        });
+      }
+
+      // Verifica che l'utente abbia accesso a questo cliente
+      if (req.user?.role !== 'admin') {
+        const clients = await storage.getClientsByAdvisor(req.user?.id as number);
+        const hasAccess = clients.some(client => client.id === clientId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({
+            success: false,
+            message: "You don't have permission to add logs for this client"
+          });
+        }
+      }
+
+      console.log(`[INFO] Creazione log per cliente ID: ${clientId}, tipo: ${type}`);
+      
+      const logData = {
+        clientId,
+        type,
+        title,
+        content,
+        logDate: new Date(),
+        createdBy: req.user?.id
+      };
+
+      const newLog = await storage.createClientLog(logData);
+      
+      res.json({
+        success: true,
+        message: "Log created successfully",
+        log: newLog
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore creazione log cliente:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to create client log",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.put("/api/client-logs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const logId = parseInt(req.params.id);
+      if (isNaN(logId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid log ID format"
+        });
+      }
+
+      const { type, title, content } = req.body;
+      
+      if (!type && !title && !content) {
+        return res.status(400).json({
+          success: false,
+          message: "No fields to update"
+        });
+      }
+
+      console.log(`[INFO] Aggiornamento log ID: ${logId}`);
+      
+      const updatedLog = await storage.updateClientLog(logId, {
+        type,
+        title,
+        content
+      });
+      
+      res.json({
+        success: true,
+        message: "Log updated successfully",
+        log: updatedLog
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore aggiornamento log:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to update client log",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  app.delete("/api/client-logs/:id", isAuthenticated, async (req, res) => {
+    try {
+      const logId = parseInt(req.params.id);
+      if (isNaN(logId)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid log ID format"
+        });
+      }
+
+      console.log(`[INFO] Eliminazione log ID: ${logId}`);
+      
+      const deleted = await storage.deleteClientLog(logId);
+      
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          message: "Log not found or already deleted"
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Log deleted successfully"
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore eliminazione log:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to delete client log",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
