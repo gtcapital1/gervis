@@ -306,7 +306,8 @@ export async function getTickerData(req: Request, res: Response) {
               name: item.name,
               price: parseFloat(item.price.toFixed(2)),
               change: parseFloat(item.change.toFixed(2)),
-              changePercent: parseFloat(item.changesPercentage.toFixed(2))
+              changePercent: parseFloat(item.changesPercentage.toFixed(2)),
+              currency: "$"
             };
           });
           
