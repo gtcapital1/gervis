@@ -100,9 +100,12 @@ export async function getTickerData(req: Request, res: Response) {
       const changePercent = (Math.random() * 10) - 5;
       const change = price * (changePercent / 100);
       
+      // Cerca il nome completo nella lista dei popolari ticker
+      const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
+      
       return {
         symbol,
-        name: symbol, // Idealmente qui avremmo il nome completo dell'azienda
+        name: tickerInfo ? tickerInfo.name : symbol, // Usa il nome completo se disponibile
         price,
         change,
         changePercent
