@@ -481,24 +481,25 @@ export default function MarketUpdate() {
             </Alert>
           ) : (
             <div>
-              {/* Per il test mostriamo mock data - sarà sostituita dai dati reali quando l'API sarà implementata */}
-              <div>
-                {[...Array(5)].map((_, i) => (
-                  <NewsCard
-                    key={i}
-                    news={{
-                      title: `Notizia finanziaria di esempio ${i + 1}`,
-                      description: "Questa è una descrizione di esempio per una notizia finanziaria. I dettagli saranno sostituiti da dati reali provenienti da NewsAPI.",
-                      url: "https://example.com",
-                      urlToImage: i % 2 === 0 ? "https://via.placeholder.com/300x200?text=Financial+News" : "",
-                      publishedAt: new Date().toISOString(),
-                      source: {
-                        name: "Fonte Finanziaria"
-                      }
-                    }}
-                  />
-                ))}
-              </div>
+              {newsData && newsData.length > 0 ? (
+                <div>
+                  {newsData.map((news, i) => (
+                    <NewsCard key={i} news={news} />
+                  ))}
+                </div>
+              ) : (
+                <Card className="mb-6">
+                  <CardContent className="flex flex-col items-center justify-center p-10">
+                    <Newspaper className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-xl font-semibold text-center mb-2">
+                      {t('market.no_news') || "Nessuna notizia disponibile"}
+                    </p>
+                    <p className="text-muted-foreground text-center mb-4">
+                      {t('market.no_news_message') || "Al momento non ci sono notizie disponibili. Riprova più tardi."}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </TabsContent>
