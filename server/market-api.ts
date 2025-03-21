@@ -106,14 +106,26 @@ export async function getMarketIndices(req: Request, res: Response) {
     // Prepariamo le richieste per tutti gli indici
     const fetchPromises = MAIN_INDICES.map(async (index) => {
       try {
-        // Normalizziamo il simbolo per la API
-        // Alcuni simboli hanno formati diversi tra provider
+        // Il piano gratuito di Financial Modeling Prep è limitato solo alle azioni americane
+        // Quindi controlliamo se l'indice è americano
+        if (index.country !== 'us') {
+          // Per indici non americani, usiamo i dati fissi
+          const fallbackData = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
+          return {
+            symbol: index.symbol,
+            name: index.name,
+            price: fallbackData.price,
+            change: fallbackData.price * (fallbackData.changePercent / 100),
+            changePercent: fallbackData.changePercent,
+            country: index.country
+          };
+        }
+        
+        // Normalizziamo il simbolo per la API per indici americani
         let apiSymbol = index.symbol;
         
-        // Gestione caso speciale per FTSE MIB
-        if (apiSymbol === "^FTSEMIB.MI") {
-          apiSymbol = "FTSEMIB.MI";
-        } else if (apiSymbol.startsWith("^")) {
+        // Rimuoviamo il prefisso ^ che potrebbe esserci nel simbolo
+        if (apiSymbol.startsWith("^")) {
           apiSymbol = apiSymbol.substring(1);
         }
         
@@ -244,31 +256,97 @@ export async function getTickerData(req: Request, res: Response) {
       return res.json(cachedData);
     }
     
-    // Facciamo una singola chiamata API per tutti i ticker
-    const symbolsString = symbols.join(',');
-    const url = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${apiKey}`;
+    // Separa i ticker americani da quelli non americani
+    // Il piano gratuito di Financial Modeling Prep supporta solo azioni americane
+    const usSymbols: string[] = [];
+    const nonUsSymbols: string[] = [];
     
-    try {
-      const response = await axios.get(url);
+    symbols.forEach(symbol => {
+      // Consideriamo non-US tutte le azioni con .MI (Milano), .PA (Parigi), ecc.
+      if (symbol.includes('.')) {
+        nonUsSymbols.push(symbol);
+      } else {
+        usSymbols.push(symbol);
+      }
+    });
+    
+    // Array per i risultati
+    let tickers: StockTicker[] = [];
+    
+    // Per i ticker non americani, usiamo i dati fissi
+    nonUsSymbols.forEach(symbol => {
+      const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
+      const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
       
-      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-        // Trasformiamo i dati nel formato atteso
-        const tickers: StockTicker[] = response.data.map((item: any) => {
-          return {
-            symbol: item.symbol,
-            name: item.name,
-            price: parseFloat(item.price.toFixed(2)),
-            change: parseFloat(item.change.toFixed(2)),
-            changePercent: parseFloat(item.changesPercentage.toFixed(2))
-          };
-        });
+      tickers.push({
+        symbol,
+        name: tickerInfo ? tickerInfo.name : symbol,
+        price: fallbackData.price,
+        change: fallbackData.price * (fallbackData.changePercent / 100),
+        changePercent: fallbackData.changePercent
+      });
+    });
+    
+    // Per i ticker americani, proviamo a ottenere dati reali
+    if (usSymbols.length > 0) {
+      try {
+        const symbolsString = usSymbols.join(',');
+        const url = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${apiKey}`;
         
-        // Verifichiamo se abbiamo tutti i ticker richiesti
-        const foundSymbols = tickers.map(t => t.symbol);
-        const missingSymbols = symbols.filter(s => !foundSymbols.includes(s));
+        const response = await axios.get(url);
         
-        // Aggiungiamo i ticker mancanti usando i dati fissi
-        for (const symbol of missingSymbols) {
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          // Trasformiamo i dati nel formato atteso
+          const usTickers: StockTicker[] = response.data.map((item: any) => {
+            return {
+              symbol: item.symbol,
+              name: item.name,
+              price: parseFloat(item.price.toFixed(2)),
+              change: parseFloat(item.change.toFixed(2)),
+              changePercent: parseFloat(item.changesPercentage.toFixed(2))
+            };
+          });
+          
+          // Combiniamo i ticker US con quelli non-US
+          tickers = [...tickers, ...usTickers];
+          
+          // Verifichiamo se abbiamo tutti i ticker americani richiesti
+          const foundSymbols = usTickers.map(t => t.symbol);
+          const missingSymbols = usSymbols.filter(s => !foundSymbols.includes(s));
+          
+          // Aggiungiamo i ticker americani mancanti usando i dati fissi
+          for (const symbol of missingSymbols) {
+            const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
+            const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
+            
+            tickers.push({
+              symbol,
+              name: tickerInfo ? tickerInfo.name : symbol,
+              price: fallbackData.price,
+              change: fallbackData.price * (fallbackData.changePercent / 100),
+              changePercent: fallbackData.changePercent
+            });
+          }
+        } else {
+          // Se non abbiamo dati dall'API, usiamo i dati fissi per tutti i ticker americani
+          for (const symbol of usSymbols) {
+            const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
+            const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
+            
+            tickers.push({
+              symbol,
+              name: tickerInfo ? tickerInfo.name : symbol,
+              price: fallbackData.price,
+              change: fallbackData.price * (fallbackData.changePercent / 100),
+              changePercent: fallbackData.changePercent
+            });
+          }
+        }
+      } catch (apiError) {
+        console.error("Errore nella chiamata API per ticker americani:", apiError);
+        
+        // In caso di errore dell'API, usiamo i dati fissi per tutti i ticker americani
+        for (const symbol of usSymbols) {
           const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
           const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
           
@@ -280,36 +358,13 @@ export async function getTickerData(req: Request, res: Response) {
             changePercent: fallbackData.changePercent
           });
         }
-        
-        // Salviamo i dati nella cache
-        saveToCache(cacheKey, tickers, 30 * 60 * 1000); // Cache valida per 30 minuti
-        
-        return res.json(tickers);
-      } else {
-        throw new Error("Dati non disponibili");
       }
-    } catch (apiError) {
-      console.error("Errore nella chiamata API:", apiError);
-      
-      // In caso di errore dell'API, utilizzare i dati fissi
-      const tickers: StockTicker[] = symbols.map(symbol => {
-        const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-        const fallbackData = FIXED_TICKER_DATA[symbol] || { price: 100, changePercent: 0.5 };
-        
-        return {
-          symbol,
-          name: tickerInfo ? tickerInfo.name : symbol,
-          price: fallbackData.price,
-          change: fallbackData.price * (fallbackData.changePercent / 100),
-          changePercent: fallbackData.changePercent
-        };
-      });
-      
-      // Salviamo anche questi dati nella cache
-      saveToCache(cacheKey, tickers, 10 * 60 * 1000); // Cache più breve (10 minuti) per i dati di fallback
-      
-      return res.json(tickers);
     }
+    
+    // Salviamo i dati nella cache
+    saveToCache(cacheKey, tickers, 30 * 60 * 1000); // Cache valida per 30 minuti
+    
+    res.json(tickers);
   } catch (error) {
     console.error("Errore nel recupero dei dati dei ticker:", error);
     
