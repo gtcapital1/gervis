@@ -54,204 +54,7 @@ interface NewsItem {
   };
 }
 
-// Componente selettore timeframe per i grafici
-const TimeframeSelector = ({ 
-  selectedTimeframe, 
-  onChange 
-}: { 
-  selectedTimeframe: TimeFrame, 
-  onChange: (timeframe: TimeFrame) => void 
-}) => {
-  const timeframes: TimeFrame[] = ['1D', '1W', '1M', '1Y', '3Y', '5Y', '10Y'];
-  
-  return (
-    <div className="flex space-x-1 bg-muted rounded-lg p-1 mb-4 w-fit">
-      {timeframes.map((tf) => (
-        <Button
-          key={tf}
-          variant={selectedTimeframe === tf ? "default" : "ghost"}
-          size="sm"
-          onClick={() => onChange(tf)}
-          className="text-xs px-2 py-1 h-7"
-        >
-          {tf}
-        </Button>
-      ))}
-    </div>
-  );
-};
-
-// Componente grafico per indici e stocks (realistico)
-const ChartComponent = ({ 
-  symbol, 
-  timeframe, 
-  type = 'index'
-}: { 
-  symbol: string, 
-  timeframe: TimeFrame,
-  type?: 'index' | 'stock'
-}) => {
-  // Generiamo dati casuali per mostrare un grafico più realistico
-  const [data, setData] = useState<Array<{date: string, value: number}>>([]);
-  const [chartLoading, setChartLoading] = useState(true);
-  const [priceInfo, setPriceInfo] = useState({
-    current: 0,
-    previous: 0,
-    change: 0,
-    isPositive: true
-  });
-  
-  // Effetto per generare dati simulati basati sul timeframe
-  useEffect(() => {
-    setChartLoading(true);
-    
-    // Simulazione caricamento dati da API
-    setTimeout(() => {
-      const numPoints = timeframe === '1D' ? 24 : 
-                      timeframe === '1W' ? 7 : 
-                      timeframe === '1M' ? 30 : 
-                      timeframe === '1Y' ? 12 : 
-                      timeframe === '3Y' ? 36 : 
-                      timeframe === '5Y' ? 20 : 40;
-      
-      // Genera un valore di base per il simbolo (basato sul suo nome)
-      const symbolValue = symbol.split('').reduce((a, b) => a + b.charCodeAt(0), 0) % 100;
-      const baseValue = type === 'index' ? symbolValue * 100 + 1000 : symbolValue * 5 + 50;
-      
-      // Genera dati casuali con trend generale verso l'alto
-      // Genera un trend realistico con variazioni casuali ma con direzione basata sul simbolo
-      const trendDirection = (symbol.charCodeAt(0) % 2 === 0) ? 1 : -1; // Alterniamo trend positivi e negativi
-      const newData = Array.from({ length: numPoints }, (_, i) => {
-        // Creiamo varianza più realistica
-        const variance = (Math.random() * 20) - 10; // Varianza tra -10 e +10
-        const trend = ((i / numPoints) * 15) * trendDirection; // Trend che segue la direzione
-        const value = baseValue + variance + trend;
-        
-        // La data dipende dal timeframe
-        let date = new Date();
-        if (timeframe === '1D') {
-          date.setHours(date.getHours() - (numPoints - i - 1));
-          return { date: date.toLocaleTimeString(), value };
-        } else if (timeframe === '1W') {
-          date.setDate(date.getDate() - (numPoints - i - 1));
-          return { date: date.toLocaleDateString(), value };
-        } else if (timeframe === '1M') {
-          date.setDate(date.getDate() - (numPoints - i - 1));
-          return { date: date.toLocaleDateString(), value };
-        } else {
-          date.setMonth(date.getMonth() - (numPoints - i - 1));
-          return { date: date.toLocaleDateString(), value };
-        }
-      });
-      
-      // Aggiorna i dati
-      setData(newData);
-      
-      // Imposta le informazioni di prezzo
-      const currentPrice = newData[newData.length - 1].value;
-      const previousPrice = newData[0].value;
-      const priceChange = currentPrice - previousPrice;
-      
-      setPriceInfo({
-        current: currentPrice,
-        previous: previousPrice,
-        change: priceChange,
-        isPositive: priceChange >= 0
-      });
-      
-      setChartLoading(false);
-    }, 1000);
-  }, [symbol, timeframe, type]);
-  
-  // Rendering del componente grafico
-  return (
-    <Card className="mb-6">
-      <CardHeader className="pb-0">
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-lg text-black">{symbol}</CardTitle>
-            <CardDescription>{type === 'index' ? 'Indice' : 'Azione'} - Timeframe: {timeframe}</CardDescription>
-          </div>
-          <div className="flex flex-col items-end">
-            {!chartLoading && (
-              <>
-                <span className="text-lg font-bold">
-                  {priceInfo.current.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </span>
-                <span className={priceInfo.isPositive ? "text-green-600 text-sm" : "text-red-600 text-sm"}>
-                  {priceInfo.isPositive ? "+" : ""}{priceInfo.change.toFixed(2)} ({((priceInfo.change / priceInfo.previous) * 100).toFixed(2)}%)
-                </span>
-              </>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {chartLoading ? (
-          <div className="h-[300px] w-full bg-muted flex items-center justify-center rounded-md overflow-hidden my-2 animate-pulse">
-            <LineChart className="h-16 w-16 text-muted-foreground opacity-50" />
-            <p className="ml-2 text-muted-foreground">Caricamento dati...</p>
-          </div>
-        ) : (
-          <div className="h-[300px] w-full relative">
-            {/* Area grafico con sfondo e assi */}
-            <div className="absolute inset-0 rounded-md overflow-hidden bg-white border">
-              {/* Indicatore asse Y con valori */}
-              <div className="absolute left-0 top-0 bottom-0 w-12 flex flex-col justify-between py-4 text-xs text-black">
-                <span>{Math.max(...data.map(d => d.value)).toFixed(0)}</span>
-                <span>{((Math.max(...data.map(d => d.value)) + Math.min(...data.map(d => d.value))) / 2).toFixed(0)}</span>
-                <span>{Math.min(...data.map(d => d.value)).toFixed(0)}</span>
-              </div>
-              
-              {/* Linee di griglia orizzontali */}
-              <div className="absolute left-12 right-0 top-0 bottom-0">
-                <div className="h-1/3 border-b border-gray-100"></div>
-                <div className="h-1/3 border-b border-gray-100"></div>
-              </div>
-              
-              {/* Area del grafico con gradiente colorato */}
-              <div className="absolute inset-0 ml-12">
-                <div 
-                  className={`h-full w-full ${priceInfo.isPositive ? 'bg-gradient-to-t from-green-50 to-transparent' : 'bg-gradient-to-t from-red-50 to-transparent'}`}
-                ></div>
-                
-                {/* Linea del grafico usando SVG */}
-                <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-                  <path 
-                    d={`M0,${100 - ((data[0]?.value || 0) / (Math.max(...data.map(d => d.value)) * 0.9) * 100)} ${data.map((point, index) => {
-                      const x = index / (data.length - 1) * 100;
-                      const y = 100 - ((point.value / (Math.max(...data.map(d => d.value)) * 0.9)) * 100);
-                      return `L${x},${y}`;
-                    }).join(' ')} L100,100 L0,100 Z`}
-                    fill={priceInfo.isPositive ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}
-                    stroke="none"
-                  />
-                  <path 
-                    d={`M0,${100 - ((data[0]?.value || 0) / (Math.max(...data.map(d => d.value)) * 0.9) * 100)} ${data.map((point, index) => {
-                      const x = index / (data.length - 1) * 100;
-                      const y = 100 - ((point.value / (Math.max(...data.map(d => d.value)) * 0.9)) * 100);
-                      return `L${x},${y}`;
-                    }).join(' ')}`}
-                    fill="none"
-                    stroke={priceInfo.isPositive ? 'rgb(34, 197, 94)' : 'rgb(239, 68, 68)'}
-                    strokeWidth="1.5"
-                  />
-                </svg>
-              </div>
-              
-              {/* Etichette temporali asse X */}
-              <div className="absolute bottom-0 left-12 right-0 flex justify-between text-xs text-black px-2 py-1 bg-gray-50 border-t">
-                <span>{data[0]?.date}</span>
-                <span>{data[Math.floor(data.length / 2)]?.date}</span>
-                <span>{data[data.length - 1]?.date}</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-};
+// I componenti TimeframeSelector e ChartComponent sono stati rimossi
 
 // Funzione per visualizzare la bandiera del paese corrispondente
 function Flag({ country, size = 24 }: { country: string, size?: number }) {
@@ -437,7 +240,8 @@ export default function MarketUpdate() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [tickerSuggestions, setTickerSuggestions] = useState<TickerSuggestion[]>([]);
   const [showCommandDialog, setShowCommandDialog] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<TimeFrame>('1D');
+  // Rimosso perché il grafico è stato eliminato
+  // const [selectedTimeframe, setSelectedTimeframe] = useState<TimeFrame>('1D');
   const [selectedIndex, setSelectedIndex] = useState<string>("^GSPC"); // S&P 500 come default
   const [selectedStock, setSelectedStock] = useState<string>(DEFAULT_US_STOCKS[0]);
   const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -693,21 +497,7 @@ export default function MarketUpdate() {
         <TabsContent value="indices">
           <h2 className="text-2xl font-semibold mb-4 text-black">{t('market.main_indices') || "Indici Principali"}</h2>
           
-          {/* Sezione grafico per l'indice selezionato */}
-          {activeTab === "indices" && selectedIndex && (
-            <div className="mb-6">
-              <TimeframeSelector 
-                selectedTimeframe={selectedTimeframe} 
-                onChange={setSelectedTimeframe} 
-              />
-              
-              <ChartComponent 
-                symbol={selectedIndex}
-                timeframe={selectedTimeframe}
-                type="index"
-              />
-            </div>
-          )}
+          {/* Sezione grafico rimossa */}
           
           {indicesLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -818,21 +608,7 @@ export default function MarketUpdate() {
             </div>
           </div>
 
-          {/* Sezione grafico per lo stock o indice selezionato */}
-          {(activeTab === "stocks" && selectedStock) || (activeTab === "indices" && selectedIndex) ? (
-            <div className="mb-6">
-              <TimeframeSelector 
-                selectedTimeframe={selectedTimeframe} 
-                onChange={setSelectedTimeframe} 
-              />
-              
-              <ChartComponent 
-                symbol={activeTab === "stocks" ? selectedStock : selectedIndex}
-                timeframe={selectedTimeframe}
-                type={activeTab === "stocks" ? "stock" : "index"}
-              />
-            </div>
-          ) : null}
+          {/* Rimossi i grafici che causavano problemi */}
           
           {userTickers.length === 0 ? (
             <Card className="mb-6">
