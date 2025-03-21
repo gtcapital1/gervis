@@ -16,6 +16,7 @@ interface MarketIndex {
   price: number;
   change: number;
   changePercent: number;
+  country: string;
 }
 
 interface StockTicker {
@@ -39,12 +40,15 @@ interface NewsItem {
 
 // Indici principali da monitorare
 const MAIN_INDICES = [
-  { symbol: "^GSPC", name: "S&P 500" },
-  { symbol: "^DJI", name: "Dow Jones" },
-  { symbol: "^IXIC", name: "NASDAQ" },
-  { symbol: "^FTSE", name: "FTSE 100" },
-  { symbol: "^FTSEMIB.MI", name: "FTSE MIB" },
-  { symbol: "^GDAXI", name: "DAX" }
+  { symbol: "^GSPC", name: "S&P 500", country: "us" },
+  { symbol: "^DJI", name: "Dow Jones", country: "us" },
+  { symbol: "^IXIC", name: "NASDAQ", country: "us" },
+  { symbol: "^FTSE", name: "FTSE 100", country: "gb" },
+  { symbol: "^FTSEMIB.MI", name: "FTSE MIB", country: "it" },
+  { symbol: "^GDAXI", name: "DAX", country: "de" },
+  { symbol: "^FCHI", name: "CAC 40", country: "fr" },
+  { symbol: "^VIX", name: "VIX", country: "us" },
+  { symbol: "^HSI", name: "Hang Seng", country: "hk" }
 ];
 
 // Funzione per recuperare i dati degli indici principali
@@ -65,7 +69,8 @@ export async function getMarketIndices(req: Request, res: Response) {
         name: index.name,
         price,
         change,
-        changePercent
+        changePercent,
+        country: index.country
       };
     });
     
@@ -111,6 +116,66 @@ export async function getTickerData(req: Request, res: Response) {
   }
 }
 
+// Suggerimenti di ticker popolari per simulare l'autocompletamento
+const POPULAR_TICKERS = [
+  { symbol: "AAPL", name: "Apple Inc." },
+  { symbol: "MSFT", name: "Microsoft Corporation" },
+  { symbol: "GOOGL", name: "Alphabet Inc." },
+  { symbol: "AMZN", name: "Amazon.com Inc." },
+  { symbol: "META", name: "Meta Platforms Inc." },
+  { symbol: "TSLA", name: "Tesla Inc." },
+  { symbol: "NVDA", name: "NVIDIA Corporation" },
+  { symbol: "NFLX", name: "Netflix Inc." },
+  { symbol: "PYPL", name: "PayPal Holdings Inc." },
+  { symbol: "INTC", name: "Intel Corporation" },
+  { symbol: "AMD", name: "Advanced Micro Devices Inc." },
+  { symbol: "CSCO", name: "Cisco Systems Inc." },
+  { symbol: "ADBE", name: "Adobe Inc." },
+  { symbol: "DIS", name: "The Walt Disney Company" },
+  { symbol: "CMCSA", name: "Comcast Corporation" },
+  { symbol: "V", name: "Visa Inc." },
+  { symbol: "MA", name: "Mastercard Incorporated" },
+  { symbol: "JPM", name: "JPMorgan Chase & Co." },
+  { symbol: "BAC", name: "Bank of America Corporation" },
+  { symbol: "WMT", name: "Walmart Inc." },
+  { symbol: "JNJ", name: "Johnson & Johnson" },
+  { symbol: "PG", name: "Procter & Gamble Co." },
+  { symbol: "HD", name: "The Home Depot Inc." },
+  { symbol: "VZ", name: "Verizon Communications Inc." },
+  { symbol: "T", name: "AT&T Inc." },
+  { symbol: "KO", name: "The Coca-Cola Company" },
+  { symbol: "PEP", name: "PepsiCo Inc." },
+  { symbol: "ENI.MI", name: "Eni S.p.A." },
+  { symbol: "ENEL.MI", name: "Enel S.p.A." },
+  { symbol: "ISP.MI", name: "Intesa Sanpaolo S.p.A." },
+  { symbol: "UCG.MI", name: "UniCredit S.p.A." },
+  { symbol: "STM.MI", name: "STMicroelectronics N.V." },
+  { symbol: "TIT.MI", name: "Telecom Italia S.p.A." },
+  { symbol: "FCA.MI", name: "Stellantis N.V." }
+];
+
+// Funzione per ottenere suggerimenti ticker in base alla query
+export async function getTickerSuggestions(req: Request, res: Response) {
+  try {
+    const query = req.query.q as string;
+    
+    if (!query || query.length < 1) {
+      return res.json([]);
+    }
+    
+    // Filtra i ticker che corrispondono alla query (ignora case)
+    const suggestions = POPULAR_TICKERS.filter(ticker => 
+      ticker.symbol.toLowerCase().includes(query.toLowerCase()) || 
+      ticker.name.toLowerCase().includes(query.toLowerCase())
+    ).slice(0, 5); // Limita a 5 risultati
+    
+    res.json(suggestions);
+  } catch (error) {
+    console.error("Errore nel recupero dei suggerimenti ticker:", error);
+    res.status(500).json({ error: "Errore nel recupero dei suggerimenti ticker" });
+  }
+}
+
 // Funzione per validare se un ticker esiste
 export async function validateTicker(req: Request, res: Response) {
   try {
@@ -120,13 +185,28 @@ export async function validateTicker(req: Request, res: Response) {
       return res.status(400).json({ error: "Simbolo ticker non fornito" });
     }
     
-    // In una vera implementazione, verificheremmo se il ticker esiste consultando un'API
-    // Per semplicità, consideriamo validi tutti i ticker
+    // Verifichiamo se il ticker esiste nella nostra lista
+    const tickerExists = POPULAR_TICKERS.some(ticker => 
+      ticker.symbol.toLowerCase() === symbol.toLowerCase()
+    );
+    
+    // Se esiste nella lista, lo consideriamo valido
+    // Altrimenti consideriamo comunque valido (per facilità d'uso)
+    const isValid = true;
+    
+    // Recupera il nome completo se disponibile
+    const tickerInfo = POPULAR_TICKERS.find(ticker => 
+      ticker.symbol.toLowerCase() === symbol.toLowerCase()
+    );
     
     // Simuliamo un ritardo di risposta per rendere l'applicazione più realistica
     setTimeout(() => {
-      res.json({ valid: true, symbol });
-    }, 500);
+      res.json({ 
+        valid: isValid, 
+        symbol: symbol.toUpperCase(),
+        name: tickerInfo ? tickerInfo.name : symbol.toUpperCase()
+      });
+    }, 300);
   } catch (error) {
     console.error("Errore nella validazione del ticker:", error);
     res.status(500).json({ error: "Errore nella validazione del ticker" });
