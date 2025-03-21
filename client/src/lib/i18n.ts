@@ -510,6 +510,20 @@ const resourcesIt = {
       english: "Inglese",
       italian: "Italiano"
     },
+    market: {
+      title: "Aggiornamento Mercati",
+      refresh: "Aggiorna Dati",
+      indices: "Indici",
+      stocks: "Azioni",
+      news: "Notizie",
+      main_indices: "Indici Principali",
+      your_tickers: "I Tuoi Ticker",
+      add_ticker_placeholder: "Aggiungi ticker (es. AAPL)",
+      add: "Aggiungi",
+      no_tickers: "Nessun ticker aggiunto",
+      add_tickers_message: "Aggiungi i ticker delle azioni che desideri monitorare",
+      financial_news: "Notizie Finanziarie"
+    },
     pdf: {
       title: "Modulo di Onboarding Cliente",
       subject: "Profilo Finanziario Cliente",
@@ -1021,6 +1035,20 @@ const resourcesEn = {
     language: {
       en: "English",
       it: "Italian"
+    },
+    market: {
+      title: "Market Update",
+      refresh: "Refresh Data",
+      indices: "Indices",
+      stocks: "Stocks",
+      news: "News",
+      main_indices: "Main Indices",
+      your_tickers: "Your Tickers",
+      add_ticker_placeholder: "Add ticker (e.g. AAPL)",
+      add: "Add",
+      no_tickers: "No tickers added",
+      add_tickers_message: "Add stock tickers you want to monitor",
+      financial_news: "Financial News"
     },
     common: {
       cancel: "Cancel",
