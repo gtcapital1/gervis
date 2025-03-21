@@ -6,7 +6,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
 import ClientDetail from "@/pages/ClientDetail";
-import OnboardingForm from "@/pages/OnboardingForm";
+import OnboardingForm from "@/pages/OnboardingForm-fixed";
 import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import AuthPage from "@/pages/auth-page";
 import Settings from "@/pages/Settings";
