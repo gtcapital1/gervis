@@ -3,7 +3,8 @@ import {
   clients, type Client, type InsertClient,
   assets, type Asset, type InsertAsset,
   recommendations, type Recommendation, type InsertRecommendation,
-  clientLogs, type ClientLog, type InsertClientLog
+  clientLogs, type ClientLog, type InsertClientLog,
+  LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql, desc } from 'drizzle-orm';
@@ -784,9 +785,47 @@ export class PostgresStorage implements IStorage {
       if (!client) {
         throw new Error(`Client with id ${insertLog.clientId} not found`);
       }
-
+      
+      // Verifichiamo che il tipo sia valido
+      if (!LOG_TYPES.includes(insertLog.type as LogType)) {
+        throw new Error(`Invalid log type: ${insertLog.type}. Valid types are: ${LOG_TYPES.join(', ')}`);
+      }
+      
+      // Utilizziamo un approccio più specifico per validare il tipo
+      // Questo garantisce che il valore sia esattamente uno di quelli accettati
+      let logType: LogType;
+      
+      switch(insertLog.type) {
+        case 'email':
+          logType = 'email';
+          break;
+        case 'note':
+          logType = 'note';
+          break;
+        case 'call':
+          logType = 'call';
+          break;
+        case 'meeting':
+          logType = 'meeting';
+          break;
+        default:
+          // Fallback sicuro al tipo 'note' se il valore non è valido
+          logType = 'note';
+          console.warn(`Tipo log non valido: ${insertLog.type}, impostato su 'note'`);
+      }
+      
+      // Ora costruiamo un oggetto che rispetta esattamente lo schema atteso
       const result = await db.insert(clientLogs)
-        .values([insertLog])
+        .values([{
+          clientId: insertLog.clientId,
+          type: logType, // Ora è sicuramente uno dei valori accettati
+          title: insertLog.title,
+          content: insertLog.content,
+          emailSubject: insertLog.emailSubject,
+          emailRecipients: insertLog.emailRecipients,
+          logDate: insertLog.logDate,
+          createdBy: insertLog.createdBy
+        }])
         .returning();
       
       return result[0];
@@ -799,7 +838,40 @@ export class PostgresStorage implements IStorage {
   async updateClientLog(id: number, logUpdate: Partial<ClientLog>): Promise<ClientLog> {
     try {
       // Non permettiamo di modificare il clientId per mantenere l'integrità dei dati
-      const { clientId, ...updateData } = logUpdate;
+      const { clientId, type, ...restOfUpdate } = logUpdate;
+      
+      // Processiamo il campo type in modo sicuro
+      let updateData: Record<string, any> = { ...restOfUpdate };
+      
+      // Se viene fornito un tipo, verifichiamo che sia valido
+      if (type) {
+        // Validazione esplicita del tipo
+        let validType: LogType;
+        
+        switch(type) {
+          case 'email':
+            validType = 'email';
+            break;
+          case 'note':
+            validType = 'note';
+            break;
+          case 'call':
+            validType = 'call';
+            break;
+          case 'meeting':
+            validType = 'meeting';
+            break;
+          default:
+            // Se non è valido, non lo aggiorniamo
+            console.warn(`Tipo log non valido in aggiornamento: ${type}, ignorato`);
+            validType = undefined as any; // Non aggiungiamo il tipo
+        }
+        
+        // Solo se abbiamo un tipo valido lo includiamo nell'aggiornamento
+        if (validType) {
+          updateData.type = validType;
+        }
+      }
       
       const result = await db.update(clientLogs)
         .set(updateData)
