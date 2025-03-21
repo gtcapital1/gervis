@@ -494,7 +494,7 @@ Grazie per la tua fiducia e collaborazione.`
             {/* Top row: Personal Information and Investment Profile side by side */}
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 overflow-x-auto">
               {/* First Box: Personal Information */}
-              <Card className="lg:col-span-1">
+              <Card className="lg:col-span-2">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{t('client.personal_information')}</CardTitle>
                 </CardHeader>
@@ -584,7 +584,7 @@ Grazie per la tua fiducia e collaborazione.`
               </Card>
               
               {/* Second Box: Investment Profile */}
-              <Card className="lg:col-span-4">
+              <Card className="lg:col-span-3">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
