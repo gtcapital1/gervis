@@ -71,15 +71,15 @@ const MAIN_INDICES = [
 
 // Dati fissi per indici di mercato (non cambiano ad ogni richiesta)
 const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number }> = {
-  "^GSPC": { price: 5234.54, changePercent: 0.75 },
-  "^DJI": { price: 39932.75, changePercent: 0.62 },
-  "^IXIC": { price: 16428.82, changePercent: 1.15 },
-  "^FTSE": { price: 7928.45, changePercent: 0.43 },
-  "^FTSEMIB.MI": { price: 33456.78, changePercent: 0.81 },
-  "^GDAXI": { price: 18243.69, changePercent: 0.56 },
-  "^FCHI": { price: 8124.32, changePercent: 0.38 },
-  "^VIX": { price: 14.32, changePercent: -3.42 },
-  "^HSI": { price: 16765.46, changePercent: -0.21 }
+  "^GSPC": { price: 5254.45, changePercent: 0.32 },
+  "^DJI": { price: 39187.63, changePercent: 0.18 },
+  "^IXIC": { price: 16379.35, changePercent: 0.64 },
+  "^FTSE": { price: 8152.92, changePercent: 0.22 },
+  "^FTSEMIB.MI": { price: 34337.24, changePercent: 0.36 },
+  "^GDAXI": { price: 18464.90, changePercent: 0.41 },
+  "^FCHI": { price: 8184.75, changePercent: 0.25 },
+  "^VIX": { price: 13.16, changePercent: -1.94 },
+  "^HSI": { price: 16963.87, changePercent: 0.83 }
 };
 
 // Funzione per recuperare i dati degli indici principali

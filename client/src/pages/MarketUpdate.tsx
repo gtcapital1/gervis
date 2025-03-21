@@ -728,7 +728,7 @@ export default function MarketUpdate() {
                   onClick={() => setNewsFilter('global')}
                 >
                   <span className="mr-1">🌎</span>
-                  {t('market.global') || "Globali"}
+                  {t('market.global_news') || "Globali"}
                 </Button>
                 <Button 
                   variant={newsFilter === 'italia' ? "default" : "ghost"}
@@ -737,7 +737,7 @@ export default function MarketUpdate() {
                   onClick={() => setNewsFilter('italia')}
                 >
                   <span className="mr-1">🇮🇹</span>
-                  {t('market.italy') || "Italia"}
+                  {t('market.italy_news') || "Italia"}
                 </Button>
               </div>
             </div>
