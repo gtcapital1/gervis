@@ -53,27 +53,121 @@ interface NewsItem {
   };
 }
 
-// Componente per visualizzare un indice di mercato
-const MarketIndexCard = ({ index }: { index: MarketIndex }) => {
-  const isPositive = index.change >= 0;
+// Componente selettore timeframe per i grafici
+const TimeframeSelector = ({ 
+  selectedTimeframe, 
+  onChange 
+}: { 
+  selectedTimeframe: TimeFrame, 
+  onChange: (timeframe: TimeFrame) => void 
+}) => {
+  const timeframes: TimeFrame[] = ['1D', '1W', '1M', '1Y', '3Y', '5Y', '10Y'];
+  
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-2">
+    <div className="flex space-x-1 bg-muted rounded-lg p-1 mb-4 w-fit">
+      {timeframes.map((tf) => (
+        <Button
+          key={tf}
+          variant={selectedTimeframe === tf ? "default" : "ghost"}
+          size="sm"
+          onClick={() => onChange(tf)}
+          className="text-xs px-2 py-1 h-7"
+        >
+          {tf}
+        </Button>
+      ))}
+    </div>
+  );
+};
+
+// Componente grafico per indici e stocks (placeholder)
+const ChartComponent = ({ 
+  symbol, 
+  timeframe, 
+  type = 'index'
+}: { 
+  symbol: string, 
+  timeframe: TimeFrame,
+  type?: 'index' | 'stock'
+}) => {
+  return (
+    <Card className="mb-6">
+      <CardHeader className="pb-0">
         <div className="flex justify-between items-center">
-          <CardTitle className="text-lg">{index.name}</CardTitle>
-          <Badge variant={isPositive ? "outline" : "destructive"} className={`ml-2 ${isPositive ? "bg-green-100 text-green-800" : ""}`}>
-            {isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
-            {index.changePercent.toFixed(2)}%
-          </Badge>
+          <div>
+            <CardTitle className="text-lg text-black">{symbol}</CardTitle>
+            <CardDescription>{type === 'index' ? 'Indice' : 'Azione'} - Timeframe: {timeframe}</CardDescription>
+          </div>
         </div>
-        <CardDescription>{index.symbol}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[200px] w-full bg-muted flex items-center justify-center rounded-md overflow-hidden my-2">
+          <LineChart className="h-16 w-16 text-muted-foreground opacity-50" />
+          <p className="ml-2 text-muted-foreground">Grafico in costruzione</p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// Funzione per visualizzare la bandiera del paese corrispondente
+function Flag({ country, size = 24 }: { country: string, size?: number }) {
+  const countryMap: Record<string, string> = {
+    us: "🇺🇸",
+    gb: "🇬🇧",
+    it: "🇮🇹",
+    de: "🇩🇪",
+    fr: "🇫🇷",
+    hk: "🇭🇰",
+  };
+  
+  return (
+    <span style={{ fontSize: `${size/16}rem` }}>{countryMap[country] || "🏳️"}</span>
+  );
+}
+
+// Funzione per visualizzare variazioni di prezzo
+function PriceChange({ change, changePercent }: { change: number, changePercent: number }) {
+  const isPositive = change >= 0;
+  
+  return (
+    <div className="flex items-center">
+      <Badge variant={isPositive ? "outline" : "destructive"} className={`${isPositive ? "bg-green-100 text-green-800" : ""}`}>
+        {isPositive ? <ArrowUpRight className="h-3 w-3 mr-1" /> : <ArrowDownRight className="h-3 w-3 mr-1" />}
+        {changePercent.toFixed(2)}%
+      </Badge>
+      <span className={`ml-2 ${isPositive ? "text-green-600" : "text-red-600"}`}>
+        {isPositive ? "+" : ""}{change.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
+// Componente per visualizzare un indice di mercato
+const MarketIndexCard = ({ 
+  index, 
+  onClick 
+}: { 
+  index: MarketIndex, 
+  onClick?: (symbol: string) => void 
+}) => {
+  return (
+    <Card className="overflow-hidden cursor-pointer" onClick={() => onClick && onClick(index.symbol)}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center">
+          <div className="mr-2">
+            <Flag country={index.country} size={20} />
+          </div>
+          <div>
+            <CardTitle className="text-lg text-black">{index.name}</CardTitle>
+            <CardDescription>{index.symbol}</CardDescription>
+          </div>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center">
           <div className="text-2xl font-bold">{index.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-          <div className={isPositive ? "text-green-600" : "text-red-600"}>
-            {isPositive ? "+" : ""}{index.change.toFixed(2)}
-          </div>
+          <PriceChange change={index.change} changePercent={index.changePercent} />
         </div>
       </CardContent>
     </Card>
