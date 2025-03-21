@@ -283,6 +283,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
       }
       
+      // Log dei valori di interesse di investimento
+      console.log("[DEBUG] Aggiornamento cliente - Valori interessi ricevuti:", {
+        retirementInterest: req.body.retirementInterest,
+        wealthGrowthInterest: req.body.wealthGrowthInterest,
+        incomeGenerationInterest: req.body.incomeGenerationInterest,
+        capitalPreservationInterest: req.body.capitalPreservationInterest,
+        estatePlanningInterest: req.body.estatePlanningInterest
+      });
+      
       // Update client in database
       const updatedClient = await storage.updateClient(clientId, req.body);
       
