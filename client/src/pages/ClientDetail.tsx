@@ -589,8 +589,8 @@ Grazie per la tua fiducia e collaborazione.`
                   <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-4 md:col-span-1">
                       <div>
                         <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
                         {client.riskProfile ? (
@@ -667,9 +667,10 @@ Grazie per la tua fiducia e collaborazione.`
                       
                     {/* Grafico a ragno per gli obiettivi di investimento */}
                     {/* Mostro il grafico radar sempre quando il cliente è onboarded */}
+                    {/* Grafico radar degli interessi di investimento nella colonna 2 */}
                     {client.isOnboarded && (
-                      <div>
-                        <span className="text-sm font-medium block mb-2">{t('client.investment_goals')}:</span>
+                      <div className="md:col-span-2">
+                        <span className="text-sm font-medium block mb-2">{t('client.investment_priorities')}:</span>
                         <div className="h-[270px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <RadarChart outerRadius={90} data={[
@@ -716,54 +717,28 @@ Grazie per la tua fiducia e collaborazione.`
                       </div>
                     )}
                     
-                    <div>
-                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
-                      {client.investmentExperience ? (
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              client.investmentExperience === "none" ? "#dbeafe" : // Very light blue
-                              client.investmentExperience === "beginner" ? "#93c5fd" : // Light blue
-                              client.investmentExperience === "intermediate" ? "#60a5fa" : // Medium light blue
-                              client.investmentExperience === "advanced" ? "#3b82f6" : // Medium blue
-                              client.investmentExperience === "expert" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: client.investmentExperience === "none" || client.investmentExperience === "beginner" ? "#1e3a8a" : "#ffffff"
-                          }}
-                        >
-                          {t(`experience_levels.${client.investmentExperience}`)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          {t('client.not_specified')}
-                        </Badge>
-                      )}
-                    </div>
+                    {/* Sezione Interessi Personali */}
+                    {client.personalInterests && client.personalInterests.length > 0 && (
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.personal_interests')}:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {client.personalInterests.map(interest => (
+                            <Badge 
+                              key={interest} 
+                              className="capitalize"
+                              style={{
+                                backgroundColor: "#dbeafe", // Light blue
+                                color: "#1e3a8a" // Dark blue text
+                              }}
+                            >
+                              {t(`personal_interests.${interest}`)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     
-                    <div>
-                      <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
-                      {client.investmentHorizon ? (
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              client.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
-                              client.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
-                              client.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: client.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
-                          }}
-                        >
-                          {t(`investment_horizons.${client.investmentHorizon}`)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          {t('client.not_specified')}
-                        </Badge>
-                      )}
-                    </div>
-                    
+                    {/* Sezione Obiettivi di Investimento */}
                     <div>
                       <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
                       {client.investmentGoals && client.investmentGoals.length > 0 ? (
@@ -796,26 +771,7 @@ Grazie per la tua fiducia e collaborazione.`
                       )}
                     </div>
                     
-                    {/* Interessi personali */}
-                    {client.personalInterests && client.personalInterests.length > 0 && (
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.personal_interests')}:</span>
-                        <div className="flex flex-wrap gap-2">
-                          {client.personalInterests.map(interest => (
-                            <Badge 
-                              key={interest} 
-                              className="capitalize"
-                              style={{
-                                backgroundColor: "#dbeafe", // Light blue
-                                color: "#1e3a8a" // Dark blue text
-                              }}
-                            >
-                              {t(`personal_interests.${interest}`)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+
                   </div>
                 </CardContent>
               </Card>
