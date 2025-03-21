@@ -31,10 +31,12 @@ function saveToCache(key: string, data: any, ttlMs: number): void {
 interface MarketIndex {
   symbol: string;
   name: string;
-  price: number;
-  change: number;
-  changePercent: number;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
   country: string;
+  dataUnavailable?: boolean;
+  currency?: string;
 }
 
 interface StockTicker {
@@ -144,29 +146,28 @@ export async function getMarketIndices(req: Request, res: Response) {
             currency: "$"
           };
         } else {
-          // Se non abbiamo dati, usiamo i dati fissi come fallback
-          const fallbackData = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
+          // Se non abbiamo dati, mostriamo N/A
           return {
             symbol: index.symbol,
             name: index.name,
-            price: fallbackData.price,
-            change: fallbackData.price * (fallbackData.changePercent / 100),
-            changePercent: fallbackData.changePercent,
-            country: index.country
+            price: null,
+            change: null,
+            changePercent: null,
+            country: index.country,
+            dataUnavailable: true
           };
         }
       } catch (err) {
         console.error(`Errore nel recuperare i dati per ${index.symbol}:`, err);
-        // In caso di errore, usiamo i dati fissi come fallback
-        const fallbackData = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
+        // In caso di errore, mostriamo N/A
         return {
           symbol: index.symbol,
           name: index.name,
-          price: fallbackData.price,
-          change: fallbackData.price * (fallbackData.changePercent / 100),
-          changePercent: fallbackData.changePercent,
+          price: null,
+          change: null,
+          changePercent: null,
           country: index.country,
-          currency: fallbackData.currency
+          dataUnavailable: true
         };
       }
     });
@@ -181,17 +182,16 @@ export async function getMarketIndices(req: Request, res: Response) {
   } catch (error) {
     console.error("Errore nel recupero degli indici di mercato:", error);
     
-    // In caso di errore generale, restituiamo i dati fissi
+    // In caso di errore generale, mostriamo N/A per tutti gli indici
     const indices: MarketIndex[] = MAIN_INDICES.map(index => {
-      const data = FIXED_INDICES_DATA[index.symbol] || { price: 5000, changePercent: 0.5 };
       return {
         symbol: index.symbol,
         name: index.name,
-        price: data.price,
-        change: data.price * (data.changePercent / 100),
-        changePercent: data.changePercent,
+        price: null,
+        change: null,
+        changePercent: null,
         country: index.country,
-        currency: data.currency
+        dataUnavailable: true
       };
     });
     

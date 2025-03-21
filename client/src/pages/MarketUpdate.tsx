@@ -30,10 +30,12 @@ import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, C
 interface MarketIndex {
   symbol: string;
   name: string;
-  price: number;
-  change: number;
-  changePercent: number;
+  price: number | null;
+  change: number | null;
+  changePercent: number | null;
   country: string;
+  dataUnavailable?: boolean;
+  currency?: string;
 }
 
 interface StockTicker {
@@ -75,7 +77,8 @@ function CountryFlag({ country, size = 24 }: { country: string, size?: number })
 }
 
 // Funzione per visualizzare variazioni di prezzo
-function PriceChange({ change, changePercent }: { change: number, changePercent: number }) {
+function PriceChange({ change, changePercent }: { change: number | null, changePercent: number | null }) {
+  if (change === null || changePercent === null) return null;
   const isPositive = change >= 0;
   
   return (
@@ -114,8 +117,10 @@ const MarketIndexCard = ({
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center">
-          <div className="text-2xl font-bold">{index.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-          <PriceChange change={index.change} changePercent={index.changePercent} />
+          <div className="text-2xl font-bold">
+    {index.dataUnavailable || index.price === null ? "N/A" : `${index.currency || ""}${index.price?.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+  </div>
+          {index.dataUnavailable ? <span className="text-muted-foreground">N/A</span> : <PriceChange change={index.change} changePercent={index.changePercent} />}
         </div>
       </CardContent>
     </Card>
