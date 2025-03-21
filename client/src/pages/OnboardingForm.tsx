@@ -542,8 +542,8 @@ export default function OnboardingForm() {
                 <CardDescription>
                   {t('client_edit.investment_profile_desc')}
                 </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
+              </CardHeader>
+              <CardContent className="space-y-6">
               <FormField
                 control={form.control}
                 name="riskProfile"
@@ -952,6 +952,7 @@ export default function OnboardingForm() {
               </Button>
             </CardContent>
           </Card>
+          </div>
         </form>
       </Form>
     </div>
