@@ -5,7 +5,7 @@ import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
-import { getMarketIndices, getTickerData, validateTicker, getFinancialNews } from "./market-api";
+import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1405,6 +1405,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     req.query.symbols = symbols.join(',');
     getTickerData(req, res);
   });
+  
+  // Get ticker suggestions for autocomplete
+  app.get('/api/market/ticker-suggestions', getTickerSuggestions);
   
   // Validate ticker symbol
   app.post('/api/market/validate-ticker', validateTicker);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,9 +19,11 @@ import {
   X,
   ArrowUpRight,
   ArrowDownRight,
-  Minus
+  Minus,
+  Search
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 // Tipi per i dati di mercato
 interface MarketIndex {
@@ -164,12 +166,21 @@ const StockTickerCard = ({ ticker, onRemove }: { ticker: StockTicker, onRemove: 
   );
 };
 
+// Interfaccia per i suggerimenti ticker
+interface TickerSuggestion {
+  symbol: string;
+  name: string;
+}
+
 export default function MarketUpdate() {
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("indices");
   const [newTickerSymbol, setNewTickerSymbol] = useState("");
   const [userTickers, setUserTickers] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [tickerSuggestions, setTickerSuggestions] = useState<TickerSuggestion[]>([]);
+  const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Recupero dati degli indici principali
   const { 
@@ -203,6 +214,17 @@ export default function MarketUpdate() {
     queryKey: ['/api/market/tickers', userTickers],
     enabled: userTickers.length > 0,
     retry: 1
+  });
+  
+  // Query per i suggerimenti ticker
+  const {
+    data: suggestionsData,
+    isLoading: suggestionsLoading,
+    refetch: refetchSuggestions
+  } = useQuery<TickerSuggestion[]>({
+    queryKey: ['/api/market/ticker-suggestions', newTickerSymbol],
+    enabled: false, // non eseguire automaticamente
+    retry: 0
   });
 
   // Mutation per aggiungere un ticker
