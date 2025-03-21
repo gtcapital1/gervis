@@ -792,7 +792,7 @@ export default function OnboardingForm() {
               
               <div className="grid grid-cols-1 gap-6">
                 {categoryOptions.map((category, index) => (
-                  <div key={category} className="bg-accent/30 p-4 rounded-md">
+                  <div key={category} className="p-4 rounded-md border border-border">
                     <h4 className="font-medium mb-3">{t(`asset_categories.${category}`)}</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField

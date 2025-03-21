@@ -24,7 +24,7 @@ import {
   Info,
   Link2
 } from "lucide-react";
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { ClientSettings } from "@/components/settings/ClientSettings";
 import { ClientPdfGenerator } from "@/components/advisor/ClientPdfGenerator";
