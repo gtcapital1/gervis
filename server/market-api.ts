@@ -219,47 +219,84 @@ export async function validateTicker(req: Request, res: Response) {
 // Funzione per recuperare le notizie finanziarie
 export async function getFinancialNews(req: Request, res: Response) {
   try {
-    // Per questioni di stabilità, dato che l'API esterna aveva problemi di autenticazione,
-    // forniamo delle notizie finanziarie simulate
-    // In un ambiente di produzione, questa parte verrebbe sostituita dalla vera chiamata API
+    // Ottieni il parametro di filtro per le notizie (globale o italia)
+    const filter = req.query.filter as string || 'global';
     
-    const newsItems: NewsItem[] = [
+    // Per questioni di stabilità, dato che l'API esterna aveva problemi di autenticazione,
+    // forniamo delle notizie finanziarie simulate basate su diversi paesi/regioni
+    
+    // Set di notizie globali
+    const globalNews: NewsItem[] = [
       {
-        title: "Mercati in crescita: indici europei in rialzo",
-        description: "Gli indici europei hanno registrato una crescita significativa nell'ultima sessione di trading, con il FTSE MIB che ha guadagnato oltre l'1%.",
-        url: "https://example.com/news/1",
-        urlToImage: "https://via.placeholder.com/800x400?text=Mercati+in+crescita",
+        title: "Wall Street: nuovi record per gli indici statunitensi",
+        description: "Gli indici di Wall Street hanno raggiunto nuovi massimi storici, trainati dalle performance positive dei titoli tecnologici e dai dati sull'occupazione migliori delle attese.",
+        url: "https://example.com/news/global/1",
+        urlToImage: "https://via.placeholder.com/800x400?text=Wall+Street+Records",
         publishedAt: new Date().toISOString(),
         source: {
-          name: "Finanza Oggi"
+          name: "Financial Times"
+        }
+      },
+      {
+        title: "Nasdaq supera la soglia dei 20.000 punti",
+        description: "L'indice dei titoli tecnologici americani ha superato per la prima volta nella storia la soglia dei 20.000 punti, spinto dal rally dell'intelligenza artificiale.",
+        url: "https://example.com/news/global/2",
+        urlToImage: "https://via.placeholder.com/800x400?text=Nasdaq+20000",
+        publishedAt: new Date(Date.now() - 2600000).toISOString(),
+        source: {
+          name: "Bloomberg"
+        }
+      },
+      {
+        title: "La Fed mantiene i tassi di interesse invariati",
+        description: "La Federal Reserve ha deciso di mantenere invariati i tassi di interesse, segnalando una possibile riduzione nel prossimo trimestre se l'inflazione continuerà a scendere.",
+        url: "https://example.com/news/global/3",
+        urlToImage: "https://via.placeholder.com/800x400?text=Fed+Decision",
+        publishedAt: new Date(Date.now() - 5200000).toISOString(),
+        source: {
+          name: "Wall Street Journal"
         }
       },
       {
         title: "Nuove politiche monetarie della BCE",
         description: "La Banca Centrale Europea ha annunciato nuove misure per contrastare l'inflazione e sostenere la crescita economica nell'eurozona.",
-        url: "https://example.com/news/2",
-        urlToImage: "https://via.placeholder.com/800x400?text=BCE+Politiche+Monetarie",
-        publishedAt: new Date(Date.now() - 3600000).toISOString(),
+        url: "https://example.com/news/global/4",
+        urlToImage: "https://via.placeholder.com/800x400?text=BCE+Policies",
+        publishedAt: new Date(Date.now() - 7800000).toISOString(),
         source: {
           name: "Economia Europa"
         }
       },
       {
-        title: "Settore tecnologico: nuove opportunità di investimento",
-        description: "Gli analisti individuano nuove opportunità nel settore tech dopo le recenti correzioni di mercato. Focus su innovazione e intelligenza artificiale.",
-        url: "https://example.com/news/3",
-        urlToImage: "https://via.placeholder.com/800x400?text=Tech+Investimenti",
-        publishedAt: new Date(Date.now() - 7200000).toISOString(),
+        title: "Settore tecnologico: investimenti record nell'AI",
+        description: "Il settore tecnologico ha registrato investimenti record nelle tecnologie di intelligenza artificiale, con oltre 300 miliardi di dollari di investimenti globali previsti per il 2025.",
+        url: "https://example.com/news/global/5",
+        urlToImage: "https://via.placeholder.com/800x400?text=AI+Investments",
+        publishedAt: new Date(Date.now() - 9400000).toISOString(),
         source: {
-          name: "TechInvest"
+          name: "Tech Insider"
+        }
+      }
+    ];
+    
+    // Set di notizie italiane
+    const italiaNews: NewsItem[] = [
+      {
+        title: "FTSE MIB: il listino milanese chiude in positivo",
+        description: "Il principale indice della borsa di Milano ha chiuso la seduta in rialzo dell'1,2%, trainato dal settore bancario e dalle utilities.",
+        url: "https://example.com/news/italia/1",
+        urlToImage: "https://via.placeholder.com/800x400?text=FTSE+MIB",
+        publishedAt: new Date().toISOString(),
+        source: {
+          name: "Il Sole 24 Ore"
         }
       },
       {
         title: "Crescita PIL italiano: previsioni positive per il 2025",
-        description: "Secondo le ultime stime, l'economia italiana potrebbe crescere più del previsto nel 2025, trainata dall'export e dai consumi interni.",
-        url: "https://example.com/news/4",
-        urlToImage: "https://via.placeholder.com/800x400?text=PIL+Italia+2025",
-        publishedAt: new Date(Date.now() - 10800000).toISOString(),
+        description: "Secondo le ultime stime del Ministero dell'Economia, l'Italia potrebbe crescere più del previsto nel 2025, trainata dall'export e dai consumi interni.",
+        url: "https://example.com/news/italia/2",
+        urlToImage: "https://via.placeholder.com/800x400?text=PIL+Italia",
+        publishedAt: new Date(Date.now() - 3600000).toISOString(),
         source: {
           name: "Economia Italia"
         }
@@ -267,16 +304,41 @@ export async function getFinancialNews(req: Request, res: Response) {
       {
         title: "Mercato immobiliare: segnali di ripresa nel residenziale",
         description: "Il mercato immobiliare italiano mostra segnali di ripresa, specialmente nel segmento residenziale. Aumentano le compravendite nelle grandi città.",
-        url: "https://example.com/news/5",
-        urlToImage: "https://via.placeholder.com/800x400?text=Immobiliare+Ripresa",
+        url: "https://example.com/news/italia/3",
+        urlToImage: "https://via.placeholder.com/800x400?text=Immobiliare+Italia",
+        publishedAt: new Date(Date.now() - 7200000).toISOString(),
+        source: {
+          name: "Repubblica Economia"
+        }
+      },
+      {
+        title: "Le banche italiane registrano utili record",
+        description: "Il settore bancario italiano ha registrato nel primo trimestre utili record, superando le aspettative degli analisti e mostrando una forte resilienza.",
+        url: "https://example.com/news/italia/4",
+        urlToImage: "https://via.placeholder.com/800x400?text=Banche+Italiane",
+        publishedAt: new Date(Date.now() - 10800000).toISOString(),
+        source: {
+          name: "Milano Finanza"
+        }
+      },
+      {
+        title: "Nuovi incentivi per le imprese italiane",
+        description: "Il governo ha annunciato nuovi incentivi fiscali per le imprese italiane che investono in digitalizzazione e sostenibilità ambientale.",
+        url: "https://example.com/news/italia/5",
+        urlToImage: "https://via.placeholder.com/800x400?text=Incentivi+Imprese",
         publishedAt: new Date(Date.now() - 14400000).toISOString(),
         source: {
-          name: "Real Estate News"
+          name: "Corriere Economia"
         }
       }
     ];
     
-    res.json(newsItems);
+    // Restituisci le notizie in base al filtro
+    if (filter === 'italia') {
+      res.json(italiaNews);
+    } else {
+      res.json(globalNews);
+    }
   } catch (error) {
     console.error("Errore nel recupero delle notizie finanziarie:", error);
     res.status(500).json({ error: "Errore nel recupero delle notizie finanziarie" });

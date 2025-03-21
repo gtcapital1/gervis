@@ -20,7 +20,9 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  Search
+  Search,
+  Globe,
+  Flag
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
@@ -232,6 +234,7 @@ export default function MarketUpdate() {
   // const [selectedTimeframe, setSelectedTimeframe] = useState<TimeFrame>('1D');
   const [selectedIndex, setSelectedIndex] = useState<string>("^GSPC"); // S&P 500 come default
   const [selectedStock, setSelectedStock] = useState<string>(DEFAULT_US_STOCKS[0]);
+  const [newsFilter, setNewsFilter] = useState<'global' | 'italia'>('global');
   const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Recupero dati degli indici principali
@@ -252,7 +255,14 @@ export default function MarketUpdate() {
     isError: newsError, 
     refetch: refetchNews 
   } = useQuery<NewsItem[]>({
-    queryKey: ['/api/market/news'],
+    queryKey: ['/api/market/news', newsFilter],
+    queryFn: async () => {
+      const response = await fetch(`/api/market/news?filter=${newsFilter}`);
+      if (!response.ok) {
+        throw new Error('Errore nel recupero delle notizie finanziarie');
+      }
+      return response.json();
+    },
     retry: 1
   });
 
@@ -419,7 +429,7 @@ export default function MarketUpdate() {
   }, []);
 
   return (
-    <div className="container py-6">
+    <div className="container py-6 px-6 md:px-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-black">{t('market.title') || "Aggiornamento Mercati"}</h1>
         <Button 
@@ -673,7 +683,33 @@ export default function MarketUpdate() {
 
         {/* Scheda delle notizie finanziarie */}
         <TabsContent value="news">
-          <h2 className="text-2xl font-semibold mb-4 text-black">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+            <h2 className="text-2xl font-semibold text-black">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">{t('market.filter_news') || "Filtra notizie"}:</span>
+              <div className="flex rounded-md border overflow-hidden">
+                <Button 
+                  variant={newsFilter === 'global' ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none rounded-l-md"
+                  onClick={() => setNewsFilter('global')}
+                >
+                  <Globe className="h-4 w-4 mr-1" />
+                  {t('market.global') || "Globali"}
+                </Button>
+                <Button 
+                  variant={newsFilter === 'italia' ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-none rounded-r-md"
+                  onClick={() => setNewsFilter('italia')}
+                >
+                  <Flag className="h-4 w-4 mr-1" />
+                  {t('market.italy') || "Italia"}
+                </Button>
+              </div>
+            </div>
+          </div>
           
           {newsLoading ? (
             <div className="space-y-4">
