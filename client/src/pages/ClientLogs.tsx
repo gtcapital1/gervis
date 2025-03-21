@@ -283,7 +283,7 @@ export default function ClientLogs() {
   const logs = logsQuery.data?.logs as ClientLog[] || [];
 
   return (
-    <div className="container mx-auto py-6">
+    <div className="container mx-auto py-6 px-6 md:px-8">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-black">
