@@ -5,7 +5,6 @@ import { z } from "zod";
 import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
-import { registerFinancialNewsRoutes } from "./routes/financial-news-routes";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1207,8 +1206,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Registra le rotte per le notizie finanziarie e l'analisi AI
-  registerFinancialNewsRoutes(app);
   
   const httpServer = createServer(app);
   return httpServer;
