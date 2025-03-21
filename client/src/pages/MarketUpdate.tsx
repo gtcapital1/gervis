@@ -105,7 +105,7 @@ const MarketIndexCard = ({
             <Flag country={index.country} size={20} />
           </div>
           <div>
-            <CardTitle className="text-lg text-black">{index.name}</CardTitle>
+            <CardTitle className="text-lg text-white">{index.name}</CardTitle>
             <CardDescription>{index.symbol}</CardDescription>
           </div>
         </div>
@@ -135,25 +135,13 @@ const NewsCard = ({ news }: { news: NewsItem }) => {
   };
 
   return (
-    <Card className="overflow-hidden mb-4">
+    <Card className="overflow-hidden mb-3">
       <div className="flex flex-col md:flex-row">
-        {news.urlToImage && (
-          <div className="md:w-1/4">
-            <img 
-              src={news.urlToImage} 
-              alt={news.title} 
-              className="h-full w-full object-cover" 
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = 'https://via.placeholder.com/150?text=No+Image';
-              }}
-            />
-          </div>
-        )}
-        <div className={news.urlToImage ? "md:w-3/4 p-4" : "w-full p-4"}>
-          <h3 className="text-lg font-semibold mb-2">{news.title}</h3>
-          <p className="text-sm text-muted-foreground mb-2 line-clamp-2">{news.description}</p>
-          <div className="flex justify-between items-center mt-2">
+        {/* Rimossa l'immagine come richiesto dall'utente */}
+        <div className="w-full p-3">
+          <h3 className="text-md font-medium mb-1">{news.title}</h3>
+          <p className="text-xs text-muted-foreground mb-1 line-clamp-1">{news.description}</p>
+          <div className="flex justify-between items-center mt-1">
             <span className="text-xs text-muted-foreground">
               {news.source.name} | {formatDate(news.publishedAt)}
             </span>
@@ -161,9 +149,9 @@ const NewsCard = ({ news }: { news: NewsItem }) => {
               href={news.url} 
               target="_blank" 
               rel="noopener noreferrer" 
-              className="flex items-center text-sm text-primary hover:underline"
+              className="flex items-center text-xs text-primary hover:underline"
             >
-              Leggi <ArrowRight className="h-4 w-4 ml-1" />
+              Leggi <ArrowRight className="h-3 w-3 ml-1" />
             </a>
           </div>
         </div>
@@ -202,7 +190,7 @@ const StockTickerCard = ({
             <span className="text-lg">🇺🇸</span>
           </div>
           <div>
-            <CardTitle className="text-lg text-black">{ticker.name}</CardTitle>
+            <CardTitle className="text-lg text-white">{ticker.name}</CardTitle>
             <CardDescription>{ticker.symbol}</CardDescription>
           </div>
         </div>
