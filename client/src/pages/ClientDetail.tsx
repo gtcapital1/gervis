@@ -625,27 +625,27 @@ Grazie per la tua fiducia e collaborazione.`
                             <RadarChart outerRadius={90} data={[
                               {
                                 goal: t('investment_goals.retirement'),
-                                value: client.retirementInterest || 0,
+                                value: client.retirementInterest || 3,
                                 fullMark: 5
                               },
                               {
                                 goal: t('investment_goals.wealth_growth'),
-                                value: client.wealthGrowthInterest || 0,
+                                value: client.wealthGrowthInterest || 3,
                                 fullMark: 5
                               },
                               {
                                 goal: t('investment_goals.income_generation'),
-                                value: client.incomeGenerationInterest || 0,
+                                value: client.incomeGenerationInterest || 3,
                                 fullMark: 5
                               },
                               {
                                 goal: t('investment_goals.capital_preservation'),
-                                value: client.capitalPreservationInterest || 0,
+                                value: client.capitalPreservationInterest || 3,
                                 fullMark: 5
                               },
                               {
                                 goal: t('investment_goals.estate_planning'),
-                                value: client.estatePlanningInterest || 0,
+                                value: client.estatePlanningInterest || 3,
                                 fullMark: 5
                               }
                             ]}>
@@ -657,9 +657,8 @@ Grazie per la tua fiducia e collaborazione.`
                                 dataKey="value" 
                                 stroke="#3b82f6" 
                                 fill="#3b82f6" 
-                                fillOpacity={0.5} 
+                                fillOpacity={0.6} 
                               />
-                              <Legend />
                               <Tooltip />
                             </RadarChart>
                           </ResponsiveContainer>
@@ -746,6 +745,27 @@ Grazie per la tua fiducia e collaborazione.`
                         </Badge>
                       )}
                     </div>
+                    
+                    {/* Interessi personali */}
+                    {client.personalInterests && client.personalInterests.length > 0 && (
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.personal_interests')}:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {client.personalInterests.map(interest => (
+                            <Badge 
+                              key={interest} 
+                              className="capitalize"
+                              style={{
+                                backgroundColor: "#dbeafe", // Light blue
+                                color: "#1e3a8a" // Dark blue text
+                              }}
+                            >
+                              {t(`personal_interests.${interest}`)}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
