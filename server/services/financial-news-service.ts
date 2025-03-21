@@ -6,12 +6,16 @@
  * 3. Memorizzazione in cache delle notizie
  */
 
-import axios from 'axios';
-import cheerio from 'cheerio';
 import Parser from 'rss-parser';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 import { log } from '../vite';
+import crypto from 'crypto';
 
-// Interfaccia per definire una notizia finanziaria
+// Parser per i feed RSS
+const rssParser = new Parser();
+
+// Definizione dell'interfaccia per le notizie finanziarie
 export interface FinancialNews {
   id: string;
   title: string;
@@ -23,60 +27,88 @@ export interface FinancialNews {
   content?: string;
 }
 
-// Cache per le notizie (evita troppe chiamate API)
-const newsCache: {
-  lastUpdated: Date;
+// Cache per le notizie per evitare chiamate ripetute
+type NewsCache = {
   news: FinancialNews[];
-} = {
-  lastUpdated: new Date(0), // Data di inizio epoca = necessita aggiornamento
-  news: []
+  lastUpdated: Date;
 };
 
-// Configurazione dei feed RSS
+const newsCache: NewsCache = {
+  news: [],
+  lastUpdated: new Date(0) // 1970-01-01, garantisce che il primo controllo aggiorni la cache
+};
+
+// Feed RSS da controllare
 const RSS_FEEDS = [
   {
-    url: 'https://www.repubblica.it/rss/economia/rss2.0.xml',
-    source: 'Repubblica Economia'
+    url: 'https://www.teleborsa.it/News/Rss',
+    source: 'Teleborsa'
   },
   {
-    url: 'https://www.ilsole24ore.com/rss/finanza.xml',
+    url: 'https://www.borsaitaliana.it/borsa/notizie/radiocor/finanza.xml',
+    source: 'Borsa Italiana'
+  },
+  {
+    url: 'https://www.money.it/spip.php?page=backend',
+    source: 'Money.it'
+  },
+  {
+    url: 'https://www.ilsole24ore.com/rss/economia.xml',
     source: 'Il Sole 24 Ore'
   },
   {
-    url: 'https://www.borsaitaliana.it/borsa/notizie/radiocor/finanzarss.xml',
-    source: 'Borsa Italiana'
+    url: 'https://www.repubblica.it/rss/economia/rss2.0.xml',
+    source: 'La Repubblica - Economia'
   }
 ];
-
-// Parser per RSS
-const rssParser = new Parser();
 
 /**
  * Recupera le ultime notizie da feed RSS
  */
 async function getNewsFromRSS(): Promise<FinancialNews[]> {
-  const newsPromises = RSS_FEEDS.map(async (feed) => {
+  const allNews: FinancialNews[] = [];
+
+  log(`Recupero notizie da ${RSS_FEEDS.length} feed RSS...`, 'financial-news');
+  
+  // Funzione per processare un singolo feed RSS
+  const processFeed = async (feed: { url: string, source: string }): Promise<FinancialNews[]> => {
     try {
-      const feedContent = await rssParser.parseURL(feed.url);
+      const feedData = await rssParser.parseURL(feed.url);
       
-      return feedContent.items.map(item => ({
-        id: item.guid || item.link || `${feed.source}-${item.title}-${new Date().getTime()}`,
-        title: item.title || 'Titolo non disponibile',
-        description: item.contentSnippet || item.description || 'Descrizione non disponibile',
-        url: item.link || '',
-        source: feed.source,
-        publishedAt: item.pubDate ? new Date(item.pubDate) : new Date(),
-        categories: item.categories || [],
-        content: item.content
-      }));
+      return feedData.items.map(item => {
+        // Genera un ID unico basato sull'URL o sul titolo
+        const idBase = item.link || item.title || crypto.randomBytes(16).toString('hex');
+        const id = crypto.createHash('md5').update(idBase).digest('hex');
+        
+        // Parse della data (diversi feed possono usare formati diversi)
+        const publishedDate = item.pubDate ? new Date(item.pubDate) : new Date();
+        
+        return {
+          id,
+          title: item.title || 'Titolo non disponibile',
+          description: item.contentSnippet || item.description || 'Descrizione non disponibile',
+          url: item.link || '',
+          source: feed.source,
+          publishedAt: publishedDate,
+          categories: item.categories || [],
+          content: item.content || item['content:encoded'] || item.description
+        };
+      });
     } catch (error) {
-      log(`Errore nel recupero del feed RSS ${feed.url}: ${error}`, 'financial-news');
+      log(`Errore nel recupero del feed ${feed.url}: ${error}`, 'financial-news');
       return [];
     }
-  });
-
+  };
+  
+  // Processa tutti i feed in parallelo
+  const newsPromises = RSS_FEEDS.map(processFeed);
   const results = await Promise.all(newsPromises);
-  return results.flat();
+  
+  // Unisce tutti i risultati in un array unico
+  results.forEach(news => allNews.push(...news));
+  
+  log(`Recuperate ${allNews.length} notizie dai feed RSS`, 'financial-news');
+  return allNews;
 }
 
 /**
@@ -84,35 +116,53 @@ async function getNewsFromRSS(): Promise<FinancialNews[]> {
  */
 async function getNewsFromYahooFinance(): Promise<FinancialNews[]> {
   try {
-    const response = await axios.get('https://it.finance.yahoo.com/');
-    const $ = cheerio.load(response.data);
+    log('Recupero notizie da Yahoo Finance Italia...', 'financial-news');
+    
+    // URL di Yahoo Finance Italia
+    const yahooFinanceUrl = 'https://it.finance.yahoo.com/';
+    
+    // Recupera la pagina HTML
+    const response = await axios.get(yahooFinanceUrl);
+    const html = response.data;
+    
+    // Carica HTML in cheerio
+    const $ = cheerio.load(html);
+    
+    // Array per le notizie
     const news: FinancialNews[] = [];
-
-    // Seleziona gli elementi di notizie
+    
+    // Seleziona gli elementi delle notizie (potrebbe cambiare se Yahoo aggiorna il layout)
     $('li.js-stream-content').each((index, element) => {
-      const titleElement = $(element).find('h3');
-      const linkElement = $(element).find('a');
-      const summaryElement = $(element).find('p');
-      
-      if (titleElement.length && linkElement.length) {
-        const title = titleElement.text().trim();
-        const url = linkElement.attr('href') || '';
-        const description = summaryElement.length ? summaryElement.text().trim() : '';
+      try {
+        const titleEl = $(element).find('h3');
+        const linkEl = $(element).find('a');
+        const descriptionEl = $(element).find('p');
         
-        if (title && url) {
+        if (titleEl.length > 0 && linkEl.length > 0) {
+          const title = titleEl.text().trim();
+          const url = new URL(linkEl.attr('href') || '', 'https://it.finance.yahoo.com').toString();
+          const description = descriptionEl.length > 0 ? descriptionEl.text().trim() : '';
+          
+          // Genera un ID unico
+          const id = crypto.createHash('md5').update(url).digest('hex');
+          
           news.push({
-            id: `yahoo-finance-${index}-${new Date().getTime()}`,
+            id,
             title,
             description,
-            url: url.startsWith('http') ? url : `https://it.finance.yahoo.com${url}`,
-            source: 'Yahoo Finance',
+            url,
+            source: 'Yahoo Finance Italia',
             publishedAt: new Date(),
-            categories: ['finance', 'market'],
+            categories: ['finance', 'markets']
           });
         }
+      } catch (error) {
+        // Ignora elementi che non possono essere processati correttamente
+        log(`Errore nel parsing di un elemento Yahoo Finance: ${error}`, 'financial-news');
       }
     });
-
+    
+    log(`Recuperate ${news.length} notizie da Yahoo Finance Italia`, 'financial-news');
     return news;
   } catch (error) {
     log(`Errore nel recupero delle notizie da Yahoo Finance: ${error}`, 'financial-news');
@@ -124,92 +174,118 @@ async function getNewsFromYahooFinance(): Promise<FinancialNews[]> {
  * Recupera tutte le notizie finanziarie da tutte le fonti disponibili
  */
 export async function getAllFinancialNews(): Promise<FinancialNews[]> {
-  const cacheValidityInMinutes = 30; // Aggiorna la cache ogni 30 minuti
+  // Controlla se la cache è ancora valida (5 minuti)
+  const cacheValidityMinutes = 5;
   const now = new Date();
-  const cacheAge = (now.getTime() - newsCache.lastUpdated.getTime()) / (1000 * 60);
+  const cacheAgeMs = now.getTime() - newsCache.lastUpdated.getTime();
+  const cacheAgeMinutes = cacheAgeMs / (1000 * 60);
   
-  // Se la cache è valida, restituisci i dati dalla cache
-  if (cacheAge < cacheValidityInMinutes && newsCache.news.length > 0) {
-    log(`Utilizzando notizie in cache (${newsCache.news.length} articoli, età: ${cacheAge.toFixed(1)} minuti)`, 'financial-news');
+  if (cacheAgeMinutes < cacheValidityMinutes && newsCache.news.length > 0) {
+    log(`Usando cache notizie (età: ${cacheAgeMinutes.toFixed(1)} minuti)`, 'financial-news');
     return newsCache.news;
   }
   
-  // Altrimenti, recupera nuove notizie
-  log('Recuperando nuove notizie finanziarie dalle fonti...', 'financial-news');
+  log('Cache notizie scaduta o vuota, recupero nuove notizie...', 'financial-news');
   
-  try {
-    // Recupera notizie da diverse fonti in parallelo
-    const [rssNews, yahooNews] = await Promise.all([
-      getNewsFromRSS(),
-      getNewsFromYahooFinance()
-    ]);
-    
-    // Combina le notizie da tutte le fonti
-    const allNews = [...rssNews, ...yahooNews];
-    
-    // Ordina per data di pubblicazione (più recenti prima)
-    const sortedNews = allNews.sort((a, b) => b.publishedAt.getTime() - a.publishedAt.getTime());
-    
-    // Aggiorna la cache
-    newsCache.news = sortedNews;
-    newsCache.lastUpdated = now;
-    
-    log(`Recuperate ${sortedNews.length} notizie finanziarie (${rssNews.length} da RSS, ${yahooNews.length} da Yahoo)`, 'financial-news');
-    
-    return sortedNews;
-  } catch (error) {
-    log(`Errore nel recupero delle notizie finanziarie: ${error}`, 'financial-news');
-    // In caso di errore, restituisci la cache anche se non è aggiornata
-    return newsCache.news;
-  }
+  // Recupera le notizie da tutte le fonti
+  const [rssNews, yahooNews] = await Promise.all([
+    getNewsFromRSS(),
+    getNewsFromYahooFinance()
+  ]);
+  
+  // Unisce tutte le notizie e rimuove eventuali duplicati (basati sull'ID)
+  const allNews = [...rssNews, ...yahooNews];
+  const uniqueNewsMap = new Map<string, FinancialNews>();
+  
+  allNews.forEach(news => {
+    uniqueNewsMap.set(news.id, news);
+  });
+  
+  // Converte la mappa in array
+  const uniqueNews = Array.from(uniqueNewsMap.values());
+  
+  // Ordina per data di pubblicazione (più recenti prima)
+  const sortedNews = uniqueNews.sort((a, b) => {
+    return b.publishedAt.getTime() - a.publishedAt.getTime();
+  });
+  
+  // Aggiorna la cache
+  newsCache.news = sortedNews;
+  newsCache.lastUpdated = now;
+  
+  log(`Recuperate e memorizzate ${sortedNews.length} notizie uniche in totale`, 'financial-news');
+  return sortedNews;
 }
 
 /**
  * Recupera i dettagli completi di una notizia specifica
  */
 export async function getNewsDetails(newsId: string): Promise<FinancialNews | null> {
-  // Cerca prima nella cache
+  // Prima cerca nella cache
   const cachedNews = newsCache.news.find(news => news.id === newsId);
+  
   if (!cachedNews) {
+    log(`Notizia con ID ${newsId} non trovata in cache`, 'financial-news');
     return null;
   }
   
-  // Se abbiamo già i contenuti completi, restituisci quelli
+  // Se abbiamo già il contenuto completo, restituiamo l'oggetto esistente
   if (cachedNews.content) {
     return cachedNews;
   }
   
-  // Altrimenti, cerca di recuperare il contenuto completo
+  // Altrimenti, proviamo a recuperare il contenuto completo
   try {
-    const response = await axios.get(cachedNews.url);
-    const $ = cheerio.load(response.data);
+    log(`Recupero dettagli per la notizia ${newsId} (${cachedNews.title})`, 'financial-news');
     
-    // La logica per estrarre il contenuto dipende dal sito
+    // Recupera la pagina HTML
+    const response = await axios.get(cachedNews.url);
+    const html = response.data;
+    
+    // Carica HTML in cheerio
+    const $ = cheerio.load(html);
+    
+    // Estraiamo il contenuto principale (strategia generica, potrebbe richiedere adattamenti)
+    // Questa è una soluzione di base che cerca di identificare il contenuto principale
     let content = '';
     
-    if (cachedNews.source === 'Yahoo Finance') {
-      content = $('.caas-body').text();
-    } else if (cachedNews.source === 'Repubblica Economia') {
-      content = $('.article-body').text();
-    } else if (cachedNews.source === 'Il Sole 24 Ore') {
-      content = $('.articolo-body').text();
-    } else if (cachedNews.source === 'Borsa Italiana') {
-      content = $('.column-content').text();
-    } else {
-      // Strategia generica: cerca div con classe content o article
-      content = $('.content, .article, article, [itemprop="articleBody"]').text();
+    // Cerca nel contenuto principale (strategie multiple)
+    const contentSelectors = [
+      'article', '.article-content', '.article-body', 
+      '.post-content', '.entry-content', '#content',
+      '.content', 'main'
+    ];
+    
+    for (const selector of contentSelectors) {
+      const element = $(selector);
+      if (element.length > 0) {
+        // Rimuove elementi non necessari come script, stili e commenti
+        element.find('script, style, .comments, .sidebar, nav, header, footer').remove();
+        
+        // Estrae il testo
+        content = element.text().trim();
+        
+        // Se abbiamo trovato un contenuto significativo, interrompiamo il ciclo
+        if (content.length > 100) {
+          break;
+        }
+      }
+    }
+    
+    // Se non troviamo un contenuto significativo, usiamo almeno il primo paragrafo
+    if (content.length < 100) {
+      content = $('p').first().text().trim();
     }
     
     // Aggiorna la cache con il contenuto completo
-    const updatedNews = { ...cachedNews, content: content.trim() };
-    const newsIndex = newsCache.news.findIndex(n => n.id === newsId);
-    if (newsIndex >= 0) {
-      newsCache.news[newsIndex] = updatedNews;
-    }
+    cachedNews.content = content || cachedNews.description;
     
-    return updatedNews;
+    log(`Dettagli recuperati per la notizia ${newsId}`, 'financial-news');
+    return cachedNews;
   } catch (error) {
     log(`Errore nel recupero dei dettagli della notizia ${newsId}: ${error}`, 'financial-news');
-    return cachedNews;  // Restituisci la versione in cache senza contenuto completo
+    
+    // In caso di errore, restituisce la notizia senza contenuto completo
+    return cachedNews;
   }
 }

@@ -11,6 +11,7 @@ import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import AuthPage from "@/pages/auth-page";
 import Settings from "@/pages/Settings";
 import AdminPanel from "@/pages/AdminPanel";
+import FinancialNews from "@/pages/FinancialNews";
 import { Layout } from "@/components/advisor/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -51,6 +52,14 @@ function Router() {
       <ProtectedRoute 
         path="/admin" 
         component={AdminPanel}
+      />
+      <ProtectedRoute 
+        path="/financial-news" 
+        component={() => (
+          <Layout>
+            <FinancialNews />
+          </Layout>
+        )} 
       />
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route path="/onboarding" component={OnboardingForm} />

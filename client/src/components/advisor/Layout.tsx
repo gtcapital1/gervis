@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   Globe,
   ShieldAlert,
+  LineChart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,6 +72,13 @@ export function Layout({ children }: LayoutProps) {
       href: "/app",
       icon: Users,
       current: location.startsWith("/clients"),
+    },
+    {
+      name: "FinancialNews",
+      href: "/financial-news",
+      icon: LineChart,
+      current: location === "/financial-news",
+      disabled: false,
     },
     {
       name: "Settings",

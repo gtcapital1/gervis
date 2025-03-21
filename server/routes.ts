@@ -1207,6 +1207,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Registra le rotte per le notizie finanziarie e l'analisi AI
+  registerFinancialNewsRoutes(app);
+  
   const httpServer = createServer(app);
   return httpServer;
 }
