@@ -200,6 +200,7 @@ const resourcesIt = {
       dashboard: "Dashboard",
       settings: "Impostazioni",
       market: "Mercati",
+      admin: "Amministrazione",
       manage_portfolio: "Gestisci il tuo portafoglio clienti",
       upgrade_to_pro: "Passa a PRO",
       client_overview: "Panoramica Cliente",
@@ -523,7 +524,13 @@ const resourcesIt = {
       add: "Aggiungi",
       no_tickers: "Nessun ticker aggiunto",
       add_tickers_message: "Aggiungi i ticker delle azioni che desideri monitorare",
-      financial_news: "Notizie Finanziarie"
+      financial_news: "Notizie Finanziarie",
+      no_news: "Nessuna notizia disponibile",
+      no_news_message: "Al momento non ci sono notizie disponibili. Riprova più tardi.",
+      no_indices: "Nessun indice disponibile",
+      no_indices_message: "Al momento non ci sono dati sugli indici disponibili. Riprova più tardi.",
+      no_ticker_data: "Nessun dato disponibile",
+      no_ticker_data_message: "Non è stato possibile recuperare i dati per i ticker selezionati. Riprova più tardi."
     },
     pdf: {
       title: "Modulo di Onboarding Cliente",
@@ -1049,7 +1056,13 @@ const resourcesEn = {
       add: "Add",
       no_tickers: "No tickers added",
       add_tickers_message: "Add stock tickers you want to monitor",
-      financial_news: "Financial News"
+      financial_news: "Financial News",
+      no_news: "No news available",
+      no_news_message: "There are currently no news available. Please try again later.",
+      no_indices: "No indices available",
+      no_indices_message: "There are currently no indices data available. Please try again later.",
+      no_ticker_data: "No data available",
+      no_ticker_data_message: "Unable to retrieve data for your selected tickers. Please try again later."
     },
     common: {
       cancel: "Cancel",

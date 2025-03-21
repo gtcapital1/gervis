@@ -272,18 +272,8 @@ export default function MarketUpdate() {
     }
   };
 
-  // Esempio di indici principali per testing (sarà sostituito da dati reali dall'API)
-  const mockIndices: MarketIndex[] = [
-    { symbol: "^GSPC", name: "S&P 500", price: 5218.34, change: 23.45, changePercent: 0.45 },
-    { symbol: "^DJI", name: "Dow Jones", price: 39258.70, change: -103.35, changePercent: -0.26 },
-    { symbol: "^IXIC", name: "NASDAQ", price: 16340.87, change: 98.26, changePercent: 0.61 },
-    { symbol: "^FTSE", name: "FTSE 100", price: 7930.96, change: 12.31, changePercent: 0.16 },
-    { symbol: "^FTSEMIB", name: "FTSE MIB", price: 33746.24, change: -82.75, changePercent: -0.24 },
-    { symbol: "^GDAXI", name: "DAX", price: 17721.22, change: 101.07, changePercent: 0.57 }
-  ];
-
-  // Se indicesData non è disponibile, usa i dati di esempio
-  const indices: MarketIndex[] = indicesData as MarketIndex[] || mockIndices;
+  // Utilizza i dati reali dall'API
+  const indices: MarketIndex[] = indicesData as MarketIndex[] || [];
   
   return (
     <div className="container py-6">
@@ -349,9 +339,25 @@ export default function MarketUpdate() {
             </Alert>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {indices.map((index: MarketIndex) => (
-                <MarketIndexCard key={index.symbol} index={index} />
-              ))}
+              {indices && indices.length > 0 ? (
+                indices.map((index: MarketIndex) => (
+                  <MarketIndexCard key={index.symbol} index={index} />
+                ))
+              ) : (
+                <div className="col-span-full">
+                  <Card className="mb-6">
+                    <CardContent className="flex flex-col items-center justify-center p-10">
+                      <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
+                      <p className="text-xl font-semibold text-center mb-2">
+                        {t('market.no_indices') || "Nessun indice disponibile"}
+                      </p>
+                      <p className="text-muted-foreground text-center mb-4">
+                        {t('market.no_indices_message') || "Al momento non ci sono dati sugli indici disponibili. Riprova più tardi."}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </div>
           )}
         </TabsContent>
@@ -421,30 +427,29 @@ export default function MarketUpdate() {
             </Alert>
           ) : (
             <div>
-              {/* Per test: genera dati mock basati sui ticker utente */}
-              {userTickers.map(symbol => {
-                // Genera un prezzo casuale tra 10 e 1000
-                const price = Math.random() * 990 + 10;
-                // Genera una variazione casuale tra -5% e 5%
-                const changePercent = (Math.random() * 10) - 5;
-                const change = price * (changePercent / 100);
-                
-                const mockTicker: StockTicker = {
-                  symbol,
-                  name: symbol, // Idealmente qui ci sarebbe il nome completo dell'azienda
-                  price,
-                  change,
-                  changePercent
-                };
-                
-                return (
-                  <StockTickerCard 
-                    key={symbol} 
-                    ticker={mockTicker} 
-                    onRemove={handleRemoveTicker} 
-                  />
-                );
-              })}
+              {tickersData && tickersData.length > 0 ? (
+                <div>
+                  {tickersData.map((ticker) => (
+                    <StockTickerCard 
+                      key={ticker.symbol} 
+                      ticker={ticker} 
+                      onRemove={handleRemoveTicker} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card className="mb-6">
+                  <CardContent className="flex flex-col items-center justify-center p-10">
+                    <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-xl font-semibold text-center mb-2">
+                      {t('market.no_ticker_data') || "Nessun dato disponibile"}
+                    </p>
+                    <p className="text-muted-foreground text-center mb-4">
+                      {t('market.no_ticker_data_message') || "Non è stato possibile recuperare i dati per i ticker selezionati. Riprova più tardi."}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
           )}
         </TabsContent>
