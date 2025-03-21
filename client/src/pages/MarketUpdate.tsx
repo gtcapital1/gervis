@@ -235,6 +235,8 @@ export default function MarketUpdate() {
   const [selectedStock, setSelectedStock] = useState<string>(DEFAULT_US_STOCKS[0]);
   const [newsFilter, setNewsFilter] = useState<'global' | 'italia'>('global');
   const suggestionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(true);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Recupero dati degli indici principali
   const { 
@@ -419,27 +421,58 @@ export default function MarketUpdate() {
     refreshAllData();
     
     // Aggiornamento periodico
-    const interval = setInterval(() => {
-      refreshAllData();
-    }, 60000);
+    if (autoRefreshEnabled) {
+      refreshIntervalRef.current = setInterval(() => {
+        refreshAllData();
+      }, 60000); // 60 secondi
+    }
     
     // Pulizia quando il componente viene smontato
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
+      }
+    };
+  }, [autoRefreshEnabled]); // Si riattiva quando cambia l'impostazione di autoRefresh
 
   return (
     <div className="container py-6 px-6 md:px-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold text-black">{t('market.title') || "Aggiornamento Mercati"}</h1>
-        <Button 
-          variant="outline" 
-          className="flex items-center" 
-          onClick={refreshAllData}
-          disabled={indicesLoading || newsLoading || tickersLoading}
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${indicesLoading || newsLoading || tickersLoading ? 'animate-spin' : ''}`} />
-          {t('market.refresh') || "Aggiorna Dati"}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center mr-2">
+            <label className="text-sm mr-2 text-muted-foreground">
+              {t('market.auto_refresh') || "Aggiornamento auto"}:
+            </label>
+            <div className="relative inline-flex items-center">
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={autoRefreshEnabled}
+                onChange={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+                id="auto-refresh-toggle"
+              />
+              <div
+                className={`block w-10 h-6 rounded-full transition-colors ${autoRefreshEnabled ? 'bg-primary' : 'bg-gray-300'}`}
+                onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+              />
+              <div
+                className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${autoRefreshEnabled ? 'transform translate-x-4' : ''}`}
+                onClick={() => setAutoRefreshEnabled(!autoRefreshEnabled)}
+              />
+            </div>
+          </div>
+          <Button 
+            variant="outline" 
+            className="flex items-center" 
+            onClick={refreshAllData}
+            disabled={indicesLoading || newsLoading || tickersLoading}
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${indicesLoading || newsLoading || tickersLoading ? 'animate-spin' : ''}`} />
+            {t('market.refresh') || "Aggiorna Dati"}
+          </Button>
+        </div>
       </div>
 
       {/* Command Dialog per la ricerca avanzata di ticker */}
