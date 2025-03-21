@@ -1384,6 +1384,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ===== Market Data API Routes =====
+  
+  // Get market indices
+  app.get('/api/market/indices', getMarketIndices);
+  
+  // Get financial news
+  app.get('/api/market/news', getFinancialNews);
+  
+  // Get data for specific ticker symbols
+  app.get('/api/market/tickers', (req, res) => {
+    // Estrai i simboli dalla query string
+    const symbols = req.query.symbols ? (req.query.symbols as string).split(',') : [];
+    
+    if (!symbols.length) {
+      return res.status(400).json({ error: "Symbols parameter is required" });
+    }
+    
+    // Trasforma la lista di simboli in parametri di query e chiama l'API
+    req.query.symbols = symbols.join(',');
+    getTickerData(req, res);
+  });
+  
+  // Validate ticker symbol
+  app.post('/api/market/validate-ticker', validateTicker);
+
   const httpServer = createServer(app);
   return httpServer;
 }

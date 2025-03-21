@@ -282,8 +282,8 @@ export default function MarketUpdate() {
     { symbol: "^GDAXI", name: "DAX", price: 17721.22, change: 101.07, changePercent: 0.57 }
   ];
 
-  // Questo codice sarà sostituito quando l'API sarà creata
-  const indices = indicesData || mockIndices;
+  // Se indicesData non è disponibile, usa i dati di esempio
+  const indices: MarketIndex[] = indicesData as MarketIndex[] || mockIndices;
   
   return (
     <div className="container py-6">
@@ -349,7 +349,7 @@ export default function MarketUpdate() {
             </Alert>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {indices.map(index => (
+              {indices.map((index: MarketIndex) => (
                 <MarketIndexCard key={index.symbol} index={index} />
               ))}
             </div>

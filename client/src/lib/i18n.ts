@@ -199,6 +199,7 @@ const resourcesIt = {
       return_to_home: "Torna alla Home",
       dashboard: "Dashboard",
       settings: "Impostazioni",
+      market: "Mercati",
       manage_portfolio: "Gestisci il tuo portafoglio clienti",
       upgrade_to_pro: "Passa a PRO",
       client_overview: "Panoramica Cliente",
