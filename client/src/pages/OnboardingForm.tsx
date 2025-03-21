@@ -780,108 +780,71 @@ export default function OnboardingForm() {
           
           <Card>
             <CardHeader className="space-y-1">
-              <div className="flex justify-between items-center">
-                <CardTitle>{t('onboarding.assets')}</CardTitle>
-                <Button 
-                  type="button" 
-                  onClick={addAsset} 
-                  variant="outline" 
-                  size="sm"
-                >
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  {t('onboarding.add_asset')}
-                </Button>
-              </div>
+              <CardTitle>{t('onboarding.assets')}</CardTitle>
               <CardDescription>
                 {t('client_edit.assets_desc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {form.watch('assets').map((asset, index) => (
-                <div key={index}>
-                  {index > 0 && <Separator className="my-6" />}
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="font-medium">{t('client_edit.asset')} {index + 1}</h4>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeAsset(index)}
-                      className="text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      {t('onboarding.remove')}
-                    </Button>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name={`assets.${index}.category`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('client_edit.asset_type')}</FormLabel>
-                          <Select 
-                            onValueChange={field.onChange} 
-                            defaultValue={field.value}
-                          >
+              <div className="mb-4">
+                <h3 className="text-lg font-medium mb-2">Inserisci il valore dei tuoi asset per categoria</h3>
+                <FormDescription className="mb-4">
+                  Indica il valore approssimativo per ciascuna categoria di asset che possiedi.
+                  Lascia a 0 le categorie che non possiedi.
+                </FormDescription>
+              </div>
+              
+              <div className="grid grid-cols-1 gap-6">
+                {categoryOptions.map((category, index) => (
+                  <div key={category} className="bg-accent/30 p-4 rounded-md">
+                    <h4 className="font-medium mb-3">{t(`asset_categories.${category}`)}</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name={`assets.${index}.value`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('client_edit.asset_value')}</FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder={t('client_edit.select_asset_type')} />
-                              </SelectTrigger>
+                              <Input 
+                                type="number" 
+                                placeholder="0" 
+                                {...field} 
+                                onChange={e => field.onChange(e.target.valueAsNumber)}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {categoryOptions.map(category => (
-                                <SelectItem key={category} value={category}>
-                                  <span className="capitalize">{t(`asset_categories.${category}`)}</span>
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name={`assets.${index}.value`}
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t('client_edit.asset_value')}</FormLabel>
-                          <FormControl>
-                            <Input 
-                              type="number" 
-                              placeholder="100000" 
-                              {...field} 
-                              onChange={e => field.onChange(e.target.valueAsNumber)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    
-                    <FormField
-                      control={form.control}
-                      name={`assets.${index}.description`}
-                      render={({ field }) => (
-                        <FormItem className="col-span-1 md:col-span-2">
-                          <FormLabel>{t('client_edit.description')}</FormLabel>
-                          <FormControl>
-                            <Textarea 
-                              placeholder={t('pdf.description')} 
-                              className="resize-none"
-                              {...field} 
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name={`assets.${index}.description`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('client_edit.description')}</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="text" 
+                                placeholder={t('pdf.description')} 
+                                {...field} 
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <input 
+                        type="hidden" 
+                        name={`assets.${index}.category`} 
+                        value={category}
+                        {...form.register(`assets.${index}.category`)}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
               
               {form.formState.errors.assets?.root && (
                 <Alert variant="destructive">
