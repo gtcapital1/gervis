@@ -242,12 +242,21 @@ export default function OnboardingForm() {
     setFormError(null);
     
     // Assicuriamo che i valori degli interessi siano convertiti correttamente 
-    // da stringhe a numeri prima di inviarli
-    data.retirementInterest = parseInt(data.retirementInterest as any) || 3;
-    data.wealthGrowthInterest = parseInt(data.wealthGrowthInterest as any) || 3;
-    data.incomeGenerationInterest = parseInt(data.incomeGenerationInterest as any) || 3;
-    data.capitalPreservationInterest = parseInt(data.capitalPreservationInterest as any) || 3;
-    data.estatePlanningInterest = parseInt(data.estatePlanningInterest as any) || 3;
+    // da stringhe a numeri prima di inviarli e siano del tipo numerico 
+    data.retirementInterest = Number(data.retirementInterest) || 3;
+    data.wealthGrowthInterest = Number(data.wealthGrowthInterest) || 3;
+    data.incomeGenerationInterest = Number(data.incomeGenerationInterest) || 3;
+    data.capitalPreservationInterest = Number(data.capitalPreservationInterest) || 3;
+    data.estatePlanningInterest = Number(data.estatePlanningInterest) || 3;
+    
+    // Log dei valori per debug
+    console.log("DEBUG - Valori interessi inviati:", {
+      retirement: data.retirementInterest,
+      wealthGrowth: data.wealthGrowthInterest,
+      incomeGeneration: data.incomeGenerationInterest,
+      capitalPreservation: data.capitalPreservationInterest,
+      estatePlanning: data.estatePlanningInterest
+    });
     
     try {
       mutation.mutate(data);
@@ -293,7 +302,7 @@ export default function OnboardingForm() {
           </CardContent>
           <CardFooter>
             <Button 
-              className="w-full"
+              className="w-full accent-black"
               onClick={() => setLocation("/")}
             >
               Return to Home
@@ -325,7 +334,7 @@ export default function OnboardingForm() {
           </CardContent>
           <CardFooter>
             <Button 
-              className="w-full"
+              className="w-full accent-black"
               onClick={() => setLocation("/")}
             >
               Return to Home
@@ -647,7 +656,7 @@ export default function OnboardingForm() {
                             min="1"
                             max="5"
                             step="1"
-                            className="w-full"
+                            className="w-full accent-black"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
@@ -676,7 +685,7 @@ export default function OnboardingForm() {
                             min="1"
                             max="5"
                             step="1"
-                            className="w-full"
+                            className="w-full accent-black"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
@@ -705,7 +714,7 @@ export default function OnboardingForm() {
                             min="1"
                             max="5"
                             step="1"
-                            className="w-full"
+                            className="w-full accent-black"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
@@ -734,7 +743,7 @@ export default function OnboardingForm() {
                             min="1"
                             max="5"
                             step="1"
-                            className="w-full"
+                            className="w-full accent-black"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
@@ -763,7 +772,7 @@ export default function OnboardingForm() {
                             min="1"
                             max="5"
                             step="1"
-                            className="w-full"
+                            className="w-full accent-black"
                             {...field}
                             onChange={(e) => field.onChange(parseInt(e.target.value))}
                           />
@@ -931,7 +940,7 @@ export default function OnboardingForm() {
             <CardContent className="pt-6">
               <Button 
                 type="submit" 
-                className="w-full"
+                className="w-full accent-black"
                 disabled={mutation.isPending}
               >
                 {mutation.isPending ? t('common.saving') : t('onboarding.submit')}

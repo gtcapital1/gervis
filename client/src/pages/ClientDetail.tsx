@@ -589,38 +589,88 @@ Grazie per la tua fiducia e collaborazione.`
                   <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 gap-4">
-                    <div>
-                      <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
-                      {client.riskProfile ? (
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              client.riskProfile === "conservative" ? "#93c5fd" : // Light blue
-                              client.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
-                              client.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
-                              client.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
-                              client.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: "#ffffff"
-                          }}
-                        >
-                          {t(`risk_profiles.${client.riskProfile}`)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          {t('client.not_assessed')}
-                        </Badge>
-                      )}
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
+                        {client.riskProfile ? (
+                          <Badge 
+                            className="capitalize"
+                            style={{
+                              backgroundColor: 
+                                client.riskProfile === "conservative" ? "#93c5fd" : // Light blue
+                                client.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
+                                client.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
+                                client.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
+                                client.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
+                                "#6b7280", // Gray default
+                              color: "#ffffff"
+                            }}
+                          >
+                            {t(`risk_profiles.${client.riskProfile}`)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {t('client.not_assessed')}
+                          </Badge>
+                        )}
+                      </div>
                     
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
+                        {client.investmentExperience ? (
+                          <Badge 
+                            className="capitalize"
+                            style={{
+                              backgroundColor: 
+                                client.investmentExperience === "none" ? "#dbeafe" : // Very light blue
+                                client.investmentExperience === "beginner" ? "#93c5fd" : // Light blue
+                                client.investmentExperience === "intermediate" ? "#60a5fa" : // Medium light blue
+                                client.investmentExperience === "advanced" ? "#3b82f6" : // Medium blue
+                                client.investmentExperience === "expert" ? "#1e40af" : // Dark blue
+                                "#6b7280", // Gray default
+                              color: client.investmentExperience === "none" || client.investmentExperience === "beginner" ? "#1e3a8a" : "#ffffff"
+                            }}
+                          >
+                            {t(`experience_levels.${client.investmentExperience}`)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {t('client.not_specified')}
+                          </Badge>
+                        )}
+                      </div>
+                      
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
+                        {client.investmentHorizon ? (
+                          <Badge 
+                            className="capitalize"
+                            style={{
+                              backgroundColor: 
+                                client.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
+                                client.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
+                                client.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
+                                "#6b7280", // Gray default
+                              color: client.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
+                            }}
+                          >
+                            {t(`investment_horizons.${client.investmentHorizon}`)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            {t('client.not_specified')}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                      
                     {/* Grafico a ragno per gli obiettivi di investimento */}
                     {/* Mostro il grafico radar sempre quando il cliente è onboarded */}
                     {client.isOnboarded && (
-                      <div className="mt-4">
+                      <div>
                         <span className="text-sm font-medium block mb-2">{t('client.investment_goals')}:</span>
-                        <div className="h-[300px] w-full">
+                        <div className="h-[270px] w-full">
                           <ResponsiveContainer width="100%" height="100%">
                             <RadarChart outerRadius={90} data={[
                               {
@@ -787,10 +837,6 @@ Grazie per la tua fiducia e collaborazione.`
                       <TabsTrigger value="portfolio">
                         <PieChart className="mr-2 h-4 w-4" />
                         {t('client.portfolio_overview')}
-                      </TabsTrigger>
-                      <TabsTrigger value="assets">
-                        <BarChart className="mr-2 h-4 w-4" />
-                        {t('client.assets')}
                       </TabsTrigger>
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
