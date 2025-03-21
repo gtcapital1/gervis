@@ -385,87 +385,25 @@ export default function OnboardingForm() {
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('onboarding.personal_info')}</CardTitle>
-              <CardDescription>
-                {t('client_edit.personal_info_desc')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.address')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={t('client.address')} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.phone')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={t('client.phone')} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="taxCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.tax_code')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={t('client.tax_code')} {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      {t('client_edit.tax_code')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="employmentStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.employment')}</FormLabel>
-                    <FormControl>
-                      <Input placeholder={t('client.employment')} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Container flex per il layout 2/5 - 3/5 */}
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Card 1: Informazioni personali (2/5) */}
+            <Card className="w-full md:w-[40%]">
+              <CardHeader>
+                <CardTitle>{t('onboarding.personal_info')}</CardTitle>
+                <CardDescription>
+                  {t('client_edit.personal_info_desc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="annualIncome"
+                  name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('onboarding.income')}</FormLabel>
+                      <FormLabel>{t('client.address')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="50000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
+                        <Input placeholder={t('client.address')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -474,17 +412,12 @@ export default function OnboardingForm() {
                 
                 <FormField
                   control={form.control}
-                  name="monthlyExpenses"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.monthly_expenses')}</FormLabel>
+                      <FormLabel>{t('client.phone')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="2000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
+                        <Input placeholder={t('client.phone')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -493,18 +426,16 @@ export default function OnboardingForm() {
                 
                 <FormField
                   control={form.control}
-                  name="netWorth"
+                  name="taxCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.net_worth')}</FormLabel>
+                      <FormLabel>{t('client.tax_code')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="250000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
+                        <Input placeholder={t('client.tax_code')} {...field} />
                       </FormControl>
+                      <FormDescription>
+                        {t('client_edit.tax_code')}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -512,32 +443,105 @@ export default function OnboardingForm() {
                 
                 <FormField
                   control={form.control}
-                  name="dependents"
+                  name="employmentStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.dependents')}</FormLabel>
+                      <FormLabel>{t('client.employment')}</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="0"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
+                        <Input placeholder={t('client.employment')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-            </CardContent>
-          </Card>
+                
+                <div className="grid grid-cols-1 gap-6">
+                  <FormField
+                    control={form.control}
+                    name="annualIncome"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('onboarding.income')}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="50000"
+                            {...field}
+                            onChange={e => field.onChange(e.target.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="monthlyExpenses"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('client.monthly_expenses')}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="2000"
+                            {...field}
+                            onChange={e => field.onChange(e.target.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="netWorth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('client.net_worth')}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="250000"
+                            {...field}
+                            onChange={e => field.onChange(e.target.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                    name="dependents"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t('client.dependents')}</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="0"
+                            {...field}
+                            onChange={e => field.onChange(e.target.valueAsNumber)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('onboarding.financial_profile')}</CardTitle>
-              <CardDescription>
-                {t('client_edit.investment_profile_desc')}
-              </CardDescription>
+            {/* Card 2: Profilo finanziario (3/5) */}
+            <Card className="w-full md:w-[60%]">
+              <CardHeader>
+                <CardTitle>{t('onboarding.financial_profile')}</CardTitle>
+                <CardDescription>
+                  {t('client_edit.investment_profile_desc')}
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
