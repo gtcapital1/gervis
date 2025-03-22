@@ -27,6 +27,8 @@
   "ai_suggestions": "Suggestions",
   "ai_suggestions_description": "Recommended actions and talking points for future client interactions",
   "ai_last_updated": "AI analysis last updated",
+  "no_content_available": "No content available",
+  "content_not_formatted_correctly": "Content not formatted correctly",
   "loading_assets": "Loading assets...",
   "no_assets": "No assets available for this client.",
   "add_asset": "Add asset",

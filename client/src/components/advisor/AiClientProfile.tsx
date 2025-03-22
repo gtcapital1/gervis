@@ -35,11 +35,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   
   const formatText = (text: string | null | undefined) => {
     // Se il testo non esiste, mostra un messaggio di default
-    if (!text) return <p className="mb-4">Nessun contenuto disponibile</p>;
+    if (!text) return <p className="mb-4">{t('client.no_content_available')}</p>;
     
     // Se il testo è un oggetto (potrebbe accadere in caso di errori di parsing JSON)
     if (typeof text !== 'string') {
-      return <p className="mb-4">Contenuto non formattato correttamente</p>;
+      return <p className="mb-4">{t('client.content_not_formatted_correctly')}</p>;
     }
     
     // Split by newlines and create paragraphs

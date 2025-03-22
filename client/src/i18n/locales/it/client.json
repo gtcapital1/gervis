@@ -27,6 +27,8 @@
   "ai_suggestions": "Suggerimenti",
   "ai_suggestions_description": "Azioni consigliate e spunti di conversazione per future interazioni con il cliente",
   "ai_last_updated": "Ultima analisi AI aggiornata",
+  "no_content_available": "Nessun contenuto disponibile",
+  "content_not_formatted_correctly": "Contenuto non formattato correttamente",
   "loading_assets": "Caricamento asset...",
   "no_assets": "Nessun asset disponibile per questo cliente.",
   "add_asset": "Aggiungi asset",
