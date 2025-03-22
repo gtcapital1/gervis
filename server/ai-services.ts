@@ -25,6 +25,9 @@ export interface ProfileEnrichment {
  */
 export async function verifyOpenAIConfiguration(): Promise<boolean> {
   try {
+    console.log("[DEBUG AI] Verifica configurazione OpenAI in corso...");
+    console.time("[DEBUG AI] Tempo risposta verifica OpenAI");
+    
     // Effettua una semplice chiamata per verificare la validità della chiave API
     const response = await openai.chat.completions.create({
       model: "gpt-4",
@@ -36,10 +39,17 @@ export async function verifyOpenAIConfiguration(): Promise<boolean> {
       max_tokens: 5
     });
     
+    console.timeEnd("[DEBUG AI] Tempo risposta verifica OpenAI");
+    
     const responseText = response.choices[0]?.message?.content || '';
-    return responseText.includes("OK");
+    const isValid = responseText.includes("OK");
+    
+    console.log("[DEBUG AI] Configurazione OpenAI valida:", isValid);
+    console.log("[DEBUG AI] Risposta ricevuta:", responseText);
+    
+    return isValid;
   } catch (error) {
-    console.error("Errore durante la verifica della configurazione OpenAI:", error);
+    console.error("[DEBUG AI] Errore durante la verifica della configurazione OpenAI:", error);
     return false;
   }
 }
@@ -55,6 +65,9 @@ export async function generateEnrichedProfile(
   logs: ClientLog[]
 ): Promise<ProfileEnrichment> {
   try {
+    console.log("[DEBUG AI] Inizio generazione profilo arricchito per cliente ID:", client.id);
+    console.log("[DEBUG AI] Numero di log disponibili:", logs.length);
+    
     // Formatta i dati del cliente e i log per il prompt
     const clientInfo = formatClientInfo(client);
     const logsInfo = formatLogsInfo(logs);
@@ -84,6 +97,9 @@ ${logsInfo}
 Analizza queste informazioni e genera approfondimenti e suggerimenti personalizzati per questo cliente.
 `;
 
+    console.log("[DEBUG AI] Invio richiesta a OpenAI API...");
+    console.time("[DEBUG AI] Tempo risposta OpenAI");
+    
     // Chiamata a OpenAI GPT-4
     const response = await openai.chat.completions.create({
       model: "gpt-4", // Utilizziamo GPT-4 per analisi complesse
@@ -95,6 +111,8 @@ Analizza queste informazioni e genera approfondimenti e suggerimenti personalizz
       max_tokens: 1000, // Limita la lunghezza della risposta
       response_format: { type: "json_object" } // Richiedi una risposta in formato JSON
     });
+    
+    console.timeEnd("[DEBUG AI] Tempo risposta OpenAI");
     
     // Estrai e analizza la risposta JSON
     const responseText = response.choices[0]?.message?.content || '';
