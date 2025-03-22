@@ -1,5 +1,7 @@
 {
   "loading_details": "Loading client details...",
+  "client_details": "Client Details",
+  "client_information_and_ai": "Client Information and AI Profile",
   "error_loading": "An error occurred while loading client details.",
   "back_to_dashboard": "Back to dashboard",
   "back": "Back",

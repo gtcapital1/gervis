@@ -1,5 +1,7 @@
 {
   "loading_details": "Caricamento dettagli cliente...",
+  "client_details": "Dettagli cliente",
+  "client_information_and_ai": "Informazioni cliente e profilo AI",
   "error_loading": "Si è verificato un errore durante il caricamento dei dettagli del cliente.",
   "back_to_dashboard": "Torna alla dashboard",
   "back": "Indietro",
