@@ -758,32 +758,34 @@ Grazie per la tua fiducia e collaborazione.`
               </Card>
             </div>
             
-            {/* Bottom row: Asset Allocation full width */}
-            {/* Mostra gli asset se ce ne sono, indipendentemente dallo stato di onboarding */}
-            {assets.length > 0 ? (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
-                  <CardDescription>
-                    {t('client.portfolio_snapshot')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="portfolio">
-                    <TabsList className="mb-4">
+            {/* Bottom row: Asset Allocation and Client Details full width */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">{assets.length > 0 ? t('client.asset_allocation') : t('client.client_details')}</CardTitle>
+                <CardDescription>
+                  {assets.length > 0 ? t('client.portfolio_snapshot') : t('client.client_information_and_ai')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue={assets.length > 0 ? "portfolio" : "ai-profile"}>
+                  <TabsList className="mb-4">
+                    {assets.length > 0 && (
                       <TabsTrigger value="portfolio">
                         <PieChart className="mr-2 h-4 w-4" />
                         {t('client.portfolio_overview')}
                       </TabsTrigger>
+                    )}
+                    {assets.length > 0 && (
                       <TabsTrigger value="recommendations">
                         <FileText className="mr-2 h-4 w-4" />
                         {t('client.recommendations')}
                       </TabsTrigger>
-                      <TabsTrigger value="ai-profile">
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        {t('client.ai_profile')}
-                      </TabsTrigger>
-                    </TabsList>
+                    )}
+                    <TabsTrigger value="ai-profile">
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      {t('client.ai_profile')}
+                    </TabsTrigger>
+                  </TabsList>
                     
                     <TabsContent value="portfolio" className="space-y-6">
                       {isLoadingAssets ? (
@@ -1072,7 +1074,6 @@ Grazie per la tua fiducia e collaborazione.`
                   </Tabs>
                 </CardContent>
               </Card>
-            ) : null}
           </div>
         </div>
       </div>
