@@ -34,14 +34,25 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   });
   
   const formatText = (text: string | null | undefined) => {
+    // Se il testo non esiste, mostra un messaggio di default
     if (!text) return <p className="mb-4">Nessun contenuto disponibile</p>;
     
+    // Se il testo è un oggetto (potrebbe accadere in caso di errori di parsing JSON)
+    if (typeof text !== 'string') {
+      return <p className="mb-4">Contenuto non formattato correttamente</p>;
+    }
+    
     // Split by newlines and create paragraphs
-    return text.split('\n\n').map((paragraph, index) => (
-      <p key={index} className="mb-4">
-        {paragraph}
-      </p>
-    ));
+    try {
+      return text.split('\n\n').map((paragraph, index) => (
+        <p key={index} className="mb-4">
+          {paragraph}
+        </p>
+      ));
+    } catch (error) {
+      console.error("Errore durante la formattazione del testo:", error);
+      return <p className="mb-4">{text}</p>; // Fallback sicuro
+    }
   };
   
   const handleRefresh = async () => {
