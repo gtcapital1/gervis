@@ -6,8 +6,8 @@
  * Uso: node check-openai-api.js
  */
 
-require('dotenv').config();
-const { OpenAI } = require('openai');
+import 'dotenv/config';
+import { OpenAI } from 'openai';
 
 async function testOpenAI() {
   try {

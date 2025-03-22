@@ -134,13 +134,12 @@ function formatClientInfo(client: Client): string {
 - Indirizzo: ${client.address || 'Non specificato'}
 - Codice fiscale: ${client.taxCode || 'Non specificato'}
 - Stato occupazione: ${client.employmentStatus || 'Non specificato'}
-- Stato civile: ${client.maritalStatus || 'Non specificato'}
 - Familiari a carico: ${client.dependents !== undefined ? client.dependents : 'Non specificato'}
-- Reddito annuale: ${client.annualIncome !== undefined ? '€' + client.annualIncome.toLocaleString() : 'Non specificato'}
-- Spese mensili: ${client.monthlyExpenses !== undefined ? '€' + client.monthlyExpenses.toLocaleString() : 'Non specificato'}
-- Patrimonio netto: ${client.netWorth !== undefined ? '€' + client.netWorth.toLocaleString() : 'Non specificato'}
+- Reddito annuale: ${client.annualIncome !== null && client.annualIncome !== undefined ? '€' + client.annualIncome.toLocaleString() : 'Non specificato'}
+- Spese mensili: ${client.monthlyExpenses !== null && client.monthlyExpenses !== undefined ? '€' + client.monthlyExpenses.toLocaleString() : 'Non specificato'}
+- Patrimonio netto: ${client.netWorth !== null && client.netWorth !== undefined ? '€' + client.netWorth.toLocaleString() : 'Non specificato'}
 - Profilo di rischio: ${client.riskProfile || 'Non specificato'}
-- Esperienza di investimento: ${client.experienceLevel || 'Non specificato'}
+- Esperienza di investimento: ${client.investmentExperience || 'Non specificato'}
 - Orizzonte temporale: ${client.investmentHorizon || 'Non specificato'}
 ${personalInterests}
 - Interesse per pensionamento: ${client.retirementInterest !== undefined ? `${client.retirementInterest}/5` : 'Non specificato'}
