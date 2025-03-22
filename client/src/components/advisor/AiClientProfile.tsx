@@ -35,11 +35,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   
   const formatText = (text: string | null | undefined) => {
     // Se il testo non esiste, mostra un messaggio di default
-    if (!text) return <p className="mb-4 dark:text-white text-gray-800">{t('client.no_content_available')}</p>;
+    if (!text) return <p className="mb-4 dark:text-white text-gray-800">{t('no_content_available')}</p>;
     
     // Se il testo è un oggetto (potrebbe accadere in caso di errori di parsing JSON)
     if (typeof text !== 'string') {
-      return <p className="mb-4 dark:text-white text-gray-800">{t('client.content_not_formatted_correctly')}</p>;
+      return <p className="mb-4 dark:text-white text-gray-800">{t('content_not_formatted_correctly')}</p>;
     }
     
     // Split by newlines and create paragraphs
@@ -51,7 +51,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       ));
     } catch (error) {
       console.error("Errore durante la formattazione del testo:", error);
-      return <p className="mb-4 dark:text-white text-gray-800">{t('client.content_not_formatted_correctly')}</p>; // Utilizziamo la chiave di traduzione anche qui
+      return <p className="mb-4 dark:text-white text-gray-800">{t('content_not_formatted_correctly')}</p>; // Utilizziamo la chiave di traduzione anche qui
     }
   };
   
