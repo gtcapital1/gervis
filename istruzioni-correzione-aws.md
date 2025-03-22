@@ -1,69 +1,113 @@
-# Istruzioni per la correzione dell'errore 502 Bad Gateway su AWS
+# Istruzioni per Correggere l'Errore 502 Bad Gateway su AWS
 
-Abbiamo identificato che il problema principale su AWS è un errore 502 Bad Gateway nella comunicazione tra Nginx e l'applicazione Node.js. Questo errore si manifesta specificamente durante l'autenticazione, impedendo agli utenti di accedere all'applicazione.
+Questo documento fornisce istruzioni dettagliate per correggere l'errore 502 Bad Gateway sul server AWS.
 
-## 1. Scaricare gli script di correzione
+## Problema
 
-Per prima cosa, esegui questi comandi sul server AWS:
+L'applicazione sul server AWS presenta un errore 502 Bad Gateway a causa di incompatibilità tra moduli ES e CommonJS. 
+Il problema principale è che l'applicazione è configurata per utilizzare moduli ES (ECMAScript Modules) con `"type": "module"` nel `package.json`, 
+ma alcuni file e script di avvio utilizzano la sintassi CommonJS (`require()`).
 
-```bash
-cd /var/www/gervis
-git pull origin main
-chmod +x fix-nginx-node-gateway.sh
+## Soluzione
+
+Abbiamo adottato la seguente soluzione:
+
+1. Modificato `ecosystem.config.cjs` per utilizzare il file compilato `dist/index.js` invece di `index.cjs`
+2. Creato uno script di correzione completo che automatizza il processo di riavvio del server
+
+## Istruzioni per Applicare la Correzione
+
+### Metodo 1: Utilizzando lo Script Automatico (Consigliato)
+
+1. Accedi al server AWS tramite SSH
+2. Naviga nella directory dell'applicazione:
+   ```
+   cd /var/www/gervis
+   ```
+3. Aggiorna il repository da Git:
+   ```
+   git pull
+   ```
+4. Rendi eseguibile lo script di correzione:
+   ```
+   chmod +x fix-aws-server.sh
+   ```
+5. Esegui lo script:
+   ```
+   sudo ./fix-aws-server.sh
+   ```
+6. Verifica che l'applicazione sia in esecuzione:
+   ```
+   sudo pm2 status
+   ```
+7. Controlla i log per eventuali errori:
+   ```
+   sudo pm2 logs gervis
+   ```
+
+### Metodo 2: Correzione Manuale
+
+Se lo script automatico non funziona, segui questi passaggi manuali:
+
+1. Accedi al server AWS tramite SSH
+2. Naviga nella directory dell'applicazione:
+   ```
+   cd /var/www/gervis
+   ```
+3. Aggiorna il repository da Git:
+   ```
+   git pull
+   ```
+4. Installa `node-fetch` (necessario per le API di mercato):
+   ```
+   npm install node-fetch
+   ```
+5. Esegui la build dell'applicazione:
+   ```
+   npm run build
+   ```
+6. Ferma tutti i processi Node.js:
+   ```
+   sudo pm2 stop all
+   sudo pm2 delete all
+   sudo killall -9 node
+   ```
+7. Riavvia l'applicazione:
+   ```
+   sudo NODE_ENV=production HOST=0.0.0.0 PORT=5000 pm2 start ecosystem.config.cjs
+   ```
+8. Riavvia Nginx:
+   ```
+   sudo systemctl restart nginx
+   ```
+9. Verifica lo stato dell'applicazione:
+   ```
+   sudo pm2 status
+   ```
+
+## Verifica della Correzione
+
+Dopo aver applicato la correzione, verifica che il sito funzioni correttamente accedendo a:
+
+```
+https://gervis.it
 ```
 
-## 2. Eseguire lo script di correzione
+Controlla in particolare:
 
-Questo script automatico diagnosticherà e correggerà i problemi di comunicazione tra Nginx e Node.js:
+1. Login e autenticazione
+2. Visualizzazione e gestione dei clienti
+3. Visualizzazione dei dati di mercato
+4. Funzionalità email di onboarding
 
-```bash
-sudo ./fix-nginx-node-gateway.sh
+Se incontri ancora problemi, consulta i log per identificare eventuali errori specifici:
+
+```
+sudo pm2 logs gervis
 ```
 
-## 3. Verificare la correzione
+## Note Tecniche
 
-Dopo aver eseguito lo script, verifica che l'errore 502 Bad Gateway sia stato risolto:
-
-1. Apri https://gervis.it nel browser
-2. Prova ad accedere con le tue credenziali
-3. Verifica che la pagina di login funzioni correttamente
-4. Controlla che la dashboard si carichi senza errori
-
-## 4. Verifica dei log
-
-Se il problema persiste, controlla i log per ulteriori dettagli:
-
-```bash
-# Log di Nginx
-sudo tail -f /var/log/nginx/error.log
-
-# Log dell'applicazione Node.js
-sudo pm2 logs
-```
-
-## Cosa fa lo script di correzione?
-
-Lo script `fix-nginx-node-gateway.sh` esegue queste operazioni:
-
-1. **Verifica lo stato dell'applicazione Node.js**
-   - Controlla se l'app è in esecuzione
-   - Riavvia l'app se necessario
-
-2. **Verifica il processo in ascolto sulla porta 5000**
-   - Controlla se la porta 5000 è libera e accessibile
-   - Riavvia l'applicazione se necessario
-
-3. **Ottimizza la configurazione di Nginx**
-   - Aumenta i timeout di connessione (`proxy_read_timeout`, ecc.)
-   - Aumenta le dimensioni dei buffer
-   - Configura correttamente l'header Host
-
-4. **Configura trust proxy in Express**
-   - Verifica che Express sia configurato per lavorare correttamente dietro un proxy
-
-5. **Riavvia i servizi**
-   - Riavvia sia Nginx che l'applicazione Node.js
-
-## Contatta per supporto
-
-Se hai bisogno di ulteriore assistenza con questa correzione, non esitare a contattarci.
+- L'applicazione è stata configurata per utilizzare la versione compilata `dist/index.js` che è compatibile con l'ambiente di produzione
+- Lo script `fix-aws-server.sh` include passaggi per assicurarsi che non ci siano processi Node.js in conflitto sulla porta 5000
+- Le variabili d'ambiente `NODE_ENV=production`, `HOST=0.0.0.0` e `PORT=5000` sono specificate esplicitamente nel comando di avvio per garantire la configurazione corretta
