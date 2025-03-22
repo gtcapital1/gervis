@@ -6,71 +6,67 @@
  * Uso: node check-openai-api.js
  */
 
-require('dotenv').config(); // Carica le variabili d'ambiente da .env
+require('dotenv').config();
 const { OpenAI } = require('openai');
 
 async function testOpenAI() {
-  // Verifica che la chiave API sia presente nelle variabili d'ambiente
-  const apiKey = process.env.OPENAI_API_KEY;
-  
-  if (!apiKey) {
-    console.error("\x1b[31mERRORE: Chiave API OpenAI non trovata!\x1b[0m");
-    console.error("Assicurati che il file .env contenga una variabile OPENAI_API_KEY=sk-...");
-    process.exit(1);
-  }
-  
-  // Verifica che la chiave API non sia un valore placeholder
-  if (apiKey === "sk-your-api-key" || apiKey.includes("your-api-key")) {
-    console.error("\x1b[31mERRORE: Chiave API OpenAI non valida (valore placeholder)!\x1b[0m");
-    console.error("Sostituisci il valore placeholder con una chiave API valida.");
-    process.exit(1);
-  }
-  
-  console.log("\x1b[33mVerifica della chiave API OpenAI...\x1b[0m");
-  
   try {
-    // Inizializza il client OpenAI con la chiave API
-    const openai = new OpenAI({ apiKey });
+    // Verifica che la chiave API OpenAI sia configurata
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      console.error('❌ Errore: La chiave API OpenAI non è configurata.');
+      console.error('   Assicurati di avere una variabile OPENAI_API_KEY nel file .env');
+      process.exit(1);
+    }
     
-    // Esegue una richiesta di test semplice
-    const response = await openai.chat.completions.create({
-      model: "gpt-4", // Utilizza GPT-4 per il test
-      messages: [
-        { role: "system", content: "Sei un assistente utile." },
-        { role: "user", content: "Per favore, rispondi con 'Connessione OpenAI funzionante correttamente!'" }
-      ],
-      temperature: 0.5,
-      max_tokens: 30
+    console.log('🔑 Chiave API OpenAI configurata.');
+    
+    // Inizializza il client OpenAI
+    const openai = new OpenAI({
+      apiKey
     });
     
-    // Verifica la risposta
-    if (response && response.choices && response.choices.length > 0) {
-      console.log("\x1b[32mSUCCESSO: Connessione all'API OpenAI stabilita!\x1b[0m");
-      console.log(`Risposta ricevuta: "${response.choices[0].message.content.trim()}"`);
-      console.log("\x1b[32mL'integrazione AI è configurata correttamente.\x1b[0m");
-    } else {
-      console.error("\x1b[31mERRORE: Impossibile ottenere una risposta valida dall'API OpenAI.\x1b[0m");
-      console.error("Risposta ricevuta:", response);
-    }
-  } catch (error) {
-    console.error("\x1b[31mERRORE durante la connessione all'API OpenAI:\x1b[0m");
+    console.log('🔄 Effettuo un test di connessione all\'API OpenAI...');
     
-    if (error.response) {
-      console.error(`Stato: ${error.response.status}`);
-      console.error(`Messaggio: ${error.response.data.error.message}`);
-      
-      // Aiuta a diagnosticare errori comuni
-      if (error.response.status === 401) {
-        console.error("\x1b[31mChiave API non valida. Verifica la chiave API nel file .env.\x1b[0m");
-      } else if (error.response.status === 429) {
-        console.error("\x1b[31mLimite di richieste superato. Il tuo piano OpenAI potrebbe avere limitazioni.\x1b[0m");
-      }
+    // Effettua una semplice chiamata per verificare la validità della chiave API
+    const response = await openai.chat.completions.create({
+      model: "gpt-4",
+      messages: [
+        { role: "system", content: "Sei un test di configurazione." },
+        { role: "user", content: "Rispondi con 'OK' per confermare che la configurazione funziona correttamente." }
+      ],
+      temperature: 0.1,
+      max_tokens: 20
+    });
+    
+    const responseText = response.choices[0]?.message?.content || '';
+    console.log(`📝 Risposta OpenAI: "${responseText}"`);
+    
+    if (responseText.includes("OK")) {
+      console.log('✅ Configurazione API OpenAI verificata con successo!');
+      console.log('✅ L\'integrazione con OpenAI è pronta per l\'uso.');
     } else {
-      console.error(`Errore: ${error.message}`);
-      
-      if (error.message.includes("timeout")) {
-        console.error("\x1b[31mTimeout della connessione. Verifica la tua connessione internet o i firewall.\x1b[0m");
-      }
+      console.warn('⚠️  Risposta inaspettata dall\'API. La risposta dovrebbe contenere "OK".');
+      console.warn('   Potrebbe esserci un problema di configurazione o l\'API potrebbe essere sovraccarica.');
+    }
+    
+    console.log('\n📊 Informazioni aggiuntive sull\'API:');
+    console.log('   - Modello: gpt-4');
+    console.log(`   - ID completamento: ${response.id}`);
+    console.log(`   - Tempo di creazione: ${new Date(response.created * 1000).toISOString()}`);
+    console.log(`   - Token utilizzati: ${response.usage.total_tokens}`);
+    
+  } catch (error) {
+    console.error('❌ Errore durante il test dell\'API OpenAI:');
+    
+    if (error.code === 'ENOTFOUND') {
+      console.error('   Impossibile raggiungere il server API. Verifica la tua connessione Internet.');
+    } else if (error.status === 401) {
+      console.error('   Autenticazione fallita. La chiave API OpenAI non è valida.');
+    } else if (error.status === 429) {
+      console.error('   Limite di velocità superato. L\'account ha superato i limiti di utilizzo dell\'API.');
+    } else {
+      console.error(`   Dettagli errore: ${error.message}`);
     }
     
     process.exit(1);
