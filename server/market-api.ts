@@ -135,16 +135,25 @@ export async function getMarketIndices(req: Request, res: Response) {
         
         const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
         console.log(`Recupero dati per ${index.name} da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
+        console.log(`DEBUG - MARKET API: Inizio richiesta indice ${index.name} - ${new Date().toISOString()}`);
         
         // Impostiamo un timeout più lungo per problemi di rete su AWS
-        const response = await axios.get(url, {
-          timeout: 8000, // 8 secondi di timeout
-          headers: {
-            'User-Agent': 'Gervis-Financial-Platform/1.0',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
+        let response;
+        try {
+          response = await axios.get(url, {
+            timeout: 8000, // 8 secondi di timeout
+            headers: {
+              'User-Agent': 'Gervis-Financial-Platform/1.0',
+              'Accept': 'application/json',
+              'Cache-Control': 'no-cache'
+            }
+          });
+          console.log(`DEBUG - MARKET API: Richiesta indice ${index.name} completata - ${new Date().toISOString()}`);
+        } catch (axiosError: any) {
+          console.error(`DEBUG - MARKET API ERROR: Errore nella richiesta indice ${index.name} - ${new Date().toISOString()}`);
+          console.error('Dettagli errore axios:', axiosError.message);
+          throw axiosError;
+        }
         
         if (response.data && response.data.length > 0) {
           const data = response.data[0];
@@ -517,14 +526,18 @@ export async function getFinancialNews(req: Request, res: Response) {
     const filter = req.query.filter as string || 'global';
     const cacheKey = `financial_news_${filter}`;
     
+    console.log(`DEBUG - MARKET API: Inizio elaborazione richiesta notizie - ${new Date().toISOString()}`);
+    
     // Controlla se abbiamo dati cached
     const cachedData = getFromCache(cacheKey);
     if (cachedData) {
+      console.log(`DEBUG - MARKET API: Utilizzando dati in cache per ${filter}`);
       return res.json(cachedData);
     }
     
     const apiKey = process.env.FINANCIAL_API_KEY;
     if (!apiKey) {
+      console.error("DEBUG - MARKET API ERROR: API key non configurata per Financial Modeling Prep");
       throw new Error("API key non configurata per Financial Modeling Prep");
     }
     
@@ -539,23 +552,38 @@ export async function getFinancialNews(req: Request, res: Response) {
       apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=10&apikey=${apiKey}`;
     }
     
-    console.log(`Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    console.log(`DEBUG - MARKET API: Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    console.log(`DEBUG - MARKET API: Inizio richiesta axios per notizie - ${new Date().toISOString()}`);
     
-    // Utilizziamo axios invece di fetch per maggiore controllo su timeout e headers
-    const response = await axios.get(apiUrl, {
-      timeout: 8000, // 8 secondi di timeout
-      headers: {
-        'User-Agent': 'Gervis-Financial-Platform/1.0',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
+    let response;
+    try {
+      // Utilizziamo axios invece di fetch per maggiore controllo su timeout e headers
+      response = await axios.get(apiUrl, {
+        timeout: 8000, // 8 secondi di timeout
+        headers: {
+          'User-Agent': 'Gervis-Financial-Platform/1.0',
+          'Accept': 'application/json',
+          'Cache-Control': 'no-cache'
+        }
+      });
+      console.log(`DEBUG - MARKET API: Richiesta axios completata - ${new Date().toISOString()}`);
+      console.log(`DEBUG - MARKET API: Status risposta: ${response.status}`);
+    } catch (axiosError: any) {
+      console.error(`DEBUG - MARKET API ERROR: Errore nella richiesta axios - ${new Date().toISOString()}`);
+      console.error('Dettagli errore axios:', axiosError.message);
+      if (axiosError.response) {
+        console.error(`Status: ${axiosError.response.status}, StatusText: ${axiosError.response.statusText}`);
       }
-    });
+      throw axiosError;
+    }
     
     // Con axios, il corpo della risposta è già in response.data
     const data = response.data;
+    console.log(`DEBUG - MARKET API: Tipo dati ricevuti: ${typeof data}, isArray: ${Array.isArray(data)}`);
     
     if (Array.isArray(data)) {
-      newsItems = data.map(item => ({
+      console.log(`DEBUG - MARKET API: Notizie ricevute: ${data.length}`);
+      newsItems = data.map((item: any) => ({
         title: item.title,
         description: item.text,
         url: item.url,
@@ -568,17 +596,20 @@ export async function getFinancialNews(req: Request, res: Response) {
       
       // Cache dei risultati per 15 minuti (900000 ms)
       saveToCache(cacheKey, newsItems, 900000);
+      console.log(`DEBUG - MARKET API: Notizie salvate nella cache con chiave ${cacheKey}`);
     } else {
-      console.error("Formato di risposta API inatteso:", data);
+      console.error("DEBUG - MARKET API ERROR: Formato di risposta API inatteso:", JSON.stringify(data).substring(0, 200));
       throw new Error("Formato di risposta API inatteso");
     }
     
+    console.log(`DEBUG - MARKET API: Invio risposta con ${newsItems.length} notizie`);
     res.json(newsItems);
   } catch (error) {
-    console.error("Errore nel recupero delle notizie finanziarie:", error);
+    console.error("DEBUG - MARKET API FINAL ERROR: Errore nel recupero delle notizie finanziarie:", error);
     
     // In caso di errore, restituiamo un array vuoto di notizie
     // piuttosto che dati fittizi, seguendo il principio di data integrity
+    console.log("DEBUG - MARKET API: Invio array vuoto come fallback");
     res.json([]);
   }
 }
