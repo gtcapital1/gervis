@@ -739,7 +739,7 @@ export default function MarketUpdate() {
                 <Button 
                   variant={newsFilter === 'global' ? "default" : "ghost"}
                   size="sm"
-                  className="rounded-none rounded-l-md text-black"
+                  className={`rounded-none rounded-l-md ${newsFilter === 'global' ? 'text-white' : 'text-black'}`}
                   onClick={() => setNewsFilter('global')}
                 >
                   <span className="mr-1">🌎</span>
@@ -748,7 +748,7 @@ export default function MarketUpdate() {
                 <Button 
                   variant={newsFilter === 'italia' ? "default" : "ghost"}
                   size="sm"
-                  className="rounded-none rounded-r-md text-black"
+                  className={`rounded-none rounded-r-md ${newsFilter === 'italia' ? 'text-white' : 'text-black'}`}
                   onClick={() => setNewsFilter('italia')}
                 >
                   <span className="mr-1">🇮🇹</span>
