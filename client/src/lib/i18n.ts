@@ -89,8 +89,8 @@ const resourcesIt = {
         description: "Gervis analizza il profilo cliente in base ai dati forniti e ai log e fornisce al consulente una analisi costantemente aggiornata delle esigenze e stile di investimento del cliente."
       },
       portfolio_intelligence: {
-        title: "Portfolio Intelligence",
-        description: "Analisi dettagliata del patrimonio dei clienti con visualizzazioni intuitive e reportistica completa. Suggerimenti di allocazione degli asset basati su algoritmi avanzati di intelligenza artificiale per ottimizzare i portafogli."
+        title: "Spark",
+        description: "Gervis fornisce idee di investimento giornaliere basate su news finanziarie aggiornate e profilo di investimento del cliente."
       },
       onboarding: {
         title: "Onboarding Cliente Digitalizzato",
@@ -700,8 +700,8 @@ const resourcesEn = {
         description: "Gervis analyzes client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs and styles."
       },
       portfolio_intelligence: {
-        title: "Portfolio Intelligence",
-        description: "Detailed analysis of client assets with intuitive visualizations and comprehensive reporting. Asset allocation suggestions based on advanced artificial intelligence algorithms to optimize portfolios."
+        title: "Spark",
+        description: "Gervis provides daily investment ideas based on updated financial news and client investment profile."
       },
       onboarding: {
         title: "Digitized Client Onboarding",
