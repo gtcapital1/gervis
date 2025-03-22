@@ -197,7 +197,7 @@ export async function getMarketIndices(req: Request, res: Response) {
         console.log(`DEBUG-MARKET: Risposta fetch ricevuta per ${index.name} - ${new Date().toISOString()}`);
         console.log(`DEBUG-MARKET: Status risposta per ${index.name}: ${response.status} - ${new Date().toISOString()}`);
         
-        if (response.data && response.data.length > 0) {
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           const data = response.data[0];
           console.log(`Dati ricevuti per ${index.name}: ${JSON.stringify(data).substring(0, 100)}...`);
           return {
