@@ -734,7 +734,7 @@ export default function MarketUpdate() {
             <h2 className="text-2xl font-semibold text-black">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
             
             <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">{t('market.filter_news') || "Filtra notizie"}:</span>
+              <span className="text-sm text-black font-medium">{t('market.filter_news')}:</span>
               <div className="flex rounded-md border overflow-hidden">
                 <Button 
                   variant={newsFilter === 'global' ? "default" : "ghost"}
@@ -743,7 +743,7 @@ export default function MarketUpdate() {
                   onClick={() => setNewsFilter('global')}
                 >
                   <span className="mr-1">🌎</span>
-                  {t('market.global_news') || "Globali"}
+                  {t('market.global_news')}
                 </Button>
                 <Button 
                   variant={newsFilter === 'italia' ? "default" : "ghost"}
@@ -752,7 +752,7 @@ export default function MarketUpdate() {
                   onClick={() => setNewsFilter('italia')}
                 >
                   <span className="mr-1">🇮🇹</span>
-                  {t('market.italy_news') || "Italia"}
+                  {t('market.italy_news')}
                 </Button>
               </div>
             </div>
