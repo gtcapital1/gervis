@@ -135,25 +135,15 @@ export async function getMarketIndices(req: Request, res: Response) {
         
         const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
         console.log(`Recupero dati per ${index.name} da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
-        console.log(`DEBUG - MARKET API: Inizio richiesta indice ${index.name} - ${new Date().toISOString()}`);
-        
         // Impostiamo un timeout più lungo per problemi di rete su AWS
-        let response;
-        try {
-          response = await axios.get(url, {
-            timeout: 8000, // 8 secondi di timeout
-            headers: {
-              'User-Agent': 'Gervis-Financial-Platform/1.0',
-              'Accept': 'application/json',
-              'Cache-Control': 'no-cache'
-            }
-          });
-          console.log(`DEBUG - MARKET API: Richiesta indice ${index.name} completata - ${new Date().toISOString()}`);
-        } catch (axiosError: any) {
-          console.error(`DEBUG - MARKET API ERROR: Errore nella richiesta indice ${index.name} - ${new Date().toISOString()}`);
-          console.error('Dettagli errore axios:', axiosError.message);
-          throw axiosError;
-        }
+        const response = await axios.get(url, {
+          timeout: 10000, // 10 secondi di timeout
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (response.data && response.data.length > 0) {
           const data = response.data[0];
@@ -322,9 +312,9 @@ export async function getTickerData(req: Request, res: Response) {
         
         // Impostiamo un timeout più lungo per problemi di rete su AWS
         const response = await axios.get(url, {
-          timeout: 8000, // 8 secondi di timeout
+          timeout: 10000, // 10 secondi di timeout
           headers: {
-            'User-Agent': 'Gervis-Financial-Platform/1.0',
+            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'
           }
@@ -553,29 +543,15 @@ export async function getFinancialNews(req: Request, res: Response) {
     }
     
     console.log(`DEBUG - MARKET API: Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
-    console.log(`DEBUG - MARKET API: Inizio richiesta axios per notizie - ${new Date().toISOString()}`);
-    
-    let response;
-    try {
-      // Utilizziamo axios invece di fetch per maggiore controllo su timeout e headers
-      response = await axios.get(apiUrl, {
-        timeout: 8000, // 8 secondi di timeout
-        headers: {
-          'User-Agent': 'Gervis-Financial-Platform/1.0',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      console.log(`DEBUG - MARKET API: Richiesta axios completata - ${new Date().toISOString()}`);
-      console.log(`DEBUG - MARKET API: Status risposta: ${response.status}`);
-    } catch (axiosError: any) {
-      console.error(`DEBUG - MARKET API ERROR: Errore nella richiesta axios - ${new Date().toISOString()}`);
-      console.error('Dettagli errore axios:', axiosError.message);
-      if (axiosError.response) {
-        console.error(`Status: ${axiosError.response.status}, StatusText: ${axiosError.response.statusText}`);
+    // Utilizziamo axios invece di fetch per maggiore controllo su timeout e headers
+    const response = await axios.get(apiUrl, {
+      timeout: 10000, // 10 secondi di timeout
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
       }
-      throw axiosError;
-    }
+    });
     
     // Con axios, il corpo della risposta è già in response.data
     const data = response.data;
