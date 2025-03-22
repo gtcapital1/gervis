@@ -54,6 +54,13 @@ export function generateVerificationUrl(token: string): string {
 }
 
 export function setupAuth(app: Express) {
+  // Determina se siamo in produzione o sviluppo
+  const isProduction = process.env.NODE_ENV === 'production';
+  const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
+  const isHttps = baseUrl.startsWith('https://');
+  
+  console.log(`DEBUG - setupAuth - Environment: ${isProduction ? 'production' : 'development'}, HTTPS: ${isHttps}`);
+  
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "top-secret-session-key",
     resave: false,
@@ -61,9 +68,17 @@ export function setupAuth(app: Express) {
     store: storage.sessionStore,
     cookie: {
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      // In produzione con HTTPS, imposta secure a true e SameSite a none
+      secure: isProduction && isHttps,
+      sameSite: isProduction && isHttps ? 'none' : 'lax',
+      // Aggiunto path esplicito
+      path: '/',
     }
   };
 
+  console.log(`DEBUG - setupAuth - Cookie settings: secure=${sessionSettings.cookie?.secure}, sameSite=${sessionSettings.cookie?.sameSite}`);
+  
+  // Importante per proxy in produzione
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
   app.use(passport.initialize());
