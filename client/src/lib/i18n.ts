@@ -86,7 +86,7 @@ const resourcesIt = {
       },
       junior_assistant: {
         title: "Sigmund",
-        description: "L'IA analizza il profilo cliente in base ai dati forniti e ai log e fornisce al consulente una analisi costantemente aggiornata delle esigenze e stile di investimento del cliente."
+        description: "Gervis analizza il profilo cliente in base ai dati forniti e ai log e fornisce al consulente una analisi costantemente aggiornata delle esigenze e stile di investimento del cliente."
       },
       portfolio_intelligence: {
         title: "Portfolio Intelligence",
@@ -697,7 +697,7 @@ const resourcesEn = {
       },
       junior_assistant: {
         title: "Sigmund",
-        description: "AI analysis of client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs and styles."
+        description: "Gervis analyzes client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs and styles."
       },
       portfolio_intelligence: {
         title: "Portfolio Intelligence",
