@@ -203,9 +203,9 @@ export async function getMarketIndices(req: Request, res: Response) {
           return {
             symbol: index.symbol,
             name: index.name,
-            price: parseFloat(data.price.toFixed(2)),
-            change: parseFloat(data.change.toFixed(2)),
-            changePercent: parseFloat(data.changesPercentage.toFixed(2)),
+            price: typeof data.price === 'number' ? parseFloat(data.price.toFixed(2)) : data.price,
+            change: typeof data.change === 'number' ? parseFloat(data.change.toFixed(2)) : data.change,
+            changePercent: typeof data.changesPercentage === 'number' ? parseFloat(data.changesPercentage.toFixed(2)) : data.changesPercentage,
             country: index.country,
             currency: "$"
           };
@@ -393,9 +393,9 @@ export async function getTickerData(req: Request, res: Response) {
             return {
               symbol: item.symbol,
               name: item.name,
-              price: parseFloat(item.price.toFixed(2)),
-              change: parseFloat(item.change.toFixed(2)),
-              changePercent: parseFloat(item.changesPercentage.toFixed(2)),
+              price: typeof item.price === 'number' ? parseFloat(item.price.toFixed(2)) : item.price,
+              change: typeof item.change === 'number' ? parseFloat(item.change.toFixed(2)) : item.change,
+              changePercent: typeof item.changesPercentage === 'number' ? parseFloat(item.changesPercentage.toFixed(2)) : item.changesPercentage,
               currency: "$"
             };
           });
