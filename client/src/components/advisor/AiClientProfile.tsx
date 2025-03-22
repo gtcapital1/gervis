@@ -33,7 +33,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     retry: 1,
   });
   
-  const formatText = (text: string) => {
+  const formatText = (text: string | null | undefined) => {
+    if (!text) return <p className="mb-4">Nessun contenuto disponibile</p>;
+    
     // Split by newlines and create paragraphs
     return text.split('\n\n').map((paragraph, index) => (
       <p key={index} className="mb-4">
@@ -157,7 +159,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="prose dark:prose-invert max-w-full">
-            {formatText(data.data.approfondimenti)}
+            {formatText(data?.data?.approfondimenti)}
           </div>
         </CardContent>
       </Card>
@@ -174,7 +176,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         </CardHeader>
         <CardContent className="pt-6">
           <div className="prose dark:prose-invert max-w-full">
-            {formatText(data.data.suggerimenti)}
+            {formatText(data?.data?.suggerimenti)}
           </div>
         </CardContent>
         <CardFooter className="flex justify-between pt-2 pb-4 text-sm text-muted-foreground">
