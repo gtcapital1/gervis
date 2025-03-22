@@ -21,10 +21,13 @@ import {
   ArrowDownRight,
   Minus,
   Search,
-  Globe
+  Globe,
+  AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+// Importazione per debug autenticazione
+import { useAuth } from "@/hooks/use-auth";
 
 // Tipi per i dati di mercato
 interface MarketIndex {
@@ -236,6 +239,14 @@ const DEFAULT_US_STOCKS = [
 ];
 
 export default function MarketUpdate() {
+  // Hook per verifica stato autenticazione
+  const { user, isLoading: authLoading } = useAuth();
+  
+  // Logging informazioni di debug quando montato
+  useEffect(() => {
+    console.log('[Debug Market] Componente montato, user auth status:', user ? 'autenticato' : 'non autenticato');
+  }, [user]);
+  
   const { t } = useTranslation();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("indices");
@@ -391,11 +402,15 @@ export default function MarketUpdate() {
 
   // Funzione per aggiornare tutti i dati
   const refreshAllData = () => {
+    // Log di debug per monitorare lo stato dell'utente durante refresh dati
+    console.log('[Debug Market] refreshAllData chiamato, stato auth:', user ? `autenticato (${user.id})` : 'non autenticato');
+    
     refetchIndices();
     refetchNews();
     if (userTickers.length > 0) {
       refetchTickers();
     }
+    
     toast({
       title: "Dati aggiornati",
       description: "Tutti i dati di mercato sono stati aggiornati.",
