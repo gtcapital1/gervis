@@ -109,14 +109,37 @@ export function setupAuth(app: Express) {
   
   passport.deserializeUser(async (id: number, done) => {
     try {
+      // Log dell'inizio del processo
       console.log(`[DEBUG AUTH] Deserializzazione utente ID: ${id}`);
-      const user = await storage.getUser(id);
-      if (!user) {
-        console.log(`[DEBUG AUTH] Deserializzazione fallita: utente ID ${id} non trovato`);
-        // Gestisci l'utente non trovato in modo silenzioso
+      
+      // Verifica che id sia un numero valido
+      if (!id || typeof id !== 'number' || isNaN(id)) {
+        console.error(`[DEBUG AUTH] ID utente non valido: ${id}, tipo: ${typeof id}`);
         return done(null, null);
       }
+      
+      // Recupera utente dal database
+      const user = await storage.getUser(id);
+      
+      // Verifica esistenza dell'utente
+      if (!user) {
+        console.log(`[DEBUG AUTH] Deserializzazione fallita: utente ID ${id} non trovato nel database`);
+        return done(null, null);
+      }
+      
+      // Verifica validità oggetto utente
+      if (!user.id || !user.email) {
+        console.error(`[DEBUG AUTH] Utente recuperato non valido:`, user);
+        return done(null, null);
+      }
+      
       console.log(`[DEBUG AUTH] Deserializzazione completata: ${user.id} (${user.email})`);
+      
+      // Controlla lo stato di approvazione
+      if (user.approvalStatus !== 'approved') {
+        console.log(`[DEBUG AUTH] Utente con stato approvazione: ${user.approvalStatus}`);
+      }
+      
       done(null, user);
     } catch (err) {
       console.error(`[DEBUG AUTH] Errore deserializzazione utente ID ${id}:`, err);
@@ -199,14 +222,23 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    console.log(`[DEBUG AUTH] Tentativo login per email: ${req.body?.email || 'non specificata'}`);
+    
     passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) return next(err);
+      if (err) {
+        console.error(`[DEBUG AUTH] Errore durante autenticazione:`, err);
+        return next(err);
+      }
+      
       if (!user) {
+        console.log(`[DEBUG AUTH] Login fallito - credenziali non valide per: ${req.body?.email || 'non specificata'}`);
         return res.status(401).json({ 
           success: false, 
           message: "Email o password non validi" 
         });
       }
+      
+      console.log(`[DEBUG AUTH] Credenziali valide per utente ID: ${user.id}, email: ${user.email}`);
       
       // Check if email is verified
       if (!user.isEmailVerified) {
@@ -235,17 +267,59 @@ export function setupAuth(app: Express) {
         });
       }
       
+      console.log(`[DEBUG AUTH] Tentativo login manuale per utente ID: ${user.id}`);
+      
       req.login(user, (err: any) => {
-        if (err) return next(err);
+        if (err) {
+          console.error(`[DEBUG AUTH] Errore durante login manuale:`, err);
+          return next(err);
+        }
+        
+        // Verifica che il login sia avvenuto correttamente
+        if (req.isAuthenticated()) {
+          console.log(`[DEBUG AUTH] Login completato con successo, sessionID: ${req.session.id}`);
+          console.log(`[DEBUG AUTH] Cookie: ${JSON.stringify(req.session.cookie)}`);
+        } else {
+          console.warn(`[DEBUG AUTH] Anomalia: req.login completato ma utente non autenticato!`);
+        }
+        
         return res.status(200).json({ success: true, user });
       });
     })(req, res, next);
   });
 
   app.post("/api/logout", (req, res, next) => {
+    console.log(`[DEBUG AUTH] Tentativo logout utente - Autenticato: ${req.isAuthenticated() || false}`);
+    
+    if (req.user) {
+      console.log(`[DEBUG AUTH] Logout per utente ID: ${req.user.id}, email: ${req.user.email}`);
+    } else {
+      console.log(`[DEBUG AUTH] Tentativo logout senza utente autenticato`);
+    }
+    
     req.logout((err: any) => {
-      if (err) return next(err);
-      res.status(200).json({ success: true });
+      if (err) {
+        console.error(`[DEBUG AUTH] Errore durante logout:`, err);
+        return next(err);
+      }
+      
+      console.log(`[DEBUG AUTH] Logout completato con successo`);
+      // Verifica la sessione dopo il logout
+      if (req.session) {
+        console.log(`[DEBUG AUTH] Sessione ancora presente dopo logout: ${req.session.id}`);
+        // Rigenerazione ID sessione per sicurezza
+        req.session.regenerate((regErr) => {
+          if (regErr) {
+            console.error(`[DEBUG AUTH] Errore rigenerazione sessione:`, regErr);
+          } else {
+            console.log(`[DEBUG AUTH] Sessione rigenerata con successo: ${req.session.id}`);
+          }
+          res.status(200).json({ success: true });
+        });
+      } else {
+        console.log(`[DEBUG AUTH] Nessuna sessione trovata dopo logout`);
+        res.status(200).json({ success: true });
+      }
     });
   });
 
