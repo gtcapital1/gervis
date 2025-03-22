@@ -35,23 +35,23 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   
   const formatText = (text: string | null | undefined) => {
     // Se il testo non esiste, mostra un messaggio di default
-    if (!text) return <p className="mb-4">{t('client.no_content_available')}</p>;
+    if (!text) return <p className="mb-4 dark:text-white text-gray-800">{t('client.no_content_available')}</p>;
     
     // Se il testo è un oggetto (potrebbe accadere in caso di errori di parsing JSON)
     if (typeof text !== 'string') {
-      return <p className="mb-4">{t('client.content_not_formatted_correctly')}</p>;
+      return <p className="mb-4 dark:text-white text-gray-800">{t('client.content_not_formatted_correctly')}</p>;
     }
     
     // Split by newlines and create paragraphs
     try {
       return text.split('\n\n').map((paragraph, index) => (
-        <p key={index} className="mb-4">
+        <p key={index} className="mb-4 dark:text-white text-gray-800">
           {paragraph}
         </p>
       ));
     } catch (error) {
       console.error("Errore durante la formattazione del testo:", error);
-      return <p className="mb-4">{text}</p>; // Fallback sicuro
+      return <p className="mb-4 dark:text-white text-gray-800">{t('client.content_not_formatted_correctly')}</p>; // Utilizziamo la chiave di traduzione anche qui
     }
   };
   
@@ -160,11 +160,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     <div className="space-y-6">
       <Card className="overflow-hidden">
         <CardHeader className="pb-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
             {t('client.ai_insights')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-white/80 text-gray-700">
             {t('client.ai_insights_description')}
           </CardDescription>
         </CardHeader>
@@ -177,11 +177,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       
       <Card className="overflow-hidden">
         <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20">
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-blue-500" />
             {t('client.ai_suggestions')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-white/80 text-gray-700">
             {t('client.ai_suggestions_description')}
           </CardDescription>
         </CardHeader>
