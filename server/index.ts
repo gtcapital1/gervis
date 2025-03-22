@@ -6,6 +6,7 @@ console.log("INFO - File .env caricato, variabili d'ambiente disponibili");
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { registerAiRoutes } from "./routes-ai";
 import { setupVite, serveStatic, log } from "./vite";
 import { autorunCascadeFix } from "./migrations/autorun-cascade-fix";
 import { autorunCreateClientLogs } from "./migrations/autorun-create-client-logs";
@@ -156,6 +157,17 @@ app.use((req, res, next) => {
   }
   
   const server = await registerRoutes(app);
+  
+  // Registra le rotte AI dopo le rotte standard
+  registerAiRoutes(app);
+  
+  // Verifica presenza chiave API OpenAI
+  const openAiApiKey = process.env.OPENAI_API_KEY;
+  if (openAiApiKey) {
+    console.log("DEBUG - API OpenAI configurata correttamente");
+  } else {
+    console.warn("ATTENZIONE - Chiave API OpenAI non configurata. L'integrazione AI non funzionerà.");
+  }
 
   app.use((err: any, req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
