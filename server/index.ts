@@ -110,6 +110,25 @@ app.use((req, res, next) => {
       if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
         console.log(`[DEBUG FIN ${reqId}] Completata richiesta DELETE client: ${path} con stato ${res.statusCode} in ${duration}ms`);
       }
+      
+      // Debug autenticazione
+      if (path === "/api/user") {
+        console.log(`[DEBUG AUTH] Richiesta GET /api/user completata con stato ${res.statusCode} in ${duration}ms`);
+        if (req.session) {
+          console.log(`[DEBUG AUTH] Session ID: ${req.session.id}, Cookie: ${JSON.stringify(req.session.cookie)}`);
+          console.log(`[DEBUG AUTH] Autenticato: ${req.isAuthenticated?.() || false}`);
+          if (req.isAuthenticated?.()) {
+            console.log(`[DEBUG AUTH] Utente in sessione: ${req.user ? `ID ${req.user.id}` : 'Nessun utente'}`);
+          }
+        } else {
+          console.log(`[DEBUG AUTH] Nessuna sessione trovata per richiesta /api/user`);
+        }
+      }
+      
+      // Debug sessione per altre richieste API
+      if (path.startsWith("/api/") && Math.random() < 0.1) { // Campione 10% delle richieste
+        console.log(`[DEBUG SESSION] Per richiesta ${req.method} ${path}: sessione ${req.session ? 'trovata' : 'assente'}, autenticato: ${req.isAuthenticated?.() || false}`);
+      }
     }
   });
 

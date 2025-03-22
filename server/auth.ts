@@ -102,16 +102,24 @@ export function setupAuth(app: Express) {
     }),
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    console.log(`[DEBUG AUTH] Serializzazione utente: ${user.id} (${user.email})`);
+    done(null, user.id)
+  });
+  
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log(`[DEBUG AUTH] Deserializzazione utente ID: ${id}`);
       const user = await storage.getUser(id);
       if (!user) {
+        console.log(`[DEBUG AUTH] Deserializzazione fallita: utente ID ${id} non trovato`);
         // Gestisci l'utente non trovato in modo silenzioso
         return done(null, null);
       }
+      console.log(`[DEBUG AUTH] Deserializzazione completata: ${user.id} (${user.email})`);
       done(null, user);
     } catch (err) {
+      console.error(`[DEBUG AUTH] Errore deserializzazione utente ID ${id}:`, err);
       done(err);
     }
   });
@@ -242,12 +250,28 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
+    console.log(`[DEBUG AUTH] Richiesta GET /api/user - Autenticato: ${req.isAuthenticated() || false}`);
+    
+    // Log lo stato della sessione
+    console.log(`[DEBUG AUTH] Sessione: ${req.session ? `ID ${req.session.id}` : 'nessuna sessione'}`);
+    if (req.session) {
+      console.log(`[DEBUG AUTH] Cookie expires: ${req.session.cookie.expires}`);
+      console.log(`[DEBUG AUTH] Cookie maxAge: ${req.session.cookie.maxAge}`);
+      console.log(`[DEBUG AUTH] Cookie secure: ${req.session.cookie.secure}`);
+      console.log(`[DEBUG AUTH] Cookie httpOnly: ${req.session.cookie.httpOnly}`);
+      console.log(`[DEBUG AUTH] Cookie path: ${req.session.cookie.path}`);
+      console.log(`[DEBUG AUTH] Cookie sameSite: ${req.session.cookie.sameSite}`);
+    }
+    
     if (!req.isAuthenticated()) {
+      console.log('[DEBUG AUTH] Utente non autenticato per /api/user');
       return res.status(401).json({ 
         success: false, 
         message: "Not authenticated" 
       });
     }
+    
+    console.log(`[DEBUG AUTH] Utente autenticato ID: ${req.user.id}, email: ${req.user.email}`);
     res.json({ success: true, user: req.user });
   });
 

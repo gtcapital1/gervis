@@ -37,7 +37,10 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
     // Debug richiesta
-    console.log(`[API] Richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    console.log(`[API DEBUG] Richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    
+    // Log della presenza dei cookie
+    console.log(`[API DEBUG] Cookie disponibili:`, document.cookie ? 'Sì' : 'No');
     
     // Opzioni della richiesta con anti-cache headers
     const requestOptions: RequestInit = {
@@ -47,7 +50,7 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
         "X-No-HTML-Response": "true", // Header speciale per indicare che vogliamo solo JSON
         ...(options?.body ? { "Content-Type": "application/json" } : {})
       },
-      credentials: "include",
+      credentials: "include", // Importante per inviare i cookie di autenticazione
       ...options
     };
     
@@ -253,6 +256,14 @@ export const getQueryFn: <T>(options: {
     
     // Aggiunta timestamp per evitare cache
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
+    
+    // Per le chiamate di autenticazione, aggiungiamo un documento cookie nel browser
+    // Questo è un tentativo per garantire che i cookie della sessione siano mantenuti correttamente
+    if (url === '/api/user') {
+      console.log('[Auth Debug] Verifica cookie di sessione');
+      const cookieStr = document.cookie;
+      console.log('[Auth Debug] Cookie attuali:', cookieStr);
+    }
     
     const res = await fetch(urlWithTimestamp, {
       credentials: "include",
