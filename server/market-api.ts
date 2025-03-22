@@ -134,10 +134,21 @@ export async function getMarketIndices(req: Request, res: Response) {
         }
         
         const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
-        const response = await axios.get(url);
+        console.log(`Recupero dati per ${index.name} da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
+        
+        // Impostiamo un timeout più lungo per problemi di rete su AWS
+        const response = await axios.get(url, {
+          timeout: 8000, // 8 secondi di timeout
+          headers: {
+            'User-Agent': 'Gervis-Financial-Platform/1.0',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (response.data && response.data.length > 0) {
           const data = response.data[0];
+          console.log(`Dati ricevuti per ${index.name}: ${JSON.stringify(data).substring(0, 100)}...`);
           return {
             symbol: index.symbol,
             name: index.name,
@@ -148,6 +159,7 @@ export async function getMarketIndices(req: Request, res: Response) {
             currency: "$"
           };
         } else {
+          console.log(`Nessun dato disponibile per ${index.name}`);
           // Se non abbiamo dati, mostriamo N/A
           return {
             symbol: index.symbol,
@@ -297,8 +309,17 @@ export async function getTickerData(req: Request, res: Response) {
       try {
         const symbolsString = usSymbols.join(',');
         const url = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${apiKey}`;
+        console.log(`Recupero dati per ${symbols.length} ticker da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
         
-        const response = await axios.get(url);
+        // Impostiamo un timeout più lungo per problemi di rete su AWS
+        const response = await axios.get(url, {
+          timeout: 8000, // 8 secondi di timeout
+          headers: {
+            'User-Agent': 'Gervis-Financial-Platform/1.0',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
         
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           // Trasformiamo i dati nel formato atteso

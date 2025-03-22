@@ -261,7 +261,19 @@ export default function MarketUpdate() {
     refetch: refetchIndices 
   } = useQuery({
     queryKey: ['/api/market/indices'],
-    retry: 1
+    retry: 1,
+    queryFn: async ({ queryKey }) => {
+      try {
+        const response = await fetch(`/api/market/indices?_t=${Date.now()}`);
+        if (!response.ok) {
+          throw new Error('Errore nel recupero degli indici di mercato');
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Errore durante il recupero degli indici:', error);
+        throw error;
+      }
+    }
   });
 
   // Recupero delle notizie finanziarie
@@ -273,11 +285,16 @@ export default function MarketUpdate() {
   } = useQuery<NewsItem[]>({
     queryKey: ['/api/market/news', newsFilter],
     queryFn: async () => {
-      const response = await fetch(`/api/market/news?filter=${newsFilter}`);
-      if (!response.ok) {
-        throw new Error('Errore nel recupero delle notizie finanziarie');
+      try {
+        const response = await fetch(`/api/market/news?filter=${newsFilter}&_t=${Date.now()}`);
+        if (!response.ok) {
+          throw new Error('Errore nel recupero delle notizie finanziarie');
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Errore durante il recupero delle notizie:', error);
+        throw error;
       }
-      return response.json();
     },
     retry: 1
   });
@@ -292,11 +309,16 @@ export default function MarketUpdate() {
     queryKey: ['/api/market/tickers', userTickers],
     enabled: userTickers.length > 0,
     queryFn: async () => {
-      const response = await fetch(`/api/market/tickers?symbols=${userTickers.join(',')}`);
-      if (!response.ok) {
-        throw new Error('Errore nel recupero dei dati dei ticker');
+      try {
+        const response = await fetch(`/api/market/tickers?symbols=${userTickers.join(',')}&_t=${Date.now()}`);
+        if (!response.ok) {
+          throw new Error('Errore nel recupero dei dati dei ticker');
+        }
+        return response.json();
+      } catch (error) {
+        console.error('Errore durante il recupero dei ticker:', error);
+        throw error;
       }
-      return response.json();
     },
     retry: 1
   });
