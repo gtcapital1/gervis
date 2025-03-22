@@ -1,0 +1,56 @@
+ubuntu@ip-172-31-46-173:/var/www/gervis$ cat ecosystem.config.cjs
+module.exports = {
+  apps: [
+    {
+      name: 'gervis',
+      script: 'index.js', // Modificato per usare index.js nella directory principale
+      instances: 1,
+      exec_mode: 'fork',
+      autorestart: true,
+      watch: false,
+      max_memory_restart: '1G',
+      env: {
+        NODE_ENV: 'production',
+        PORT: 5000
+      },
+      env_production: {
+        NODE_ENV: 'production',
+        PORT: 5000
+      },
+      // Aggiungi questa sezione per eseguire il fix-public-path prima dell'avvio
+      post_update: [
+        "npm install",
+        "npm run build",
+        "chmod +x ./fix-public-path.sh",
+        "./fix-public-path.sh --force"
+      ],
+      // Indica esplicitamente a PM2 di caricare il file .env
+      env_file: ".env"
+    }
+  ]
+};ubuntu@ip-172-31-46-173:/var/www/gervis$ sudo pm2 logs gervis
+[TAILING] Tailing last 15 lines for [gervis] process (change the value with --lines option)
+/root/.pm2/logs/gervis-out-0.log last 15 lines:
+/root/.pm2/logs/gervis-error-0.log last 15 lines:
+0|gervis   | Error [ERR_MODULE_NOT_FOUND]: Cannot find package 'axios' imported from /var/www/gervis/server/market-api.ts
+0|gervis   |     at new NodeError (node:internal/errors:405:5)
+0|gervis   |     at packageResolve (node:internal/modules/esm/resolve:916:9)
+0|gervis   |     at moduleResolve (node:internal/modules/esm/resolve:973:20)
+0|gervis   |     at defaultResolve (node:internal/modules/esm/resolve:1206:11)
+0|gervis   |     at nextResolve (node:internal/modules/esm/hooks:864:28)
+0|gervis   |     at resolveBase (file:///var/www/gervis/node_modules/tsx/dist/esm/index.mjs?1742646474536:2:3212)
+0|gervis   |     at resolveDirectory (file:///var/www/gervis/node_modules/tsx/dist/esm/index.mjs?1742646474536:2:3584)
+0|gervis   |     at resolveTsPaths (file:///var/www/gervis/node_modules/tsx/dist/esm/index.mjs?1742646474536:2:4073)
+0|gervis   |     at async resolve (file:///var/www/gervis/node_modules/tsx/dist/esm/index.mjs?1742646474536:2:4441)
+0|gervis   |     at async nextResolve (node:internal/modules/esm/hooks:864:22) {
+0|gervis   |   code: 'ERR_MODULE_NOT_FOUND'
+0|gervis   | }
+0|gervis   | 
+0|gervis   | Node.js v18.20.6
+
+^C
+ubuntu@ip-172-31-46-173:/var/www/gervis$ cd /var/www/gervis
+NODE_ENV=production PORT=5000 HOST=0.0.0.0 node index.js
+ubuntu@ip-172-31-46-173:/var/www/gervis$ sudo netstat -tuln | grep LISTEN
+sudo: netstat: command not found
+ubuntu@ip-172-31-46-173:/var/www/gervis$ 
