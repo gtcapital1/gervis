@@ -734,25 +734,25 @@ export default function MarketUpdate() {
             <h2 className="text-2xl font-semibold text-black">{t('market.financial_news') || "Notizie Finanziarie"}</h2>
             
             <div className="flex items-center gap-2">
-              <span className="text-sm text-black font-medium">{t('market.filter_news')}:</span>
+              <span className="text-sm text-muted-foreground">Filtra notizie:</span>
               <div className="flex rounded-md border overflow-hidden">
                 <Button 
                   variant={newsFilter === 'global' ? "default" : "ghost"}
                   size="sm"
-                  className="rounded-none rounded-l-md"
+                  className="rounded-none rounded-l-md text-black"
                   onClick={() => setNewsFilter('global')}
                 >
                   <span className="mr-1">🌎</span>
-                  {t('market.global_news')}
+                  Globali
                 </Button>
                 <Button 
                   variant={newsFilter === 'italia' ? "default" : "ghost"}
                   size="sm"
-                  className="rounded-none rounded-r-md"
+                  className="rounded-none rounded-r-md text-black"
                   onClick={() => setNewsFilter('italia')}
                 >
                   <span className="mr-1">🇮🇹</span>
-                  {t('market.italy_news')}
+                  Italia
                 </Button>
               </div>
             </div>
