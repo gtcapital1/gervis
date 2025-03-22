@@ -67,17 +67,17 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
             {t('client.ai_profile')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-white/80 text-gray-700">
             {t('client.ai_profile_generating')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Skeleton className="h-[150px] w-full" />
-          <Skeleton className="h-[150px] w-full" />
+          <Skeleton className="h-[150px] w-full dark:bg-gray-700 bg-gray-200" />
+          <Skeleton className="h-[150px] w-full dark:bg-gray-700 bg-gray-200" />
         </CardContent>
       </Card>
     );
@@ -87,11 +87,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-purple-500" />
             {t('client.ai_profile')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-white/80 text-gray-700">
             {t('client.ai_profile_error')}
           </CardDescription>
         </CardHeader>
@@ -108,6 +108,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               variant="outline" 
               onClick={handleRefresh}
               disabled={refreshing}
+              className="dark:text-white dark:border-gray-600 hover:dark:bg-gray-800"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing 
@@ -124,26 +125,27 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center">
+          <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-purple-500" />
             {t('client.ai_profile')}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="dark:text-white/80 text-gray-700">
             {t('client.ai_profile_no_data')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
-            <Brain className="h-16 w-16 text-muted-foreground/50" />
-            <h3 className="text-lg font-semibold">
+            <Brain className="h-16 w-16 dark:text-gray-500 text-gray-300" />
+            <h3 className="text-lg font-semibold dark:text-white text-gray-800">
               {t('client.ai_profile_no_data_title')}
             </h3>
-            <p className="text-muted-foreground max-w-md">
+            <p className="dark:text-gray-300 text-gray-600 max-w-md">
               {t('client.ai_profile_no_data_description')}
             </p>
             <Button 
               onClick={handleRefresh}
               disabled={refreshing}
+              className="dark:text-white dark:hover:bg-gray-800"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing 
@@ -190,7 +192,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             {formatText(data?.data?.suggerimenti)}
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between pt-2 pb-4 text-sm text-muted-foreground">
+        <CardFooter className="flex justify-between pt-2 pb-4 text-sm dark:text-gray-300 text-gray-600">
           <div className="flex items-center">
             <Clock className="mr-1 h-3 w-3" />
             {t('client.ai_last_updated')}
@@ -200,6 +202,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             size="sm" 
             onClick={handleRefresh}
             disabled={refreshing}
+            className="dark:text-white hover:dark:bg-gray-800"
           >
             <RefreshCw className={`mr-2 h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing 
