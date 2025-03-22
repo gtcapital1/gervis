@@ -125,26 +125,7 @@ const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number,
 // Funzione per recuperare i dati degli indici principali
 export async function getMarketIndices(req: Request, res: Response) {
   try {
-    console.log(`DEBUG-MARKET: API DISABILITATA - getMarketIndices - ${new Date().toISOString()}`);
-    
-    // Risposta vuota temporanea per evitare errori
-    const disabledIndices: MarketIndex[] = MAIN_INDICES.map(index => {
-      return {
-        symbol: index.symbol,
-        name: index.name,
-        price: null,
-        change: null,
-        changePercent: null,
-        country: index.country,
-        dataUnavailable: true
-      };
-    });
-    
-    return res.json(disabledIndices);
-    
-    /* CODICE DISABILITATO TEMPORANEAMENTE
     console.log(`DEBUG-MARKET: Inizio getMarketIndices - ${new Date().toISOString()}`);
-    console.log(`DEBUG-MARKET: API keys disponibili: ${Object.keys(API_KEYS).filter(k => API_KEYS[k]).join(', ')} - ${new Date().toISOString()}`);
     
     // Utilizziamo la Financial Modeling Prep API per ottenere dati reali
     const apiKey = process.env.FINANCIAL_API_KEY;
@@ -166,7 +147,6 @@ export async function getMarketIndices(req: Request, res: Response) {
       console.log(`DEBUG-MARKET: Usando dati in cache per indici - ${new Date().toISOString()}`);
       return res.json(cachedData);
     }
-    */
     
     console.log(`DEBUG-MARKET: Nessun dato in cache, recupero dati freschi - ${new Date().toISOString()}`);
     
@@ -320,7 +300,7 @@ const FIXED_TICKER_DATA: Record<string, { price: number, changePercent: number, 
 // Funzione per recuperare dati per ticker specifici
 export async function getTickerData(req: Request, res: Response) {
   try {
-    console.log(`DEBUG-MARKET: API DISABILITATA - getTickerData - ${new Date().toISOString()}`);
+    console.log(`DEBUG-MARKET: Inizio getTickerData - ${new Date().toISOString()}`);
     
     // Ottieni la lista di ticker dalla query (es. ?symbols=AAPL,MSFT,GOOGL)
     const symbols = req.query.symbols ? (req.query.symbols as string).split(',') : [];
@@ -332,23 +312,6 @@ export async function getTickerData(req: Request, res: Response) {
       return res.status(400).json({ error: "Nessun ticker specificato" });
     }
     
-    // Risposta vuota temporanea per evitare errori
-    const tickers: StockTicker[] = symbols.map(symbol => {
-      const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-      
-      return {
-        symbol,
-        name: tickerInfo ? tickerInfo.name : symbol,
-        price: null,
-        change: null,
-        changePercent: null,
-        dataUnavailable: true
-      };
-    });
-    
-    return res.json(tickers);
-    
-    /* CODICE DISABILITATO TEMPORANEAMENTE
     // Utilizziamo la Financial Modeling Prep API per ottenere dati reali
     const apiKey = process.env.FINANCIAL_API_KEY;
     
@@ -368,7 +331,6 @@ export async function getTickerData(req: Request, res: Response) {
       console.log(`DEBUG-MARKET: Usando dati in cache per ticker - ${new Date().toISOString()}`);
       return res.json(cachedData);
     }
-    */
     
     console.log(`DEBUG-MARKET: Nessun dato in cache per ticker, recupero dati freschi - ${new Date().toISOString()}`);
     
@@ -618,15 +580,10 @@ export async function getFinancialNews(req: Request, res: Response) {
     // Ottieni il parametro di filtro per le notizie (globale o italia)
     const filter = req.query.filter as string || 'global';
     
-    console.log(`DEBUG-MARKET: API DISABILITATA - getFinancialNews con filtro ${filter} - ${new Date().toISOString()}`);
-    
-    // Risposta vuota per evitare errori
-    return res.json([]);
-    
-    /* CODICE DISABILITATO TEMPORANEAMENTE
-    const cacheKey = `financial_news_${filter}`;
-    
     console.log(`DEBUG-MARKET: Inizio getFinancialNews con filtro ${filter} - ${new Date().toISOString()}`);
+    
+    // Riattivazione del codice originale
+    const cacheKey = `financial_news_${filter}`;
     
     // Controlla se abbiamo dati cached
     const cachedData = getFromCache(cacheKey);
@@ -634,7 +591,6 @@ export async function getFinancialNews(req: Request, res: Response) {
       console.log(`DEBUG-MARKET: Utilizzando dati in cache per notizie ${filter} - ${new Date().toISOString()}`);
       return res.json(cachedData);
     }
-    */
     
     console.log(`DEBUG-MARKET: Nessun dato in cache per notizie, recupero dati freschi - ${new Date().toISOString()}`);
     
