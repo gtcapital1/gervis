@@ -201,22 +201,20 @@ export async function getMarketIndices(req: Request, res: Response) {
           apiSymbol = apiSymbol.substring(1);
         }
         
+        const apiKey = process.env.FINANCIAL_API_KEY;
+        if (!apiKey) {
+          throw new Error("API key not found");
+        }
+        
         const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
         console.log(`DEBUG-MARKET: Recupero dati per ${index.name} da ${url.replace(apiKey, 'API_KEY_HIDDEN')} - ${new Date().toISOString()}`);
         
-        // Impostiamo un timeout più lungo per problemi di rete su AWS
-        console.log(`DEBUG-MARKET: Inizio chiamata axios per ${index.name} - ${new Date().toISOString()}`);
+        // Utilizziamo la nuova funzione fetchWithTimeout
+        console.log(`DEBUG-MARKET: Inizio chiamata fetch per ${index.name} - ${new Date().toISOString()}`);
         
-        const response = await axios.get(url, {
-          timeout: 15000, // 15 secondi di timeout
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
+        const response = await fetchWithTimeout(url);
         
-        console.log(`DEBUG-MARKET: Risposta axios ricevuta per ${index.name} - ${new Date().toISOString()}`);
+        console.log(`DEBUG-MARKET: Risposta fetch ricevuta per ${index.name} - ${new Date().toISOString()}`);
         console.log(`DEBUG-MARKET: Status risposta per ${index.name}: ${response.status} - ${new Date().toISOString()}`);
         
         if (response.data && response.data.length > 0) {
@@ -409,20 +407,20 @@ export async function getTickerData(req: Request, res: Response) {
     if (usSymbols.length > 0) {
       try {
         const symbolsString = usSymbols.join(',');
-        const url = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${apiKey}`;
-        console.log(`Recupero dati per ${symbols.length} ticker da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
         
         // Impostiamo un timeout più lungo per problemi di rete su AWS
-        console.log(`DEBUG-MARKET: Inizio chiamata axios per ticker ${symbolsString} - ${new Date().toISOString()}`);
+        console.log(`DEBUG-MARKET: Inizio chiamata fetch per ticker ${symbolsString} - ${new Date().toISOString()}`);
         
-        const response = await axios.get(url, {
-          timeout: 15000, // 15 secondi di timeout (aumentato per problemi in AWS)
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache'
-          }
-        });
+        const tickerApiKey = process.env.FINANCIAL_API_KEY;
+        if (!tickerApiKey) {
+          throw new Error("API key not found");
+        }
+        
+        const tickerUrl = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${tickerApiKey}`;
+        console.log(`Recupero dati per ${symbols.length} ticker da ${tickerUrl.replace(tickerApiKey, 'API_KEY_HIDDEN')}`);
+        
+        // Utilizziamo la nuova funzione fetchWithTimeout
+        const response = await fetchWithTimeout(tickerUrl);
         
         console.log(`DEBUG-MARKET: Risposta axios ricevuta per ticker ${symbolsString} - ${new Date().toISOString()}`);
         console.log(`DEBUG-MARKET: Status risposta per ticker: ${response.status} - ${new Date().toISOString()}`);
@@ -664,14 +662,10 @@ export async function getFinancialNews(req: Request, res: Response) {
     // Impostiamo un timeout più lungo per problemi di rete su AWS
     console.log(`DEBUG-MARKET: Inizio chiamata axios per notizie ${filter} - ${new Date().toISOString()}`);
     
-    const response = await axios.get(apiUrl, {
-      timeout: 15000, // 15 secondi di timeout
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
-        'Accept': 'application/json',
-        'Cache-Control': 'no-cache'
-      }
-    });
+    // Utilizziamo la nuova funzione fetchWithTimeout
+    console.log(`DEBUG-MARKET: Inizio chiamata fetch per notizie ${filter} - ${new Date().toISOString()}`);
+    
+    const response = await fetchWithTimeout(apiUrl);
     
     console.log(`DEBUG-MARKET: Risposta axios ricevuta per notizie ${filter} - ${new Date().toISOString()}`);
     console.log(`DEBUG-MARKET: Status risposta per notizie: ${response.status} - ${new Date().toISOString()}`);
