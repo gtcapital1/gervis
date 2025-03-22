@@ -779,7 +779,10 @@ Grazie per la tua fiducia e collaborazione.`
                         <FileText className="mr-2 h-4 w-4" />
                         {t('client.recommendations')}
                       </TabsTrigger>
-
+                      <TabsTrigger value="ai-profile">
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        {t('client.ai_profile')}
+                      </TabsTrigger>
                     </TabsList>
                     
                     <TabsContent value="portfolio" className="space-y-6">
@@ -1027,6 +1030,44 @@ Grazie per la tua fiducia e collaborazione.`
                       )}
                     </TabsContent>
                     
+                    <TabsContent value="ai-profile" className="space-y-4">
+                      {client.isOnboarded ? (
+                        <AiClientProfile clientId={clientId} />
+                      ) : (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center">
+                              <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
+                              {t('client.ai_profile')}
+                            </CardTitle>
+                            <CardDescription>
+                              {t('client.ai_profile_description')}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-col items-center justify-center py-4 text-center space-y-4">
+                              <Brain className="h-16 w-16 text-muted-foreground/50" />
+                              <h3 className="text-lg font-semibold">
+                                {t('client.complete_onboarding_first')}
+                              </h3>
+                              <p className="text-muted-foreground max-w-md">
+                                {t('client.ai_profile_requires_onboarding')}
+                              </p>
+                              <Button 
+                                onClick={() => handleOpenEmailDialog()} 
+                                disabled={sendOnboardingMutation.isPending}
+                                className="mt-2"
+                              >
+                                <Mail className="mr-2 h-4 w-4" />
+                                {sendOnboardingMutation.isPending 
+                                  ? t('client.sending_onboarding_email') 
+                                  : t('client.send_onboarding_email')}
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </TabsContent>
 
                   </Tabs>
                 </CardContent>
