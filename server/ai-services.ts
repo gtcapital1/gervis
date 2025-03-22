@@ -108,8 +108,9 @@ Analizza queste informazioni e genera approfondimenti e suggerimenti personalizz
         { role: "user", content: userPrompt }
       ],
       temperature: DEFAULT_TEMPERATURE,
-      max_tokens: 1000, // Limita la lunghezza della risposta
-      response_format: { type: "json_object" } // Richiedi una risposta in formato JSON
+      max_tokens: 1000 // Limita la lunghezza della risposta
+      // Il parametro response_format non è supportato con questo modello
+      // Lo abbiamo rimosso perché causava un errore 400
     });
     
     console.timeEnd("[DEBUG AI] Tempo risposta OpenAI");
