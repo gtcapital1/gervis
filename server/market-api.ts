@@ -6,17 +6,37 @@
  * - Notizie finanziarie
  */
 
-// Rimuoviamo l'import di axios e lo sostituiamo con un'implementazione fittizia
-// import axios from 'axios';
 import { Request, Response } from 'express';
+import fetch from 'node-fetch';
 
-// Implementazione fittizia di axios per evitare errori di importazione
-const axios = {
-  get: async () => ({ 
-    data: {},
-    status: 200
-  })
-};
+// Sistema per eseguire richieste HTTP
+async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache',
+        ...(options.headers || {})
+      }
+    });
+    
+    clearTimeout(id);
+    return {
+      data: await response.json(),
+      status: response.status,
+      ok: response.ok
+    };
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
 
 // Sistema di cache in memoria per ridurre le chiamate API e garantire stabilità dei dati
 const cacheStore: Record<string, { data: any, expiry: number }> = {};
