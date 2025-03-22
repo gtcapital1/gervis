@@ -539,14 +539,20 @@ export async function getFinancialNews(req: Request, res: Response) {
       apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=10&apikey=${apiKey}`;
     }
     
-    console.log(`Recupero notizie finanziarie per ${filter}`);
-    const response = await fetch(apiUrl);
+    console.log(`Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
     
-    if (!response.ok) {
-      throw new Error(`Errore API: ${response.status} ${response.statusText}`);
-    }
+    // Utilizziamo axios invece di fetch per maggiore controllo su timeout e headers
+    const response = await axios.get(apiUrl, {
+      timeout: 8000, // 8 secondi di timeout
+      headers: {
+        'User-Agent': 'Gervis-Financial-Platform/1.0',
+        'Accept': 'application/json',
+        'Cache-Control': 'no-cache'
+      }
+    });
     
-    const data = await response.json();
+    // Con axios, il corpo della risposta è già in response.data
+    const data = response.data;
     
     if (Array.isArray(data)) {
       newsItems = data.map(item => ({
