@@ -265,8 +265,38 @@ export const getQueryFn: <T>(options: {
     }
 
     try {
+      // Controllo speciale per HTTP 502
+      if (res.status === 502) {
+        console.error(`[QueryFn] Rilevato errore 502 Bad Gateway per ${urlWithTimestamp}`);
+        console.error(`[QueryFn] Headers: ${JSON.stringify(Object.fromEntries(res.headers.entries()))}`);
+        
+        // Tenta di leggere il corpo per diagnostica
+        try {
+          const text = await res.text();
+          console.error(`[QueryFn] Contenuto risposta 502: ${text.substring(0, 500)}`);
+          throw new Error("502: Errore Gateway - Il server non è raggiungibile o ha risposto in modo non valido");
+        } catch (textError) {
+          throw new Error("502: Errore Gateway");
+        }
+      }
+      
       await throwIfResNotOk(res);
-      return await res.json();
+      
+      // Parsing risposta JSON con gestione errori specifica
+      try {
+        return await res.json();
+      } catch (jsonError) {
+        console.error(`[QueryFn] Errore parsing JSON per ${urlWithTimestamp}:`, jsonError);
+        
+        // Controlla se c'è un testo non-JSON nella risposta
+        const text = await res.text();
+        if (text.length > 0) {
+          console.error(`[QueryFn] Risposta non JSON: ${text.substring(0, 200)}`);
+          throw new Error(`Risposta server non valida (non JSON): ${text.substring(0, 50)}...`);
+        } else {
+          throw new Error("Risposta vuota dal server");
+        }
+      }
     } catch (error) {
       console.error(`[QueryFn] Errore in getQueryFn per ${urlWithTimestamp}:`, error);
       throw error;
