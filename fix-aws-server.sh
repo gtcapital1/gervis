@@ -1,5 +1,6 @@
 #!/bin/bash
 # Script per correggere l'errore 502 Bad Gateway sul server AWS
+# Risolve problemi di compatibilità tra ES Modules e CommonJS
 
 echo "===== CORREZIONE SERVER AWS PER GERVIS ====="
 echo ""
@@ -8,6 +9,18 @@ echo ""
 if [ ! -d "/var/www/gervis" ]; then
   echo "ERRORE: Questo script deve essere eseguito sul server AWS nella directory /var/www/gervis"
   exit 1
+fi
+
+# Verifica se lo script sta girando come root o con sudo
+if [ "$EUID" -ne 0 ]; then
+  echo "AVVISO: Questo script dovrebbe essere eseguito con 'sudo' per avere i permessi necessari"
+  echo "Continuare comunque? (s/n)"
+  read risposta
+  if [ "$risposta" != "s" ]; then
+    echo "Esecuzione interrotta. Riavvia con 'sudo ./fix-aws-server.sh'"
+    exit 1
+  fi
+  echo "Continuando senza privilegi di root..."
 fi
 
 # Assicurati di essere nella directory corretta
