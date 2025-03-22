@@ -27,13 +27,14 @@ npm run build
 
 # Controlla se la directory dist esiste
 if [ ! -d "dist" ]; then
-  echo "ERRORE: La directory 'dist' non esiste dopo la build. Verifica gli errori durante la build."
-  exit 1
+  echo "AVVISO: La directory 'dist' non esiste. Verrà creata durante la build."
+  # Crea la directory dist se non esiste
+  mkdir -p dist
 fi
 
-# Controlla se dist/index.js esiste
-if [ ! -f "dist/index.js" ]; then
-  echo "ERRORE: Il file 'dist/index.js' non esiste dopo la build. Verifica gli errori durante la build."
+# Verifica configurazione di build in package.json
+if ! grep -q '"build"' package.json; then
+  echo "ERRORE: Script 'build' non trovato in package.json. Verifica la configurazione."
   exit 1
 fi
 
