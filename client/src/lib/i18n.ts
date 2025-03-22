@@ -85,8 +85,8 @@ const resourcesIt = {
         description: "Semplifica l'onboarding dei clienti con moduli digitali e raccolta dati automatizzata. Organizza e gestisci facilmente i profili dei clienti, i documenti e le comunicazioni in un'unica piattaforma centralizzata."
       },
       junior_assistant: {
-        title: "Junior Assistant",
-        description: "Assistant basato su IA che fornisce suggerimenti quotidiani di follow-up per i clienti principali e aggiornamenti sui mercati finanziari. Interagisci con il nostro chatbot AI per ottenere risposte sulle tendenze di mercato e approfondimenti economici."
+        title: "Sigmund",
+        description: "L'IA analizza il profilo cliente in base ai dati forniti e ai log e fornisce al consulente una analisi costantemente aggiornata delle esigenze e stile di investimento del cliente."
       },
       portfolio_intelligence: {
         title: "Portfolio Intelligence",
@@ -696,8 +696,8 @@ const resourcesEn = {
         description: "Simplify client onboarding with digital forms and automated data collection. Easily organize and manage client profiles, documents, and communications in a single centralized platform."
       },
       junior_assistant: {
-        title: "Junior Assistant",
-        description: "AI-powered assistant that provides daily follow-up suggestions for core clients and financial market updates. Interact with our AI chatbot to get answers about market trends and economic insights."
+        title: "Sigmund",
+        description: "AI analysis of client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs and styles."
       },
       portfolio_intelligence: {
         title: "Portfolio Intelligence",
