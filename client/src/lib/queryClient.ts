@@ -245,8 +245,13 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    // Aggiunta timestamp per evitare cache
+    // Debug per tracciare le chiamate API dell'autenticazione
     const url = queryKey[0] as string;
+    if (url === '/api/user') {
+      console.log('[Auth Debug] Esecuzione query /api/user con queryClient...');
+    }
+    
+    // Aggiunta timestamp per evitare cache
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
     const res = await fetch(urlWithTimestamp, {
@@ -256,30 +261,43 @@ export const getQueryFn: <T>(options: {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
         "Expires": "0",
-        "X-No-HTML-Response": "true"
+        "X-No-HTML-Response": "true",
+        "X-Auth-Debug": "true" // Header aggiuntivo per debug auth
       }
     });
+    
+    // Debug per chiamate auth
+    if (url === '/api/user') {
+      console.log('[Auth Debug] Risposta /api/user:', {
+        status: res.status,
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries())
+      });
+    }
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      if (url === '/api/user') {
+        console.log('[Auth Debug] Risposta 401, ritorno null (comportamento configurato)');
+      }
       return null;
     }
 
-    try {
-      // Controllo speciale per HTTP 502
-      if (res.status === 502) {
-        console.error(`[QueryFn] Rilevato errore 502 Bad Gateway per ${urlWithTimestamp}`);
-        console.error(`[QueryFn] Headers: ${JSON.stringify(Object.fromEntries(res.headers.entries()))}`);
-        
-        // Tenta di leggere il corpo per diagnostica
-        try {
-          const text = await res.text();
-          console.error(`[QueryFn] Contenuto risposta 502: ${text.substring(0, 500)}`);
-          throw new Error("502: Errore Gateway - Il server non è raggiungibile o ha risposto in modo non valido");
-        } catch (textError) {
-          throw new Error("502: Errore Gateway");
-        }
-      }
+    // Controllo speciale per HTTP 502
+    if (res.status === 502) {
+      console.error(`[QueryFn] Rilevato errore 502 Bad Gateway per ${urlWithTimestamp}`);
+      console.error(`[QueryFn] Headers: ${JSON.stringify(Object.fromEntries(res.headers.entries()))}`);
       
+      // Tenta di leggere il corpo per diagnostica
+      try {
+        const text = await res.text();
+        console.error(`[QueryFn] Contenuto risposta 502: ${text.substring(0, 500)}`);
+        throw new Error("502: Errore Gateway - Il server non è raggiungibile o ha risposto in modo non valido");
+      } catch (textError) {
+        throw new Error("502: Errore Gateway");
+      }
+    }
+    
+    try {
       await throwIfResNotOk(res);
       
       // Parsing risposta JSON con gestione errori specifica

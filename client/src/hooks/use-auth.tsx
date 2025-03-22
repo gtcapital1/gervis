@@ -22,6 +22,9 @@ type LoginData = Pick<InsertUser, "email" | "password">;
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  console.log('[Debug Auth] Inizializzazione AuthProvider');
+  
+  // Query per verificare stato di autenticazione
   const {
     data,
     error,
@@ -29,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<{ success: boolean; user: SelectUser } | null, Error>({
     queryKey: ["/api/user"],
     refetchOnWindowFocus: true,
-    retry: false,
+    retry: 1,  // Aggiungiamo un retry per maggiore resilienza
   });
 
   const loginMutation = useMutation({
@@ -49,13 +52,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: InsertUser) => 
-      httpRequest("POST", "/api/register", userData),
+    mutationFn: (userData: InsertUser) => {
+      console.log('[Debug Auth] Tentativo registrazione utente:', userData.email);
+      return httpRequest("POST", "/api/register", userData);
+    },
     onSuccess: (data: { success: boolean; user: SelectUser; message?: string; needsPinVerification?: boolean }) => {
+      console.log('[Debug Auth] Registrazione completata con successo:', data);
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
+      console.error('[Debug Auth] Errore registrazione:', error);
       toast({
         title: "Registration failed",
         description: error.message,
