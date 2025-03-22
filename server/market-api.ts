@@ -75,7 +75,7 @@ const MAIN_INDICES = [
 
 // Chiavi API utilizzate
 // Queste variabili servono solo per il logging debug
-const API_KEYS = {
+const API_KEYS: Record<string, string | undefined> = {
   FINANCIAL_API_KEY: process.env.FINANCIAL_API_KEY,
   FINANCIAL_NEWS_API_KEY: process.env.FINANCIAL_NEWS_API_KEY
 };
@@ -347,14 +347,19 @@ export async function getTickerData(req: Request, res: Response) {
         console.log(`Recupero dati per ${symbols.length} ticker da ${url.replace(apiKey, 'API_KEY_HIDDEN')}`);
         
         // Impostiamo un timeout più lungo per problemi di rete su AWS
+        console.log(`DEBUG-MARKET: Inizio chiamata axios per ticker ${symbolsString} - ${new Date().toISOString()}`);
+        
         const response = await axios.get(url, {
-          timeout: 10000, // 10 secondi di timeout
+          timeout: 15000, // 15 secondi di timeout (aumentato per problemi in AWS)
           headers: {
             'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
             'Accept': 'application/json',
             'Cache-Control': 'no-cache'
           }
         });
+        
+        console.log(`DEBUG-MARKET: Risposta axios ricevuta per ticker ${symbolsString} - ${new Date().toISOString()}`);
+        console.log(`DEBUG-MARKET: Status risposta per ticker: ${response.status} - ${new Date().toISOString()}`);
         
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           // Trasformiamo i dati nel formato atteso
