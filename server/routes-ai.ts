@@ -95,4 +95,52 @@ export function registerAiRoutes(app: any) {
       });
     }
   });
+  
+  /**
+   * Endpoint di debug pubblico per verificare la configurazione OpenAI
+   * Non richiede autenticazione per facilitare il debug
+   */
+  app.get("/api/ai/debug-status", async (req: Request, res: Response) => {
+    try {
+      console.log("[DEBUG AI] Richiesta debug status OpenAI ricevuta");
+      const apiKey = process.env.OPENAI_API_KEY;
+      const apiKeyExists = !!apiKey;
+      const apiKeyLength = apiKeyExists ? apiKey.length : 0;
+      const apiKeyPrefix = apiKeyExists ? apiKey.substring(0, 7) : "";
+      
+      console.log("[DEBUG AI] Chiave API esistente:", apiKeyExists);
+      console.log("[DEBUG AI] Lunghezza chiave API:", apiKeyLength);
+      console.log("[DEBUG AI] Prefisso chiave API:", apiKeyPrefix);
+      
+      let isValid = false;
+      let error = null;
+      
+      try {
+        console.log("[DEBUG AI] Tentativo di verifica API...");
+        isValid = await verifyOpenAIConfiguration();
+        console.log("[DEBUG AI] Verifica API completata, risultato:", isValid);
+      } catch (err) {
+        console.error("[DEBUG AI] Errore durante la verifica:", err);
+        error = (err as Error).message;
+      }
+      
+      res.json({ 
+        success: true,
+        valid: isValid,
+        apiKeyExists,
+        apiKeyLength,
+        apiKeyPrefix,
+        error,
+        message: isValid ? 'Configurazione OpenAI valida' : 'Configurazione OpenAI non valida'
+      });
+    } catch (error) {
+      console.error("[DEBUG AI] Errore completo durante debug status:", error);
+      res.status(500).json({ 
+        success: false, 
+        valid: false,
+        message: 'Errore durante la verifica della configurazione OpenAI',
+        error: (error as Error).message
+      });
+    }
+  });
 }
