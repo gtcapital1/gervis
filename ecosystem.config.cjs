@@ -2,7 +2,7 @@ module.exports = {
   apps: [
     {
       name: 'gervis',
-      script: 'index.js', // Modificato per usare index.js nella directory principale
+      script: 'index.cjs', // Modificato per usare index.cjs (compatibile con CommonJS)
       instances: 1,
       exec_mode: 'fork',
       autorestart: true,
