@@ -1,0 +1,38 @@
+0|gervis   | Node.js v18.20.6
+0|gervis   | ReferenceError: require is not defined in ES module scope, you can use import instead
+0|gervis   | This file is being treated as an ES module because it has a '.js' file extension and '/var/www/gervis/package.json' contains "type": "module". To treat it as a CommonJS script, rename it to use the '.cjs' file extension.
+0|gervis   |     at file:///var/www/gervis/index.js:2:17
+0|gervis   |     at ModuleJob.run (node:internal/modules/esm/module_job:195:25)
+0|gervis   |     at async ModuleLoader.import (node:internal/modules/esm/loader:337:24)
+0|gervis   |     at async importModuleDynamicallyWrapper (node:internal/vm/module:432:15)
+0|gervis   | Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/var/www/gervis/server/auth.js' imported from /var/www/gervis/index.js
+0|gervis   |     at new NodeError (node:internal/errors:405:5)
+0|gervis   |     at finalizeResolution (node:internal/modules/esm/resolve:327:11)
+0|gervis   |     at moduleResolve (node:internal/modules/esm/resolve:980:10)
+0|gervis   |     at defaultResolve (node:internal/modules/esm/resolve:1206:11)
+0|gervis   |     at ModuleLoader.defaultResolve (node:internal/modules/esm/loader:404:12)
+0|gervis   |     at ModuleLoader.resolve (node:internal/modules/esm/loader:373:25)
+0|gervis   |     at ModuleLoader.getModuleJob (node:internal/modules/esm/loader:250:38)
+0|gervis   |     at ModuleWrap.<anonymous> (node:internal/modules/esm/module_job:76:39)
+0|gervis   |     at link (node:internal/modules/esm/module_job:75:36) {
+0|gervis   |   url: 'file:///var/www/gervis/server/auth.js',
+0|gervis   |   code: 'ERR_MODULE_NOT_FOUND'
+0|gervis   | }
+
+0|gervis  | Error: Cannot find module './server/auth'
+0|gervis  | Require stack:
+0|gervis  | - /var/www/gervis/index.cjs
+0|gervis  |     at Module._resolveFilename (node:internal/modules/cjs/loader:1140:15)
+0|gervis  |     at Hook._require.Module.require (/usr/lib/node_modules/pm2/node_modules/require-in-the-middle/index.js:81:25)
+0|gervis  |     at require (node:internal/modules/helpers:177:18)
+0|gervis  |     at Object.<anonymous> (/var/www/gervis/index.cjs:8:23)
+0|gervis  |     at Module._compile (node:internal/modules/cjs/loader:1364:14)
+0|gervis  |     at Module._extensions..js (node:internal/modules/cjs/loader:1422:10)
+0|gervis  |     at Module.load (node:internal/modules/cjs/loader:1203:32)
+0|gervis  |     at Module._load (node:internal/modules/cjs/loader:1019:12)
+0|gervis  |     at ModuleWrap.<anonymous> (node:internal/modules/esm/translators:203:29)
+0|gervis  |     at ModuleJob.run (node:internal/modules/esm/module_job:195:25) {
+0|gervis  |   code: 'MODULE_NOT_FOUND',
+0|gervis  |   requireStack: [ '/var/www/gervis/index.cjs' ]
+0|gervis  | }
+

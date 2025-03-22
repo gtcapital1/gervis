@@ -5,12 +5,11 @@
 
 // Import dei moduli necessari usando CommonJS (require invece di import)
 const express = require('express');
-const { setupAuth } = require('./server/auth');
-const { setupRoutes } = require('./server/routes');
-const { setupVite, serveStatic } = require('./server/vite');
-const { registerRoutes } = require('./server/routes');
-const { autorunCascadeFix } = require('./server/migrations/autorun-cascade-fix');
-const { autorunCreateClientLogs } = require('./server/migrations/autorun-create-client-logs');
+const { setupAuth } = require('./server/auth.ts');
+const { setupVite, serveStatic } = require('./server/vite.ts');
+const { registerRoutes } = require('./server/routes.ts');
+const { autorunCascadeFix } = require('./server/migrations/autorun-cascade-fix.ts');
+const { autorunCreateClientLogs } = require('./server/migrations/autorun-create-client-logs.ts');
 const http = require('http');
 const path = require('path');
 
