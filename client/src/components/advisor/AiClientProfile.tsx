@@ -69,10 +69,10 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardHeader>
           <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
-            {t('client.ai_profile')}
+            {t('ai_profile')}
           </CardTitle>
           <CardDescription className="dark:text-white/80 text-gray-700">
-            {t('client.ai_profile_generating')}
+            {t('ai_profile_generating')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -89,10 +89,10 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardHeader>
           <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-purple-500" />
-            {t('client.ai_profile')}
+            {t('ai_profile')}
           </CardTitle>
           <CardDescription className="dark:text-white/80 text-gray-700">
-            {t('client.ai_profile_error')}
+            {t('ai_profile_error')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,7 +100,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             <AlertDescription>
               {error instanceof Error 
                 ? error.message 
-                : t('client.ai_profile_error_generic')}
+                : t('ai_profile_error_generic')}
             </AlertDescription>
           </Alert>
           <div className="flex justify-center mt-6">
@@ -112,8 +112,8 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing 
-                ? t('client.ai_profile_refreshing') 
-                : t('client.ai_profile_refresh')}
+                ? t('ai_profile_refreshing') 
+                : t('ai_profile_refresh')}
             </Button>
           </div>
         </CardContent>
@@ -127,20 +127,20 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardHeader>
           <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-purple-500" />
-            {t('client.ai_profile')}
+            {t('ai_profile')}
           </CardTitle>
           <CardDescription className="dark:text-white/80 text-gray-700">
-            {t('client.ai_profile_no_data')}
+            {t('ai_profile_no_data')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-4">
             <Brain className="h-16 w-16 dark:text-gray-500 text-gray-300" />
             <h3 className="text-lg font-semibold dark:text-white text-gray-800">
-              {t('client.ai_profile_no_data_title')}
+              {t('ai_profile_no_data_title')}
             </h3>
             <p className="dark:text-gray-300 text-gray-600 max-w-md">
-              {t('client.ai_profile_no_data_description')}
+              {t('ai_profile_no_data_description')}
             </p>
             <Button 
               onClick={handleRefresh}
@@ -149,8 +149,8 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
               {refreshing 
-                ? t('client.ai_profile_generating_now') 
-                : t('client.ai_profile_generate')}
+                ? t('ai_profile_generating_now') 
+                : t('ai_profile_generate')}
             </Button>
           </div>
         </CardContent>
@@ -164,10 +164,10 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardHeader className="pb-2 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-950/20 dark:to-blue-950/20">
           <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Sparkles className="mr-2 h-5 w-5 text-purple-500" />
-            {t('client.ai_insights')}
+            {t('ai_insights')}
           </CardTitle>
           <CardDescription className="dark:text-white/80 text-gray-700">
-            {t('client.ai_insights_description')}
+            {t('ai_insights_description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -181,10 +181,10 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardHeader className="pb-2 bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-950/20 dark:to-cyan-950/20">
           <CardTitle className="flex items-center dark:text-white text-gray-800">
             <Brain className="mr-2 h-5 w-5 text-blue-500" />
-            {t('client.ai_suggestions')}
+            {t('ai_suggestions')}
           </CardTitle>
           <CardDescription className="dark:text-white/80 text-gray-700">
-            {t('client.ai_suggestions_description')}
+            {t('ai_suggestions_description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -195,7 +195,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <CardFooter className="flex justify-between pt-2 pb-4 text-sm dark:text-gray-300 text-gray-600">
           <div className="flex items-center">
             <Clock className="mr-1 h-3 w-3" />
-            {t('client.ai_last_updated')}
+            {t('ai_last_updated')}
           </div>
           <Button 
             variant="ghost" 
@@ -206,8 +206,8 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           >
             <RefreshCw className={`mr-2 h-3 w-3 ${refreshing ? 'animate-spin' : ''}`} />
             {refreshing 
-              ? t('client.ai_profile_refreshing') 
-              : t('client.ai_profile_refresh')}
+              ? t('ai_profile_refreshing') 
+              : t('ai_profile_refresh')}
           </Button>
         </CardFooter>
       </Card>
