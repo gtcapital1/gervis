@@ -38,22 +38,31 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       const result = await response.json();
-      console.log("AI Profile data:", result);
+      console.log("======== AI PROFILE DATA START ========");
+      console.log("AI Profile data:", JSON.stringify(result, null, 2));
       
       // Log dettagliato della struttura dei dati
       if (result.data) {
         console.log("Approfondimenti type:", typeof result.data.approfondimenti);
-        console.log("Approfondimenti value:", result.data.approfondimenti);
+        console.log("Approfondimenti è array?", Array.isArray(result.data.approfondimenti));
+        console.log("Approfondimenti value:", JSON.stringify(result.data.approfondimenti, null, 2));
         
         console.log("Suggerimenti type:", typeof result.data.suggerimenti);
-        console.log("Suggerimenti value:", result.data.suggerimenti);
+        console.log("Suggerimenti è array?", Array.isArray(result.data.suggerimenti));
+        console.log("Suggerimenti value:", JSON.stringify(result.data.suggerimenti, null, 2));
         
         // Prova a esaminare il primo elemento se è un array
         if (Array.isArray(result.data.approfondimenti) && result.data.approfondimenti.length > 0) {
-          console.log("Primo elemento approfondimenti:", result.data.approfondimenti[0]);
+          console.log("Primo elemento approfondimenti:", JSON.stringify(result.data.approfondimenti[0], null, 2));
           console.log("Tipo primo elemento:", typeof result.data.approfondimenti[0]);
+          
+          if (typeof result.data.approfondimenti[0] === 'object') {
+            console.log("Keys del primo elemento:", Object.keys(result.data.approfondimenti[0]));
+            console.log("Valori del primo elemento:", Object.values(result.data.approfondimenti[0]));
+          }
         }
       }
+      console.log("======== AI PROFILE DATA END ========");
       
       return result;
     },
@@ -107,20 +116,8 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       console.log("Array content:", content);
       console.log("First item type:", typeof content[0]);
       
-      // Se sono oggetti convertiti in stringa, prova a riparsarli
-      if (typeof content === 'object' && content.toString() === '[object Object],[object Object],[object Object],[object Object]') {
-        console.log("Detected stringified objects in array");
-        // Forza il display come card semplici
-        return (
-          <div className="space-y-4">
-            {Array(4).fill(0).map((_, index) => (
-              <div key={index} className="border-l-2 border-blue-500 pl-3 py-1">
-                <p className="text-sm text-gray-600">Elemento {index + 1}</p>
-              </div>
-            ))}
-          </div>
-        );
-      }
+      // Rimuoviamo questa condizione che mostra elementi generici
+      // e lasciamo che il codice successivo gestisca gli oggetti nell'array
       
       // Se l'array contiene oggetti, formattali in modo speciale
       if (content.length > 0 && typeof content[0] === 'object') {
