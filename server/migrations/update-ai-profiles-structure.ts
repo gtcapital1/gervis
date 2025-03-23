@@ -33,15 +33,5 @@ export async function updateAiProfilesStructure() {
   }
 }
 
-// Se eseguito direttamente
-if (require.main === module) {
-  updateAiProfilesStructure()
-    .then(() => {
-      console.log("Script completato con successo");
-      process.exit(0);
-    })
-    .catch(error => {
-      console.error("Errore durante l'esecuzione dello script:", error);
-      process.exit(1);
-    });
-}
+// Esposizione della funzione esportata in formato ES Module
+// Questo file non supporta l'esecuzione diretta ed è solo importato dal server
