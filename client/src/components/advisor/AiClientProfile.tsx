@@ -16,12 +16,17 @@ interface AiClientProfileProps {
 interface ProfileItem {
   title: string;
   description: string;
+  actions?: string[]; // Azioni consigliate (nuovo formato)
 }
 
 // Interfaccia per i dati di profilo arricchito
 interface ProfileData {
-  approfondimenti: ProfileItem[] | string;
-  suggerimenti: ProfileItem[] | string;
+  // Nuovo formato unificato
+  raccomandazioni?: ProfileItem[] | string;
+  
+  // Campi legacy per retrocompatibilità
+  approfondimenti?: ProfileItem[] | string;
+  suggerimenti?: ProfileItem[] | string;
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
@@ -66,22 +71,42 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       
       // Log dettagliato della struttura dei dati
       if (result.data) {
-        console.log("Approfondimenti type:", typeof result.data.approfondimenti);
-        console.log("Approfondimenti è array?", Array.isArray(result.data.approfondimenti));
-        console.log("Approfondimenti value:", JSON.stringify(result.data.approfondimenti, null, 2));
-        
-        console.log("Suggerimenti type:", typeof result.data.suggerimenti);
-        console.log("Suggerimenti è array?", Array.isArray(result.data.suggerimenti));
-        console.log("Suggerimenti value:", JSON.stringify(result.data.suggerimenti, null, 2));
-        
-        // Prova a esaminare il primo elemento se è un array
-        if (Array.isArray(result.data.approfondimenti) && result.data.approfondimenti.length > 0) {
-          console.log("Primo elemento approfondimenti:", JSON.stringify(result.data.approfondimenti[0], null, 2));
-          console.log("Tipo primo elemento:", typeof result.data.approfondimenti[0]);
+        // Controlla il nuovo formato raccomandazioni
+        if (result.data.raccomandazioni) {
+          console.log("Raccomandazioni type:", typeof result.data.raccomandazioni);
+          console.log("Raccomandazioni è array?", Array.isArray(result.data.raccomandazioni));
+          console.log("Raccomandazioni value:", JSON.stringify(result.data.raccomandazioni, null, 2));
           
-          if (typeof result.data.approfondimenti[0] === 'object') {
-            console.log("Keys del primo elemento:", Object.keys(result.data.approfondimenti[0]));
-            console.log("Valori del primo elemento:", Object.values(result.data.approfondimenti[0]));
+          // Prova a esaminare il primo elemento se è un array
+          if (Array.isArray(result.data.raccomandazioni) && result.data.raccomandazioni.length > 0) {
+            console.log("Primo elemento raccomandazioni:", JSON.stringify(result.data.raccomandazioni[0], null, 2));
+            console.log("Tipo primo elemento:", typeof result.data.raccomandazioni[0]);
+            
+            if (typeof result.data.raccomandazioni[0] === 'object') {
+              console.log("Keys del primo elemento:", Object.keys(result.data.raccomandazioni[0]));
+              console.log("Valori del primo elemento:", Object.values(result.data.raccomandazioni[0]));
+              console.log("Actions:", JSON.stringify(result.data.raccomandazioni[0].actions, null, 2));
+            }
+          }
+        } else {
+          // Fallback per il vecchio formato
+          console.log("Approfondimenti type:", typeof result.data.approfondimenti);
+          console.log("Approfondimenti è array?", Array.isArray(result.data.approfondimenti));
+          console.log("Approfondimenti value:", JSON.stringify(result.data.approfondimenti, null, 2));
+          
+          console.log("Suggerimenti type:", typeof result.data.suggerimenti);
+          console.log("Suggerimenti è array?", Array.isArray(result.data.suggerimenti));
+          console.log("Suggerimenti value:", JSON.stringify(result.data.suggerimenti, null, 2));
+          
+          // Prova a esaminare il primo elemento se è un array
+          if (Array.isArray(result.data.approfondimenti) && result.data.approfondimenti.length > 0) {
+            console.log("Primo elemento approfondimenti:", JSON.stringify(result.data.approfondimenti[0], null, 2));
+            console.log("Tipo primo elemento:", typeof result.data.approfondimenti[0]);
+            
+            if (typeof result.data.approfondimenti[0] === 'object') {
+              console.log("Keys del primo elemento:", Object.keys(result.data.approfondimenti[0]));
+              console.log("Valori del primo elemento:", Object.values(result.data.approfondimenti[0]));
+            }
           }
         }
       }
@@ -155,14 +180,45 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               // Estrai le proprietà rilevanti dagli oggetti
               const title = item.title || item.titolo || '';
               const description = item.description || item.descrizione || item.content || item.contenuto || '';
+              const actions = item.actions || [];
               
               console.log(`Item ${index} title:`, title);
               console.log(`Item ${index} description:`, description);
+              console.log(`Item ${index} actions:`, actions);
               
               return (
-                <li key={index} className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm">
-                  {title && <h4 className="font-semibold text-sm text-blue-400">{title}</h4>}
-                  <p className="text-sm text-white mt-1">{description || JSON.stringify(item)}</p>
+                <li key={index} className="border-l-2 border-primary bg-primary-foreground text-primary-foreground pl-3 py-3 px-4 rounded-md shadow-sm">
+                  {title && <h4 className="font-semibold text-sm text-primary">{title}</h4>}
+                  <p className="text-sm text-slate-700 mt-2">{description || JSON.stringify(item)}</p>
+                  
+                  {/* Mostra le azioni raccomandate se presenti */}
+                  {Array.isArray(actions) && actions.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-slate-200">
+                      <h5 className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-2">Azioni consigliate</h5>
+                      <ul className="space-y-1">
+                        {actions.map((action, actionIndex) => (
+                          <li key={actionIndex} className="text-sm flex items-start text-slate-700">
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                              className="h-4 w-4 mr-2 text-primary mt-0.5 shrink-0"
+                            >
+                              <path d="M5 12h14"/>
+                              <path d="m12 5 7 7-7 7"/>
+                            </svg>
+                            <span>{action}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </li>
               );
             })}
@@ -326,7 +382,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   }
 
   // Se non ci sono dati o i dati non sono formattati correttamente
-  if (!data?.data?.approfondimenti && !data?.data?.suggerimenti) {
+  if (!data?.data?.approfondimenti && !data?.data?.suggerimenti && !data?.data?.raccomandazioni) {
     return (
       <Card>
         <CardHeader>
