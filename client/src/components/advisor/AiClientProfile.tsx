@@ -98,19 +98,45 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     
     // Se è un array
     if (Array.isArray(content)) {
+      console.log("Array content:", content);
+      console.log("First item type:", typeof content[0]);
+      
+      // Se sono oggetti convertiti in stringa, prova a riparsarli
+      if (typeof content === 'object' && content.toString() === '[object Object],[object Object],[object Object],[object Object]') {
+        console.log("Detected stringified objects in array");
+        // Forza il display come card semplici
+        return (
+          <div className="space-y-4">
+            {Array(4).fill(0).map((_, index) => (
+              <div key={index} className="border-l-2 border-blue-500 pl-3 py-1">
+                <p className="text-sm text-gray-600">Elemento {index + 1}</p>
+              </div>
+            ))}
+          </div>
+        );
+      }
+      
       // Se l'array contiene oggetti, formattali in modo speciale
       if (content.length > 0 && typeof content[0] === 'object') {
+        console.log("Array of objects detected");
+        console.log("Sample object keys:", Object.keys(content[0]));
+        
         return (
           <ul className="space-y-4 list-none pl-0">
             {content.map((item, index) => {
+              console.log(`Item ${index}:`, item);
+              
               // Estrai le proprietà rilevanti dagli oggetti
               const title = item.title || item.titolo || '';
               const description = item.description || item.descrizione || item.content || item.contenuto || '';
               
+              console.log(`Item ${index} title:`, title);
+              console.log(`Item ${index} description:`, description);
+              
               return (
                 <li key={index} className="border-l-2 border-blue-500 pl-3 py-1">
                   {title && <h4 className="font-medium text-sm">{title}</h4>}
-                  <p className="text-sm text-gray-600">{description}</p>
+                  <p className="text-sm text-gray-600">{description || JSON.stringify(item)}</p>
                 </li>
               );
             })}
@@ -118,6 +144,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         );
       } else {
         // Array di valori primitivi
+        console.log("Array of primitives detected");
         return (
           <ul className="space-y-2 list-disc pl-5">
             {content.map((item, index) => (
