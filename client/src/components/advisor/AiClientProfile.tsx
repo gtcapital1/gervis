@@ -137,9 +137,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               console.log(`Item ${index} description:`, description);
               
               return (
-                <li key={index} className="border-l-2 border-blue-500 pl-3 py-1">
-                  {title && <h4 className="font-medium text-sm">{title}</h4>}
-                  <p className="text-sm text-gray-600">{description || JSON.stringify(item)}</p>
+                <li key={index} className="border-l-2 border-blue-500 bg-blue-600 text-white pl-3 py-1 rounded-sm">
+                  {title && <h4 className="font-medium text-sm text-white">{title}</h4>}
+                  <p className="text-sm text-white">{description || JSON.stringify(item)}</p>
                 </li>
               );
             })}
@@ -207,7 +207,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-8 w-full" />
@@ -229,7 +228,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -267,7 +265,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
@@ -333,7 +330,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             {t('refresh')}
           </Button>
         </CardTitle>
-        <CardDescription>{t('ai_profile_description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
