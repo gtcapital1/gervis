@@ -51,6 +51,37 @@ export default function Spark() {
     retry: 1,
   });
 
+  // Generate new priorities
+  const generatePriorities = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("/api/spark/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to generate priorities");
+      }
+      
+      await refetch();
+      toast({
+        title: t("spark.refresh_success"),
+        description: t("spark.refresh_success_message"),
+      });
+    } catch (err) {
+      toast({
+        title: t("spark.refresh_error"),
+        description: t("spark.refresh_error_message"),
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   // Handle refresh button click
   const handleRefresh = async () => {
     setIsRefreshing(true);
