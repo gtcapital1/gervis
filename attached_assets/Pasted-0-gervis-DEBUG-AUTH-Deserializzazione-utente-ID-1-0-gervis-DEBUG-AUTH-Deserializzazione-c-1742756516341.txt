@@ -1,0 +1,58 @@
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user - Autenticato: true
+0|gervis  | [DEBUG AUTH] Sessione: ID wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o
+0|gervis  | [DEBUG AUTH] Cookie expires: Sun Mar 30 2025 17:34:45 GMT+0000 (Coordinated Universal Time)
+0|gervis  | [DEBUG AUTH] Cookie maxAge: 599607390
+0|gervis  | [DEBUG AUTH] Cookie secure: true
+0|gervis  | [DEBUG AUTH] Cookie httpOnly: true
+0|gervis  | [DEBUG AUTH] Cookie path: /
+0|gervis  | [DEBUG AUTH] Cookie sameSite: none
+0|gervis  | [DEBUG AUTH] Utente autenticato ID: 1, email: gianmarco.trapasso@gmail.com
+0|gervis  | 7:01:18 PM [express] GET /api/user 200 in 30ms :: {"success":true,"user":{"id":1,"username":"gianmar…
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user completata con stato 200 in 30ms
+0|gervis  | [DEBUG AUTH] Session ID: wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o, Cookie: {"originalMaxAge":604800000,"expires":"2025-03-30T19:01:18.304Z","secure":true,"httpOnly":true,"path":"/","sameSite":"none"}
+0|gervis  | [DEBUG AUTH] Autenticato: true
+0|gervis  | [DEBUG AUTH] Utente in sessione: ID 1
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user - Autenticato: true
+0|gervis  | [DEBUG AUTH] Sessione: ID wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o
+0|gervis  | [DEBUG AUTH] Cookie expires: Sun Mar 30 2025 17:34:45 GMT+0000 (Coordinated Universal Time)
+0|gervis  | [DEBUG AUTH] Cookie maxAge: 599598015
+0|gervis  | [DEBUG AUTH] Cookie secure: true
+0|gervis  | [DEBUG AUTH] Cookie httpOnly: true
+0|gervis  | [DEBUG AUTH] Cookie path: /
+0|gervis  | [DEBUG AUTH] Cookie sameSite: none
+0|gervis  | [DEBUG AUTH] Utente autenticato ID: 1, email: gianmarco.trapasso@gmail.com
+0|gervis  | 7:01:27 PM [express] GET /api/user 200 in 15ms :: {"success":true,"user":{"id":1,"username":"gianmar…
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user completata con stato 200 in 15ms
+0|gervis  | [DEBUG AUTH] Session ID: wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o, Cookie: {"originalMaxAge":604800000,"expires":"2025-03-30T19:01:27.676Z","secure":true,"httpOnly":true,"path":"/","sameSite":"none"}
+0|gervis  | [DEBUG AUTH] Autenticato: true
+0|gervis  | [DEBUG AUTH] Utente in sessione: ID 1
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | 7:01:27 PM [express] GET /api/spark/priorities 200 in 17ms :: {"success":true,"priorities":[]}
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | Error generating Spark priorities: PostgresError: invalid input syntax for type integer: "18,19,20,21,22,23,24,25,26,27"
+0|gervis  |     at ErrorResponse (file:///var/www/gervis/node_modules/postgres/src/connection.js:788:26)
+0|gervis  |     at handle (file:///var/www/gervis/node_modules/postgres/src/connection.js:474:6)
+0|gervis  |     at Socket.data (file:///var/www/gervis/node_modules/postgres/src/connection.js:315:9)
+0|gervis  |     at Socket.emit (node:events:517:28)
+0|gervis  |     at addChunk (node:internal/streams/readable:368:12)
+0|gervis  |     at readableAddChunk (node:internal/streams/readable:341:9)
+0|gervis  |     at Readable.push (node:internal/streams/readable:278:10)
+0|gervis  |     at TCP.onStreamRead (node:internal/stream_base_commons:190:23) {
+0|gervis  |   severity_local: 'ERROR',
+0|gervis  |   severity: 'ERROR',
+0|gervis  |   code: '22P02',
+0|gervis  |   where: "unnamed portal parameter $1 = '...'",
+0|gervis  |   file: 'numutils.c',
+0|gervis  |   line: '232',
+0|gervis  |   routine: 'pg_strtoint32'
+0|gervis  | }
+0|gervis  | 7:01:30 PM [express] POST /api/spark/generate 500 in 24ms :: {"success":false,"message":"Failed to g…
+0
