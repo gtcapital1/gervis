@@ -269,7 +269,7 @@ export default function Spark() {
                 <p className="text-muted-foreground mb-4 max-w-md">
                   {t("spark.no_priorities_message")}
                 </p>
-                <Button onClick={handleRefresh}>
+                <Button onClick={generatePriorities}>
                   {t("spark.generate_priorities")}
                 </Button>
               </div>
