@@ -25,6 +25,16 @@ interface ProfileData {
   raccomandazioni: ProfileItem[] | string;
 }
 
+// Interfaccia per la risposta dell'API
+interface ProfileResponse {
+  success: boolean;
+  data?: ProfileData;
+  cached?: boolean;
+  lastGenerated?: string;
+  upToDate?: boolean;
+  message?: string;
+}
+
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const { t } = useTranslation('client');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -33,12 +43,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const [upToDateMessage, setUpToDateMessage] = useState("");
 
   // Esegui la query per ottenere i dati del profilo arricchito solo quando richiesto
-  const { data, isLoading, isError, error, refetch } = useQuery<{ 
-    success: boolean; 
-    data?: ProfileData;
-    upToDate?: boolean;
-    message?: string;
-  }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<ProfileResponse>({
     queryKey: ['/api/ai/client-profile', clientId, refreshTrigger],
     queryFn: async () => {
       // Reset stato "up to date" quando iniziamo una nuova richiesta
@@ -443,6 +448,34 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               {upToDateMessage}
             </AlertDescription>
           </Alert>
+        )}
+        
+        {/* Mostra la data dell'ultimo aggiornamento */}
+        {data?.lastGenerated && (
+          <div className="text-xs text-muted-foreground flex items-center mb-2">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3 w-3 mr-1"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+            Ultimo aggiornamento: {new Date(data.lastGenerated).toLocaleString('it-IT', {
+              year: 'numeric',
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })}
+          </div>
         )}
 
         {/* Mostra le raccomandazioni unificate */}
