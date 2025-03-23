@@ -55,7 +55,12 @@ git commit -m "Aggiornato sistema Sigmund con nuovo formato raccomandazioni unif
 - Aggiunto indice per migliorare performance query"
 
 # Push delle modifiche al repository remoto
-git push origin master
+# Ottieni il branch corrente
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+echo "Push sul branch: $CURRENT_BRANCH"
+
+# Esegui il push sul branch corrente
+git push origin $CURRENT_BRANCH
 
 # Verifica lo stato
 if [ $? -eq 0 ]; then
