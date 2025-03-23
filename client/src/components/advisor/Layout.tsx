@@ -210,16 +210,16 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Mobile header & sheet */}
       <div className="flex flex-col w-0 flex-1">
-        <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
+        <div className="md:hidden bg-background text-foreground flex items-center justify-between h-16 px-4">
           <Link href="/">
-            <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
+            <div className="text-xl font-bold tracking-tight text-foreground flex items-center cursor-pointer">
               {t('common.app_name')}
             </div>
           </Link>
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white">
+              <Button variant="ghost" size="icon" className="text-foreground">
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Open menu</span>
               </Button>
