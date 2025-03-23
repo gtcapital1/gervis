@@ -167,31 +167,42 @@ export async function generateSparkPriorities(req: Request, res: Response) {
         const apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
         debug(`Fetching news from ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
         
-        // Utilizziamo la funzione fetchWithTimeout dal market-api
-        const response = await fetch(apiUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
-            'Accept': 'application/json'
-          },
-          timeout: 15000
-        });
+        // Gestiamo il timeout come in market-api.ts
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
         
-        if (!response.ok) {
-          throw new Error(`FMP News API error: ${response.status} ${response.statusText}`);
+        try {
+          const response = await fetch(apiUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+              'Accept': 'application/json'
+            },
+            signal: controller.signal
+          });
+          
+          // Pulizia del timeout
+          clearTimeout(timeoutId);
+          
+          if (!response.ok) {
+            throw new Error(`FMP News API error: ${response.status} ${response.statusText}`);
+          }
+          
+          const data = await response.json();
+          
+          if (!Array.isArray(data)) {
+            throw new Error("Invalid FMP news API response format");
+          }
+          
+          // Filtra fonti whitelist
+          financialNews = data.filter((article: any) => 
+            isWhitelistedNewsSource(article.url)
+          );
+          
+          debug(`Filtered ${financialNews.length} whitelisted articles from ${data.length} total`);
+        } catch (fetchError) {
+          clearTimeout(timeoutId);
+          throw fetchError;
         }
-        
-        const data = await response.json();
-        
-        if (!Array.isArray(data)) {
-          throw new Error("Invalid FMP news API response format");
-        }
-        
-        // Filtra fonti whitelist
-        financialNews = data.filter((article: any) => 
-          isWhitelistedNewsSource(article.url)
-        );
-        
-        debug(`Filtered ${financialNews.length} whitelisted articles from ${data.length} total`);
         
         // Aggiorna cache
         newsCache = financialNews;
@@ -374,13 +385,18 @@ function generateRandomPriorities(clients: Client[], news: any[], count: number)
       clientId = -1;
     }
     
+    // Adattamento al formato FMP (diverso da GNews)
+    const newsTitle = newsItem.title;
+    const newsUrl = newsItem.url;
+    const sourceName = newsItem.site || "Financial News"; // FMP usa 'site' invece di 'source.name'
+    
     return {
-      title: generatePriorityTitle(client, newsItem),
-      description: generatePriorityDescription(client, newsItem),
+      title: generatePriorityTitle(client, { title: newsTitle, url: newsUrl }),
+      description: generatePriorityDescription(client, { title: newsTitle, url: newsUrl }),
       clientId: clientId, // Garantito come numero
       clientName: `${client.firstName} ${client.lastName}`,
-      source: newsItem.source.name,
-      sourceUrl: newsItem.url
+      source: sourceName,
+      sourceUrl: newsUrl
     };
   });
 }
