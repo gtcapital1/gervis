@@ -687,7 +687,26 @@ const resourcesEn = {
     suggestions: "Suggestions"
   },
   translation: {
-
+    spark: {
+      title: "Spark Dashboard",
+      description: "Your daily priorities based on client data and market trends",
+      refresh: "Refresh",
+      refresh_success: "Refresh successful",
+      refresh_success_message: "Priorities have been updated successfully",
+      refresh_error: "Refresh error",
+      refresh_error_message: "An error occurred while updating priorities",
+      error_title: "Error loading priorities",
+      error_message: "An error occurred while loading priorities. Please try again later.",
+      try_again: "Try again",
+      new: "New",
+      priority: "Priority",
+      client: "Client",
+      related_news: "Related news",
+      created: "Created on",
+      no_priorities_title: "No priorities available",
+      no_priorities_message: "There are no priorities available at the moment. Generate new priorities based on client data and market trends.",
+      generate_priorities: "Generate priorities"
+    },
     admin: {
       admin_panel: "Admin Panel",
       welcome_admin: "Welcome to the Gervis administration panel. From here you can manage users and system settings.",
