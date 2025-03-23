@@ -350,6 +350,10 @@ function generatePriorityTitle(client: Client, news: { title: string; url: strin
  * Genera una descrizione per la priorità basata sui dati del cliente e sulla notizia
  */
 function generatePriorityDescription(client: Client, news: { title: string; url: string }): string {
+  // Normalizzare gli interessi personali e obiettivi d'investimento per garantire che siano array
+  const investmentGoals = Array.isArray(client.investmentGoals) ? client.investmentGoals.join(", ") : client.investmentGoals;
+  const personalInterests = Array.isArray(client.personalInterests) ? client.personalInterests.join(", ") : (client.personalInterests || "");
+
   const descriptions = [
     `Questa notizia su ${extractMainTopic(news.title)} sembra allinearsi con il profilo di rischio ${client.riskProfile} di ${client.firstName}. Potrebbe essere un'opportunità per discutere strategie correlate durante il prossimo incontro.`,
     
@@ -357,9 +361,9 @@ function generatePriorityDescription(client: Client, news: { title: string; url:
     
     `Basandomi sul profilo di ${client.firstName}, che ha un'esperienza ${client.investmentExperience} e un orizzonte ${client.investmentHorizon}, questa notizia su ${extractMainTopic(news.title)} potrebbe rappresentare un elemento rilevante per il portfolio.`,
     
-    `Con un focus su ${Array.isArray(client.investmentGoals) ? client.investmentGoals.join(", ") : client.investmentGoals}, ${client.firstName} potrebbe trovare interessante questa notizia su ${extractMainTopic(news.title)}. Considera di includerla nella prossima comunicazione.`,
+    `Con un focus su ${investmentGoals}, ${client.firstName} potrebbe trovare interessante questa notizia su ${extractMainTopic(news.title)}. Considera di includerla nella prossima comunicazione.`,
     
-    `Questa notizia su ${extractMainTopic(news.title)} potrebbe avere implicazioni per il portfolio di ${client.firstName}, specialmente considerando i suoi interessi personali e il suo profilo di investitore.`
+    `Questa notizia su ${extractMainTopic(news.title)} potrebbe avere implicazioni per il portfolio di ${client.firstName}${personalInterests ? `, particolarmente considerando i suoi interessi in ${personalInterests}` : ""}.`
   ];
   
   return descriptions[Math.floor(Math.random() * descriptions.length)];

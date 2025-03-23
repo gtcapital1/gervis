@@ -282,17 +282,49 @@ export class PostgresStorage implements IStorage {
   
   async createClient(insertClient: InsertClient): Promise<Client> {
     // Ensure we have both first and last name
-    const { firstName, lastName, name, ...restOfClient } = insertClient;
+    const { firstName, lastName, name, personalInterests, investmentGoals, ...restOfClient } = insertClient;
     
     // If first name and last name are provided but name is not,
     // automatically generate the full name
     const fullName = name || `${firstName} ${lastName}`;
+    
+    // Normalizzazione di array personalInterests
+    let normalizedPersonalInterests = personalInterests;
+    if (personalInterests !== undefined && !Array.isArray(personalInterests)) {
+      if (typeof personalInterests === 'string') {
+        try {
+          normalizedPersonalInterests = personalInterests.split(',').map(s => s.trim());
+        } catch (e) {
+          console.error('Errore nella conversione di personalInterests:', e);
+          normalizedPersonalInterests = [];
+        }
+      } else {
+        normalizedPersonalInterests = [];
+      }
+    }
+    
+    // Normalizzazione di array investmentGoals
+    let normalizedInvestmentGoals = investmentGoals;
+    if (investmentGoals !== undefined && !Array.isArray(investmentGoals)) {
+      if (typeof investmentGoals === 'string') {
+        try {
+          normalizedInvestmentGoals = investmentGoals.split(',').map(s => s.trim());
+        } catch (e) {
+          console.error('Errore nella conversione di investmentGoals:', e);
+          normalizedInvestmentGoals = [];
+        }
+      } else {
+        normalizedInvestmentGoals = [];
+      }
+    }
     
     const result = await db.insert(clients).values({
       firstName: firstName || (name ? name.split(' ')[0] : ''),
       lastName: lastName || (name ? name.split(' ').slice(1).join(' ') : ''),
       name: fullName,
       ...restOfClient,
+      personalInterests: normalizedPersonalInterests,
+      investmentGoals: normalizedInvestmentGoals,
       createdAt: new Date()
     }).returning();
     
@@ -300,7 +332,7 @@ export class PostgresStorage implements IStorage {
   }
   
   async updateClient(id: number, clientUpdate: Partial<Client>): Promise<Client> {
-    const { firstName, lastName, name, ...restOfUpdate } = clientUpdate;
+    const { firstName, lastName, name, personalInterests, investmentGoals, ...restOfUpdate } = clientUpdate;
     
     // Get the current client first
     const currentClient = await this.getClient(id);
@@ -334,6 +366,41 @@ export class PostgresStorage implements IStorage {
         lastName: newLastName,
         name
       };
+    }
+
+    // Normalizza gli array di interessi personali e obiettivi d'investimento
+    if (personalInterests !== undefined) {
+      // Assicurati che sia sempre un array
+      if (Array.isArray(personalInterests)) {
+        updateData.personalInterests = personalInterests;
+      } else if (typeof personalInterests === 'string') {
+        // Se è una stringa, potrebbe essere in formato "18,19,20" o simile
+        // Converte in array di stringhe, separando per virgole
+        try {
+          updateData.personalInterests = personalInterests.split(',').map(s => s.trim());
+        } catch (e) {
+          console.error('Errore nella conversione di personalInterests:', e);
+          updateData.personalInterests = [];
+        }
+      } else {
+        updateData.personalInterests = [];
+      }
+    }
+
+    if (investmentGoals !== undefined) {
+      // Assicurati che sia sempre un array
+      if (Array.isArray(investmentGoals)) {
+        updateData.investmentGoals = investmentGoals;
+      } else if (typeof investmentGoals === 'string') {
+        try {
+          updateData.investmentGoals = investmentGoals.split(',').map(s => s.trim());
+        } catch (e) {
+          console.error('Errore nella conversione di investmentGoals:', e);
+          updateData.investmentGoals = [];
+        }
+      } else {
+        updateData.investmentGoals = [];
+      }
     }
     
     const result = await db.update(clients)
@@ -1034,18 +1101,31 @@ export class PostgresStorage implements IStorage {
   }
 
   async createSparkPriority(priority: InsertSparkPriority): Promise<SparkPriority> {
+    // Assicuriamoci che clientId sia un numero intero valido
+    if (!priority.clientId || typeof priority.clientId !== 'number' || isNaN(priority.clientId)) {
+      console.error(`[ERROR] Invalid clientId in createSparkPriority: ${priority.clientId}, type: ${typeof priority.clientId}`);
+      throw new Error(`Invalid client ID: ${priority.clientId}`);
+    }
+    
     // Verifica che il client esista prima di creare la priorità
     const client = await this.getClient(priority.clientId);
     if (!client) {
       throw new Error(`Client with id ${priority.clientId} not found`);
     }
     
+    // Garantiamo che i valori siano correttamente tipizzati
+    const validatedPriority = {
+      ...priority,
+      clientId: Number(priority.clientId), // Assicuriamo che sia un numero
+      priority: Number(priority.priority), // Assicuriamo che sia un numero
+      isNew: Boolean(priority.isNew), // Assicuriamo che sia un booleano
+      createdBy: priority.createdBy ? Number(priority.createdBy) : null, // Gestione advisor ID
+      createdAt: new Date(),
+      lastUpdatedAt: new Date()
+    };
+    
     const result = await db.insert(sparkPriorities)
-      .values({
-        ...priority,
-        createdAt: new Date(),
-        lastUpdatedAt: new Date()
-      })
+      .values(validatedPriority)
       .returning();
     
     return result[0];
@@ -1081,12 +1161,39 @@ export class PostgresStorage implements IStorage {
       return true; // Nessun cliente, quindi niente da eliminare
     }
     
-    // Elimina tutte le vecchie priorità dei clienti dell'advisor
-    await db.delete(sparkPriorities)
-      .where(sql`${sparkPriorities.clientId} IN (${clientIds.join(',')})`)
-      .execute();
-    
-    return true;
+    try {
+      // Versione più sicura con SQL parametrizzata
+      if (clientIds.length === 1) {
+        // Se c'è un solo cliente, usare l'uguaglianza diretta
+        await db.delete(sparkPriorities)
+          .where(eq(sparkPriorities.clientId, clientIds[0]))
+          .execute();
+      } else {
+        // Per più clienti, usare IN con una query parametrizzata
+        // Utilizziamo un approccio sicuro per evitare SQL injection
+        const placeholders = clientIds.map((_, idx) => `$${idx + 1}`).join(',');
+        const query = sql`DELETE FROM spark_priorities WHERE client_id IN (${sql.raw(placeholders)})`;
+        
+        await db.execute(query, ...clientIds);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("Errore durante la cancellazione delle priorità Spark:", error);
+      
+      // Fallback per ogni cliente individualmente in caso di errore
+      try {
+        for (const clientId of clientIds) {
+          await db.delete(sparkPriorities)
+            .where(eq(sparkPriorities.clientId, clientId))
+            .execute();
+        }
+        return true;
+      } catch (fallbackError) {
+        console.error("Fallback fallito per cancellazione priorità Spark:", fallbackError);
+        throw fallbackError;
+      }
+    }
   }
 }
 
