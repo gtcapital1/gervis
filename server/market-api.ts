@@ -579,6 +579,8 @@ export async function getFinancialNews(req: Request, res: Response) {
   try {
     // Ottieni il parametro di filtro per le notizie (globale o italia)
     const filter = req.query.filter as string || 'global';
+    // Ottieni il parametro limit se presente
+    const limit = req.query.limit as string;
     
     console.log(`DEBUG-MARKET: Inizio getFinancialNews con filtro ${filter} - ${new Date().toISOString()}`);
     
@@ -655,19 +657,29 @@ export async function getFinancialNews(req: Request, res: Response) {
       ];
       
       // Filtra le notizie solo dalle fonti attendibili
-      const filteredData = limit ? 
-        data.filter((item: any) => trustedSourcesWhitelist.some(source => 
+      const filteredData = data.filter((item: any) => 
+        trustedSourcesWhitelist.some(source => 
           item.site && item.site.includes(source)
-        )).slice(0, parseInt(limit)) :
-        data.filter((item: any) => trustedSourcesWhitelist.some(source => 
-          item.site && item.site.includes(source)
-        ));
+        )
+      );
       
       console.log(`DEBUG-MARKET: Notizie filtrate per fonti affidabili: ${filteredData.length} items - ${new Date().toISOString()}`);
       
       // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
-      const finalData = filteredData.length > 0 ? filteredData : 
-        (limit ? data.slice(0, parseInt(limit)) : data);
+      let finalData = filteredData;
+      
+      // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
+      if (filteredData.length === 0) {
+        finalData = data;
+      }
+      
+      // Applica il limite se specificato
+      if (limit && finalData.length > 0) {
+        const limitNum = parseInt(limit);
+        if (!isNaN(limitNum)) {
+          finalData = finalData.slice(0, limitNum);
+        }
+      }
       
       newsItems = finalData.map((item: any) => ({
         title: item.title,
