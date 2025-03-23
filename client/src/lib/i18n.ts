@@ -3,6 +3,24 @@ import { initReactI18next } from "react-i18next";
 
 // Italian translations
 const resourcesIt = {
+  client: {
+    // Traduzioni specifiche per il componente AiClientProfile
+    ai_profile_description: "Analisi intelligente del profilo cliente basata sulle interazioni e sul questionario",
+    generate_profile_title: "Genera profilo cliente arricchito",
+    generate_profile_description: "Analizza i dati del cliente e genera suggerimenti personalizzati utilizzando intelligenza artificiale",
+    token_usage_estimate: "Questa operazione utilizza token OpenAI. Costo stimato: €0.05",
+    generate_profile: "Genera profilo",
+    error_generating_profile: "Errore durante la generazione del profilo",
+    quota_error_title: "Credito OpenAI esaurito",
+    quota_error_description: "Il credito disponibile su OpenAI è esaurito o hai raggiunto il limite di utilizzo",
+    quota_error_help: "Come risolvere questo problema:",
+    error: "Errore",
+    refresh: "Aggiorna",
+    no_content_available: "Nessun contenuto disponibile",
+    content_not_formatted_correctly: "I dati non sono stati ricevuti nel formato corretto",
+    insights: "Approfondimenti",
+    suggestions: "Suggerimenti"
+  },
   translation: {
     admin: {
       admin_panel: "Pannello Amministratore",
@@ -630,6 +648,24 @@ const resourcesIt = {
 
 // English translations
 const resourcesEn = {
+  client: {
+    // Translations for AiClientProfile component
+    ai_profile_description: "Intelligent client profile analysis based on interactions and questionnaire",
+    generate_profile_title: "Generate enriched client profile",
+    generate_profile_description: "Analyze client data and generate personalized suggestions using artificial intelligence",
+    token_usage_estimate: "This operation uses OpenAI tokens. Estimated cost: €0.05",
+    generate_profile: "Generate profile",
+    error_generating_profile: "Error generating profile",
+    quota_error_title: "OpenAI credit exhausted",
+    quota_error_description: "The available credit on OpenAI is exhausted or you have reached the usage limit",
+    quota_error_help: "How to solve this problem:",
+    error: "Error",
+    refresh: "Refresh",
+    no_content_available: "No content available",
+    content_not_formatted_correctly: "The data was not received in the correct format",
+    insights: "Insights",
+    suggestions: "Suggestions"
+  },
   translation: {
 
     admin: {
