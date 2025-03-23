@@ -337,10 +337,33 @@ function generateRandomPriorities(clients: Client[], news: any[], count: number)
   return selectedClients.map((client, index) => {
     const newsItem = selectedNews[index % selectedNews.length];
     
+    // Assicurati che clientId sia sempre un numero
+    // Questo è fondamentale per evitare errori di tipo in PostgreSQL
+    let clientId: number;
+    
+    if (typeof client.id === 'string') {
+      // Se per qualche motivo l'ID arriva come stringa, convertiamo in numero
+      clientId = parseInt(client.id, 10);
+      console.log(`[DEBUG] Conversione cliente ID da string a number: ${client.id} -> ${clientId}`);
+      
+      if (isNaN(clientId)) {
+        console.error(`[ERROR] ClientId non valido (NaN): "${client.id}"`);
+        // Fallback: genera un ID temporaneo (non verrà inserito nel DB)
+        clientId = -1;
+      }
+    } else if (typeof client.id === 'number') {
+      // Se è già un numero, usiamo direttamente
+      clientId = client.id;
+    } else {
+      // Caso improbabile: client.id è undefined o altro
+      console.error(`[ERROR] ClientId non valido (tipo ${typeof client.id}): ${client.id}`);
+      clientId = -1;
+    }
+    
     return {
       title: generatePriorityTitle(client, newsItem),
       description: generatePriorityDescription(client, newsItem),
-      clientId: client.id,
+      clientId: clientId, // Garantito come numero
       clientName: `${client.firstName} ${client.lastName}`,
       source: newsItem.source.name,
       sourceUrl: newsItem.url
