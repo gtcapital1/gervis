@@ -1198,36 +1198,36 @@ export class PostgresStorage implements IStorage {
     }
     
     try {
-      // Utilizziamo la query SQL diretta con la sintassi ANY corretta per PostgreSQL
-      // Questa è la sintassi consigliata per l'operatore ANY con array tipizzati in PostgreSQL
-      // L'operatore ::int[] è fondamentale per specificare che si tratta di un array di interi
-      console.log(`Tentativo di eliminare priorità per ${clientIds.length} clienti con ANY`);
-      const query = sql`DELETE FROM spark_priorities WHERE client_id = ANY(${clientIds}::int[])`;
-      await db.execute(query);
+      // Utilizziamo un array literal di PostgreSQL per passare l'array di interi
+      // invece di fare casting di un parametro
+      console.log(`Tentativo di eliminare priorità per ${clientIds.length} clienti con ARRAY constructor`);
       
+      // Costruiamo l'array di interi direttamente nella query SQL
+      // Questo evita problemi di casting tra 'record' e 'integer[]'
+      const idsString = clientIds.join(', ');
+      const query = sql`DELETE FROM spark_priorities WHERE client_id = ANY(ARRAY[${sql.raw(idsString)}]::int[])`;
+      
+      await db.execute(query);
       console.log(`Priorità Spark eliminate per ${clientIds.length} clienti`);
       return true;
     } catch (error) {
       console.error("Errore durante la cancellazione delle priorità Spark:", error);
       console.error("Dettagli errore:", JSON.stringify(error, null, 2));
       
-      // Fallback: proviamo con IN
+      // Fallback alternativo: utilizziamo una stringa SQL diretta con ARRAY
       try {
-        console.log("Tentativo con operatore IN...");
-        if (clientIds.length === 1) {
-          await db.delete(sparkPriorities)
-            .where(eq(sparkPriorities.clientId, clientIds[0]))
-            .execute();
-        } else {
-          const placeholders = clientIds.map((_, i) => `$${i + 1}`).join(',');
-          const query = sql`DELETE FROM spark_priorities WHERE client_id IN (${sql.raw(placeholders)})`;
-          await db.execute(query, ...clientIds);
-        }
+        console.log("Tentativo con query SQL diretta...");
+        // Costruiamo una query SQL sicura con array literal
+        const idsString = clientIds.join(', ');
+        const directQuery = `DELETE FROM spark_priorities WHERE client_id = ANY(ARRAY[${idsString}]::int[])`;
         
-        console.log(`Priorità Spark eliminate per ${clientIds.length} clienti usando IN`);
+        // Eseguiamo la query diretta tramite pg
+        await pgClient.unsafe(directQuery);
+        
+        console.log(`Priorità Spark eliminate per ${clientIds.length} clienti usando SQL diretto`);
         return true;
-      } catch (fallbackError) {
-        console.error("Fallback con IN fallito:", fallbackError);
+      } catch (directError) {
+        console.error("Fallback con SQL diretto fallito:", directError);
         
         // Fallback finale: elimina singolarmente
         try {
