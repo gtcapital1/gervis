@@ -125,7 +125,7 @@ export function Layout({ children }: LayoutProps) {
                     ${
                       item.current
                         ? "bg-accent text-white"
-                        : "text-gray-300 hover:bg-gray-800"
+                        : "text-foreground hover:bg-gray-800"
                     }
                     ${item.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                   `}
