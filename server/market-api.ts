@@ -637,6 +637,7 @@ export async function getFinancialNews(req: Request, res: Response) {
       
       // Whitelist delle testate giornalistiche più rilevanti
       const trustedSourcesWhitelist = [
+        // Pubblicazioni tradizionali
         'Bloomberg', 
         'Reuters', 
         'CNBC', 
@@ -644,16 +645,29 @@ export async function getFinancialNews(req: Request, res: Response) {
         'Financial Times', 
         'MarketWatch',
         'The Economist',
-        'Seeking Alpha',
-        'Yahoo Finance',
         'Fortune',
         'Barron\'s',
         'Business Insider',
-        'Investing.com',
-        'The Motley Fool',
-        'Financial Post',
         'Il Sole 24 Ore',
-        'Milano Finanza'
+        'Milano Finanza',
+        
+        // Domini comuni delle fonti di notizie finanziarie
+        'seekingalpha',
+        'fool.com',
+        'yahoo',
+        'investing.com',
+        'globenewswire',
+        'prnewswire',
+        'accessnewswire',
+        '247wallst',
+        'finbold',
+        
+        // Domini di agenzie stampa
+        'reuters.com',
+        'bloomberg.com',
+        'cnbc.com',
+        'wsj.com',
+        'ft.com'
       ];
       
       // Filtra le notizie solo dalle fonti attendibili (case-insensitive)
