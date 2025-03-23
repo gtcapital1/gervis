@@ -13,6 +13,7 @@ import AuthPage from "@/pages/auth-page";
 import Settings from "@/pages/Settings";
 import AdminPanel from "@/pages/AdminPanel";
 import MarketUpdate from "@/pages/MarketUpdate";
+import Spark from "@/pages/Spark";
 import { Layout } from "@/components/advisor/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -67,6 +68,14 @@ function Router() {
         component={() => (
           <Layout>
             <MarketUpdate />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
+        path="/spark" 
+        component={() => (
+          <Layout>
+            <Spark />
           </Layout>
         )} 
       />

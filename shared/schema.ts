@@ -237,3 +237,32 @@ export const insertAiProfileSchema = createInsertSchema(aiProfiles).pick({
 
 export type InsertAiProfile = z.infer<typeof insertAiProfileSchema>;
 export type AiProfile = typeof aiProfiles.$inferSelect;
+
+// Spark Priorities Schema
+export const sparkPriorities = pgTable("spark_priorities", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  description: text("description").notNull(),
+  priority: integer("priority").notNull(), // Valore numerico da 1 a 5 che indica la priorità (1 = alta)
+  relatedNewsTitle: text("related_news_title"),
+  relatedNewsUrl: text("related_news_url"),
+  isNew: boolean("is_new").default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastUpdatedAt: timestamp("last_updated_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+export const insertSparkPrioritySchema = createInsertSchema(sparkPriorities).pick({
+  clientId: true,
+  title: true,
+  description: true,
+  priority: true,
+  relatedNewsTitle: true,
+  relatedNewsUrl: true,
+  isNew: true,
+  createdBy: true,
+});
+
+export type InsertSparkPriority = z.infer<typeof insertSparkPrioritySchema>;
+export type SparkPriority = typeof sparkPriorities.$inferSelect;
