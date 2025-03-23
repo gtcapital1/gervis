@@ -7,6 +7,7 @@ import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, g
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile } from "./ai/profile-controller";
+import { getSparkPriorities, generateSparkPriorities, markPriorityAsRead, deletePriority } from "./spark-controller";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1417,6 +1418,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get AI-generated client profile
   app.get('/api/ai/client-profile/:clientId', isAuthenticated, getClientProfile);
+
+  // ===== Spark API Routes =====
+  
+  // Get Spark priorities for the authenticated user
+  app.get('/api/spark/priorities', isAuthenticated, getSparkPriorities);
+  
+  // Generate new Spark priorities
+  app.post('/api/spark/generate', isAuthenticated, generateSparkPriorities);
+  
+  // Mark a priority as read (not new)
+  app.post('/api/spark/priorities/:id/read', isAuthenticated, markPriorityAsRead);
+  
+  // Delete a priority
+  app.delete('/api/spark/priorities/:id', isAuthenticated, deletePriority);
 
   const httpServer = createServer(app);
   return httpServer;
