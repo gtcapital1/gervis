@@ -9,7 +9,7 @@ import {
   LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt, sql, desc } from 'drizzle-orm';
+import { eq, and, gt, sql, desc, inArray } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
@@ -1198,36 +1198,40 @@ export class PostgresStorage implements IStorage {
     }
     
     try {
-      // Versione più sicura con SQL parametrizzata
-      if (clientIds.length === 1) {
-        // Se c'è un solo cliente, usare l'uguaglianza diretta
-        await db.delete(sparkPriorities)
-          .where(eq(sparkPriorities.clientId, clientIds[0]))
-          .execute();
-      } else {
-        // Per più clienti, usare IN con una query parametrizzata
-        // Utilizziamo un approccio sicuro per evitare SQL injection
-        const placeholders = clientIds.map((_, idx) => `$${idx + 1}`).join(',');
-        const query = sql`DELETE FROM spark_priorities WHERE client_id IN (${sql.raw(placeholders)})`;
-        
-        await db.execute(query, ...clientIds);
-      }
+      // Approccio sicuro usando inList di Drizzle che gestisce correttamente gli array
+      await db.delete(sparkPriorities)
+        .where(inArray(sparkPriorities.clientId, clientIds))
+        .execute();
       
+      console.log(`Priorità Spark eliminate per ${clientIds.length} clienti`);
       return true;
     } catch (error) {
       console.error("Errore durante la cancellazione delle priorità Spark:", error);
       
-      // Fallback per ogni cliente individualmente in caso di errore
+      // Fallback: esegui query SQL direttamente usando l'operatore ANY con array tipizzato
       try {
-        for (const clientId of clientIds) {
-          await db.delete(sparkPriorities)
-            .where(eq(sparkPriorities.clientId, clientId))
-            .execute();
-        }
+        // Questa è la sintassi corretta per PostgreSQL quando si usa un array di interi
+        const query = sql`DELETE FROM spark_priorities WHERE client_id = ANY(${clientIds}::int[])`;
+        await db.execute(query);
+        
+        console.log(`Priorità Spark eliminate per ${clientIds.length} clienti usando fallback SQL ANY`);
         return true;
       } catch (fallbackError) {
-        console.error("Fallback fallito per cancellazione priorità Spark:", fallbackError);
-        throw fallbackError;
+        console.error("Primo fallback fallito:", fallbackError);
+        
+        // Fallback finale: prova a eliminare le priorità per ogni cliente singolarmente
+        try {
+          console.log("Tentativo di eliminazione singola per ogni cliente...");
+          for (const clientId of clientIds) {
+            await db.delete(sparkPriorities)
+              .where(eq(sparkPriorities.clientId, clientId))
+              .execute();
+          }
+          return true;
+        } catch (finalError) {
+          console.error("Tutti i fallback falliti:", finalError);
+          throw finalError;
+        }
       }
     }
   }
