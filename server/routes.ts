@@ -6,6 +6,7 @@ import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } fro
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
+import { getClientProfile } from "./ai/profile-controller";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1411,6 +1412,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Validate ticker symbol
   app.post('/api/market/validate-ticker', validateTicker);
+
+  // ===== AI API Routes =====
+  
+  // Get AI-generated client profile
+  app.get('/api/ai/client-profile/:clientId', isAuthenticated, getClientProfile);
 
   const httpServer = createServer(app);
   return httpServer;
