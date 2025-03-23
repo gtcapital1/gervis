@@ -197,7 +197,7 @@ export async function getMarketIndices(req: Request, res: Response) {
         console.log(`DEBUG-MARKET: Risposta fetch ricevuta per ${index.name} - ${new Date().toISOString()}`);
         console.log(`DEBUG-MARKET: Status risposta per ${index.name}: ${response.status} - ${new Date().toISOString()}`);
         
-        if (response.data && response.data.length > 0) {
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           const data = response.data[0];
           console.log(`Dati ricevuti per ${index.name}: ${JSON.stringify(data).substring(0, 100)}...`);
           return {
@@ -580,9 +580,9 @@ export async function getFinancialNews(req: Request, res: Response) {
     // Ottieni il parametro di filtro per le notizie (globale o italia)
     const filter = req.query.filter as string || 'global';
     // Ottieni il parametro limit se presente
-    const limit = req.query.limit as string;
+    const limit = req.query.limit as string || '20'; // Default 20 se non specificato
     
-    console.log(`DEBUG-MARKET: Inizio getFinancialNews con filtro ${filter} - ${new Date().toISOString()}`);
+    console.log(`DEBUG-MARKET: Inizio getFinancialNews con filtro ${filter} e limit ${limit} - ${new Date().toISOString()}`);
     
     // Riattivazione del codice originale
     const cacheKey = `financial_news_${filter}`;
@@ -656,12 +656,14 @@ export async function getFinancialNews(req: Request, res: Response) {
         'Milano Finanza'
       ];
       
-      // Filtra le notizie solo dalle fonti attendibili
-      const filteredData = data.filter((item: any) => 
-        trustedSourcesWhitelist.some(source => 
-          item.site && item.site.includes(source)
-        )
-      );
+      // Filtra le notizie solo dalle fonti attendibili (case-insensitive)
+      const filteredData = data.filter((item: any) => {
+        if (!item.site) return false;
+        const lowercaseSite = item.site.toLowerCase();
+        return trustedSourcesWhitelist.some(source => 
+          lowercaseSite.includes(source.toLowerCase())
+        );
+      });
       
       console.log(`DEBUG-MARKET: Notizie filtrate per fonti affidabili: ${filteredData.length} items - ${new Date().toISOString()}`);
       
