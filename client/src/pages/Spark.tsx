@@ -1,282 +1,258 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import React, { useEffect, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { 
+  Card, CardHeader, CardTitle, CardDescription, 
+  CardContent, CardFooter 
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { 
+  Alert, AlertTitle, AlertDescription 
+} from "@/components/ui/alert";
+import { 
+  Trash2, RefreshCw, UserCheck, AlertTriangle, 
+  Calendar, Clock, BarChart2, Activity 
+} from "lucide-react";
+import { 
+  HoverCard, HoverCardTrigger, HoverCardContent 
+} from "@/components/ui/hover-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { RefreshCw, Lightbulb, TrendingUp, Users, AlertCircle, Bolt } from "lucide-react";
-import { Layout } from "@/components/advisor/Layout";
 import { useTranslation } from "react-i18next";
-import { format } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { it, enUS } from "date-fns/locale";
-
-interface SparkPriority {
-  id: number;
-  clientId: number;
-  clientName: string;
-  title: string;
-  description: string;
-  relatedNewsTitle?: string;
-  relatedNewsUrl?: string;
-  createdAt: string;
-  priority: number;
-  isNew: boolean;
-}
 
 export default function Spark() {
   const { t, i18n } = useTranslation();
-  const { toast } = useToast();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const queryClient = useQueryClient();
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   
-  // Format date based on current language
-  const formatDate = (date: string | Date) => {
-    const dateObj = typeof date === "string" ? new Date(date) : date;
-    return format(
-      dateObj,
-      "d MMMM yyyy", 
-      { locale: i18n.language === "it" ? it : enUS }
-    );
+  // Funzione per ottenere il locale corretto per date-fns
+  const getLocale = () => {
+    return i18n.language === "it" ? it : enUS;
   };
 
-  // Get priorities from API
-  const {
-    data: priorities,
-    isLoading,
-    error,
-    refetch
-  } = useQuery<SparkPriority[]>({
+  // Recupero delle priorità Spark
+  const { 
+    data, 
+    isLoading, 
+    isError, 
+    error, 
+    refetch 
+  } = useQuery({
     queryKey: ["/api/spark/priorities"],
-    retry: 1,
+    onSuccess: (data) => {
+      if (data?.priorities?.length > 0) {
+        const latestPriority = data.priorities.reduce((latest, priority) => {
+          const currentDate = new Date(priority.createdAt);
+          const latestDate = new Date(latest.createdAt);
+          return currentDate > latestDate ? priority : latest;
+        }, data.priorities[0]);
+        
+        const formattedDate = formatDistanceToNow(new Date(latestPriority.createdAt), { 
+          addSuffix: true,
+          locale: getLocale()
+        });
+        setLastUpdate(formattedDate);
+      } else {
+        setLastUpdate(null);
+      }
+    }
   });
 
-  // Generate new priorities
-  const generatePriorities = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await fetch("/api/spark/generate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to generate priorities");
-      }
-      
-      await refetch();
-      toast({
-        title: t("spark.refresh_success"),
-        description: t("spark.refresh_success_message"),
-      });
-    } catch (err) {
-      toast({
-        title: t("spark.refresh_error"),
-        description: t("spark.refresh_error_message"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
+  // Mutazione per generare nuove priorità
+  const generateMutation = useMutation({
+    mutationFn: () => apiRequest("/api/spark/generate", { method: "POST" }),
+    onMutate: () => {
+      setIsGenerating(true);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spark/priorities"] });
+      setTimeout(() => setIsGenerating(false), 500);
+    },
+    onError: () => {
+      setIsGenerating(false);
     }
+  });
+
+  // Mutazione per marcare una priorità come letta
+  const markAsReadMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/spark/priorities/${id}/read`, { method: "POST" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spark/priorities"] });
+    }
+  });
+
+  // Mutazione per eliminare una priorità
+  const deletePriorityMutation = useMutation({
+    mutationFn: (id: number) => apiRequest(`/api/spark/priorities/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/spark/priorities"] });
+    }
+  });
+
+  const handleGeneratePriorities = () => {
+    generateMutation.mutate();
   };
 
-  // Handle refresh button click
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      await refetch();
-      toast({
-        title: t("spark.refresh_success"),
-        description: t("spark.refresh_success_message"),
-      });
-    } catch (err) {
-      toast({
-        title: t("spark.refresh_error"),
-        description: t("spark.refresh_error_message"),
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
+  const handleMarkAsRead = (id: number) => {
+    markAsReadMutation.mutate(id);
   };
 
-  // Get priority icon based on priority number
-  const getPriorityIcon = (priority: number) => {
-    switch (priority) {
-      case 1:
-        return <Bolt className="h-5 w-5 text-red-500" />;
-      case 2:
-        return <AlertCircle className="h-5 w-5 text-orange-500" />;
-      case 3:
-        return <TrendingUp className="h-5 w-5 text-yellow-500" />;
-      case 4:
-        return <Lightbulb className="h-5 w-5 text-green-500" />;
-      case 5:
-        return <Users className="h-5 w-5 text-blue-500" />;
-      default:
-        return <Lightbulb className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  // Get priority badge color based on priority number
-  const getPriorityBadgeVariant = (priority: number): "outline" | "default" | "secondary" | "destructive" => {
-    switch (priority) {
-      case 1:
-        return "destructive";
-      case 2:
-        return "destructive";
-      case 3:
-        return "secondary";
-      case 4:
-        return "secondary";
-      case 5:
-        return "outline";
-      default:
-        return "outline";
-    }
+  const handleDeletePriority = (id: number) => {
+    deletePriorityMutation.mutate(id);
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
-      <div className="container mx-auto p-6">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-black dark:text-white">{t("spark.title")}</h1>
-            <p className="text-muted-foreground mt-1">
-              {t("spark.description")}
+    <div className="space-y-6 p-4 md:p-6">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t("spark.title")}</h1>
+          <p className="text-muted-foreground max-w-2xl mt-2">
+            {t("spark.description")}
+          </p>
+          {lastUpdate && (
+            <p className="text-sm text-muted-foreground mt-1">
+              {t("spark.lastUpdate")}: {lastUpdate}
             </p>
-          </div>
-          <Button 
-            variant="outline" 
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
-            {t("spark.refresh")}
-          </Button>
+          )}
         </div>
+        <Button 
+          onClick={handleGeneratePriorities} 
+          disabled={isGenerating || isLoading}
+          className="flex gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
+          {t("spark.generatePriorities")}
+        </Button>
+      </div>
 
-        <Separator className="mb-6" />
-
-        {isLoading ? (
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-1">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <Card key={i} className="overflow-hidden">
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <Skeleton className="h-6 w-48" />
-                    <Skeleton className="h-5 w-20" />
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="overflow-hidden">
+              <CardHeader className="pb-2">
+                <Skeleton className="h-4 w-2/3 mb-2" />
+                <Skeleton className="h-3 w-full" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-24 w-full mb-2" />
+                <div className="flex justify-between mt-4">
+                  <Skeleton className="h-4 w-1/4" />
+                  <Skeleton className="h-4 w-1/4" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : isError ? (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{t("spark.errorTitle")}</AlertTitle>
+          <AlertDescription>
+            {t("spark.errorDescription")}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              className="ml-2"
+            >
+              {t("spark.retry")}
+            </Button>
+          </AlertDescription>
+        </Alert>
+      ) : data?.priorities?.length === 0 ? (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>{t("spark.noPrioritiesTitle")}</AlertTitle>
+          <AlertDescription>
+            {t("spark.noPrioritiesDescription")}
+          </AlertDescription>
+        </Alert>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {data?.priorities?.map((priority) => (
+            <Card key={priority.id} className={`overflow-hidden ${priority.isNew ? "border-primary border-2" : ""}`}>
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-start">
+                  <CardTitle className="text-lg leading-tight">
+                    {priority.title}
+                    {priority.isNew && (
+                      <Badge className="ml-2 bg-primary" variant="default">
+                        {t("spark.new")}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                </div>
+                <CardDescription className="flex items-center gap-1 text-xs mt-1">
+                  <Calendar className="h-3 w-3" />
+                  {new Date(priority.createdAt).toLocaleDateString()}
+                  <Clock className="h-3 w-3 ml-2" />
+                  {new Date(priority.createdAt).toLocaleTimeString()}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm">
+                  {priority.description}
+                </p>
+                {priority.clientName && (
+                  <div className="flex items-center gap-2 mt-4 text-sm text-muted-foreground">
+                    <UserCheck className="h-4 w-4" />
+                    <span>{priority.clientName}</span>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <Skeleton className="h-4 w-full mb-2" />
-                  <Skeleton className="h-4 w-5/6 mb-2" />
-                  <Skeleton className="h-4 w-4/6" />
-                  <div className="mt-4">
-                    <Skeleton className="h-5 w-32" />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : error ? (
-          <Card className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
-            <CardContent className="pt-6">
-              <div className="flex gap-3 items-start">
-                <AlertCircle className="text-red-500 h-5 w-5 mt-0.5" />
-                <div>
-                  <h3 className="font-medium text-red-800 dark:text-red-200">
-                    {t("spark.error_title")}
-                  </h3>
-                  <p className="text-red-700 dark:text-red-300 text-sm mt-1">
-                    {t("spark.error_message")}
-                  </p>
+                )}
+                {priority.source && (
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground cursor-pointer">
+                        <BarChart2 className="h-4 w-4" />
+                        <span className="underline">{t("spark.source")}</span>
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80">
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold">{t("spark.sourceDetails")}</h4>
+                        <p className="text-sm">{priority.source}</p>
+                        {priority.sourceUrl && (
+                          <a 
+                            href={priority.sourceUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-primary hover:underline"
+                          >
+                            {t("spark.openArticle")} →
+                          </a>
+                        )}
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                )}
+              </CardContent>
+              <CardFooter className="flex justify-between pt-2">
+                {priority.isNew ? (
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="mt-3"
-                    onClick={handleRefresh}
+                    onClick={() => handleMarkAsRead(priority.id)}
                   >
-                    {t("spark.try_again")}
+                    {t("spark.markAsRead")}
                   </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ) : priorities && priorities.length > 0 ? (
-          <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-1">
-            {priorities.map((priority, index) => (
-              <Card key={priority.id} className={`overflow-hidden ${priority.isNew ? 'border-green-300 dark:border-green-800' : ''}`}>
-                <CardHeader className="pb-2">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <CardTitle className="text-xl">{priority.title}</CardTitle>
-                      {priority.isNew && (
-                        <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
-                          {t("spark.new")}
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center">
-                      {getPriorityIcon(priority.priority)}
-                      <Badge variant={getPriorityBadgeVariant(priority.priority)} className="ml-2">
-                        {t("spark.priority")} {priority.priority}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground mb-1">
-                    <span className="font-medium text-foreground">{t("spark.client")}: </span> 
-                    {priority.clientName}
-                  </p>
-                  <p className="text-sm mb-4">{priority.description}</p>
-                  
-                  {priority.relatedNewsTitle && priority.relatedNewsUrl && (
-                    <div className="mt-3 p-3 bg-accent/5 rounded-md">
-                      <p className="text-xs text-muted-foreground mb-1">
-                        {t("spark.related_news")}:
-                      </p>
-                      <a 
-                        href={priority.relatedNewsUrl} 
-                        target="_blank" 
-                        rel="noopener noreferrer" 
-                        className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
-                      >
-                        {priority.relatedNewsTitle}
-                      </a>
-                    </div>
-                  )}
-                  
-                  <p className="text-xs text-muted-foreground mt-4">
-                    {t("spark.created")}: {formatDate(priority.createdAt)}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col items-center justify-center py-10 text-center">
-                <Lightbulb className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                <h3 className="font-medium text-lg mb-1">
-                  {t("spark.no_priorities_title")}
-                </h3>
-                <p className="text-muted-foreground mb-4 max-w-md">
-                  {t("spark.no_priorities_message")}
-                </p>
-                <Button onClick={generatePriorities}>
-                  {t("spark.generate_priorities")}
+                ) : (
+                  <div></div> // Spacer per mantenere il layout
+                )}
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => handleDeletePriority(priority.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </CardFooter>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
