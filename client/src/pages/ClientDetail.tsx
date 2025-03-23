@@ -984,9 +984,6 @@ Grazie per la tua fiducia e collaborazione.`
                 <CardTitle>
                   {t('client.ai_analysis_center') || "Centro Analisi AI"}
                 </CardTitle>
-                <CardDescription>
-                  {t('client.ai_analysis_description') || "Analisi e raccomandazioni basate su intelligenza artificiale"}
-                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 {/* Sigmund (ex AI Profile) */}
