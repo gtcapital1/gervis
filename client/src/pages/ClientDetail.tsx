@@ -23,12 +23,14 @@ import {
   KeyRound,
   Info,
   Link2,
-  MessageSquare
+  MessageSquare,
+  Brain
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
 import { ClientEditDialog } from "@/components/advisor/ClientEditDialog";
 import { ClientSettings } from "@/components/settings/ClientSettings";
 import { ClientPdfGenerator } from "@/components/advisor/ClientPdfGenerator";
+import { AiClientProfile } from "@/components/advisor/AiClientProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -776,6 +778,10 @@ Grazie per la tua fiducia e collaborazione.`
                         <FileText className="mr-2 h-4 w-4" />
                         {t('client.recommendations')}
                       </TabsTrigger>
+                      <TabsTrigger value="ai-profile">
+                        <Brain className="mr-2 h-4 w-4" />
+                        {t('client.ai_profile') || "Profilo AI"}
+                      </TabsTrigger>
 
                     </TabsList>
                     
@@ -1024,6 +1030,38 @@ Grazie per la tua fiducia e collaborazione.`
                       )}
                     </TabsContent>
                     
+                    <TabsContent value="ai-profile" className="space-y-4">
+                      {client.isOnboarded ? (
+                        <AiClientProfile clientId={clientId} />
+                      ) : (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle>{t('client.profile_incomplete')}</CardTitle>
+                            <CardDescription>
+                              {t('client.profile_incomplete_description')}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                              <AlertTriangle className="h-12 w-12 text-amber-500" />
+                              <p className="text-center text-muted-foreground">
+                                {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
+                              </p>
+                              {!client.onboardingToken && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={handleGenerateOnboardingLink}
+                                >
+                                  <Link2 className="mr-2 h-4 w-4" />
+                                  {t('client.generate_onboarding_link')}
+                                </Button>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </TabsContent>
 
                   </Tabs>
                 </CardContent>
