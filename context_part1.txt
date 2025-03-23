@@ -1,0 +1,231 @@
+            
+            {/* Bottom row: Asset Allocation full width */}
+            {/* Mostra gli asset se ce ne sono, indipendentemente dallo stato di onboarding */}
+            {assets.length > 0 ? (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
+                  <CardDescription>
+                    {t('client.portfolio_snapshot')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Tabs defaultValue="portfolio">
+                    <TabsList className="mb-4">
+                      <TabsTrigger value="portfolio">
+                        <PieChart className="mr-2 h-4 w-4" />
+                        {t('client.portfolio_overview')}
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="portfolio" className="space-y-6">
+                      {isLoadingAssets ? (
+                        <div className="flex justify-center items-center h-32">
+                          <p>{t('client.loading_assets')}</p>
+                        </div>
+                      ) : assets.length === 0 ? (
+                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
+                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Left side: Asset list */}
+                          <div>
+                            <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
+                            <div className="space-y-2">
+                              {assets.map((asset) => (
+                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded bg-black text-white">
+                                  <div className="flex items-center">
+                                    <div className="w-2 h-2 rounded-full mr-2" 
+                                      style={{
+                                        backgroundColor: 
+                                          asset.category === "equity" ? "#2563eb" : // Medium dark blue
+                                          asset.category === "real_estate" ? "#3b82f6" : // Medium blue
+                                          asset.category === "bonds" ? "#60a5fa" : // Medium light blue
+                                          asset.category === "cash" ? "#93c5fd" : // Light blue
+                                          asset.category === "private_equity" ? "#1e40af" : // Dark blue
+                                          asset.category === "venture_capital" ? "#2563eb" : // Medium dark blue
+                                          asset.category === "cryptocurrencies" ? "#3b82f6" : // Medium blue
+                                          "#bfdbfe" // Very light blue
+                                      }}
+                                    />
+                                    <span className="font-medium capitalize">{t(`asset_categories.${asset.category}`)}</span>
+                                  </div>
+                                  <div className="font-semibold">€{asset.value.toLocaleString()}</div>
+                                </div>
+                              ))}
+                              <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
+                                <div className="font-semibold">{t('client.total')}</div>
+                                <div className="font-bold">€{totalValue.toLocaleString()}</div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Right side: Pie chart */}
+                          <div>
+                            <h3 className="text-lg font-medium mb-3">{t('client.asset_split')}</h3>
+                            <div className="h-[200px] sm:h-[180px] flex items-center justify-center">
+                              {(() => {
+                                const COLORS = {
+                                  equity: "#2563eb", // Medium dark blue
+                                  real_estate: "#3b82f6", // Medium blue
+                                  bonds: "#60a5fa", // Medium light blue
+                                  cash: "#93c5fd", // Light blue
+                                  private_equity: "#1e40af", // Dark blue
+                                  venture_capital: "#2563eb", // Medium dark blue
+                                  cryptocurrencies: "#3b82f6", // Medium blue
+                                  other: "#bfdbfe" // Very light blue
+                                };
+                                
+                                // Group assets by category
+                                const assetsByCategory: Record<string, number> = {};
+                                assets.forEach(asset => {
+                                  if (assetsByCategory[asset.category]) {
+                                    assetsByCategory[asset.category] += asset.value;
+                                  } else {
+                                    assetsByCategory[asset.category] = asset.value;
+                                  }
+                                });
+                                
+                                // Convert to data format needed for pie chart
+                                const data = Object.entries(assetsByCategory).map(([category, value]) => ({
+                                  name: t(`asset_categories.${category}`), // Utilizziamo le chiavi tradotte
+                                  value,
+                                  category
+                                }));
+                                
+                                return (
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <RechartsPieChart>
+                                      <Pie
+                                        data={data}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        outerRadius={65}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                        nameKey="name"
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                      >
+                                        {data.map((entry, index) => (
+                                          <Cell 
+                                            key={`cell-${index}`} 
+                                            fill={COLORS[entry.category as keyof typeof COLORS] || COLORS.other}
+                                          />
+                                        ))}
+                                      </Pie>
+                                      <Tooltip 
+                                        formatter={(value: number) => [`€${value.toLocaleString()}`, 'Value']}
+                                      />
+                                    </RechartsPieChart>
+                                  </ResponsiveContainer>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                    
+                    <TabsContent value="assets" className="space-y-6">
+                      {isLoadingAssets ? (
+                        <div className="flex justify-center items-center h-32">
+                          <p>{t('client.loading_assets')}</p>
+                        </div>
+                      ) : assets.length === 0 ? (
+                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
+                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => setIsEditDialogOpen(true)}
+                          >
+                            <PlusCircle className="mr-2 h-4 w-4" />
+                            {t('client.add_asset')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.real_estate')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "real_estate").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.equity')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.bonds')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "bonds").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="bg-black text-white p-4 rounded-lg">
+                              <h4 className="font-semibold mb-2">{t('asset_categories.cash')}</h4>
+                              <p className="text-xl font-bold">
+                                €{assets.filter(a => a.category === "cash").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                              </p>
+                            </div>
+                            {assets.some(a => a.category === "private_equity") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.private_equity')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "private_equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "cryptocurrencies") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.cryptocurrencies')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "cryptocurrencies").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "venture_capital") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.venture_capital')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "venture_capital").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                            {assets.some(a => a.category === "other") && (
+                              <div className="bg-black text-white p-4 rounded-lg">
+                                <h4 className="font-semibold mb-2">{t('asset_categories.other')}</h4>
+                                <p className="text-xl font-bold">
+                                  €{assets.filter(a => a.category === "other").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex justify-center mt-6">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => setIsEditDialogOpen(true)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" />
+                              {t('client.edit_assets')}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </CardContent>
+              </Card>
+            ) : null}
+              
+              {/* Nuovo contenitore per Sigmund e Spark */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>
+                    {t('client.ai_analysis_center') || "Centro Analisi AI"}

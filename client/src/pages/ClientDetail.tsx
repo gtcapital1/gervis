@@ -748,10 +748,6 @@ Grazie per la tua fiducia e collaborazione.`
                         </div>
                       </div>
                     )}
-                    
-
-                    
-
                   </div>
                 </CardContent>
               </Card>
@@ -977,87 +973,101 @@ Grazie per la tua fiducia e collaborazione.`
                         </div>
                       )}
                     </TabsContent>
-                      
-                    <TabsContent value="recommendations" className="space-y-4">
-                      {user?.isPro ? (
-                        <>
-                          <p>{t('client.recommendations_advice')}</p>
-                          <Button variant="outline" size="sm">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            {t('client.add_recommendation')}
-                          </Button>
-                        </>
-                      ) : (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>{t('client.upgrade_pro')}</CardTitle>
-                            <CardDescription>
-                              {t('client.upgrade_pro_desc')}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-4">
-                              <div className="space-y-2">
-                                <p>{t('client.pro_account_access')}:</p>
-                                <ul className="ml-6 list-disc space-y-1">
-                                  <li>{t('client.pro_feature_1')}</li>
-                                  <li>{t('client.pro_feature_2')}</li>
-                                  <li>{t('client.pro_feature_3')}</li>
-                                  <li>{t('client.pro_feature_4')}</li>
-                                  <li>{t('client.pro_feature_5')}</li>
-                                </ul>
-                              </div>
-                              <Button 
-                                disabled={true}
-                                variant="outline"
-                                className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
-                              >
-                                <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
-                                {t('client.upgrade_button')}
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="ai-profile" className="space-y-4">
-                      {client.isOnboarded ? (
-                        <AiClientProfile clientId={clientId} />
-                      ) : (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle>{t('client.profile_incomplete')}</CardTitle>
-                            <CardDescription>
-                              {t('client.profile_incomplete_description')}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                              <AlertTriangle className="h-12 w-12 text-amber-500" />
-                              <p className="text-center text-muted-foreground">
-                                {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
-                              </p>
-                              {!client.onboardingToken && (
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={handleGenerateOnboardingLink}
-                                >
-                                  <Link2 className="mr-2 h-4 w-4" />
-                                  {t('client.generate_onboarding_link')}
-                                </Button>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                    </TabsContent>
-
                   </Tabs>
                 </CardContent>
               </Card>
             ) : null}
+              
+              {/* Nuovo contenitore per Sigmund e Spark */}
+              <Card className="mt-6">
+                <CardHeader>
+                  <CardTitle>
+                    {t('client.ai_analysis_center') || "Centro Analisi AI"}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('client.ai_analysis_description') || "Analisi e raccomandazioni basate su intelligenza artificiale"}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Sigmund (ex AI Profile) */}
+                  <div className="space-y-4">
+                    {client.isOnboarded ? (
+                      <AiClientProfile clientId={clientId} />
+                    ) : (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Sigmund</CardTitle>
+                          <CardDescription>
+                            {t('client.profile_incomplete_description')}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                            <AlertTriangle className="h-12 w-12 text-amber-500" />
+                            <p className="text-center text-muted-foreground">
+                              {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
+                            </p>
+                            {!client.onboardingToken && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={handleGenerateOnboardingLink}
+                              >
+                                <Link2 className="mr-2 h-4 w-4" />
+                                {t('client.generate_onboarding_link')}
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+                  
+                  {/* Spark (ex Recommendations) */}
+                  <div className="space-y-4">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Spark</CardTitle>
+                        <CardDescription>
+                          {t('client.recommendations_description')}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {user?.isPro ? (
+                          <div className="space-y-4">
+                            <p>{t('client.recommendations_advice')}</p>
+                            <Button variant="outline" size="sm">
+                              <PlusCircle className="mr-2 h-4 w-4" />
+                              {t('client.add_recommendation')}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <p>{t('client.pro_account_access')}:</p>
+                              <ul className="ml-6 list-disc space-y-1">
+                                <li>{t('client.pro_feature_1')}</li>
+                                <li>{t('client.pro_feature_2')}</li>
+                                <li>{t('client.pro_feature_3')}</li>
+                                <li>{t('client.pro_feature_4')}</li>
+                                <li>{t('client.pro_feature_5')}</li>
+                              </ul>
+                            </div>
+                            <Button 
+                              disabled={true}
+                              variant="outline"
+                              className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
+                            >
+                              <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
+                              {t('client.upgrade_button')}
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CardContent>
+              </Card>
           </div>
         </div>
       </div>

@@ -31,7 +31,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
-      return response.json();
+      const result = await response.json();
+      console.log("AI Profile data:", result);
+      return result;
     },
     retry: 1,
     enabled: profileRequested, // Non eseguire la query automaticamente
@@ -62,7 +64,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('ai_profile')}</CardTitle>
+          <CardTitle>Sigmund</CardTitle>
           <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -84,7 +86,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('ai_profile')}</CardTitle>
+          <CardTitle>Sigmund</CardTitle>
           <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -122,7 +124,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('ai_profile')}</CardTitle>
+          <CardTitle>Sigmund</CardTitle>
           <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -157,7 +159,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>{t('ai_profile')}</CardTitle>
+          <CardTitle>Sigmund</CardTitle>
           <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -183,7 +185,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     <Card>
       <CardHeader>
         <CardTitle className="flex justify-between items-center">
-          <span>{t('ai_profile')}</span>
+          <span>Sigmund</span>
           <Button onClick={handleGenerateProfile} variant="outline" size="sm">
             <RefreshCcw className="mr-2 h-4 w-4" />
             {t('refresh')}
