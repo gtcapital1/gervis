@@ -607,10 +607,10 @@ export async function getFinancialNews(req: Request, res: Response) {
     
     if (filter === 'italia') {
       // Per notizie italiane, utilizziamo i ticker italiani
-      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?tickers=ISP.MI,ENI.MI,ENEL.MI,UCG.MI,TIT.MI&limit=10&apikey=${apiKey}`;
+      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?tickers=ISP.MI,ENI.MI,ENEL.MI,UCG.MI,TIT.MI&limit=100&apikey=${apiKey}`;
     } else {
       // Per notizie globali
-      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=10&apikey=${apiKey}`;
+      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
     }
     
     console.log(`DEBUG-MARKET: Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')} - ${new Date().toISOString()}`);

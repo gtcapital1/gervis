@@ -978,14 +978,14 @@ Grazie per la tua fiducia e collaborazione.`
               </Card>
             ) : null}
             
-            {/* Nuovo contenitore per Sigmund e Spark */}
+            {/* Contenitore per Sigmund */}
             <Card className="mt-6">
               <CardHeader>
                 <CardTitle>
                   {t('client.ai_analysis_center') || "Centro Analisi AI"}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-6">
+              <CardContent>
                 {/* Sigmund (ex AI Profile) */}
                 <div className="space-y-4">
                   {client.isOnboarded ? (
@@ -1018,50 +1018,6 @@ Grazie per la tua fiducia e collaborazione.`
                       </CardContent>
                     </Card>
                   )}
-                </div>
-                
-                {/* Spark (ex Recommendations) */}
-                <div className="space-y-4">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Spark</CardTitle>
-                      <CardDescription>
-                        {t('client.recommendations_description')}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      {user?.isPro ? (
-                        <div className="space-y-4">
-                          <p>{t('client.recommendations_advice')}</p>
-                          <Button variant="outline" size="sm">
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            {t('client.add_recommendation')}
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <p>{t('client.pro_account_access')}:</p>
-                            <ul className="ml-6 list-disc space-y-1">
-                              <li>{t('client.pro_feature_1')}</li>
-                              <li>{t('client.pro_feature_2')}</li>
-                              <li>{t('client.pro_feature_3')}</li>
-                              <li>{t('client.pro_feature_4')}</li>
-                              <li>{t('client.pro_feature_5')}</li>
-                            </ul>
-                          </div>
-                          <Button 
-                            disabled={true}
-                            variant="outline"
-                            className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
-                          >
-                            <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">{t('common.coming_soon')}</span>
-                            {t('client.upgrade_button')}
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
                 </div>
               </CardContent>
             </Card>
