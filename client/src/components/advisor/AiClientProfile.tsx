@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,10 +12,10 @@ interface AiClientProfileProps {
   clientId: number;
 }
 
-// Interfaccia per i dati di profilo arricchito
+// Interfaccia per i dati di profilo arricchito che accetta qualsiasi tipo di contenuto
 interface ProfileData {
-  approfondimenti: string;
-  suggerimenti: string;
+  approfondimenti: any;
+  suggerimenti: any;
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
@@ -49,14 +49,57 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     }
   };
 
-  // Funzione per formattare il testo con paragrafi
-  const formatText = (text: string | null | undefined) => {
-    if (!text || typeof text !== 'string') return null;
-    return text.split('\n').map((paragraph, index) => (
-      <p key={index} className={index > 0 ? 'mt-2' : ''}>
-        {paragraph}
-      </p>
-    ));
+  // Funzione per formattare il contenuto in base al tipo
+  const formatContent = (content: any): ReactNode => {
+    // Se è null o undefined
+    if (content === null || content === undefined) {
+      return null;
+    }
+    
+    // Se è una stringa
+    if (typeof content === 'string') {
+      return (
+        <div>
+          {content.split('\n').map((paragraph, index) => (
+            <p key={index} className={index > 0 ? 'mt-2' : ''}>
+              {paragraph}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    
+    // Se è un array
+    if (Array.isArray(content)) {
+      return (
+        <ul className="space-y-2 list-disc pl-5">
+          {content.map((item, index) => (
+            <li key={index}>
+              {typeof item === 'string' ? item : JSON.stringify(item)}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    
+    // Se è un oggetto
+    if (typeof content === 'object') {
+      try {
+        // Converti l'oggetto in una stringa JSON formattata
+        const formattedText = JSON.stringify(content, null, 2);
+        return (
+          <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto">
+            {formattedText}
+          </pre>
+        );
+      } catch (e) {
+        console.error("Errore nella formattazione del contenuto JSON:", e);
+        return <p className="text-red-500">Errore durante la visualizzazione del contenuto</p>;
+      }
+    }
+    
+    // Fallback per altri tipi
+    return <p>{String(content)}</p>;
   };
 
   // Se sta caricando, mostra uno skeleton
@@ -155,7 +198,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   }
 
   // Se non ci sono dati o i dati non sono formattati correttamente
-  if (!data?.data?.approfondimenti || !data?.data?.suggerimenti) {
+  if (!data?.data?.approfondimenti && !data?.data?.suggerimenti) {
     return (
       <Card>
         <CardHeader>
@@ -197,13 +240,13 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         <div>
           <h3 className="text-lg font-semibold mb-2">{t('insights')}</h3>
           <div className="space-y-2">
-            {formatText(data.data.approfondimenti)}
+            {formatContent(data?.data?.approfondimenti)}
           </div>
         </div>
         <div>
           <h3 className="text-lg font-semibold mb-2">{t('suggestions')}</h3>
           <div className="space-y-2">
-            {formatText(data.data.suggerimenti)}
+            {formatContent(data?.data?.suggerimenti)}
           </div>
         </div>
       </CardContent>
