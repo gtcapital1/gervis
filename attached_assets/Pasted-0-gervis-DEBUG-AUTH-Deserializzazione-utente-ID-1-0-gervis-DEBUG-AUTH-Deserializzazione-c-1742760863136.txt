@@ -1,0 +1,73 @@
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | Tentativo di eliminare priorità per 10 clienti con ANY
+0|gervis  | Errore durante la cancellazione delle priorità Spark: PostgresError: cannot cast type record to integer[]
+0|gervis  |     at ErrorResponse (file:///var/www/gervis/node_modules/postgres/src/connection.js:788:26)
+0|gervis  |     at handle (file:///var/www/gervis/node_modules/postgres/src/connection.js:474:6)
+0|gervis  |     at Socket.data (file:///var/www/gervis/node_modules/postgres/src/connection.js:315:9)
+0|gervis  |     at Socket.emit (node:events:517:28)
+0|gervis  |     at addChunk (node:internal/streams/readable:368:12)
+0|gervis  |     at readableAddChunk (node:internal/streams/readable:341:9)
+0|gervis  |     at Readable.push (node:internal/streams/readable:278:10)
+0|gervis  |     at TCP.onStreamRead (node:internal/stream_base_commons:190:23) {
+0|gervis  |   severity_local: 'ERROR',
+0|gervis  |   severity: 'ERROR',
+0|gervis  |   code: '42846',
+0|gervis  |   position: '93',
+0|gervis  |   file: 'parse_expr.c',
+0|gervis  |   line: '2657',
+0|gervis  |   routine: 'transformTypeCast'
+0|gervis  | }
+0|gervis  | Dettagli errore: {
+0|gervis  |   "name": "PostgresError",
+0|gervis  |   "severity_local": "ERROR",
+0|gervis  |   "severity": "ERROR",
+0|gervis  |   "code": "42846",
+0|gervis  |   "position": "93",
+0|gervis  |   "file": "parse_expr.c",
+0|gervis  |   "line": "2657",
+0|gervis  |   "routine": "transformTypeCast"
+0|gervis  | }
+0|gervis  | Tentativo con operatore IN...
+0|gervis  | Fallback con IN fallito: PostgresError: there is no parameter $1
+0|gervis  |     at ErrorResponse (file:///var/www/gervis/node_modules/postgres/src/connection.js:788:26)
+0|gervis  |     at handle (file:///var/www/gervis/node_modules/postgres/src/connection.js:474:6)
+0|gervis  |     at Socket.data (file:///var/www/gervis/node_modules/postgres/src/connection.js:315:9)
+0|gervis  |     at Socket.emit (node:events:517:28)
+0|gervis  |     at addChunk (node:internal/streams/readable:368:12)
+0|gervis  |     at readableAddChunk (node:internal/streams/readable:341:9)
+0|gervis  |     at Readable.push (node:internal/streams/readable:278:10)
+0|gervis  |     at TCP.onStreamRead (node:internal/stream_base_commons:190:23) {
+0|gervis  |   severity_local: 'ERROR',
+0|gervis  |   severity: 'ERROR',
+0|gervis  |   code: '42P02',
+0|gervis  |   position: '50',
+0|gervis  |   file: 'parse_expr.c',
+0|gervis  |   line: '838',
+0|gervis  |   routine: 'transformParamRef'
+0|gervis  | }
+0|gervis  | Tentativo di eliminazione singola per ogni cliente...
+0|gervis  | Eliminazione singola completata con successo
+0|gervis  | Error fetching financial news: Error: News API error: 401 Unauthorized
+0|gervis  |     at generateSparkPriorities (file:///var/www/gervis/dist/index.js:2795:17)
+0|gervis  |     at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+0|gervis  | 8:13:17 PM [express] POST /api/spark/generate 500 in 278ms :: {"success":false,"message":"Failed to …
+0|gervis  | [DEBUG SESSION] Per richiesta POST /api/spark/generate: sessione trovata, autenticato: true
+0|gervis  | [DEBUG AUTH] Deserializzazione utente ID: 1
+0|gervis  | [DEBUG AUTH] Deserializzazione completata: 1 (gianmarco.trapasso@gmail.com)
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user - Autenticato: true
+0|gervis  | [DEBUG AUTH] Sessione: ID wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o
+0|gervis  | [DEBUG AUTH] Cookie expires: Sun Mar 30 2025 17:34:45 GMT+0000 (Coordinated Universal Time)
+0|gervis  | [DEBUG AUTH] Cookie maxAge: 595284336
+0|gervis  | [DEBUG AUTH] Cookie secure: true
+0|gervis  | [DEBUG AUTH] Cookie httpOnly: true
+0|gervis  | [DEBUG AUTH] Cookie path: /
+0|gervis  | [DEBUG AUTH] Cookie sameSite: none
+0|gervis  | [DEBUG AUTH] Utente autenticato ID: 1, email: gianmarco.trapasso@gmail.com
+0|gervis  | 8:13:21 PM [express] GET /api/user 304 in 12ms :: {"success":true,"user":{"id":1,"username":"gianmar…
+0|gervis  | [DEBUG AUTH] Richiesta GET /api/user completata con stato 304 in 12ms
+0|gervis  | [DEBUG AUTH] Session ID: wgVuZDP77dr4RuSDx72E4Ni1p9Ror-4o, Cookie: {"originalMaxAge":604800000,"expires":"2025-03-30T20:13:21.356Z","secure":true,"httpOnly":true,"path":"/","sameSite":"none"}
+0|gervis  | [DEBUG AUTH] Autenticato: true
+0|gervis  | [DEBUG AUTH] Utente in sessione: ID 1
+0|gervis  | [DEBUG SESSION] Per richiesta GET /api/user: sessione trovata, autenticato: true
+
