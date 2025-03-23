@@ -219,3 +219,21 @@ export const insertClientLogSchema = createInsertSchema(clientLogs).pick({
 
 export type InsertClientLog = z.infer<typeof insertClientLogSchema>;
 export type ClientLog = typeof clientLogs.$inferSelect;
+
+// AI Profiles Schema
+export const aiProfiles = pgTable("ai_profiles", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  profileData: jsonb("profile_data").notNull(), // Dati del profilo in formato JSON (approfondimenti e suggerimenti)
+  lastGeneratedAt: timestamp("last_generated_at").defaultNow(), // Data e ora dell'ultima generazione
+  createdBy: integer("created_by").references(() => users.id), // Utente che ha generato il profilo
+});
+
+export const insertAiProfileSchema = createInsertSchema(aiProfiles).pick({
+  clientId: true,
+  profileData: true,
+  createdBy: true,
+});
+
+export type InsertAiProfile = z.infer<typeof insertAiProfileSchema>;
+export type AiProfile = typeof aiProfiles.$inferSelect;
