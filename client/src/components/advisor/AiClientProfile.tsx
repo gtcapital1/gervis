@@ -137,9 +137,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               console.log(`Item ${index} description:`, description);
               
               return (
-                <li key={index} className="border-l-2 border-blue-300 bg-blue-600 text-white pl-3 py-2 px-3 rounded-md shadow-sm">
-                  {title && <h4 className="font-semibold text-sm text-white">{title}</h4>}
-                  <p className="text-sm text-blue-50 mt-1">{description || JSON.stringify(item)}</p>
+                <li key={index} className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm">
+                  {title && <h4 className="font-semibold text-sm text-blue-400">{title}</h4>}
+                  <p className="text-sm text-white mt-1">{description || JSON.stringify(item)}</p>
                 </li>
               );
             })}
@@ -165,11 +165,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       // Se ha una struttura logica con titolo/descrizione
       if (content.title || content.titolo || content.description || content.descrizione) {
         return (
-          <div className="border-l-2 border-blue-300 bg-blue-600 text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
+          <div className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
             {(content.title || content.titolo) && (
-              <h4 className="font-semibold text-sm text-white">{content.title || content.titolo}</h4>
+              <h4 className="font-semibold text-sm text-blue-400">{content.title || content.titolo}</h4>
             )}
-            <p className="text-sm text-blue-50 mt-1">
+            <p className="text-sm text-white mt-1">
               {content.description || content.descrizione || content.content || content.contenuto || ''}
             </p>
           </div>
@@ -182,9 +182,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         return (
           <div className="space-y-2">
             {Object.entries(content).map(([key, value], index) => (
-              <div key={index} className="border-l-2 border-blue-300 bg-blue-600 text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
-                <h4 className="font-semibold text-sm capitalize text-white">{key.replace(/_/g, ' ')}</h4>
-                <div className="text-sm text-blue-50 mt-1">
+              <div key={index} className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
+                <h4 className="font-semibold text-sm capitalize text-blue-400">{key.replace(/_/g, ' ')}</h4>
+                <div className="text-sm text-white mt-1">
                   {typeof value === 'string' ? value : JSON.stringify(value)}
                 </div>
               </div>
