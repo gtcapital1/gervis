@@ -61,14 +61,14 @@ export async function generateClientProfile(
     });
 
     if (!completionResponse.ok) {
-      const errorData = await completionResponse.json();
+      const errorData = await completionResponse.json() as any;
       console.error("OpenAI API error:", errorData);
       
       // Verifica se si tratta di un errore di quota/credito
       if (errorData.error && (
         errorData.error.code === 'insufficient_quota' || 
-        errorData.error.message.includes('quota') ||
-        errorData.error.message.includes('billing')
+        errorData.error.message?.includes('quota') ||
+        errorData.error.message?.includes('billing')
       )) {
         throw new Error("Credito OpenAI esaurito o quota insufficiente. Controlla il tuo account OpenAI.");
       }
@@ -76,7 +76,7 @@ export async function generateClientProfile(
       throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
     }
 
-    const responseData = await completionResponse.json();
+    const responseData = await completionResponse.json() as any;
     const content = responseData.choices?.[0]?.message?.content;
     
     if (!content) {
