@@ -12,6 +12,7 @@ import { storage } from "./storage";
 import { Client } from "@shared/schema";
 import OpenAI from "openai";
 import fetch from "node-fetch";
+import { fetchWithTimeout } from "./market-api";
 
 // Logger per debug
 const debug = (...args: any[]) => {
@@ -167,27 +168,17 @@ export async function generateSparkPriorities(req: Request, res: Response) {
         const apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
         debug(`Fetching news from ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
         
-        // Gestiamo il timeout come in market-api.ts
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 15000);
-        
+        // Utilizziamo la stessa funzione fetchWithTimeout usata in market-api.ts
         try {
-          const response = await fetch(apiUrl, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
-              'Accept': 'application/json'
-            },
-            signal: controller.signal
-          });
-          
-          // Pulizia del timeout
-          clearTimeout(timeoutId);
+          debug("Using fetchWithTimeout from market-api.ts");
+          const response = await fetchWithTimeout(apiUrl);
+          debug(`News API response status: ${response.status}`);
           
           if (!response.ok) {
-            throw new Error(`FMP News API error: ${response.status} ${response.statusText}`);
+            throw new Error(`FMP News API error: ${response.status}`);
           }
           
-          const data = await response.json();
+          const data = response.data;
           
           if (!Array.isArray(data)) {
             throw new Error("Invalid FMP news API response format");
@@ -200,7 +191,8 @@ export async function generateSparkPriorities(req: Request, res: Response) {
           
           debug(`Filtered ${financialNews.length} whitelisted articles from ${data.length} total`);
         } catch (fetchError) {
-          clearTimeout(timeoutId);
+          // Gestiamo gli errori passati dalla fetch
+          debug(`Fetch error: ${fetchError.message}`);
           throw fetchError;
         }
         

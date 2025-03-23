@@ -1,0 +1,38 @@
+--- server/spark-controller.ts	2025-03-23 20:48:00
++++ server/spark-controller.ts	2025-03-23 20:48:00
+@@ -11,7 +11,7 @@
+ import { Request, Response } from "express";
+ import { storage } from "./storage";
+ import { Client } from "@shared/schema";
+-import OpenAI from "openai";
++import { fetchWithTimeout } from "./market-api";
+ import fetch from "node-fetch";
+ 
+ // Logger per debug
+@@ -166,20 +166,11 @@
+         // Utilizziamo l'endpoint FMP per le notizie finanziarie
+         const apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
+         debug(`Fetching news from ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+-        
+-        // Gestiamo il timeout come in market-api.ts
+-        const controller = new AbortController();
+-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+-        
++
+         try {
+-          const response = await fetch(apiUrl, {
+-            headers: {
+-              'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+-              'Accept': 'application/json'
+-            },
+-            signal: controller.signal
+-          });
+-          
+-          // Pulizia del timeout
+-          clearTimeout(timeoutId);
++          // Utilizziamo la stessa funzione fetchWithTimeout usata in market-api.ts
++          debug("Using fetchWithTimeout from market-api.ts");
++          const response = await fetchWithTimeout(apiUrl);
++          debug(`News API response status: ${response.status}`);
+           
+           if (!response.ok) {

@@ -10,7 +10,7 @@ import { Request, Response } from 'express';
 import fetch from 'node-fetch';
 
 // Sistema per eseguire richieste HTTP
-async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {
+export async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   

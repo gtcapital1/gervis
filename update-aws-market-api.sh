@@ -1,88 +1,100 @@
 #!/bin/bash
-# Script per aggiornare Market API su AWS
-# Questo script esegue l'aggiornamento del file market-api.ts su AWS
 
-set -e  # Termina lo script se un comando fallisce
+# Script per aggiornare l'implementazione dell'API FMP in spark-controller.ts
+# Questo script modifica Spark per utilizzare lo stesso metodo di Market per chiamare l'API FMP
 
-echo "========================================================"
-echo "Aggiornamento Market API per AWS"
-echo "========================================================"
+# Colori per i messaggi
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
 
-# Verifica se l'utente ha fornito il percorso dell'applicazione
-if [ -z "$1" ]; then
-  echo "Utilizzo: ./update-aws-market-api.sh /percorso/alla/tua/app"
-  echo "Esempio: ./update-aws-market-api.sh /home/ubuntu/gervis"
-  exit 1
-fi
+echo -e "${YELLOW}Aggiornamento implementazione API FMP in spark-controller.ts...${NC}"
 
-APP_PATH="$1"
+# Crea il file di patch
+cat > spark-fmp-patch.diff << 'EOL'
+--- server/spark-controller.ts	2025-03-23 20:48:00
++++ server/spark-controller.ts	2025-03-23 20:48:00
+@@ -11,7 +11,7 @@
+ import { Request, Response } from "express";
+ import { storage } from "./storage";
+ import { Client } from "@shared/schema";
+-import OpenAI from "openai";
++import { fetchWithTimeout } from "./market-api";
+ import fetch from "node-fetch";
+ 
+ // Logger per debug
+@@ -166,20 +166,11 @@
+         // Utilizziamo l'endpoint FMP per le notizie finanziarie
+         const apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
+         debug(`Fetching news from ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+-        
+-        // Gestiamo il timeout come in market-api.ts
+-        const controller = new AbortController();
+-        const timeoutId = setTimeout(() => controller.abort(), 15000);
+-        
++
+         try {
+-          const response = await fetch(apiUrl, {
+-            headers: {
+-              'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+-              'Accept': 'application/json'
+-            },
+-            signal: controller.signal
+-          });
+-          
+-          // Pulizia del timeout
+-          clearTimeout(timeoutId);
++          // Utilizziamo la stessa funzione fetchWithTimeout usata in market-api.ts
++          debug("Using fetchWithTimeout from market-api.ts");
++          const response = await fetchWithTimeout(apiUrl);
++          debug(`News API response status: ${response.status}`);
+           
+           if (!response.ok) {
+EOL
 
-# Verifica che il percorso esista
-if [ ! -d "$APP_PATH" ]; then
-  echo "ERRORE: La directory $APP_PATH non esiste!"
-  exit 1
-fi
+# Applica la patch
+patch -p0 < spark-fmp-patch.diff
 
-# Verifica che sia un'installazione valida di Gervis
-if [ ! -f "$APP_PATH/server/market-api.ts" ]; then
-  echo "ERRORE: $APP_PATH non sembra essere un'installazione valida di Gervis!"
-  echo "Non trovo il file server/market-api.ts"
-  exit 1
-fi
-
-echo "Aggiornamento delle modifiche da GitHub..."
-cd "$APP_PATH"
-
-# Salva lo stato corrente del file market-api.ts prima dell'aggiornamento
-cp "$APP_PATH/server/market-api.ts" "$APP_PATH/server/market-api.ts.backup"
-echo "✅ Creato backup di server/market-api.ts"
-
-# Esegui il pull dal repository
-echo "Esecuzione pull da GitHub..."
-git pull origin main
-git_status=$?
-
-if [ $git_status -ne 0 ]; then
-  echo "ERRORE: Git pull fallito! Ripristino il backup..."
-  cp "$APP_PATH/server/market-api.ts.backup" "$APP_PATH/server/market-api.ts"
-  exit 1
-fi
-
-echo "Ricompilazione dell'applicazione..."
-npm run build
-build_status=$?
-
-if [ $build_status -ne 0 ]; then
-  echo "ERRORE: La compilazione è fallita! Ripristino il backup..."
-  cp "$APP_PATH/server/market-api.ts.backup" "$APP_PATH/server/market-api.ts"
-  exit 1
-fi
-
-echo "Riavvio dell'applicazione..."
-pm2 restart all
-restart_status=$?
-
-if [ $restart_status -ne 0 ]; then
-  echo "AVVISO: Problema nel riavvio dell'applicazione!"
-  echo "Controlla lo stato dei servizi con 'pm2 status'"
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ Patch applicata con successo a spark-controller.ts${NC}"
 else
-  echo "✅ Applicazione riavviata con successo"
+  echo -e "\033[0;31m✗ Errore nell'applicazione della patch${NC}"
+  exit 1
 fi
 
-echo "========================================================"
-echo "✅ Aggiornamento completato!"
-echo "Le modifiche alla Market API sono ora attive."
-echo ""
-echo "Per verificare il corretto funzionamento:"
-echo "1. Accedi a https://gervis.it/market"
-echo "2. Controlla che i dati di mercato vengano caricati correttamente"
-echo "3. Controlla i log per eventuali errori: pm2 logs"
-echo "========================================================"
+# Aggiorna la definizione di fetchWithTimeout in market-api.ts per renderla esportabile
+cat > market-api-patch.diff << 'EOL'
+--- server/market-api.ts	2025-03-23 20:48:00
++++ server/market-api.ts	2025-03-23 20:48:00
+@@ -30,7 +30,7 @@
+ const cache: Record<string, {data: any, timestamp: number}> = {};
+ 
+ // Funzione condivisa per fare fetch con timeout
+-async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {
++export async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {
+   try {
+     console.log(`DEBUG-MARKET: Inizializzazione fetch con timeout ${timeout}ms - ${new Date().toISOString()}`);
+     const controller = new AbortController();
+EOL
 
-# Se tutto è andato bene, rimuoviamo il backup
-if [ $git_status -eq 0 ] && [ $build_status -eq 0 ]; then
-  rm "$APP_PATH/server/market-api.ts.backup"
-  echo "Backup rimosso"
+# Applica la patch a market-api.ts
+patch -p0 < market-api-patch.diff
+
+if [ $? -eq 0 ]; then
+  echo -e "${GREEN}✓ Patch applicata con successo a market-api.ts${NC}"
 else
-  echo "NOTA: Il backup è stato mantenuto in server/market-api.ts.backup"
+  echo -e "\033[0;31m✗ Errore nell'applicazione della patch a market-api.ts${NC}"
+  exit 1
 fi
+
+# Commit delle modifiche
+git add server/spark-controller.ts server/market-api.ts
+git commit -m "Fix: Corretto problema 401 Unauthorized in Spark utilizzando fetchWithTimeout da market-api"
+
+# Push delle modifiche
+echo -e "${YELLOW}Invio modifiche al repository remoto...${NC}"
+git push origin spark-update-20250323
+echo -e "${GREEN}✓ Modifiche inviate con successo al branch spark-update-20250323${NC}"
+
+echo -e "${GREEN}✓ Operazione completata con successo!${NC}"
+echo -e "${YELLOW}NOTA: Eseguire 'npm run build' e riavviare il server su AWS per applicare le modifiche${NC}"
