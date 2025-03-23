@@ -10,7 +10,7 @@
 import { Request, Response } from "express";
 import { storage } from "./storage";
 import { Client } from "@shared/schema";
-import { Configuration, OpenAIApi } from "openai";
+import OpenAI from "openai";
 import fetch from "node-fetch";
 
 // Logger per debug
@@ -191,9 +191,9 @@ export async function generateSparkPriorities(req: Request, res: Response) {
     
     try {
       // OpenAI Integration - seleziona le notizie rilevanti
-      const openai = new OpenAIApi(new Configuration({
+      const openai = new OpenAI({
         apiKey: process.env.OPENAI_API_KEY
-      }));
+      });
       
       // Invece di attendere la risposta OpenAI per ogni cliente, generiamo 10 priorità selezionate casualmente
       const randomPriorities = generateRandomPriorities(clients, financialNews, 10);
@@ -204,12 +204,11 @@ export async function generateSparkPriorities(req: Request, res: Response) {
           title: priority.title,
           description: priority.description,
           clientId: priority.clientId,
-          clientName: priority.clientName,
-          advisorId: req.user.id,
-          source: priority.source,
-          sourceUrl: priority.sourceUrl,
+          priority: 1, // Alta priorità per default
+          relatedNewsTitle: priority.source,
+          relatedNewsUrl: priority.sourceUrl,
           isNew: true,
-          createdAt: new Date()
+          createdBy: req.user.id
         });
       }
       
@@ -303,7 +302,7 @@ function generateRandomPriorities(clients: Client[], news: any[], count: number)
       title: generatePriorityTitle(client, newsItem),
       description: generatePriorityDescription(client, newsItem),
       clientId: client.id,
-      clientName: `${client.first_name} ${client.last_name}`,
+      clientName: `${client.firstName} ${client.lastName}`,
       source: newsItem.source.name,
       sourceUrl: newsItem.url
     };
@@ -315,11 +314,11 @@ function generateRandomPriorities(clients: Client[], news: any[], count: number)
  */
 function generatePriorityTitle(client: Client, news: { title: string; url: string }): string {
   const titles = [
-    `Opportunità per ${client.first_name} legata a ${extractMainTopic(news.title)}`,
-    `${extractMainTopic(news.title)}: Potenziale interesse per ${client.first_name}`,
-    `Aggiornamento su ${extractMainTopic(news.title)} per ${client.first_name}`,
-    `${client.first_name} potrebbe essere interessato a: ${extractMainTopic(news.title)}`,
-    `Recenti sviluppi su ${extractMainTopic(news.title)} rilevanti per ${client.first_name}`
+    `Opportunità per ${client.firstName} legata a ${extractMainTopic(news.title)}`,
+    `${extractMainTopic(news.title)}: Potenziale interesse per ${client.firstName}`,
+    `Aggiornamento su ${extractMainTopic(news.title)} per ${client.firstName}`,
+    `${client.firstName} potrebbe essere interessato a: ${extractMainTopic(news.title)}`,
+    `Recenti sviluppi su ${extractMainTopic(news.title)} rilevanti per ${client.firstName}`
   ];
   
   return titles[Math.floor(Math.random() * titles.length)];
@@ -330,15 +329,15 @@ function generatePriorityTitle(client: Client, news: { title: string; url: strin
  */
 function generatePriorityDescription(client: Client, news: { title: string; url: string }): string {
   const descriptions = [
-    `Questa notizia su ${extractMainTopic(news.title)} sembra allinearsi con il profilo di rischio ${client.risk_profile} di ${client.first_name}. Potrebbe essere un'opportunità per discutere strategie correlate durante il prossimo incontro.`,
+    `Questa notizia su ${extractMainTopic(news.title)} sembra allinearsi con il profilo di rischio ${client.riskProfile} di ${client.firstName}. Potrebbe essere un'opportunità per discutere strategie correlate durante il prossimo incontro.`,
     
-    `Considerando gli obiettivi di investimento di ${client.first_name}, gli sviluppi recenti riguardo ${extractMainTopic(news.title)} potrebbero offrire interessanti spunti di discussione. Valuta se condividere questa informazione.`,
+    `Considerando gli obiettivi di investimento di ${client.firstName}, gli sviluppi recenti riguardo ${extractMainTopic(news.title)} potrebbero offrire interessanti spunti di discussione. Valuta se condividere questa informazione.`,
     
-    `Basandomi sul profilo di ${client.first_name}, che ha un'esperienza ${client.investment_experience} e un orizzonte ${client.investment_horizon}, questa notizia su ${extractMainTopic(news.title)} potrebbe rappresentare un elemento rilevante per il portfolio.`,
+    `Basandomi sul profilo di ${client.firstName}, che ha un'esperienza ${client.investmentExperience} e un orizzonte ${client.investmentHorizon}, questa notizia su ${extractMainTopic(news.title)} potrebbe rappresentare un elemento rilevante per il portfolio.`,
     
-    `Con un focus su ${Array.isArray(client.investment_goals) ? client.investment_goals.join(", ") : client.investment_goals}, ${client.first_name} potrebbe trovare interessante questa notizia su ${extractMainTopic(news.title)}. Considera di includerla nella prossima comunicazione.`,
+    `Con un focus su ${Array.isArray(client.investmentGoals) ? client.investmentGoals.join(", ") : client.investmentGoals}, ${client.firstName} potrebbe trovare interessante questa notizia su ${extractMainTopic(news.title)}. Considera di includerla nella prossima comunicazione.`,
     
-    `Questa notizia su ${extractMainTopic(news.title)} potrebbe avere implicazioni per il portfolio di ${client.first_name}, specialmente considerando i suoi interessi personali e il suo profilo di investitore.`
+    `Questa notizia su ${extractMainTopic(news.title)} potrebbe avere implicazioni per il portfolio di ${client.firstName}, specialmente considerando i suoi interessi personali e il suo profilo di investitore.`
   ];
   
   return descriptions[Math.floor(Math.random() * descriptions.length)];

@@ -1,0 +1,49 @@
+gervis=# \d clients
+                                                  Table "public.clients"
+            Column             |            Type             | Collation | Nullable |               Default               
+-------------------------------+-----------------------------+-----------+----------+-------------------------------------
+ id                            | integer                     |           | not null | nextval('clients_id_seq'::regclass)
+ first_name                    | text                        |           | not null | 
+ last_name                     | text                        |           | not null | 
+ name                          | text                        |           | not null | 
+ email                         | text                        |           | not null | 
+ phone                         | text                        |           |          | 
+ address                       | text                        |           |          | 
+ tax_code                      | text                        |           |          | 
+ password                      | text                        |           |          | 
+ last_login                    | timestamp without time zone |           |          | 
+ has_portal_access             | boolean                     |           |          | false
+ is_onboarded                  | boolean                     |           |          | false
+ is_archived                   | boolean                     |           |          | false
+ risk_profile                  | text                        |           |          | 
+ investment_experience         | text                        |           |          | 
+ investment_goals              | text[]                      |           |          | 
+ investment_horizon            | text                        |           |          | 
+ annual_income                 | integer                     |           |          | 
+ net_worth                     | integer                     |           |          | 
+ monthly_expenses              | integer                     |           |          | 
+ dependents                    | integer                     |           |          | 
+ employment_status             | text                        |           |          | 
+ onboarding_token              | text                        |           |          | 
+ token_expiry                  | timestamp without time zone |           |          | 
+ created_at                    | timestamp without time zone |           |          | now()
+ advisor_id                    | integer                     |           |          | 
+ personal_interests            | text[]                      |           |          | 
+ personal_interests_notes      | text                        |           |          | 
+ retirement_interest           | integer                     |           |          | 
+ wealth_growth_interest        | integer                     |           |          | 
+ income_generation_interest    | integer                     |           |          | 
+ capital_preservation_interest | integer                     |           |          | 
+ estate_planning_interest      | integer                     |           |          | 
+Indexes:
+    "clients_pkey" PRIMARY KEY, btree (id)
+Foreign-key constraints:
+    "clients_advisor_id_users_id_fk" FOREIGN KEY (advisor_id) REFERENCES users(id) ON DELETE CASCADE
+Referenced by:
+    TABLE "ai_profiles" CONSTRAINT "ai_profiles_client_id_fkey" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    TABLE "assets" CONSTRAINT "assets_client_id_clients_id_fk" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    TABLE "assets" CONSTRAINT "assets_client_id_fkey" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    TABLE "client_logs" CONSTRAINT "client_logs_client_id_fkey" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    TABLE "recommendations" CONSTRAINT "recommendations_client_id_clients_id_fk" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+    TABLE "recommendations" CONSTRAINT "recommendations_client_id_fkey" FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+
