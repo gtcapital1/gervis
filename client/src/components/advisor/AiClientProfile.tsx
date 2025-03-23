@@ -231,6 +231,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
+          <CardDescription>
+            Analisi e raccomandazioni basate su intelligenza artificiale
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -305,6 +308,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
+          <CardDescription>
+            Analisi e raccomandazioni basate su intelligenza artificiale
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Alert>
