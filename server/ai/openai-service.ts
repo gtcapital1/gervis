@@ -59,6 +59,8 @@ Rispondi in italiano, in formato JSON con due campi principali:
 - "approfondimenti": un array di oggetti con campi "title" e "description"
 - "suggerimenti": un array di oggetti con campi "title" e "description"
 
+IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze del cliente nel tempo, dai sempre priorità alle informazioni più recenti, in quanto rappresentano l'evoluzione più attuale delle preferenze e della situazione del cliente.
+
 Esempio di formato di risposta:
 {
   "approfondimenti": [
@@ -227,6 +229,8 @@ Analizza il profilo del cliente e la cronologia delle interazioni per creare:
 Rispondi in italiano usando un formato JSON con due campi principali:
 - "approfondimenti": un array di oggetti con campi "title" e "description"
 - "suggerimenti": un array di oggetti con campi "title" e "description"
+
+IMPORTANTE: Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni contenute nelle interazioni più recenti quando ci sono informazioni contrastanti o evoluzione nelle preferenze del cliente.
 
 Evita di replicare i dati del profilo. Invece, fornisci insight che non siano immediatamente evidenti dai dati.
 Identifica almeno 3-4 approfondimenti e 3-4 suggerimenti significativi.
