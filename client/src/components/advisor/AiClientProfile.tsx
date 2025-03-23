@@ -207,7 +207,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <p className="text-sm text-gray-500">Analisi intelligente del profilo cliente basata sui dati raccolti</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-8 w-full" />
@@ -229,7 +228,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <p className="text-sm text-gray-500">Analisi intelligente del profilo cliente basata sui dati raccolti</p>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -267,7 +265,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <p className="text-sm text-gray-500">Analisi intelligente del profilo cliente basata sui dati raccolti</p>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
@@ -302,7 +299,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <p className="text-sm text-gray-500">Analisi intelligente del profilo cliente basata sui dati raccolti</p>
         </CardHeader>
         <CardContent>
           <Alert>
@@ -333,7 +329,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             {t('refresh')}
           </Button>
         </CardTitle>
-        <p className="text-sm text-gray-500">Analisi intelligente del profilo cliente basata sui dati raccolti</p>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
