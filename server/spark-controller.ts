@@ -156,28 +156,42 @@ export async function generateSparkPriorities(req: Request, res: Response) {
         debug("Using cached financial news");
         financialNews = newsCache;
       } else {
-        debug("Fetching fresh financial news");
-        const apiKey = process.env.FINANCIAL_NEWS_API_KEY;
-        const response = await fetch(
-          `https://gnews.io/api/v4/search?q=finance+OR+investing+OR+markets+OR+economy&lang=en&country=us&max=50&apikey=${apiKey}`
-        );
+        debug("Fetching fresh financial news from FMP");
+        const apiKey = process.env.FINANCIAL_API_KEY;
+        
+        if (!apiKey) {
+          throw new Error("API key not configured for Financial Modeling Prep");
+        }
+        
+        // Utilizziamo l'endpoint FMP per le notizie finanziarie
+        const apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
+        debug(`Fetching news from ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+        
+        // Utilizziamo la funzione fetchWithTimeout dal market-api
+        const response = await fetch(apiUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; Gervis/1.0)',
+            'Accept': 'application/json'
+          },
+          timeout: 15000
+        });
         
         if (!response.ok) {
-          throw new Error(`News API error: ${response.status} ${response.statusText}`);
+          throw new Error(`FMP News API error: ${response.status} ${response.statusText}`);
         }
         
         const data = await response.json();
         
-        if (!data.articles || !Array.isArray(data.articles)) {
-          throw new Error("Invalid news API response format");
+        if (!Array.isArray(data)) {
+          throw new Error("Invalid FMP news API response format");
         }
         
         // Filtra fonti whitelist
-        financialNews = data.articles.filter((article: any) => 
+        financialNews = data.filter((article: any) => 
           isWhitelistedNewsSource(article.url)
         );
         
-        debug(`Filtered ${financialNews.length} whitelisted articles from ${data.articles.length} total`);
+        debug(`Filtered ${financialNews.length} whitelisted articles from ${data.length} total`);
         
         // Aggiorna cache
         newsCache = financialNews;
