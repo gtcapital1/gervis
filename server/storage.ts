@@ -4,6 +4,7 @@ import {
   assets, type Asset, type InsertAsset,
   recommendations, type Recommendation, type InsertRecommendation,
   clientLogs, type ClientLog, type InsertClientLog,
+  aiProfiles, type AiProfile, type InsertAiProfile,
   LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
@@ -64,6 +65,12 @@ export interface IStorage {
   createClientLog(log: InsertClientLog): Promise<ClientLog>;
   updateClientLog(id: number, log: Partial<ClientLog>): Promise<ClientLog>;
   deleteClientLog(id: number): Promise<boolean>;
+  
+  // AI Profile Methods
+  getAiProfile(clientId: number): Promise<AiProfile | undefined>;
+  createAiProfile(profile: InsertAiProfile): Promise<AiProfile>;
+  updateAiProfile(clientId: number, profileData: any): Promise<AiProfile>;
+  deleteAiProfile(clientId: number): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -898,6 +905,82 @@ export class PostgresStorage implements IStorage {
       return result.length > 0;
     } catch (error) {
       console.error(`[ERROR] Errore durante l'eliminazione del log ID: ${id}:`, error);
+      throw error;
+    }
+  }
+  
+  // AI Profile Methods
+  async getAiProfile(clientId: number): Promise<AiProfile | undefined> {
+    try {
+      const result = await db.select()
+        .from(aiProfiles)
+        .where(eq(aiProfiles.clientId, clientId));
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Errore durante il recupero del profilo AI per il cliente ID: ${clientId}:`, error);
+      throw error;
+    }
+  }
+  
+  async createAiProfile(profile: InsertAiProfile): Promise<AiProfile> {
+    try {
+      const result = await db.insert(aiProfiles)
+        .values({
+          ...profile,
+          lastGeneratedAt: new Date()
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Errore durante la creazione del profilo AI per il cliente ID: ${profile.clientId}:`, error);
+      throw error;
+    }
+  }
+  
+  async updateAiProfile(clientId: number, profileData: any): Promise<AiProfile> {
+    try {
+      // Verifica se esiste un profilo per questo cliente
+      const existingProfile = await this.getAiProfile(clientId);
+      
+      if (existingProfile) {
+        // Aggiorna il profilo esistente
+        const result = await db.update(aiProfiles)
+          .set({ 
+            profileData,
+            lastGeneratedAt: new Date()  
+          })
+          .where(eq(aiProfiles.clientId, clientId))
+          .returning();
+        
+        if (!result[0]) {
+          throw new Error(`Failed to update AI profile for client ${clientId}`);
+        }
+        
+        return result[0];
+      } else {
+        // Crea un nuovo profilo
+        return this.createAiProfile({
+          clientId,
+          profileData,
+          createdBy: null // Opzionale, può essere fornito dal controller
+        });
+      }
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'aggiornamento del profilo AI per il cliente ID: ${clientId}:`, error);
+      throw error;
+    }
+  }
+  
+  async deleteAiProfile(clientId: number): Promise<boolean> {
+    try {
+      const result = await db.delete(aiProfiles)
+        .where(eq(aiProfiles.clientId, clientId))
+        .returning();
+      
+      return result.length > 0;
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'eliminazione del profilo AI per il cliente ID: ${clientId}:`, error);
       throw error;
     }
   }
