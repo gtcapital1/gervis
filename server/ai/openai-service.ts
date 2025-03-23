@@ -6,6 +6,7 @@
  */
 
 import { Client, ClientLog } from '@shared/schema';
+import OpenAI from 'openai';
 import fetch from 'node-fetch';
 
 // Controlla se esiste una chiave API OpenAI
@@ -45,19 +46,18 @@ export async function generateClientProfile(
     // Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
     const prompt = createClientProfilePrompt(client, logs);
     
-    // Chiama l'API OpenAI
-    const completionResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4', // Utilizziamo GPT-4 per risultati migliori
-        messages: [
-          {
-            role: 'system',
-            content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera raccomandazioni finanziarie utili.
+    // Crea un'istanza OpenAI
+    const openai = new OpenAI({
+      apiKey: OPENAI_API_KEY
+    });
+    
+    // Chiama l'API OpenAI usando la nuova sintassi
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4', // Utilizziamo GPT-4 per risultati migliori
+      messages: [
+        {
+          role: 'system',
+          content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera raccomandazioni finanziarie utili.
 
 Rispondi in italiano, in formato JSON con un campo principale:
 - "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
@@ -91,35 +91,17 @@ Esempio di formato di risposta:
     }
   ]
 }`
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.3, // Bassa temperatura per risultati più prevedibili
-        max_tokens: 1000 // Limita la lunghezza della risposta
-      })
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3, // Bassa temperatura per risultati più prevedibili
+      max_tokens: 1000 // Limita la lunghezza della risposta
     });
 
-    if (!completionResponse.ok) {
-      const errorData = await completionResponse.json() as any;
-      console.error("OpenAI API error:", errorData);
-      
-      // Verifica se si tratta di un errore di quota/credito
-      if (errorData.error && (
-        errorData.error.code === 'insufficient_quota' || 
-        errorData.error.message?.includes('quota') ||
-        errorData.error.message?.includes('billing')
-      )) {
-        throw new Error("Credito OpenAI esaurito o quota insufficiente. Controlla il tuo account OpenAI.");
-      }
-      
-      throw new Error(`OpenAI API error: ${errorData.error?.message || 'Unknown error'}`);
-    }
-
-    const responseData = await completionResponse.json() as any;
-    const content = responseData.choices?.[0]?.message?.content;
+    const content = completion.choices[0]?.message?.content;
     
     if (!content) {
       throw new Error("No content in OpenAI response");
