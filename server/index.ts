@@ -10,6 +10,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { autorunCascadeFix } from "./migrations/autorun-cascade-fix";
 import { autorunCreateClientLogs } from "./migrations/autorun-create-client-logs";
 import { autorunCreateAiProfiles } from "./migrations/autorun-create-ai-profiles";
+import { autorunCreateSparkPriorities } from "./migrations/autorun-create-spark-priorities";
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -162,6 +163,15 @@ app.use((req, res, next) => {
     console.log("DEBUG - Verifica tabella ai_profiles completata");
   } catch (error) {
     console.error("ERRORE - Impossibile verificare/creare la tabella ai_profiles:", error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Esegui automaticamente la creazione della tabella spark_priorities
+  try {
+    await autorunCreateSparkPriorities(true);
+    console.log("DEBUG - Verifica tabella spark_priorities completata");
+  } catch (error) {
+    console.error("ERRORE - Impossibile verificare/creare la tabella spark_priorities:", error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

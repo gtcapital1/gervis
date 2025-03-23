@@ -5,6 +5,7 @@ import {
   recommendations, type Recommendation, type InsertRecommendation,
   clientLogs, type ClientLog, type InsertClientLog,
   aiProfiles, type AiProfile, type InsertAiProfile,
+  sparkPriorities, type SparkPriority, type InsertSparkPriority,
   LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
