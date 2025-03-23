@@ -140,12 +140,24 @@ export async function getClientProfile(req: Request, res: Response) {
       // Utilizza il profilo memorizzato nella cache
       profileData = cachedProfile.profileData;
       
-      return res.json({
-        success: true,
-        data: profileData,
-        cached: true,
-        lastGenerated: cachedProfile.lastGeneratedAt
-      });
+      // Controlla se il refresh è stato esplicitamente richiesto ma i dati sono già aggiornati
+      if (req.query.refresh === 'true') {
+        return res.json({
+          success: true,
+          data: profileData,
+          cached: true,
+          lastGenerated: cachedProfile.lastGeneratedAt,
+          upToDate: true, // Indica che i dati sono già aggiornati
+          message: "Profilo AI è già aggiornato con tutte le informazioni raccolte"
+        });
+      } else {
+        return res.json({
+          success: true,
+          data: profileData,
+          cached: true,
+          lastGenerated: cachedProfile.lastGeneratedAt
+        });
+      }
     } else {
       // Questo caso non dovrebbe verificarsi, ma per sicurezza
       return res.status(500).json({

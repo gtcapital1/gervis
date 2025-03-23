@@ -28,18 +28,41 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const { t } = useTranslation('client');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [profileRequested, setProfileRequested] = useState(false);
+  const [isUpToDate, setIsUpToDate] = useState(false);
+  const [upToDateMessage, setUpToDateMessage] = useState("");
 
   // Esegui la query per ottenere i dati del profilo arricchito solo quando richiesto
-  const { data, isLoading, isError, error, refetch } = useQuery<{ success: boolean; data?: ProfileData }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{ 
+    success: boolean; 
+    data?: ProfileData;
+    upToDate?: boolean;
+    message?: string;
+  }>({
     queryKey: ['/api/ai/client-profile', clientId, refreshTrigger],
     queryFn: async () => {
-      const response = await fetch(`/api/ai/client-profile/${clientId}`);
+      // Reset stato "up to date" quando iniziamo una nuova richiesta
+      setIsUpToDate(false);
+      setUpToDateMessage("");
+      
+      // Determina se è una richiesta di refresh o una richiesta iniziale
+      const isRefreshRequest = profileRequested && refreshTrigger > 0;
+      const url = isRefreshRequest 
+        ? `/api/ai/client-profile/${clientId}?refresh=true`
+        : `/api/ai/client-profile/${clientId}`;
+      
+      const response = await fetch(url);
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       const result = await response.json();
       console.log("======== AI PROFILE DATA START ========");
       console.log("AI Profile data:", JSON.stringify(result, null, 2));
+      
+      // Verifica se i dati sono già aggiornati
+      if (result.upToDate) {
+        setIsUpToDate(true);
+        setUpToDateMessage(result.message || "Profilo AI è già aggiornato con tutte le informazioni raccolte");
+      }
       
       // Log dettagliato della struttura dei dati
       if (result.data) {
@@ -346,6 +369,29 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {isUpToDate && (
+          <Alert variant="success" className="bg-green-50 border-green-200 mb-4">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 text-green-600"
+            >
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+              <polyline points="22 4 12 14.01 9 11.01"></polyline>
+            </svg>
+            <AlertTitle className="text-green-800">{t('up_to_date')}</AlertTitle>
+            <AlertDescription className="text-green-700">
+              {upToDateMessage}
+            </AlertDescription>
+          </Alert>
+        )}
         <div>
           <h3 className="text-lg font-semibold mb-2">{t('insights')}</h3>
           <div className="space-y-2">
