@@ -139,7 +139,7 @@ export default function Spark() {
   };
 
   return (
-    <Layout>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
@@ -277,6 +277,6 @@ export default function Spark() {
           </Card>
         )}
       </div>
-    </Layout>
+    </div>
   );
 }
