@@ -1101,34 +1101,70 @@ export class PostgresStorage implements IStorage {
   }
 
   async createSparkPriority(priority: InsertSparkPriority): Promise<SparkPriority> {
-    // Assicuriamoci che clientId sia un numero intero valido
-    if (!priority.clientId || typeof priority.clientId !== 'number' || isNaN(priority.clientId)) {
+    // Controlla se l'input contiene una stringa clientId con formato "11,12,13,..."
+    let clientIdToUse: number;
+    
+    if (typeof priority.clientId === 'string' && priority.clientId.includes(',')) {
+      // Se è una stringa di ID separati da virgole, prendi solo il primo valore
+      console.warn(`[WARNING] Received comma-separated clientId string: "${priority.clientId}". Taking only first value.`);
+      const firstId = priority.clientId.split(',')[0].trim();
+      clientIdToUse = parseInt(firstId, 10);
+      
+      if (isNaN(clientIdToUse)) {
+        console.error(`[ERROR] Cannot parse first clientId from string: "${priority.clientId}"`);
+        throw new Error(`Invalid client ID format: ${priority.clientId}`);
+      }
+    } else if (typeof priority.clientId === 'string') {
+      // Se è una stringa ma non contiene virgole, converti in numero
+      clientIdToUse = parseInt(priority.clientId, 10);
+      
+      if (isNaN(clientIdToUse)) {
+        console.error(`[ERROR] Cannot parse clientId from string: "${priority.clientId}"`);
+        throw new Error(`Invalid client ID: ${priority.clientId}`);
+      }
+    } else if (typeof priority.clientId === 'number') {
+      // Se è già un numero, usalo direttamente
+      clientIdToUse = priority.clientId;
+    } else {
+      // Se è null, undefined o altro tipo non supportato
       console.error(`[ERROR] Invalid clientId in createSparkPriority: ${priority.clientId}, type: ${typeof priority.clientId}`);
       throw new Error(`Invalid client ID: ${priority.clientId}`);
     }
     
     // Verifica che il client esista prima di creare la priorità
-    const client = await this.getClient(priority.clientId);
+    const client = await this.getClient(clientIdToUse);
     if (!client) {
-      throw new Error(`Client with id ${priority.clientId} not found`);
+      throw new Error(`Client with id ${clientIdToUse} not found`);
     }
+    
+    // Log di debug
+    console.log(`[DEBUG] Creating Spark priority for client ID: ${clientIdToUse} (original input: ${typeof priority.clientId === 'object' ? JSON.stringify(priority.clientId) : priority.clientId})`);
     
     // Garantiamo che i valori siano correttamente tipizzati
     const validatedPriority = {
       ...priority,
-      clientId: Number(priority.clientId), // Assicuriamo che sia un numero
-      priority: Number(priority.priority), // Assicuriamo che sia un numero
-      isNew: Boolean(priority.isNew), // Assicuriamo che sia un booleano
-      createdBy: priority.createdBy ? Number(priority.createdBy) : null, // Gestione advisor ID
+      clientId: clientIdToUse,
+      priority: Number(priority.priority || 1),
+      isNew: Boolean(priority.isNew !== false), // Default a true se non specificato
+      createdBy: priority.createdBy ? Number(priority.createdBy) : null,
       createdAt: new Date(),
       lastUpdatedAt: new Date()
     };
     
-    const result = await db.insert(sparkPriorities)
-      .values(validatedPriority)
-      .returning();
-    
-    return result[0];
+    try {
+      const result = await db.insert(sparkPriorities)
+        .values(validatedPriority)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error(`[ERROR] Failed to insert Spark priority for client ${clientIdToUse}:`, error);
+      
+      // Log i dettagli per debug
+      console.error(`Validated priority data:`, JSON.stringify(validatedPriority, null, 2));
+      
+      throw error;
+    }
   }
 
   async updateSparkPriorityStatus(id: number, isNew: boolean): Promise<SparkPriority> {
