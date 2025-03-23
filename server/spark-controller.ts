@@ -190,9 +190,9 @@ export async function generateSparkPriorities(req: Request, res: Response) {
           );
           
           debug(`Filtered ${financialNews.length} whitelisted articles from ${data.length} total`);
-        } catch (fetchError) {
+        } catch (fetchError: any) {
           // Gestiamo gli errori passati dalla fetch
-          debug(`Fetch error: ${fetchError.message}`);
+          debug(`Fetch error: ${fetchError?.message || 'Unknown error'}`);
           throw fetchError;
         }
         
