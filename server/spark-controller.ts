@@ -105,6 +105,58 @@ export async function generateSparkPriorities(req: Request, res: Response) {
       });
     }
     
+    // Applica lo stesso filtro per fonti attendibili utilizzato in market-api.ts
+    console.log(`DEBUG-SPARK: Notizie ricevute prima del filtro: ${allNews.length} items - ${new Date().toISOString()}`);
+    
+    // Whitelist delle testate giornalistiche più rilevanti (copiata da market-api.ts)
+    const trustedSourcesWhitelist = [
+      // Pubblicazioni tradizionali
+      'Bloomberg', 
+      'Reuters', 
+      'CNBC', 
+      'Wall Street Journal', 
+      'Financial Times', 
+      'MarketWatch',
+      'The Economist',
+      'Fortune',
+      'Barron\'s',
+      'Business Insider',
+      'Il Sole 24 Ore',
+      'Milano Finanza',
+      
+      // Domini comuni delle fonti di notizie finanziarie
+      'seekingalpha',
+      'fool.com',
+      'yahoo',
+      'investing.com',
+      'globenewswire',
+      'prnewswire',
+      'accessnewswire',
+      '247wallst',
+      'finbold',
+      
+      // Domini di agenzie stampa
+      'reuters.com',
+      'bloomberg.com',
+      'cnbc.com',
+      'wsj.com',
+      'ft.com'
+    ];
+    
+    // Filtra le notizie solo dalle fonti attendibili (case-insensitive)
+    const filteredNews = allNews.filter((item: any) => {
+      if (!item.source || !item.source.name) return false;
+      const lowercaseSite = item.source.name.toLowerCase();
+      return trustedSourcesWhitelist.some(source => 
+        lowercaseSite.includes(source.toLowerCase())
+      );
+    });
+    
+    console.log(`DEBUG-SPARK: Notizie filtrate per fonti affidabili: ${filteredNews.length} items - ${new Date().toISOString()}`);
+    
+    // Se non ci sono notizie dalle fonti whitelist, utilizza le originali come fallback
+    const newsToProcess = filteredNews.length > 0 ? filteredNews : allNews;
+    
     // Passaggio 3: Cancella le vecchie priorità
     await storage.clearOldSparkPriorities(advisorId);
     
@@ -112,7 +164,7 @@ export async function generateSparkPriorities(req: Request, res: Response) {
     let selectedNews, investmentIdeas;
     
     try {
-      const result = await generateInvestmentIdeasFromNews(allNews);
+      const result = await generateInvestmentIdeasFromNews(newsToProcess);
       selectedNews = result.selectedNews;
       investmentIdeas = result.investmentIdeas;
       
