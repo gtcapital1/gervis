@@ -238,6 +238,7 @@ const resourcesIt = {
       dashboard: "Dashboard",
       settings: "Impostazioni",
       market: "Mercati",
+      spark: "Spark",
       admin: "Amministrazione",
       manage_portfolio: "Gestisci il tuo portafoglio clienti",
       upgrade_to_pro: "Passa a PRO",
