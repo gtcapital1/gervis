@@ -38,7 +38,7 @@ interface ProfileResponse {
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const { t } = useTranslation('client');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [profileRequested, setProfileRequested] = useState(false);
+  const [profileRequested, setProfileRequested] = useState(true); // Inizia con true per caricare automaticamente
   const [isUpToDate, setIsUpToDate] = useState(false);
   const [upToDateMessage, setUpToDateMessage] = useState("");
 
