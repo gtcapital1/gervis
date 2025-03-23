@@ -12,10 +12,16 @@ interface AiClientProfileProps {
   clientId: number;
 }
 
-// Interfaccia per i dati di profilo arricchito che accetta qualsiasi tipo di contenuto
+// Interfaccia per gli elementi di approfondimento e suggerimenti
+interface ProfileItem {
+  title: string;
+  description: string;
+}
+
+// Interfaccia per i dati di profilo arricchito
 interface ProfileData {
-  approfondimenti: any;
-  suggerimenti: any;
+  approfondimenti: ProfileItem[] | string;
+  suggerimenti: ProfileItem[] | string;
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
@@ -66,7 +72,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   };
 
   // Funzione per formattare il contenuto in base al tipo
-  const formatContent = (content: any): ReactNode => {
+  const formatContent = (content: ProfileItem[] | string | any): ReactNode => {
     // Se è null o undefined
     if (content === null || content === undefined) {
       return null;
