@@ -11,9 +11,14 @@ import fetch from 'node-fetch';
 // Controlla se esiste una chiave API OpenAI
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+interface ProfileItem {
+  title: string;
+  description: string;
+}
+
 interface AiClientProfile {
-  approfondimenti: string;
-  suggerimenti: string;
+  approfondimenti: ProfileItem[] | string; // Preferibilmente array di oggetti, stringa per retrocompatibilità
+  suggerimenti: ProfileItem[] | string; // Preferibilmente array di oggetti, stringa per retrocompatibilità
 }
 
 /**
@@ -48,7 +53,23 @@ export async function generateClientProfile(
         messages: [
           {
             role: 'system',
-            content: 'Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo arricchito con approfondimenti e suggerimenti. Rispondi in italiano, in formato JSON con i campi "approfondimenti" e "suggerimenti".'
+            content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo arricchito con approfondimenti e suggerimenti.
+            
+Rispondi in italiano, in formato JSON con due campi principali:
+- "approfondimenti": un array di oggetti con campi "title" e "description"
+- "suggerimenti": un array di oggetti con campi "title" e "description"
+
+Esempio di formato di risposta:
+{
+  "approfondimenti": [
+    { "title": "Profilo di Rischio Aggressivo", "description": "Il cliente mostra una forte propensione al rischio come evidenziato dalle sue scelte di investimento..." },
+    { "title": "Focus sulla Pianificazione Patrimoniale", "description": "L'interesse principale del cliente è la pianificazione patrimoniale (punteggio 5/5)..." }
+  ],
+  "suggerimenti": [
+    { "title": "Diversificazione del Portafoglio", "description": "Considerando l'alta concentrazione in azioni tech e immobili, suggerirei di..." },
+    { "title": "Strategie di Pianificazione Fiscale", "description": "Dato il focus sulla pianificazione patrimoniale, sarebbe utile esplorare..." }
+  ]
+}`
           },
           {
             role: 'user',
@@ -103,16 +124,52 @@ export async function generateClientProfile(
       // cercando di separare gli approfondimenti dai suggerimenti nel testo
       const sections = content.split(/\n\s*#{1,3}\s*Suggerimenti/i);
       
+      // Crea array di oggetti con title/description
+      const formatTextToObjects = (text: string) => {
+        const lines = text.split(/\n+/).filter(line => line.trim());
+        const result = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          // Se la riga sembra un titolo
+          if (line.startsWith('- ') || line.startsWith('* ') || /^\d+\./.test(line)) {
+            const title = line.replace(/^[-*\d.]\s+/, '');
+            let description = '';
+            
+            // Se c'è una riga successiva, usala come descrizione
+            if (i + 1 < lines.length && !lines[i+1].startsWith('- ') && !lines[i+1].startsWith('* ') && !/^\d+\./.test(lines[i+1])) {
+              description = lines[i+1].trim();
+              i++; // Salta la prossima riga
+            }
+            
+            result.push({ title, description });
+          }
+        }
+        
+        // Se non abbiamo trovato nulla con la struttura attesa, crea un elemento con tutto il testo
+        if (result.length === 0 && text.trim()) {
+          result.push({ 
+            title: "Informazione",
+            description: text.trim()
+          });
+        }
+        
+        return result;
+      };
+      
+      const approfondimentiText = sections[0].replace(/\s*#{1,3}\s*Approfondimenti\s*/i, '').trim();
+      const suggerimentiText = sections.length > 1 ? sections[1].trim() : 'Nessun suggerimento disponibile.';
+      
       parsedData = {
-        approfondimenti: sections[0].replace(/\s*#{1,3}\s*Approfondimenti\s*/i, '').trim(),
-        suggerimenti: sections.length > 1 ? sections[1].trim() : 'Nessun suggerimento disponibile.'
+        approfondimenti: formatTextToObjects(approfondimentiText),
+        suggerimenti: formatTextToObjects(suggerimentiText)
       };
     }
     
-    // Assicurati che i campi siano stringhe per evitare errori
+    // Conserva il tipo originale della risposta senza forzare la conversione a stringa
     return {
-      approfondimenti: String(parsedData.approfondimenti || ''),
-      suggerimenti: String(parsedData.suggerimenti || '')
+      approfondimenti: parsedData.approfondimenti || '',
+      suggerimenti: parsedData.suggerimenti || ''
     };
   } catch (error) {
     console.error("Error generating client profile:", error);
@@ -167,8 +224,12 @@ Analizza il profilo del cliente e la cronologia delle interazioni per creare:
 1. APPROFONDIMENTI: Una comprensione approfondita delle esigenze, degli obiettivi e del comportamento finanziario del cliente.
 2. SUGGERIMENTI: Proposte concrete per migliorare la consulenza finanziaria per questo cliente.
 
-Rispondi in italiano usando un formato JSON con due campi: "approfondimenti" e "suggerimenti".
+Rispondi in italiano usando un formato JSON con due campi principali:
+- "approfondimenti": un array di oggetti con campi "title" e "description"
+- "suggerimenti": un array di oggetti con campi "title" e "description"
+
 Evita di replicare i dati del profilo. Invece, fornisci insight che non siano immediatamente evidenti dai dati.
+Identifica almeno 3-4 approfondimenti e 3-4 suggerimenti significativi.
 `;
 
   return prompt;
