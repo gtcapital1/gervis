@@ -774,15 +774,6 @@ Grazie per la tua fiducia e collaborazione.`
                         <PieChart className="mr-2 h-4 w-4" />
                         {t('client.portfolio_overview')}
                       </TabsTrigger>
-                      <TabsTrigger value="recommendations">
-                        <FileText className="mr-2 h-4 w-4" />
-                        {t('client.recommendations')}
-                      </TabsTrigger>
-                      <TabsTrigger value="ai-profile">
-                        <Brain className="mr-2 h-4 w-4" />
-                        {t('client.ai_profile') || "Profilo AI"}
-                      </TabsTrigger>
-
                     </TabsList>
                     
                     <TabsContent value="portfolio" className="space-y-6">
