@@ -370,6 +370,18 @@ export class PostgresStorage implements IStorage {
         .returning({ id: recommendations.id });
       console.log(`[INFO] Eliminate ${deletedRecommendations.length} raccomandazioni del cliente`);
       
+      // Eliminiamo i profili AI
+      const deletedProfiles = await db.delete(aiProfiles)
+        .where(eq(aiProfiles.clientId, id))
+        .returning({ id: aiProfiles.id });
+      console.log(`[INFO] Eliminati ${deletedProfiles.length} profili AI del cliente`);
+      
+      // Eliminiamo i client logs
+      const deletedLogs = await db.delete(clientLogs)
+        .where(eq(clientLogs.clientId, id))
+        .returning({ id: clientLogs.id });
+      console.log(`[INFO] Eliminati ${deletedLogs.length} logs del cliente`);
+      
       // 2. Ora che tutte le dipendenze sono state rimosse, possiamo eliminare il cliente
       const result = await db.delete(clients)
         .where(eq(clients.id, id))
@@ -406,6 +418,8 @@ export class PostgresStorage implements IStorage {
         // Questo permette di mantenere la compatibilità con la pooled connection
         await db.execute(sql`DELETE FROM assets WHERE client_id = ${id}`);
         await db.execute(sql`DELETE FROM recommendations WHERE client_id = ${id}`);
+        await db.execute(sql`DELETE FROM ai_profiles WHERE client_id = ${id}`);
+        await db.execute(sql`DELETE FROM client_logs WHERE client_id = ${id}`);
         await db.execute(sql`DELETE FROM clients WHERE id = ${id}`);
         
         // Verifica se il cliente è stato effettivamente eliminato
