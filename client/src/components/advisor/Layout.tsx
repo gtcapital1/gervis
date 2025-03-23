@@ -12,6 +12,7 @@ import {
   Globe,
   ShieldAlert,
   BarChart3,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +79,13 @@ export function Layout({ children }: LayoutProps) {
       href: "/market",
       icon: BarChart3,
       current: location === "/market",
+      disabled: false,
+    },
+    {
+      name: "Spark",
+      href: "/spark",
+      icon: Zap,
+      current: location === "/spark",
       disabled: false,
     },
     {
