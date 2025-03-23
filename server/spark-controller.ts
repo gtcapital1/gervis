@@ -237,9 +237,26 @@ export async function generateSparkPriorities(req: Request, res: Response) {
     }
   } catch (error) {
     console.error("Error generating Spark priorities:", error);
+    
+    // Log di debug per aiutare a diagnosticare problemi di tipo
+    if (error instanceof Error) {
+      console.error(`Error type: ${error.constructor.name}`);
+      console.error(`Error message: ${error.message}`);
+      if (error.stack) {
+        console.error(`Stack trace: ${error.stack}`);
+      }
+    }
+    
+    // Verifica se l'errore è un errore PostgreSQL con dettagli
+    const pgError = error as any;
+    if (pgError.code && pgError.routine) {
+      console.error(`PostgreSQL error details: code=${pgError.code}, routine=${pgError.routine}, where=${pgError.where || 'N/A'}`);
+    }
+    
     return res.status(500).json({ 
       success: false, 
-      message: "Failed to generate priorities" 
+      message: "Failed to generate priorities",
+      error: error instanceof Error ? error.message : String(error)
     });
   }
 }
