@@ -33,6 +33,22 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       }
       const result = await response.json();
       console.log("AI Profile data:", result);
+      
+      // Log dettagliato della struttura dei dati
+      if (result.data) {
+        console.log("Approfondimenti type:", typeof result.data.approfondimenti);
+        console.log("Approfondimenti value:", result.data.approfondimenti);
+        
+        console.log("Suggerimenti type:", typeof result.data.suggerimenti);
+        console.log("Suggerimenti value:", result.data.suggerimenti);
+        
+        // Prova a esaminare il primo elemento se è un array
+        if (Array.isArray(result.data.approfondimenti) && result.data.approfondimenti.length > 0) {
+          console.log("Primo elemento approfondimenti:", result.data.approfondimenti[0]);
+          console.log("Tipo primo elemento:", typeof result.data.approfondimenti[0]);
+        }
+      }
+      
       return result;
     },
     retry: 1,
@@ -58,6 +74,17 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     
     // Se è una stringa
     if (typeof content === 'string') {
+      // Controlla se la stringa potrebbe essere JSON
+      if (content.trim().startsWith('{') || content.trim().startsWith('[')) {
+        try {
+          const parsed = JSON.parse(content);
+          return formatContent(parsed); // Richiama ricorsivamente sulla versione parsata
+        } catch (e) {
+          // Non è JSON valido, continua a trattarlo come stringa
+          console.log("Tentativo di parsing JSON fallito, trattato come testo:", e);
+        }
+      }
+      
       return (
         <div>
           {content.split('\n').map((paragraph, index) => (
@@ -71,26 +98,68 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     
     // Se è un array
     if (Array.isArray(content)) {
-      return (
-        <ul className="space-y-2 list-disc pl-5">
-          {content.map((item, index) => (
-            <li key={index}>
-              {typeof item === 'string' ? item : JSON.stringify(item)}
-            </li>
-          ))}
-        </ul>
-      );
+      // Se l'array contiene oggetti, formattali in modo speciale
+      if (content.length > 0 && typeof content[0] === 'object') {
+        return (
+          <ul className="space-y-4 list-none pl-0">
+            {content.map((item, index) => {
+              // Estrai le proprietà rilevanti dagli oggetti
+              const title = item.title || item.titolo || '';
+              const description = item.description || item.descrizione || item.content || item.contenuto || '';
+              
+              return (
+                <li key={index} className="border-l-2 border-blue-500 pl-3 py-1">
+                  {title && <h4 className="font-medium text-sm">{title}</h4>}
+                  <p className="text-sm text-gray-600">{description}</p>
+                </li>
+              );
+            })}
+          </ul>
+        );
+      } else {
+        // Array di valori primitivi
+        return (
+          <ul className="space-y-2 list-disc pl-5">
+            {content.map((item, index) => (
+              <li key={index} className="text-sm">
+                {typeof item === 'string' ? item : JSON.stringify(item)}
+              </li>
+            ))}
+          </ul>
+        );
+      }
     }
     
     // Se è un oggetto
     if (typeof content === 'object') {
+      // Se ha una struttura logica con titolo/descrizione
+      if (content.title || content.titolo || content.description || content.descrizione) {
+        return (
+          <div className="border-l-2 border-blue-500 pl-3 py-1 mb-2">
+            {(content.title || content.titolo) && (
+              <h4 className="font-medium text-sm">{content.title || content.titolo}</h4>
+            )}
+            <p className="text-sm text-gray-600">
+              {content.description || content.descrizione || content.content || content.contenuto || ''}
+            </p>
+          </div>
+        );
+      }
+      
       try {
-        // Converti l'oggetto in una stringa JSON formattata
+        // Fallback: converti l'oggetto in una struttura leggibile
         const formattedText = JSON.stringify(content, null, 2);
         return (
-          <pre className="text-xs bg-gray-50 p-2 rounded overflow-auto">
-            {formattedText}
-          </pre>
+          <div className="space-y-2">
+            {Object.entries(content).map(([key, value], index) => (
+              <div key={index} className="border-l-2 border-gray-300 pl-3 py-1">
+                <h4 className="font-medium text-sm capitalize">{key.replace(/_/g, ' ')}</h4>
+                <div className="text-sm text-gray-600">
+                  {typeof value === 'string' ? value : JSON.stringify(value)}
+                </div>
+              </div>
+            ))}
+          </div>
         );
       } catch (e) {
         console.error("Errore nella formattazione del contenuto JSON:", e);
