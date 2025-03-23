@@ -21,12 +21,8 @@ interface ProfileItem {
 
 // Interfaccia per i dati di profilo arricchito
 interface ProfileData {
-  // Nuovo formato unificato
-  raccomandazioni?: ProfileItem[] | string;
-  
-  // Campi legacy per retrocompatibilità
-  approfondimenti?: ProfileItem[] | string;
-  suggerimenti?: ProfileItem[] | string;
+  // Solo formato unificato
+  raccomandazioni: ProfileItem[] | string;
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
@@ -382,7 +378,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   }
 
   // Se non ci sono dati o i dati non sono formattati correttamente
-  if (!data?.data?.approfondimenti && !data?.data?.suggerimenti && !data?.data?.raccomandazioni) {
+  if (!data?.data?.raccomandazioni) {
     return (
       <Card>
         <CardHeader>
@@ -449,31 +445,13 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           </Alert>
         )}
 
-        {/* Mostra le nuove raccomandazioni unificate se disponibili */}
-        {data?.data?.raccomandazioni ? (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-2">{t('recommendations')}</h3>
-            <div className="space-y-6">
-              {formatContent(data.data.raccomandazioni)}
-            </div>
+        {/* Mostra le raccomandazioni unificate */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold mb-2">{t('recommendations')}</h3>
+          <div className="space-y-6">
+            {formatContent(data?.data?.raccomandazioni)}
           </div>
-        ) : (
-          // Fallback per retrocompatibilità: mostra i vecchi campi separati
-          <>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">{t('insights')}</h3>
-              <div className="space-y-2">
-                {formatContent(data?.data?.approfondimenti)}
-              </div>
-            </div>
-            <div>
-              <h3 className="text-lg font-semibold mb-2">{t('suggestions')}</h3>
-              <div className="space-y-2">
-                {formatContent(data?.data?.suggerimenti)}
-              </div>
-            </div>
-          </>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

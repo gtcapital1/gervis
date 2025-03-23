@@ -217,30 +217,56 @@ Esempio di formato di risposta:
       };
     }
     
-    // Gestisci sia il nuovo formato che quello vecchio per retrocompatibilità
+    // Usa solo il nuovo formato unificato (raccomandazioni)
     
-    // Se i dati sono nel nuovo formato (raccomandazioni)
+    // Se i dati hanno raccomandazioni, usa solo quelle
     if (parsedData.raccomandazioni) {
       return {
         raccomandazioni: parsedData.raccomandazioni
       };
     }
     
-    // Se i dati sono nel vecchio formato, convertili nel nuovo formato
+    // Se i dati hanno approfondimenti/suggerimenti, crea delle raccomandazioni
+    // combinando gli approfondimenti e i suggerimenti
     if (parsedData.approfondimenti || parsedData.suggerimenti) {
-      // Convertili nel nuovo formato per retrocompatibilità
+      // Converte i vecchi dati in un formato più semplice
+      const approfondimenti = Array.isArray(parsedData.approfondimenti) ? parsedData.approfondimenti : [];
+      const suggerimenti = Array.isArray(parsedData.suggerimenti) ? parsedData.suggerimenti : [];
+      
+      // Crea raccomandazioni dalla combinazione di approfondimenti e suggerimenti
+      const raccomandazioni = approfondimenti.map((item, index) => {
+        const suggerimento = suggerimenti[index % suggerimenti.length];
+        return {
+          title: item.title || "Raccomandazione",
+          description: item.description || "",
+          actions: suggerimento ? 
+            [(suggerimento.description || "").startsWith("Suggerisco di") ? 
+              (suggerimento.description || "") : 
+              `Suggerisco di ${suggerimento.description || ""}`] : 
+            undefined
+        };
+      });
+      
       return {
-        raccomandazioni: parsedData.raccomandazioni || [],
-        approfondimenti: parsedData.approfondimenti || '',
-        suggerimenti: parsedData.suggerimenti || ''
+        raccomandazioni: raccomandazioni.length > 0 ? raccomandazioni : [
+          {
+            title: "Analisi profilo cliente",
+            description: "Genera un nuovo profilo utilizzando il pulsante 'Aggiorna' per ottenere raccomandazioni nel nuovo formato.",
+            actions: ["Clicca sul pulsante 'Aggiorna' in alto a destra per generare raccomandazioni nel nuovo formato."]
+          }
+        ]
       };
     }
     
-    // Fallback: restituisci un oggetto vuoto
+    // Fallback: restituisci un oggetto con una singola raccomandazione vuota
     return {
-      raccomandazioni: [],
-      approfondimenti: '',
-      suggerimenti: ''
+      raccomandazioni: [
+        {
+          title: "Dati insufficienti",
+          description: "Non ci sono abbastanza dati per generare raccomandazioni complete. Prova ad aggiornare il profilo.",
+          actions: ["Clicca sul pulsante 'Aggiorna' in alto a destra per generare nuove raccomandazioni."]
+        }
+      ]
     };
   } catch (error) {
     console.error("Error generating client profile:", error);
