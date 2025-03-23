@@ -183,17 +183,17 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               console.log(`Item ${index} actions:`, actions);
               
               return (
-                <li key={index} className="border-l-2 border-primary bg-primary-foreground text-primary-foreground pl-3 py-3 px-4 rounded-md shadow-sm">
-                  {title && <h4 className="font-semibold text-sm text-primary">{title}</h4>}
-                  <p className="text-sm text-slate-700 mt-2">{description || JSON.stringify(item)}</p>
+                <li key={index} className="border-l-2 border-primary bg-black text-white pl-3 py-3 px-4 rounded-md shadow-sm">
+                  {title && <h4 className="font-semibold text-sm text-blue-400">{title}</h4>}
+                  <p className="text-sm text-white mt-2">{description || JSON.stringify(item)}</p>
                   
                   {/* Mostra le azioni raccomandate se presenti */}
                   {Array.isArray(actions) && actions.length > 0 && (
-                    <div className="mt-3 pt-2 border-t border-slate-200">
-                      <h5 className="text-xs font-medium text-slate-700 uppercase tracking-wide mb-2">Azioni consigliate</h5>
+                    <div className="mt-3 pt-2 border-t border-gray-700">
+                      <h5 className="text-xs font-medium text-blue-400 uppercase tracking-wide mb-2">Azioni consigliate</h5>
                       <ul className="space-y-1">
                         {actions.map((action, actionIndex) => (
-                          <li key={actionIndex} className="text-sm flex items-start text-slate-700">
+                          <li key={actionIndex} className="text-sm flex items-start text-white">
                             <svg 
                               xmlns="http://www.w3.org/2000/svg" 
                               width="24" 
@@ -204,7 +204,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                               strokeWidth="2" 
                               strokeLinecap="round" 
                               strokeLinejoin="round"
-                              className="h-4 w-4 mr-2 text-primary mt-0.5 shrink-0"
+                              className="h-4 w-4 mr-2 text-blue-400 mt-0.5 shrink-0"
                             >
                               <path d="M5 12h14"/>
                               <path d="m12 5 7 7-7 7"/>
@@ -447,7 +447,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
 
         {/* Mostra le raccomandazioni unificate */}
         <div className="space-y-4">
-          <h3 className="text-lg font-semibold mb-2">{t('recommendations')}</h3>
           <div className="space-y-6">
             {formatContent(data?.data?.raccomandazioni)}
           </div>
