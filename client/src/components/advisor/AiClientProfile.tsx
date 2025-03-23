@@ -370,7 +370,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       </CardHeader>
       <CardContent className="space-y-6">
         {isUpToDate && (
-          <Alert variant="success" className="bg-green-50 border-green-200 mb-4">
+          <Alert className="bg-green-50 border-green-200 mb-4">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -392,18 +392,32 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             </AlertDescription>
           </Alert>
         )}
-        <div>
-          <h3 className="text-lg font-semibold mb-2">{t('insights')}</h3>
-          <div className="space-y-2">
-            {formatContent(data?.data?.approfondimenti)}
+
+        {/* Mostra le nuove raccomandazioni unificate se disponibili */}
+        {data?.data?.raccomandazioni ? (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-2">{t('recommendations')}</h3>
+            <div className="space-y-6">
+              {formatContent(data.data.raccomandazioni)}
+            </div>
           </div>
-        </div>
-        <div>
-          <h3 className="text-lg font-semibold mb-2">{t('suggestions')}</h3>
-          <div className="space-y-2">
-            {formatContent(data?.data?.suggerimenti)}
-          </div>
-        </div>
+        ) : (
+          // Fallback per retrocompatibilità: mostra i vecchi campi separati
+          <>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">{t('insights')}</h3>
+              <div className="space-y-2">
+                {formatContent(data?.data?.approfondimenti)}
+              </div>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold mb-2">{t('suggestions')}</h3>
+              <div className="space-y-2">
+                {formatContent(data?.data?.suggerimenti)}
+              </div>
+            </div>
+          </>
+        )}
       </CardContent>
     </Card>
   );

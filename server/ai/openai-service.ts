@@ -14,11 +14,15 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 interface ProfileItem {
   title: string;
   description: string;
+  actions?: string[]; // Azioni specifiche che il consulente può intraprendere
 }
 
 interface AiClientProfile {
-  approfondimenti: ProfileItem[] | string; // Preferibilmente array di oggetti, stringa per retrocompatibilità
-  suggerimenti: ProfileItem[] | string; // Preferibilmente array di oggetti, stringa per retrocompatibilità
+  raccomandazioni: ProfileItem[] | string; // Nuovo formato unificato che include sia insight che azioni
+  
+  // Campi legacy per retrocompatibilità
+  approfondimenti?: ProfileItem[] | string;
+  suggerimenti?: ProfileItem[] | string;
 }
 
 /**
@@ -53,23 +57,38 @@ export async function generateClientProfile(
         messages: [
           {
             role: 'system',
-            content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo arricchito con approfondimenti e suggerimenti.
-            
-Rispondi in italiano, in formato JSON con due campi principali:
-- "approfondimenti": un array di oggetti con campi "title" e "description"
-- "suggerimenti": un array di oggetti con campi "title" e "description"
+            content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera raccomandazioni finanziarie utili.
 
-IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze del cliente nel tempo, dai sempre priorità alle informazioni più recenti, in quanto rappresentano l'evoluzione più attuale delle preferenze e della situazione del cliente.
+Rispondi in italiano, in formato JSON con un campo principale:
+- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
+
+Ogni raccomandazione deve contenere:
+1. Un titolo chiaro che identifica un aspetto importante del profilo del cliente o un'opportunità
+2. Una descrizione approfondita che spiega il razionale e il contesto
+3. Un array "actions" con 2-3 azioni specifiche e concrete che il consulente dovrebbe intraprendere
+
+IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze del cliente nel tempo, dai sempre priorità alle informazioni più recenti.
+
+Ogni raccomandazione deve essere autosufficiente e completa. Non dividere le informazioni in "approfondimenti" e "suggerimenti" separati, ma integra l'analisi e le azioni consigliate in un'unica raccomandazione coerente.
+
+Le azioni devono essere:
+- Specifiche e pratiche (es. "Organizzare una sessione per discutere specifiche opzioni di diversificazione in ETF con esposizione ai mercati emergenti")
+- Realizzabili (con dettagli concreti)
+- Rilevanti per il cliente in questione
+- Tempestive (quando possibile, indicare una sequenza o priorità)
 
 Esempio di formato di risposta:
 {
-  "approfondimenti": [
-    { "title": "Profilo di Rischio Aggressivo", "description": "Il cliente mostra una forte propensione al rischio come evidenziato dalle sue scelte di investimento..." },
-    { "title": "Focus sulla Pianificazione Patrimoniale", "description": "L'interesse principale del cliente è la pianificazione patrimoniale (punteggio 5/5)..." }
-  ],
-  "suggerimenti": [
-    { "title": "Diversificazione del Portafoglio", "description": "Considerando l'alta concentrazione in azioni tech e immobili, suggerirei di..." },
-    { "title": "Strategie di Pianificazione Fiscale", "description": "Dato il focus sulla pianificazione patrimoniale, sarebbe utile esplorare..." }
+  "raccomandazioni": [
+    {
+      "title": "Ottimizzazione del portafoglio ad alto rischio",
+      "description": "Il cliente presenta un profilo di rischio aggressivo e attualmente ha una forte concentrazione in azioni tecnologiche USA (50.000€) e un immobile a Milano (120.000€). Questa allocazione mostra uno sbilanciamento geografico e settoriale che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
+      "actions": [
+        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario, mantenendo l'esposizione al rischio ma migliorando la diversificazione geografica",
+        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali per migliorare la liquidità e diversificazione del patrimonio reale",
+        "Presentare un'analisi di scenario che mostri la performance storica del portafoglio attuale vs. quello diversificato proposto"
+      ]
+    }
   ]
 }`
           },
@@ -124,9 +143,9 @@ Esempio di formato di risposta:
       
       // Se non riesci a parsare il JSON, crea un oggetto formattato manualmente
       // cercando di separare gli approfondimenti dai suggerimenti nel testo
-      const sections = content.split(/\n\s*#{1,3}\s*Suggerimenti/i);
+      const sections = content.split(/\n\s*#{1,3}\s*Suggerimenti|Raccomandazioni|Azioni/i);
       
-      // Crea array di oggetti con title/description
+      // Crea array di oggetti con title/description e actions
       const formatTextToObjects = (text: string) => {
         const lines = text.split(/\n+/).filter(line => line.trim());
         const result = [];
@@ -137,14 +156,38 @@ Esempio di formato di risposta:
           if (line.startsWith('- ') || line.startsWith('* ') || /^\d+\./.test(line)) {
             const title = line.replace(/^[-*\d.]\s+/, '');
             let description = '';
+            let actions: string[] = [];
             
-            // Se c'è una riga successiva, usala come descrizione
-            if (i + 1 < lines.length && !lines[i+1].startsWith('- ') && !lines[i+1].startsWith('* ') && !/^\d+\./.test(lines[i+1])) {
-              description = lines[i+1].trim();
-              i++; // Salta la prossima riga
+            // Raccogliamo le righe successive che sembrano essere descrizioni o azioni
+            let j = i + 1;
+            while (j < lines.length) {
+              const nextLine = lines[j].trim();
+              
+              // Se la linea inizia con un nuovo punto, abbiamo raggiunto un nuovo elemento
+              if (nextLine.startsWith('- ') || nextLine.startsWith('* ') || /^\d+\./.test(nextLine)) {
+                break;
+              }
+              
+              // Se la linea contiene "Azione:" o "Action:" o inizia con "→", la trattiamo come un'azione
+              if (nextLine.includes("Azione:") || nextLine.includes("Action:") || nextLine.startsWith("→") || nextLine.startsWith("->")) {
+                actions.push(nextLine.replace(/^(→|->|Azione:|Action:)\s*/, '').trim());
+              } else {
+                // Altrimenti, aggiungiamola alla descrizione
+                if (description) description += ' '; // Spazio tra paragrafi
+                description += nextLine;
+              }
+              
+              j++;
             }
             
-            result.push({ title, description });
+            // Aggiorniamo i per saltare le righe che abbiamo già analizzato
+            i = j - 1;
+            
+            result.push({ 
+              title, 
+              description,
+              actions: actions.length > 0 ? actions : undefined
+            });
           }
         }
         
@@ -159,19 +202,45 @@ Esempio di formato di risposta:
         return result;
       };
       
-      const approfondimentiText = sections[0].replace(/\s*#{1,3}\s*Approfondimenti\s*/i, '').trim();
-      const suggerimentiText = sections.length > 1 ? sections[1].trim() : 'Nessun suggerimento disponibile.';
+      // Estrai il testo per le raccomandazioni/approfondimenti
+      const mainText = sections[0].replace(/\s*#{1,3}\s*(Approfondimenti|Raccomandazioni)\s*/i, '').trim();
       
+      // Crea il nuovo formato unificato
       parsedData = {
-        approfondimenti: formatTextToObjects(approfondimentiText),
-        suggerimenti: formatTextToObjects(suggerimentiText)
+        raccomandazioni: formatTextToObjects(mainText),
+        
+        // Manteniamo anche i vecchi campi per retrocompatibilità
+        approfondimenti: formatTextToObjects(mainText),
+        suggerimenti: sections.length > 1 
+          ? formatTextToObjects(sections[1].trim()) 
+          : [{ title: "Nota", description: "Nessun suggerimento specifico disponibile." }]
       };
     }
     
-    // Conserva il tipo originale della risposta senza forzare la conversione a stringa
+    // Gestisci sia il nuovo formato che quello vecchio per retrocompatibilità
+    
+    // Se i dati sono nel nuovo formato (raccomandazioni)
+    if (parsedData.raccomandazioni) {
+      return {
+        raccomandazioni: parsedData.raccomandazioni
+      };
+    }
+    
+    // Se i dati sono nel vecchio formato, convertili nel nuovo formato
+    if (parsedData.approfondimenti || parsedData.suggerimenti) {
+      // Convertili nel nuovo formato per retrocompatibilità
+      return {
+        raccomandazioni: parsedData.raccomandazioni || [],
+        approfondimenti: parsedData.approfondimenti || '',
+        suggerimenti: parsedData.suggerimenti || ''
+      };
+    }
+    
+    // Fallback: restituisci un oggetto vuoto
     return {
-      approfondimenti: parsedData.approfondimenti || '',
-      suggerimenti: parsedData.suggerimenti || ''
+      raccomandazioni: [],
+      approfondimenti: '',
+      suggerimenti: ''
     };
   } catch (error) {
     console.error("Error generating client profile:", error);
@@ -221,19 +290,36 @@ ${client.estatePlanningInterest ? `- Pianificazione patrimoniale: ${client.estat
   // Aggiungi istruzioni specifiche per l'AI
   prompt += `
 # Istruzioni
-Analizza il profilo del cliente e la cronologia delle interazioni per creare:
+Analizza il profilo del cliente e la cronologia delle interazioni per creare delle raccomandazioni personalizzate.
 
-1. APPROFONDIMENTI: Una comprensione approfondita delle esigenze, degli obiettivi e del comportamento finanziario del cliente.
-2. SUGGERIMENTI: Proposte concrete per migliorare la consulenza finanziaria per questo cliente.
+Ogni raccomandazione deve:
+1. Identificare un aspetto rilevante del profilo finanziario del cliente
+2. Fornire una spiegazione contestualizzata che mostri comprensione della situazione
+3. Proporre 2-3 azioni concrete e specifiche che il consulente dovrebbe intraprendere
 
-Rispondi in italiano usando un formato JSON con due campi principali:
-- "approfondimenti": un array di oggetti con campi "title" e "description"
-- "suggerimenti": un array di oggetti con campi "title" e "description"
+Rispondi in italiano usando un formato JSON con un campo principale:
+- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
 
-IMPORTANTE: Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni contenute nelle interazioni più recenti quando ci sono informazioni contrastanti o evoluzione nelle preferenze del cliente.
+IMPORTANTE:
+- Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
+- Non separare approfondimenti e suggerimenti, ma integra analisi e azioni in un'unica raccomandazione.
+- Le azioni devono essere specifiche, realizzabili e rilevanti per questo cliente specifico.
+- Identifica 3-5 raccomandazioni significative.
 
-Evita di replicare i dati del profilo. Invece, fornisci insight che non siano immediatamente evidenti dai dati.
-Identifica almeno 3-4 approfondimenti e 3-4 suggerimenti significativi.
+Esempio di formato:
+{
+  "raccomandazioni": [
+    {
+      "title": "Ottimizzazione del portafoglio ad alto rischio",
+      "description": "Il cliente presenta un profilo di rischio aggressivo con concentrazione in azioni tech e immobili che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
+      "actions": [
+        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario",
+        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali",
+        "Presentare un'analisi di scenario comparativa tra portafoglio attuale e proposta diversificata"
+      ]
+    }
+  ]
+}
 `;
 
   return prompt;
