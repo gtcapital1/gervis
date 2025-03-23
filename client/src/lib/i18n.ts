@@ -40,7 +40,17 @@ const resourcesIt = {
       created: "Creato il",
       no_priorities_title: "Nessuna priorità disponibile",
       no_priorities_message: "Non ci sono priorità disponibili al momento. Genera nuove priorità basate sui dati dei clienti e le tendenze di mercato.",
-      generate_priorities: "Genera priorità"
+      generate_priorities: "Genera priorità",
+      lastUpdate: "Ultimo aggiornamento",
+      retry: "Riprova",
+      errorTitle: "Errore nel caricamento delle priorità",
+      errorDescription: "Si è verificato un errore durante il caricamento delle priorità. Riprova più tardi.",
+      noPrioritiesTitle: "Nessuna priorità disponibile",
+      noPrioritiesDescription: "Non ci sono priorità disponibili al momento. Genera nuove priorità basate sui dati dei clienti e le tendenze di mercato.",
+      markAsRead: "Segna come letto",
+      source: "Fonte",
+      sourceDetails: "Dettagli fonte",
+      openArticle: "Apri articolo"
     },
     admin: {
       admin_panel: "Pannello Amministratore",
@@ -689,7 +699,7 @@ const resourcesEn = {
   },
   translation: {
     spark: {
-      title: "Spark Dashboard",
+      title: "Spark",
       description: "Your daily priorities based on client data and market trends",
       refresh: "Refresh",
       refresh_success: "Refresh successful",
@@ -706,7 +716,17 @@ const resourcesEn = {
       created: "Created on",
       no_priorities_title: "No priorities available",
       no_priorities_message: "There are no priorities available at the moment. Generate new priorities based on client data and market trends.",
-      generate_priorities: "Generate priorities"
+      generate_priorities: "Generate priorities",
+      lastUpdate: "Last update",
+      retry: "Try again",
+      errorTitle: "Error loading priorities",
+      errorDescription: "An error occurred while loading priorities. Please try again later.",
+      noPrioritiesTitle: "No priorities available",
+      noPrioritiesDescription: "There are no priorities available at the moment. Generate new priorities based on client data and market trends.",
+      markAsRead: "Mark as read",
+      source: "Source",
+      sourceDetails: "Source details",
+      openArticle: "Open article"
     },
     admin: {
       admin_panel: "Admin Panel",

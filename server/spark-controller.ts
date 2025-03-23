@@ -231,8 +231,8 @@ export async function generateSparkPriorities(req: Request, res: Response) {
         apiKey: process.env.OPENAI_API_KEY
       });
       
-      // Invece di attendere la risposta OpenAI per ogni cliente, generiamo 10 priorità selezionate casualmente
-      const randomPriorities = generateRandomPriorities(clients, financialNews, 10);
+      // Invece di attendere la risposta OpenAI per ogni cliente, generiamo fino a 20 priorità selezionate casualmente
+      const randomPriorities = generateRandomPriorities(clients, financialNews, 20);
       
       // Salviamo le priorità generate nel database
       for (const priority of randomPriorities) {
@@ -354,14 +354,26 @@ function getRandomItems<T>(items: T[], count: number): T[] {
 
 /**
  * Generate random priorities for testing or fallback
+ * Ora genera multiple idee per ogni cliente, fino a count totale
  */
 function generateRandomPriorities(clients: Client[], news: any[], count: number) {
-  const selectedClients = getRandomItems(clients, count);
-  const selectedNews = getRandomItems(news, count);
+  const result = [];
+  // Assicuriamoci di avere almeno qualche cliente e qualche notizia
+  if (clients.length === 0 || news.length === 0) {
+    return [];
+  }
   
-  return selectedClients.map((client, index) => {
-    const newsItem = selectedNews[index % selectedNews.length];
-    
+  // Quante idee generare per cliente (minimo 2, se possibile)
+  const ideasPerClient = Math.max(2, Math.min(5, Math.floor(count / clients.length)));
+  debug(`Generazione di ${ideasPerClient} idee per cliente (totale target: ${count})`);
+  
+  // Selezioniamo un sottoinsieme di clienti
+  const selectedClients = getRandomItems(clients, Math.ceil(count / ideasPerClient));
+  // Selezioniamo un numero maggiore di notizie per avere più varietà
+  const selectedNews = getRandomItems(news, Math.min(news.length, count * 2));
+  
+  // Per ogni cliente scelto, generiamo ideasPerClient idee
+  selectedClients.forEach((client) => {
     // Assicurati che clientId sia sempre un numero
     // Questo è fondamentale per evitare errori di tipo in PostgreSQL
     let clientId: number;
@@ -385,20 +397,30 @@ function generateRandomPriorities(clients: Client[], news: any[], count: number)
       clientId = -1;
     }
     
-    // Adattamento al formato FMP (diverso da GNews)
-    const newsTitle = newsItem.title;
-    const newsUrl = newsItem.url;
-    const sourceName = newsItem.site || "Financial News"; // FMP usa 'site' invece di 'source.name'
-    
-    return {
-      title: generatePriorityTitle(client, { title: newsTitle, url: newsUrl }),
-      description: generatePriorityDescription(client, { title: newsTitle, url: newsUrl }),
-      clientId: clientId, // Garantito come numero
-      clientName: `${client.firstName} ${client.lastName}`,
-      source: sourceName,
-      sourceUrl: newsUrl
-    };
+    // Per ogni cliente, generiamo multiple idee con notizie diverse
+    for (let i = 0; i < ideasPerClient; i++) {
+      // Scegli una notizia random differente per ogni idea
+      const newsItem = selectedNews[Math.floor(Math.random() * selectedNews.length)];
+      if (!newsItem) continue; // Skip in caso di problemi
+      
+      // Adattamento al formato FMP (diverso da GNews)
+      const newsTitle = newsItem.title;
+      const newsUrl = newsItem.url;
+      const sourceName = newsItem.site || "Financial News"; // FMP usa 'site' invece di 'source.name'
+      
+      result.push({
+        title: generatePriorityTitle(client, { title: newsTitle, url: newsUrl }),
+        description: generatePriorityDescription(client, { title: newsTitle, url: newsUrl }),
+        clientId: clientId, // Garantito come numero
+        clientName: `${client.firstName} ${client.lastName}`,
+        source: sourceName,
+        sourceUrl: newsUrl
+      });
+    }
   });
+  
+  // Limita al numero massimo richiesto
+  return result.slice(0, count);
 }
 
 /**
