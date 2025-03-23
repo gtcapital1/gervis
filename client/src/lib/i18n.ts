@@ -23,7 +23,7 @@ const resourcesIt = {
   },
   translation: {
     spark: {
-      title: "Dashboard Spark",
+      title: "Spark",
       description: "Le tue priorità giornaliere basate sui dati dei clienti e le tendenze di mercato",
       refresh: "Aggiorna",
       refresh_success: "Aggiornamento riuscito",

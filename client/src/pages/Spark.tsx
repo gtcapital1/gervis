@@ -143,7 +143,7 @@ export default function Spark() {
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">{t("spark.title")}</h1>
+            <h1 className="text-3xl font-bold text-black dark:text-white">{t("spark.title")}</h1>
             <p className="text-muted-foreground mt-1">
               {t("spark.description")}
             </p>
