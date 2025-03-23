@@ -314,7 +314,7 @@ function generatePriorityTitle(client: Client, news: { title: string; url: strin
 /**
  * Genera una descrizione per la priorità basata sui dati del cliente e sulla notizia
  */
-function generatePriorityDescription(client: Client, news: any): string {
+function generatePriorityDescription(client: Client, news: { title: string; url: string }): string {
   const newsKeywords = extractKeywords(news.title.toLowerCase());
   
   // Genera una descrizione basata sulla notizia e sugli interessi del cliente
