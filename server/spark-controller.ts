@@ -97,10 +97,21 @@ export async function getSparkPriorities(req: Request, res: Response) {
 
     const priorities = await storage.getSparkPriorities(req.user.id);
     
-    return res.json({ success: true, priorities });
+    // Assicuriamoci che priorities sia sempre un array
+    const safeResponse = { 
+      success: true, 
+      priorities: Array.isArray(priorities) ? priorities : [] 
+    };
+    
+    return res.json(safeResponse);
   } catch (error) {
     console.error("Error fetching Spark priorities:", error);
-    return res.status(500).json({ success: false, message: "Error fetching priorities" });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Error fetching priorities", 
+      error: error instanceof Error ? error.message : String(error),
+      priorities: [] 
+    });
   }
 }
 
@@ -250,10 +261,17 @@ export async function markPriorityAsRead(req: Request, res: Response) {
 
     const updatedPriority = await storage.updateSparkPriorityStatus(priorityId, false);
     
-    return res.json({ success: true, priority: updatedPriority });
+    return res.json({ 
+      success: true, 
+      priority: updatedPriority || { id: priorityId, isNew: false } 
+    });
   } catch (error) {
     console.error("Error marking priority as read:", error);
-    return res.status(500).json({ success: false, message: "Failed to update priority" });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Failed to update priority",
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
@@ -274,10 +292,14 @@ export async function deletePriority(req: Request, res: Response) {
 
     const success = await storage.deleteSparkPriority(priorityId);
     
-    return res.json({ success });
+    return res.json({ success: success === true });
   } catch (error) {
     console.error("Error deleting priority:", error);
-    return res.status(500).json({ success: false, message: "Failed to delete priority" });
+    return res.status(500).json({ 
+      success: false, 
+      message: "Failed to delete priority",
+      error: error instanceof Error ? error.message : String(error)
+    });
   }
 }
 
