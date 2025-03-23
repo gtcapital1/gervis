@@ -632,7 +632,44 @@ export async function getFinancialNews(req: Request, res: Response) {
     
     if (Array.isArray(data)) {
       console.log(`DEBUG-MARKET: Notizie ricevute: ${data.length} items - ${new Date().toISOString()}`);
-      newsItems = data.map((item: any) => ({
+      
+      // Whitelist delle testate giornalistiche più rilevanti
+      const trustedSourcesWhitelist = [
+        'Bloomberg', 
+        'Reuters', 
+        'CNBC', 
+        'Wall Street Journal', 
+        'Financial Times', 
+        'MarketWatch',
+        'The Economist',
+        'Seeking Alpha',
+        'Yahoo Finance',
+        'Fortune',
+        'Barron\'s',
+        'Business Insider',
+        'Investing.com',
+        'The Motley Fool',
+        'Financial Post',
+        'Il Sole 24 Ore',
+        'Milano Finanza'
+      ];
+      
+      // Filtra le notizie solo dalle fonti attendibili
+      const filteredData = limit ? 
+        data.filter((item: any) => trustedSourcesWhitelist.some(source => 
+          item.site && item.site.includes(source)
+        )).slice(0, parseInt(limit)) :
+        data.filter((item: any) => trustedSourcesWhitelist.some(source => 
+          item.site && item.site.includes(source)
+        ));
+      
+      console.log(`DEBUG-MARKET: Notizie filtrate per fonti affidabili: ${filteredData.length} items - ${new Date().toISOString()}`);
+      
+      // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
+      const finalData = filteredData.length > 0 ? filteredData : 
+        (limit ? data.slice(0, parseInt(limit)) : data);
+      
+      newsItems = finalData.map((item: any) => ({
         title: item.title,
         description: item.text,
         url: item.url,
