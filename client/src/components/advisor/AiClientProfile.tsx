@@ -108,7 +108,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_analysis_description')}</CardDescription>
+          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Skeleton className="h-8 w-full" />
@@ -130,7 +130,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_analysis_description')}</CardDescription>
+          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
@@ -168,7 +168,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_analysis_description')}</CardDescription>
+          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col items-center justify-center py-8 text-center space-y-6">
@@ -203,7 +203,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       <Card>
         <CardHeader>
           <CardTitle>Sigmund</CardTitle>
-          <CardDescription>{t('ai_analysis_description')}</CardDescription>
+          <CardDescription>{t('ai_profile_description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Alert>
@@ -234,7 +234,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             {t('refresh')}
           </Button>
         </CardTitle>
-        <CardDescription>{t('ai_analysis_description')}</CardDescription>
+        <CardDescription>{t('ai_profile_description')}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         <div>
