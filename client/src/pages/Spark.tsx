@@ -192,7 +192,7 @@ export default function Spark() {
         <Card className="mt-6">
           <CardHeader className="pb-2">
             <div className="flex justify-between">
-              <CardTitle>Debug Prompt</CardTitle>
+              <CardTitle className="text-black">Debug Prompt</CardTitle>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -202,13 +202,13 @@ export default function Spark() {
               </Button>
             </div>
             <CardDescription>
-              <p>Lunghezza totale: {promptData.promptLength} caratteri</p>
-              <p>Token stimati: {promptData.estimatedTokens}</p>
+              <p className="text-black">Lunghezza totale: {promptData.promptLength} caratteri</p>
+              <p className="text-black">Token stimati: {promptData.estimatedTokens}</p>
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto max-h-[500px]">
-              <pre className="text-xs whitespace-pre-wrap">{promptData.prompt}</pre>
+            <div className="bg-white p-4 rounded-md overflow-auto max-h-[500px] border border-gray-200">
+              <pre className="text-xs whitespace-pre-wrap text-black">{promptData.prompt}</pre>
             </div>
           </CardContent>
         </Card>

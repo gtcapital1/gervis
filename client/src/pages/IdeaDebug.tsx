@@ -64,9 +64,9 @@ export default function IdeaDebug() {
               </div>
               
               <div className="space-y-2">
-                <h3 className="text-lg font-medium">Contenuto Prompt</h3>
+                <h3 className="text-lg font-medium text-black">Contenuto Prompt</h3>
                 <div className="bg-white p-4 rounded-md overflow-auto max-h-[600px] border border-gray-200">
-                  <pre className="text-xs whitespace-pre-wrap text-black">{data.prompt}</pre>
+                  <pre className="text-xs whitespace-pre-wrap text-black">{data?.prompt}</pre>
                 </div>
               </div>
             </div>
