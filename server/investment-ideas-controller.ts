@@ -38,72 +38,23 @@ export async function getPromptForDebug(req: Request, res: Response) {
       url: article.url
     }));
 
-    // 5. Prepara i dati dei clienti completi con profilo Sigmund, asset e profilo investimento
-    const clientDataEnriched = await Promise.all(clients.map(async client => {
-      // Ottenere gli asset del cliente
-      const assets = await storage.getAssetsByClient(client.id);
-      
+    // 5. Prepara i dati semplificati dei clienti - solo nome, cognome e profilo Sigmund
+    const clientDataSimplified = await Promise.all(clients.map(async client => {
       // Ottenere il profilo Sigmund/AI del cliente
       const aiProfile = await storage.getAiProfile(client.id);
       
-      // Calcolare l'allocazione degli asset per categoria
-      const assetAllocation: Record<string, number> = {};
-      let totalAssetValue = 0;
-      
-      if (assets && assets.length > 0) {
-        // Calcola il valore totale 
-        totalAssetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-        
-        // Raggruppa gli asset per categoria
-        assets.forEach(asset => {
-          const category = asset.category;
-          if (!assetAllocation[category]) {
-            assetAllocation[category] = 0;
-          }
-          assetAllocation[category] += asset.value;
-        });
-        
-        // Converti in percentuali
-        Object.keys(assetAllocation).forEach(key => {
-          assetAllocation[key] = totalAssetValue > 0 
-            ? Math.round((assetAllocation[key] / totalAssetValue) * 100) 
-            : 0;
-        });
-      }
-      
-      // Prepara dati delle priorità di investimento (valori numerici da 1-5)
-      const investmentPriorities = {
-        retirement: typeof client.retirementInterest === 'number' ? client.retirementInterest : 0,
-        wealthGrowth: typeof client.wealthGrowthInterest === 'number' ? client.wealthGrowthInterest : 0,
-        incomeGeneration: typeof client.incomeGenerationInterest === 'number' ? client.incomeGenerationInterest : 0,
-        capitalPreservation: typeof client.capitalPreservationInterest === 'number' ? client.capitalPreservationInterest : 0,
-        estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
-      };
-
-      // Restituisci il cliente con dati arricchiti - rimosse le chiavi investmentGoals e personalInterests
+      // Restituisci solo i dati essenziali del cliente
       return {
         id: client.id,
         firstName: client.firstName,
         lastName: client.lastName,
-        email: client.email,
-        // Dati demografici (se disponibili)
-        ...(typeof client.age === 'number' ? { age: client.age } : {}),
-        ...(client.occupation ? { occupation: client.occupation } : {}),
-        // Profilo rischio
-        riskProfile: client.riskProfile,
-        investmentHorizon: client.investmentHorizon,
-        // Priorità di investimento (valori numerici da 1-5)
-        investmentPriorities,
-        // Asset allocation
-        assetAllocation,
-        totalAssetValue,
-        // Profilo Sigmund
-        sigmundProfile: aiProfile ? aiProfile.profileData : null
+        // Il profilo Sigmund (precedentemente elaborato dall'AI)
+        profile: aiProfile ? aiProfile.profileData : null
       };
     }));
 
-    // 6. Costruisci il prompt per OpenAI con i dati arricchiti
-    const prompt = generatePrompt(newsData, clientDataEnriched);
+    // 6. Costruisci il prompt per OpenAI con i dati semplificati
+    const prompt = generatePrompt(newsData, clientDataSimplified);
     
     // 7. Stima dei token
     const estimatedTokens = Math.ceil(prompt.length / 4);
@@ -129,31 +80,29 @@ export async function getPromptForDebug(req: Request, res: Response) {
 function generatePrompt(newsData: any[], clientData: any[]) {
   return `
 Sei un esperto analista finanziario e consulente per investimenti di alto livello.
-Ti fornisco un insieme di notizie finanziarie e i profili di alcuni clienti.
+Ti fornisco un insieme di notizie finanziarie e profili essenziali di alcuni clienti.
+
 Il tuo compito è:
 1. Selezionare le 5 idee d'investimento più rilevanti basandoti sulle notizie.
 2. Per ogni idea, genera:
    - Un titolo esplicativo (massimo 6-8 parole).
    - Una spiegazione dettagliata e strutturata dell'opportunità d'investimento (5-7 frasi) che includa:
-      * Contesto macroeconomico e geopolitico dell'idea (es. "Tightening supply due to Iran sanctions and OPEC+ output curbs supports a bullish crude outlook")
+      * Contesto macroeconomico e geopolitico dell'idea
       * Analisi delle tendenze del settore rilevanti
       * Fattori di rischio e potenziali rendimenti
       * Prospettiva a medio e lungo termine
    - Il link (URL) della notizia di riferimento che ha ispirato l'idea.
-   - Una lista di clienti potenzialmente affini. Analizza i profili dei clienti forniti e, per ciascuno, includi:
+   - Una lista di clienti potenzialmente affini. Per ciascuno, includi:
        - "clientId": l'ID del cliente,
        - "reason": una spiegazione dettagliata (4-5 frasi) che analizzi specificatamente:
-           * Come l'idea si adatta al loro profilo di rischio specifico
-           * Come complementa i loro obiettivi di investimento dichiarati
-           * Come potrebbe integrare la loro attuale strategia di investimento
-           * Fai SEMPRE riferimento esplicito alle raccomandazioni di Sigmund presenti nel sigmundProfile del cliente
+           * Come l'idea si adatta al cliente considerando il suo profilo
+           * Come questa idea implementa le raccomandazioni presenti nel suo profilo
+           * Quali benefici specifici potrebbe ottenere il cliente da questa idea
 
-IMPORTANTE PER IL MATCHING DEI CLIENTI:
-- Utilizza attivamente i dati del profilo Sigmund (sigmundProfile) che contiene raccomandazioni generate dall'AI basate sulle interazioni precedenti con il cliente e la sua situazione personale
-- In particolare, cerca corrispondenze specifiche tra l'idea d'investimento e le raccomandazioni fornite da Sigmund
-- Quando trovi una corrispondenza tra un'idea e le raccomandazioni di Sigmund, menzionala esplicitamente nella spiegazione per il cliente
-- Spiega chiaramente come l'idea d'investimento supporta o implementa le raccomandazioni di Sigmund
-- Se Sigmund ha identificato interessi personali o obiettivi specifici del cliente, usali per giustificare la rilevanza dell'idea
+IMPORTANTE:
+- Per ogni cliente, il campo 'profile' contiene le raccomandazioni generate precedentemente sulla base di un'analisi approfondita dei dati del cliente
+- Utilizza queste raccomandazioni come principale criterio per determinare la rilevanza di un'idea d'investimento
+- Non è necessario menzionare esplicitamente la fonte di queste raccomandazioni nel testo
 
 Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
 {
@@ -165,7 +114,7 @@ Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
       "matchedClients": [
         {
           "clientId": numero,
-          "reason": "Spiegazione dettagliata del perché l'idea è adatta a questo cliente specifico con riferimento alle raccomandazioni di Sigmund"
+          "reason": "Spiegazione dettagliata del perché l'idea è adatta a questo cliente specifico"
         }
       ]
     }
@@ -210,72 +159,23 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       url: article.url
     }));
 
-    // 5. Prepara i dati dei clienti completi con profilo Sigmund, asset e profilo investimento
-    const clientDataEnriched = await Promise.all(clients.map(async client => {
-      // Ottenere gli asset del cliente
-      const assets = await storage.getAssetsByClient(client.id);
-      
+    // 5. Prepara i dati semplificati dei clienti - solo nome, cognome e profilo Sigmund
+    const clientDataSimplified = await Promise.all(clients.map(async client => {
       // Ottenere il profilo Sigmund/AI del cliente
       const aiProfile = await storage.getAiProfile(client.id);
       
-      // Calcolare l'allocazione degli asset per categoria
-      const assetAllocation: Record<string, number> = {};
-      let totalAssetValue = 0;
-      
-      if (assets && assets.length > 0) {
-        // Calcola il valore totale 
-        totalAssetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-        
-        // Raggruppa gli asset per categoria
-        assets.forEach(asset => {
-          const category = asset.category;
-          if (!assetAllocation[category]) {
-            assetAllocation[category] = 0;
-          }
-          assetAllocation[category] += asset.value;
-        });
-        
-        // Converti in percentuali
-        Object.keys(assetAllocation).forEach(key => {
-          assetAllocation[key] = totalAssetValue > 0 
-            ? Math.round((assetAllocation[key] / totalAssetValue) * 100) 
-            : 0;
-        });
-      }
-      
-      // Prepara dati delle priorità di investimento (valori numerici da 1-5)
-      const investmentPriorities = {
-        retirement: typeof client.retirementInterest === 'number' ? client.retirementInterest : 0,
-        wealthGrowth: typeof client.wealthGrowthInterest === 'number' ? client.wealthGrowthInterest : 0,
-        incomeGeneration: typeof client.incomeGenerationInterest === 'number' ? client.incomeGenerationInterest : 0,
-        capitalPreservation: typeof client.capitalPreservationInterest === 'number' ? client.capitalPreservationInterest : 0,
-        estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
-      };
-
-      // Restituisci il cliente con dati arricchiti - rimosse le chiavi investmentGoals e personalInterests
+      // Restituisci solo i dati essenziali del cliente
       return {
         id: client.id,
         firstName: client.firstName,
         lastName: client.lastName,
-        email: client.email,
-        // Dati demografici (se disponibili)
-        ...(typeof client.age === 'number' ? { age: client.age } : {}),
-        ...(client.occupation ? { occupation: client.occupation } : {}),
-        // Profilo rischio
-        riskProfile: client.riskProfile,
-        investmentHorizon: client.investmentHorizon,
-        // Priorità di investimento (valori numerici da 1-5)
-        investmentPriorities,
-        // Asset allocation
-        assetAllocation,
-        totalAssetValue,
-        // Profilo Sigmund
-        sigmundProfile: aiProfile ? aiProfile.profileData : null
+        // Il profilo Sigmund (precedentemente elaborato dall'AI)
+        profile: aiProfile ? aiProfile.profileData : null
       };
     }));
 
-    // 6. Costruisci il prompt per OpenAI con i dati arricchiti
-    const prompt = generatePrompt(newsData, clientDataEnriched);
+    // 6. Costruisci il prompt per OpenAI con i dati semplificati
+    const prompt = generatePrompt(newsData, clientDataSimplified);
 
     // 7. Invia il prompt a OpenAI (utilizzando GPT-3.5-turbo senza limite di token)
     let openaiResponse;
@@ -285,7 +185,7 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
         messages: [
           { 
             role: "system", 
-            content: "Sei un esperto analista finanziario e consulente per investimenti di alto livello. Il tuo compito è fornire idee d'investimento personalizzate basate su notizie finanziarie recenti e profili dei clienti. Presta particolare attenzione ai profili arricchiti da Sigmund, che contengono raccomandazioni basate sulle interazioni precedenti con il cliente. Queste raccomandazioni di Sigmund sono estremamente importanti per determinare la rilevanza di un'idea d'investimento per un cliente specifico." 
+            content: "Sei un esperto analista finanziario e consulente per investimenti di alto livello. Il tuo compito è fornire idee d'investimento personalizzate basate su notizie finanziarie recenti e profili dei clienti. I profili forniti contengono già raccomandazioni elaborate precedentemente basate sulle interazioni con i clienti. Usa queste raccomandazioni per abbinare le idee d'investimento ai clienti più adatti." 
           },
           { role: "user", content: prompt }
         ],
