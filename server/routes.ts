@@ -8,7 +8,7 @@ import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./e
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile } from "./ai/profile-controller";
 import { getSparkPriorities, generateSparkPriorities, markPriorityAsRead, deletePriority } from "./spark-controller";
-import { generateInvestmentIdeas } from "./investment-ideas-controller";
+import { generateInvestmentIdeas, getPromptForDebug } from "./investment-ideas-controller";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1436,6 +1436,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Generate investment ideas (new API)
   app.post('/api/ideas/generate', isAuthenticated, generateInvestmentIdeas);
+  
+  // Debug endpoint per vedere il prompt generato
+  app.get('/api/ideas/prompt-debug', isAuthenticated, getPromptForDebug);
 
   const httpServer = createServer(app);
   return httpServer;

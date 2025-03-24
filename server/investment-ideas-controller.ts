@@ -7,7 +7,8 @@ import { Client } from "@shared/schema";
 // Inizializza OpenAI con la chiave API
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-export async function generateInvestmentIdeas(req: Request, res: Response) {
+// Endpoint di debug per visualizzare il prompt
+export async function getPromptForDebug(req: Request, res: Response) {
   try {
     // 1. Verifica che l'utente sia autenticato
     if (!req.user || !req.user.id) {
@@ -24,7 +25,7 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
     }
 
     // 3. Recupera i dati dei clienti dell'advisor
-    const clients: Client[] = await storage.getClientsByAdvisor(req.user.id);
+    const clients = await storage.getClientsByAdvisor(req.user.id);
     if (!clients.length) {
       return res.status(404).json({ success: false, message: "No clients found for advisor" });
     }
@@ -48,9 +49,31 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
     }));
 
     // 6. Costruisci il prompt per OpenAI
-    // Il prompt chiede di generare 5 idee d'investimento,
-    // ciascuna con titolo, spiegazione, URL della notizia e una lista di clienti affini (ID + motivazione)
-    const prompt = `
+    const prompt = generatePrompt(newsData, clientData);
+    
+    // 7. Stima dei token
+    const estimatedTokens = Math.ceil(prompt.length / 4);
+    
+    // 8. Restituisci il prompt e la stima dei token
+    return res.json({
+      success: true,
+      prompt,
+      estimatedTokens,
+      promptLength: prompt.length
+    });
+  } catch (error) {
+    console.error("Error generating prompt for debug:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Error generating prompt",
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+// Funzione per generare il prompt con struttura riutilizzabile
+function generatePrompt(newsData: any[], clientData: any[]) {
+  return `
 Sei un esperto analista finanziario e consulente per investimenti di alto livello.
 Ti fornisco un insieme di notizie finanziarie e i profili di alcuni clienti.
 Il tuo compito è:
@@ -93,7 +116,51 @@ ${JSON.stringify(newsData, null, 2)}
 
 Client profiles:
 ${JSON.stringify(clientData, null, 2)}
-    `;
+  `;
+}
+
+export async function generateInvestmentIdeas(req: Request, res: Response) {
+  try {
+    // 1. Verifica che l'utente sia autenticato
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+
+    // 2. Scarica le notizie da Financial Modeling Prep (FMP)
+    const newsResponse = await axios.get(
+      `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=${process.env.FINANCIAL_API_KEY}`
+    );
+    const newsArticles = newsResponse.data;
+    if (!Array.isArray(newsArticles) || newsArticles.length === 0) {
+      return res.status(404).json({ success: false, message: "No news articles found" });
+    }
+
+    // 3. Recupera i dati dei clienti dell'advisor
+    const clients: Client[] = await storage.getClientsByAdvisor(req.user.id);
+    if (!clients.length) {
+      return res.status(404).json({ success: false, message: "No clients found for advisor" });
+    }
+
+    // 4. Prepara i dati delle notizie (campi rilevanti)
+    const newsData = newsArticles.map((article: any, index: number) => ({
+      index,
+      title: article.title,
+      description: article.text || article.description || "",
+      url: article.url
+    }));
+
+    // 5. Prepara i dati dei clienti per il matching intelligente
+    const clientData = clients.map(client => ({
+      id: client.id,
+      firstName: client.firstName,
+      lastName: client.lastName,
+      riskProfile: client.riskProfile,
+      investmentGoals: client.investmentGoals,
+      personalInterests: client.personalInterests
+    }));
+
+    // 6. Costruisci il prompt per OpenAI utilizzando il generatore di prompt comune
+    const prompt = generatePrompt(newsData, clientData);
 
     // 7. Invia il prompt a OpenAI (utilizzando GPT-3.5-turbo senza limite di token)
     let openaiResponse;
