@@ -14,9 +14,9 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // 2. Scarica le notizie da Financial Modeling Prep (FMP)
+    // 2. Scarica le notizie da Financial Modeling Prep (FMP) - limitato a 25 per ridurre il numero di token
     const newsResponse = await axios.get(
-      `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=${process.env.FINANCIAL_API_KEY}`
+      `https://financialmodelingprep.com/api/v3/stock_news?limit=25&apikey=${process.env.FINANCIAL_API_KEY}`
     );
     const newsArticles = newsResponse.data;
     if (!Array.isArray(newsArticles) || newsArticles.length === 0) {
@@ -29,62 +29,69 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       return res.status(404).json({ success: false, message: "No clients found for advisor" });
     }
 
-    // 4. Prepara i dati delle notizie (campi rilevanti)
-    const newsData = newsArticles.map((article: any, index: number) => ({
-      index,
-      title: article.title,
-      description: article.text || article.description || "",
-      url: article.url
-    }));
+    // 4. Prepara i dati delle notizie (campi rilevanti), limita la lunghezza della descrizione a 150 caratteri
+    const newsData = newsArticles.map((article: any, index: number) => {
+      const description = article.text || article.description || "";
+      return {
+        index,
+        title: article.title,
+        description: description.length > 150 ? description.substring(0, 150) + "..." : description,
+        url: article.url
+      };
+    });
 
     // 5. Prepara i dati dei clienti per il matching intelligente
-    const clientData = clients.map(client => ({
+    // Limitiamo a max 10 clienti per ridurre il numero di token
+    const maxClients = 10;
+    const limitedClients = clients.length > maxClients ? clients.slice(0, maxClients) : clients;
+    
+    const clientData = limitedClients.map(client => ({
       id: client.id,
       firstName: client.firstName,
       lastName: client.lastName,
       riskProfile: client.riskProfile,
-      investmentGoals: client.investmentGoals,
-      personalInterests: client.personalInterests
+      investmentGoals: client.investmentGoals ? 
+                        (Array.isArray(client.investmentGoals) ? 
+                         client.investmentGoals.slice(0, 3) : client.investmentGoals) : 
+                        null,
+      personalInterests: client.personalInterests ? 
+                         (Array.isArray(client.personalInterests) ? 
+                          client.personalInterests.slice(0, 3) : client.personalInterests) : 
+                         null
     }));
 
-    // 6. Costruisci il prompt per OpenAI
-    // Il prompt chiede di generare 5 idee d'investimento,
-    // ciascuna con titolo, spiegazione, URL della notizia e una lista di clienti affini (ID + motivazione)
+    // 6. Costruisci il prompt per OpenAI - ottimizzato per ridurre token
+    // Il prompt chiede di generare 3 idee d'investimento (ridotto da 5)
     const prompt = `
-Sei un esperto analista finanziario e consulente per investimenti.
-Ti fornisco un insieme di notizie finanziarie e i profili di alcuni clienti.
-Il tuo compito è:
-1. Selezionare le 5 idee d'investimento più rilevanti basandoti sulle notizie.
-2. Per ogni idea, genera:
-   - Un titolo esplicativo (massimo 6-8 parole).
-   - Un paragrafo che spiega in 2-3 frasi perché investire in questa opportunità.
-   - Il link (URL) della notizia di riferimento che ha ispirato l'idea.
-   - Una lista di clienti potenzialmente affini. Analizza i profili dei clienti forniti e, per ciascuno, includi:
-       - "clientId": l'ID del cliente,
-       - "reason": una breve spiegazione (1-2 frasi) sul perché il cliente è adatto (basato su riskProfile, obiettivi e interessi).
+Sei un esperto analista finanziario. Seleziona 3 idee d'investimento dalle notizie fornite.
+Per ogni idea genera:
+- Titolo (max 6 parole)
+- Spiegazione (1-2 frasi)
+- URL della notizia
+- Per ciascun cliente indicato, determina se è adatto e fornisci una breve motivazione (1 frase).
 
-Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
+Formato JSON di risposta:
 {
   "investmentIdeas": [
     {
-      "title": "Titolo dell'idea",
-      "explanation": "Paragrafo esplicativo sull'opportunità d'investimento",
-      "newsUrl": "Link della notizia usata",
+      "title": "Titolo breve",
+      "explanation": "Spiegazione concisa",
+      "newsUrl": "URL",
       "matchedClients": [
         {
-          "clientId": numero,
-          "reason": "Breve spiegazione del match"
+          "clientId": ID_NUMERICO,
+          "reason": "Motivazione breve"
         }
       ]
     }
   ]
 }
 
-News articles:
-${JSON.stringify(newsData, null, 2)}
+News:
+${JSON.stringify(newsData, null, 0)}
 
-Client profiles:
-${JSON.stringify(clientData, null, 2)}
+Clienti:
+${JSON.stringify(clientData, null, 0)}
     `;
 
     // 7. Invia il prompt a OpenAI (utilizzando GPT-4)
