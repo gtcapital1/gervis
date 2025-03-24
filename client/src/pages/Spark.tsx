@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert";
 import { 
   RefreshCw, AlertTriangle, 
-  Calendar, ExternalLink, Users, Link2, Cpu 
+  Calendar, ExternalLink, Users, Link2, Cpu, Code
 } from "lucide-react";
 import { 
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -47,6 +47,14 @@ interface InvestmentIdeasResponse {
   tokensUsed?: TokensUsed;
 }
 
+// Interfaccia per la risposta dell'endpoint di debug del prompt
+interface PromptDebugResponse {
+  success: boolean;
+  prompt: string;
+  promptLength: number;
+  estimatedTokens: number;
+}
+
 export default function Spark() {
   const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
@@ -55,6 +63,9 @@ export default function Spark() {
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [tokensUsed, setTokensUsed] = useState<TokensUsed | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showPrompt, setShowPrompt] = useState(false);
+  const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
+  const [promptData, setPromptData] = useState<PromptDebugResponse | null>(null);
   
   // Funzione per ottenere il locale corretto per date-fns
   const getLocale = () => {
@@ -92,6 +103,21 @@ export default function Spark() {
   const handleGenerateIdeas = () => {
     generateMutation.mutate();
   };
+  
+  // Funzione per caricare il prompt di debug
+  const loadPromptDebug = async () => {
+    setIsLoadingPrompt(true);
+    try {
+      const response = await apiRequest("/api/ideas/prompt-debug");
+      setPromptData(response as PromptDebugResponse);
+      setShowPrompt(true);
+    } catch (error) {
+      console.error("Errore nel caricamento del prompt:", error);
+      setErrorMessage("Errore nel caricamento del prompt di debug.");
+    } finally {
+      setIsLoadingPrompt(false);
+    }
+  };
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -119,14 +145,26 @@ export default function Spark() {
             </div>
           )}
         </div>
-        <Button 
-          onClick={handleGenerateIdeas} 
-          disabled={isGenerating}
-          className="flex gap-2"
-        >
-          <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
-          {t("spark.generateIdeas")}
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={loadPromptDebug}
+            disabled={isLoadingPrompt}
+            variant="outline"
+            className="flex gap-2"
+            title="Visualizza il prompt di debugging"
+          >
+            <Code className={`h-4 w-4 ${isLoadingPrompt ? "animate-spin" : ""}`} />
+            Debug
+          </Button>
+          <Button 
+            onClick={handleGenerateIdeas} 
+            disabled={isGenerating}
+            className="flex gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isGenerating ? "animate-spin" : ""}`} />
+            {t("spark.generateIdeas")}
+          </Button>
+        </div>
       </div>
 
       {/* Messaggio di errore specifico di token, se presente */}
@@ -147,6 +185,33 @@ export default function Spark() {
             </div>
           </AlertDescription>
         </Alert>
+      )}
+
+      {/* Sezione di debug del prompt */}
+      {showPrompt && promptData && (
+        <Card className="mt-6">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between">
+              <CardTitle>Debug Prompt</CardTitle>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setShowPrompt(false)}
+              >
+                Chiudi
+              </Button>
+            </div>
+            <CardDescription>
+              <p>Lunghezza totale: {promptData.promptLength} caratteri</p>
+              <p>Token stimati: {promptData.estimatedTokens}</p>
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto max-h-[500px]">
+              <pre className="text-xs whitespace-pre-wrap">{promptData.prompt}</pre>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {isGenerating ? (
