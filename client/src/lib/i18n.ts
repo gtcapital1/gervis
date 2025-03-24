@@ -58,7 +58,9 @@ const resourcesIt = {
       openArticle: "Apri articolo",
       sourceArticle: "Articolo fonte",
       matchedClients: "Clienti associati",
-      showClients: "Mostra clienti"
+      showClients: "Mostra clienti",
+      promptTokens: "Token di prompt",
+      completionTokens: "Token di risposta"
     },
     admin: {
       admin_panel: "Pannello Amministratore",
