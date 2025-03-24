@@ -742,7 +742,9 @@ const resourcesEn = {
       openArticle: "Open article",
       sourceArticle: "Source article",
       matchedClients: "Matched clients",
-      showClients: "Show clients"
+      showClients: "Show clients",
+      promptTokens: "Prompt tokens",
+      completionTokens: "Completion tokens"
     },
     admin: {
       admin_panel: "Admin Panel",
