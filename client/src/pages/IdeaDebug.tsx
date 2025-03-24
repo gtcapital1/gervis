@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -10,10 +10,26 @@ import { AlertTriangle } from "lucide-react";
 export default function IdeaDebug() {
   const { t } = useTranslation();
   const [showPrompt, setShowPrompt] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
+  
+  // Query per ottenere i dati dell'utente corrente
+  const { data: userData } = useQuery({
+    queryKey: ["/api/user"],
+    refetchOnWindowFocus: false
+  });
+  
+  // Verifica se l'utente è gianmarco.trapasso@gmail.com
+  useEffect(() => {
+    if (userData?.user?.email === "gianmarco.trapasso@gmail.com") {
+      setIsAuthorized(true);
+    } else {
+      setIsAuthorized(false);
+    }
+  }, [userData]);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["api/ideas/prompt-debug"],
-    enabled: showPrompt, // Carica i dati solo quando richiesto
+    queryKey: ["/api/ideas/prompt-debug"],
+    enabled: showPrompt && isAuthorized, // Carica i dati solo quando richiesto e l'utente è autorizzato
   });
 
   return (
@@ -23,12 +39,22 @@ export default function IdeaDebug() {
           <CardTitle>Debug Prompt API</CardTitle>
         </CardHeader>
         <CardContent>
-          <Button 
-            onClick={() => setShowPrompt(true)} 
-            disabled={isLoading || showPrompt}
-          >
-            {isLoading ? "Caricamento..." : "Visualizza Prompt"}
-          </Button>
+          {!isAuthorized ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Accesso non autorizzato</AlertTitle>
+              <AlertDescription>
+                Solo l'utente gianmarco.trapasso@gmail.com è autorizzato a visualizzare questa pagina.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Button 
+              onClick={() => setShowPrompt(true)} 
+              disabled={isLoading || showPrompt}
+            >
+              {isLoading ? "Caricamento..." : "Visualizza Prompt"}
+            </Button>
+          )}
           
           {isError && (
             <Alert variant="destructive" className="mt-4">

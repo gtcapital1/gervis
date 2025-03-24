@@ -80,9 +80,15 @@ export default function Spark() {
     return i18n.language === "it" ? it : enUS;
   };
 
+  // Query per ottenere i dati dell'utente corrente
+  const { data: userData } = useQuery({
+    queryKey: ["/api/user"],
+    refetchOnWindowFocus: false
+  });
+  
   // Query per ottenere i dati dei clienti 
   const { data: clientsList } = useQuery({
-    queryKey: ["api/clients"],
+    queryKey: ["/api/clients"],
     refetchOnWindowFocus: false
   });
   
@@ -171,16 +177,19 @@ export default function Spark() {
           )}
         </div>
         <div className="flex gap-2">
-          <Button 
-            onClick={loadPromptDebug}
-            disabled={isLoadingPrompt}
-            variant="outline"
-            className="flex gap-2"
-            title="Visualizza il prompt di debugging"
-          >
-            <Code className={`h-4 w-4 ${isLoadingPrompt ? "animate-spin" : ""}`} />
-            Debug
-          </Button>
+          {/* Il pulsante Debug è visibile solo per l'utente gianmarco.trapasso@gmail.com */}
+          {userData?.user?.email === "gianmarco.trapasso@gmail.com" && (
+            <Button 
+              onClick={loadPromptDebug}
+              disabled={isLoadingPrompt}
+              variant="outline"
+              className="flex gap-2"
+              title="Visualizza il prompt di debugging"
+            >
+              <Code className={`h-4 w-4 ${isLoadingPrompt ? "animate-spin" : ""}`} />
+              Debug
+            </Button>
+          )}
           <Button 
             onClick={handleGenerateIdeas} 
             disabled={isGenerating}
