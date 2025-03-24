@@ -51,29 +51,37 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
     // Il prompt chiede di generare 5 idee d'investimento,
     // ciascuna con titolo, spiegazione, URL della notizia e una lista di clienti affini (ID + motivazione)
     const prompt = `
-Sei un esperto analista finanziario e consulente per investimenti.
+Sei un esperto analista finanziario e consulente per investimenti di alto livello.
 Ti fornisco un insieme di notizie finanziarie e i profili di alcuni clienti.
 Il tuo compito è:
 1. Selezionare le 5 idee d'investimento più rilevanti basandoti sulle notizie.
 2. Per ogni idea, genera:
    - Un titolo esplicativo (massimo 6-8 parole).
-   - Un paragrafo che spiega in 2-3 frasi perché investire in questa opportunità.
+   - Una spiegazione dettagliata e strutturata dell'opportunità di investimento (5-7 frasi) che includa:
+      * Contesto macroeconomico e geopolitico dell'idea (es. "Tightening supply due to Iran sanctions and OPEC+ output curbs supports a bullish crude outlook")
+      * Analisi delle tendenze del settore rilevanti
+      * Fattori di rischio e potenziali rendimenti
+      * Prospettiva a medio e lungo termine
    - Il link (URL) della notizia di riferimento che ha ispirato l'idea.
    - Una lista di clienti potenzialmente affini. Analizza i profili dei clienti forniti e, per ciascuno, includi:
        - "clientId": l'ID del cliente,
-       - "reason": una breve spiegazione (1-2 frasi) sul perché il cliente è adatto (basato su riskProfile, obiettivi e interessi).
+       - "reason": una spiegazione dettagliata (4-5 frasi) che analizzi specificamente:
+           * Come l'idea si adatta al loro profilo di rischio specifico
+           * Come complementa i loro obiettivi di investimento dichiarati
+           * Perché si allinea con i loro interessi personali
+           * Come potrebbe integrare la loro attuale strategia di investimento
 
 Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
 {
   "investmentIdeas": [
     {
       "title": "Titolo dell'idea",
-      "explanation": "Paragrafo esplicativo sull'opportunità d'investimento",
+      "explanation": "Analisi approfondita dell'opportunità d'investimento",
       "newsUrl": "Link della notizia usata",
       "matchedClients": [
         {
           "clientId": numero,
-          "reason": "Breve spiegazione del match"
+          "reason": "Spiegazione dettagliata del perché l'idea è adatta a questo cliente specifico"
         }
       ]
     }
