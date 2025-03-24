@@ -58,15 +58,15 @@ export default function IdeaDebug() {
           {data && (
             <div className="mt-6 space-y-4">
               <div className="space-y-2">
-                <h3 className="text-lg font-medium">Statistiche Prompt</h3>
-                <p>Lunghezza totale caratteri: {data.promptLength}</p>
-                <p>Token stimati (approx): {data.estimatedTokens}</p>
+                <h3 className="text-lg font-medium text-black">Statistiche Prompt</h3>
+                <p className="text-black">Lunghezza totale caratteri: {data?.promptLength}</p>
+                <p className="text-black">Token stimati (approx): {data?.estimatedTokens}</p>
               </div>
               
               <div className="space-y-2">
                 <h3 className="text-lg font-medium">Contenuto Prompt</h3>
-                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-auto max-h-[600px]">
-                  <pre className="text-xs whitespace-pre-wrap">{data.prompt}</pre>
+                <div className="bg-white p-4 rounded-md overflow-auto max-h-[600px] border border-gray-200">
+                  <pre className="text-xs whitespace-pre-wrap text-black">{data.prompt}</pre>
                 </div>
               </div>
             </div>

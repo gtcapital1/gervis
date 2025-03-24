@@ -15,9 +15,9 @@ export async function getPromptForDebug(req: Request, res: Response) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // 2. Scarica le notizie da Financial Modeling Prep (FMP) - limitato a 25
+    // 2. Scarica le notizie da Financial Modeling Prep (FMP)
     const newsResponse = await axios.get(
-      `https://financialmodelingprep.com/api/v3/stock_news?limit=25&apikey=${process.env.FINANCIAL_API_KEY}`
+      `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=${process.env.FINANCIAL_API_KEY}`
     );
     const newsArticles = newsResponse.data;
     if (!Array.isArray(newsArticles) || newsArticles.length === 0) {
@@ -80,7 +80,7 @@ export async function getPromptForDebug(req: Request, res: Response) {
         estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
       };
 
-      // Restituisci il cliente con dati arricchiti - rimosse le chiavi investmentGoals e personalInterests
+      // Restituisci il cliente con dati arricchiti
       return {
         id: client.id,
         firstName: client.firstName,
@@ -89,9 +89,12 @@ export async function getPromptForDebug(req: Request, res: Response) {
         // Dati demografici (se disponibili)
         ...(typeof client.age === 'number' ? { age: client.age } : {}),
         ...(client.occupation ? { occupation: client.occupation } : {}),
-        // Profilo rischio
+        // Profilo rischio e investimento
         riskProfile: client.riskProfile,
+        investmentGoals: client.investmentGoals,
         investmentHorizon: client.investmentHorizon,
+        // Interessi personali
+        personalInterests: client.personalInterests,
         // Priorità di investimento (valori numerici da 1-5)
         investmentPriorities,
         // Asset allocation
@@ -145,6 +148,7 @@ Il tuo compito è:
        - "reason": una spiegazione dettagliata (4-5 frasi) che analizzi specificamente:
            * Come l'idea si adatta al loro profilo di rischio specifico
            * Come complementa i loro obiettivi di investimento dichiarati
+           * Perché si allinea con i loro interessi personali
            * Come potrebbe integrare la loro attuale strategia di investimento
 
 Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
@@ -179,9 +183,9 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    // 2. Scarica le notizie da Financial Modeling Prep (FMP) - limitato a 25
+    // 2. Scarica le notizie da Financial Modeling Prep (FMP)
     const newsResponse = await axios.get(
-      `https://financialmodelingprep.com/api/v3/stock_news?limit=25&apikey=${process.env.FINANCIAL_API_KEY}`
+      `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=${process.env.FINANCIAL_API_KEY}`
     );
     const newsArticles = newsResponse.data;
     if (!Array.isArray(newsArticles) || newsArticles.length === 0) {
@@ -244,7 +248,7 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
         estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
       };
 
-      // Restituisci il cliente con dati arricchiti - rimosse le chiavi investmentGoals e personalInterests
+      // Restituisci il cliente con dati arricchiti
       return {
         id: client.id,
         firstName: client.firstName,
@@ -253,9 +257,12 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
         // Dati demografici (se disponibili)
         ...(typeof client.age === 'number' ? { age: client.age } : {}),
         ...(client.occupation ? { occupation: client.occupation } : {}),
-        // Profilo rischio
+        // Profilo rischio e investimento
         riskProfile: client.riskProfile,
+        investmentGoals: client.investmentGoals,
         investmentHorizon: client.investmentHorizon,
+        // Interessi personali
+        personalInterests: client.personalInterests,
         // Priorità di investimento (valori numerici da 1-5)
         investmentPriorities,
         // Asset allocation
