@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import axios from "axios";
 import OpenAI from "openai";
-import { storage } from "./storage"; // modulo per interagire con il database
-import { Client } from "@shared/schema";
+import { storage } from "./storage";
+import { Client } from "../shared/schema";
 
 // Inizializza OpenAI con la chiave API
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -71,27 +71,32 @@ export async function getPromptForDebug(req: Request, res: Response) {
         });
       }
       
+      // Prepara dati delle priorità di investimento (valori numerici da 1-5)
+      const investmentPriorities = {
+        retirement: typeof client.retirementInterest === 'number' ? client.retirementInterest : 0,
+        wealthGrowth: typeof client.wealthGrowthInterest === 'number' ? client.wealthGrowthInterest : 0,
+        incomeGeneration: typeof client.incomeGenerationInterest === 'number' ? client.incomeGenerationInterest : 0,
+        capitalPreservation: typeof client.capitalPreservationInterest === 'number' ? client.capitalPreservationInterest : 0,
+        estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
+      };
+
       // Restituisci il cliente con dati arricchiti
       return {
         id: client.id,
         firstName: client.firstName,
         lastName: client.lastName,
         email: client.email,
-        // Dati demografici
-        age: client.age,
-        occupation: client.occupation,
+        // Dati demografici (se disponibili)
+        ...(typeof client.age === 'number' ? { age: client.age } : {}),
+        ...(client.occupation ? { occupation: client.occupation } : {}),
         // Profilo rischio e investimento
         riskProfile: client.riskProfile,
         investmentGoals: client.investmentGoals,
         investmentHorizon: client.investmentHorizon,
         // Interessi personali
         personalInterests: client.personalInterests,
-        // Dettagli numerici su preferenze di investimento, se disponibili
-        retirementInterest: client.retirementInterest || null,
-        wealthGrowthInterest: client.wealthGrowthInterest || null,
-        incomeGenerationInterest: client.incomeGenerationInterest || null,
-        capitalPreservationInterest: client.capitalPreservationInterest || null,
-        estatePlanningInterest: client.estatePlanningInterest || null,
+        // Priorità di investimento (valori numerici da 1-5)
+        investmentPriorities,
         // Asset allocation
         assetAllocation,
         totalAssetValue,
@@ -234,27 +239,32 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
         });
       }
       
+      // Prepara dati delle priorità di investimento (valori numerici da 1-5)
+      const investmentPriorities = {
+        retirement: typeof client.retirementInterest === 'number' ? client.retirementInterest : 0,
+        wealthGrowth: typeof client.wealthGrowthInterest === 'number' ? client.wealthGrowthInterest : 0,
+        incomeGeneration: typeof client.incomeGenerationInterest === 'number' ? client.incomeGenerationInterest : 0,
+        capitalPreservation: typeof client.capitalPreservationInterest === 'number' ? client.capitalPreservationInterest : 0,
+        estatePlanning: typeof client.estatePlanningInterest === 'number' ? client.estatePlanningInterest : 0
+      };
+
       // Restituisci il cliente con dati arricchiti
       return {
         id: client.id,
         firstName: client.firstName,
         lastName: client.lastName,
         email: client.email,
-        // Dati demografici
-        age: client.age,
-        occupation: client.occupation,
+        // Dati demografici (se disponibili)
+        ...(typeof client.age === 'number' ? { age: client.age } : {}),
+        ...(client.occupation ? { occupation: client.occupation } : {}),
         // Profilo rischio e investimento
         riskProfile: client.riskProfile,
         investmentGoals: client.investmentGoals,
         investmentHorizon: client.investmentHorizon,
         // Interessi personali
         personalInterests: client.personalInterests,
-        // Dettagli numerici su preferenze di investimento, se disponibili
-        retirementInterest: client.retirementInterest || null,
-        wealthGrowthInterest: client.wealthGrowthInterest || null,
-        incomeGenerationInterest: client.incomeGenerationInterest || null,
-        capitalPreservationInterest: client.capitalPreservationInterest || null,
-        estatePlanningInterest: client.estatePlanningInterest || null,
+        // Priorità di investimento (valori numerici da 1-5)
+        investmentPriorities,
         // Asset allocation
         assetAllocation,
         totalAssetValue,
