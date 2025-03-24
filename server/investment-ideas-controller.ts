@@ -38,18 +38,70 @@ export async function getPromptForDebug(req: Request, res: Response) {
       url: article.url
     }));
 
-    // 5. Prepara i dati dei clienti per il matching intelligente
-    const clientData = clients.map(client => ({
-      id: client.id,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      riskProfile: client.riskProfile,
-      investmentGoals: client.investmentGoals,
-      personalInterests: client.personalInterests
+    // 5. Prepara i dati dei clienti completi con profilo Sigmund, asset e profilo investimento
+    const clientDataEnriched = await Promise.all(clients.map(async client => {
+      // Ottenere gli asset del cliente
+      const assets = await storage.getAssetsByClient(client.id);
+      
+      // Ottenere il profilo Sigmund/AI del cliente
+      const aiProfile = await storage.getAiProfile(client.id);
+      
+      // Calcolare l'allocazione degli asset per categoria
+      const assetAllocation: Record<string, number> = {};
+      let totalAssetValue = 0;
+      
+      if (assets && assets.length > 0) {
+        // Calcola il valore totale 
+        totalAssetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+        
+        // Raggruppa gli asset per categoria
+        assets.forEach(asset => {
+          const category = asset.category;
+          if (!assetAllocation[category]) {
+            assetAllocation[category] = 0;
+          }
+          assetAllocation[category] += asset.value;
+        });
+        
+        // Converti in percentuali
+        Object.keys(assetAllocation).forEach(key => {
+          assetAllocation[key] = totalAssetValue > 0 
+            ? Math.round((assetAllocation[key] / totalAssetValue) * 100) 
+            : 0;
+        });
+      }
+      
+      // Restituisci il cliente con dati arricchiti
+      return {
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        // Dati demografici
+        age: client.age,
+        occupation: client.occupation,
+        // Profilo rischio e investimento
+        riskProfile: client.riskProfile,
+        investmentGoals: client.investmentGoals,
+        investmentHorizon: client.investmentHorizon,
+        // Interessi personali
+        personalInterests: client.personalInterests,
+        // Dettagli numerici su preferenze di investimento, se disponibili
+        retirementInterest: client.retirementInterest || null,
+        wealthGrowthInterest: client.wealthGrowthInterest || null,
+        incomeGenerationInterest: client.incomeGenerationInterest || null,
+        capitalPreservationInterest: client.capitalPreservationInterest || null,
+        estatePlanningInterest: client.estatePlanningInterest || null,
+        // Asset allocation
+        assetAllocation,
+        totalAssetValue,
+        // Profilo Sigmund
+        sigmundProfile: aiProfile ? aiProfile.profileData : null
+      };
     }));
 
-    // 6. Costruisci il prompt per OpenAI
-    const prompt = generatePrompt(newsData, clientData);
+    // 6. Costruisci il prompt per OpenAI con i dati arricchiti
+    const prompt = generatePrompt(newsData, clientDataEnriched);
     
     // 7. Stima dei token
     const estimatedTokens = Math.ceil(prompt.length / 4);
@@ -149,18 +201,70 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       url: article.url
     }));
 
-    // 5. Prepara i dati dei clienti per il matching intelligente
-    const clientData = clients.map(client => ({
-      id: client.id,
-      firstName: client.firstName,
-      lastName: client.lastName,
-      riskProfile: client.riskProfile,
-      investmentGoals: client.investmentGoals,
-      personalInterests: client.personalInterests
+    // 5. Prepara i dati dei clienti completi con profilo Sigmund, asset e profilo investimento
+    const clientDataEnriched = await Promise.all(clients.map(async client => {
+      // Ottenere gli asset del cliente
+      const assets = await storage.getAssetsByClient(client.id);
+      
+      // Ottenere il profilo Sigmund/AI del cliente
+      const aiProfile = await storage.getAiProfile(client.id);
+      
+      // Calcolare l'allocazione degli asset per categoria
+      const assetAllocation: Record<string, number> = {};
+      let totalAssetValue = 0;
+      
+      if (assets && assets.length > 0) {
+        // Calcola il valore totale 
+        totalAssetValue = assets.reduce((sum, asset) => sum + asset.value, 0);
+        
+        // Raggruppa gli asset per categoria
+        assets.forEach(asset => {
+          const category = asset.category;
+          if (!assetAllocation[category]) {
+            assetAllocation[category] = 0;
+          }
+          assetAllocation[category] += asset.value;
+        });
+        
+        // Converti in percentuali
+        Object.keys(assetAllocation).forEach(key => {
+          assetAllocation[key] = totalAssetValue > 0 
+            ? Math.round((assetAllocation[key] / totalAssetValue) * 100) 
+            : 0;
+        });
+      }
+      
+      // Restituisci il cliente con dati arricchiti
+      return {
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        // Dati demografici
+        age: client.age,
+        occupation: client.occupation,
+        // Profilo rischio e investimento
+        riskProfile: client.riskProfile,
+        investmentGoals: client.investmentGoals,
+        investmentHorizon: client.investmentHorizon,
+        // Interessi personali
+        personalInterests: client.personalInterests,
+        // Dettagli numerici su preferenze di investimento, se disponibili
+        retirementInterest: client.retirementInterest || null,
+        wealthGrowthInterest: client.wealthGrowthInterest || null,
+        incomeGenerationInterest: client.incomeGenerationInterest || null,
+        capitalPreservationInterest: client.capitalPreservationInterest || null,
+        estatePlanningInterest: client.estatePlanningInterest || null,
+        // Asset allocation
+        assetAllocation,
+        totalAssetValue,
+        // Profilo Sigmund
+        sigmundProfile: aiProfile ? aiProfile.profileData : null
+      };
     }));
 
-    // 6. Costruisci il prompt per OpenAI utilizzando il generatore di prompt comune
-    const prompt = generatePrompt(newsData, clientData);
+    // 6. Costruisci il prompt per OpenAI con i dati arricchiti
+    const prompt = generatePrompt(newsData, clientDataEnriched);
 
     // 7. Invia il prompt a OpenAI (utilizzando GPT-3.5-turbo senza limite di token)
     let openaiResponse;
