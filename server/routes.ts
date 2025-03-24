@@ -8,6 +8,7 @@ import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail } from "./e
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile } from "./ai/profile-controller";
 import { getSparkPriorities, generateSparkPriorities, markPriorityAsRead, deletePriority } from "./spark-controller";
+import { generateInvestmentIdeas } from "./investment-ideas-controller";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1432,6 +1433,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Delete a priority
   app.delete('/api/spark/priorities/:id', isAuthenticated, deletePriority);
+  
+  // Generate investment ideas (new API)
+  app.post('/api/ideas/generate', isAuthenticated, generateInvestmentIdeas);
 
   const httpServer = createServer(app);
   return httpServer;
