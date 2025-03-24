@@ -339,7 +339,7 @@ export default function Spark() {
                             
                             return (
                               <div key={clientIndex} className="border rounded-md p-3">
-                                <div className="font-medium text-sm mb-1 text-black">
+                                <div className="font-medium text-sm mb-1 text-white">
                                   {clientName}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
