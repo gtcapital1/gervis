@@ -14,6 +14,7 @@ import Settings from "@/pages/Settings";
 import AdminPanel from "@/pages/AdminPanel";
 import MarketUpdate from "@/pages/MarketUpdate";
 import Spark from "@/pages/Spark";
+import IdeaDebug from "@/pages/IdeaDebug";
 import { Layout } from "@/components/advisor/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -76,6 +77,14 @@ function Router() {
         component={() => (
           <Layout>
             <Spark />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
+        path="/debug-prompt" 
+        component={() => (
+          <Layout>
+            <IdeaDebug />
           </Layout>
         )} 
       />
