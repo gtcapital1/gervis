@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { 
@@ -25,6 +25,13 @@ import { it, enUS } from "date-fns/locale";
 interface MatchedClient {
   clientId: number;
   reason: string;
+}
+
+interface Client {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
 }
 
 interface InvestmentIdea {
@@ -66,12 +73,30 @@ export default function Spark() {
   const [showPrompt, setShowPrompt] = useState(false);
   const [isLoadingPrompt, setIsLoadingPrompt] = useState(false);
   const [promptData, setPromptData] = useState<PromptDebugResponse | null>(null);
+  const [clientsData, setClientsData] = useState<Record<number, Client>>({});
   
   // Funzione per ottenere il locale corretto per date-fns
   const getLocale = () => {
     return i18n.language === "it" ? it : enUS;
   };
 
+  // Query per ottenere i dati dei clienti 
+  const { data: clientsList } = useQuery({
+    queryKey: ["api/clients"],
+    refetchOnWindowFocus: false
+  });
+  
+  // Effect per popolare l'oggetto clientsData con i dati dei clienti
+  useEffect(() => {
+    if (clientsList?.clients && Array.isArray(clientsList.clients)) {
+      const clientsMap: Record<number, Client> = {};
+      clientsList.clients.forEach((client: Client) => {
+        clientsMap[client.id] = client;
+      });
+      setClientsData(clientsMap);
+    }
+  }, [clientsList]);
+  
   // Mutazione per generare nuove idee di investimento
   const generateMutation = useMutation({
     mutationFn: () => apiRequest("/api/ideas/generate", { method: "POST" }),
@@ -304,16 +329,25 @@ export default function Spark() {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-3 pt-2">
-                          {idea.matchedClients.map((client, clientIndex) => (
-                            <div key={clientIndex} className="border rounded-md p-3">
-                              <div className="font-medium text-sm mb-1">
-                                Client ID: {client.clientId}
+                          {idea.matchedClients.map((client, clientIndex) => {
+                            // Trova il nome del cliente dal clientId
+                            const clientId = client.clientId;
+                            const clientData = clientsData[clientId];
+                            const clientName = clientData 
+                              ? `${clientData.firstName} ${clientData.lastName}`
+                              : `Cliente ${clientId}`;
+                            
+                            return (
+                              <div key={clientIndex} className="border rounded-md p-3">
+                                <div className="font-medium text-sm mb-1 text-black">
+                                  {clientName}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                  {client.reason}
+                                </div>
                               </div>
-                              <div className="text-sm text-muted-foreground">
-                                {client.reason}
-                              </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </AccordionContent>
                     </AccordionItem>
