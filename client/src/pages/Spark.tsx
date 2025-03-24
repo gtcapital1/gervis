@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/alert";
 import { 
   RefreshCw, AlertTriangle, 
-  Calendar, ExternalLink, Users, Link2 
+  Calendar, ExternalLink, Users, Link2, Cpu 
 } from "lucide-react";
 import { 
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
@@ -34,10 +34,17 @@ interface InvestmentIdea {
   matchedClients: MatchedClient[];
 }
 
+interface TokensUsed {
+  total: number;
+  prompt: number;
+  completion: number;
+}
+
 interface InvestmentIdeasResponse {
   success: boolean;
   message: string;
   investmentIdeas: InvestmentIdea[];
+  tokensUsed?: TokensUsed;
 }
 
 export default function Spark() {
@@ -46,6 +53,7 @@ export default function Spark() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [ideas, setIdeas] = useState<InvestmentIdea[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+  const [tokensUsed, setTokensUsed] = useState<TokensUsed | null>(null);
   
   // Funzione per ottenere il locale corretto per date-fns
   const getLocale = () => {
@@ -64,6 +72,7 @@ export default function Spark() {
         addSuffix: true,
         locale: getLocale()
       }));
+      setTokensUsed(data.tokensUsed || null);
       setTimeout(() => setIsGenerating(false), 500);
     },
     onError: () => {
@@ -84,9 +93,21 @@ export default function Spark() {
             {t("spark.newDescription")}
           </p>
           {lastUpdate && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {t("spark.lastUpdate")}: {lastUpdate}
-            </p>
+            <div className="space-y-1">
+              <p className="text-sm text-muted-foreground">
+                {t("spark.lastUpdate")}: {lastUpdate}
+              </p>
+              {tokensUsed && (
+                <p className="text-xs text-muted-foreground">
+                  <Cpu className="h-3 w-3 inline-block mr-1" /> 
+                  Token: {tokensUsed.total} 
+                  <span className="mx-1">•</span>
+                  <span className="text-primary">{t("spark.promptTokens")}: {tokensUsed.prompt}</span>
+                  <span className="mx-1">•</span>
+                  <span className="text-green-500">{t("spark.completionTokens")}: {tokensUsed.completion}</span>
+                </p>
+              )}
+            </div>
           )}
         </div>
         <Button 
