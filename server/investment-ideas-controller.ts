@@ -134,7 +134,7 @@ Il tuo compito è:
 1. Selezionare le 5 idee d'investimento più rilevanti basandoti sulle notizie.
 2. Per ogni idea, genera:
    - Un titolo esplicativo (massimo 6-8 parole).
-   - Una spiegazione dettagliata e strutturata dell'opportunità di investimento (5-7 frasi) che includa:
+   - Una spiegazione dettagliata e strutturata dell'opportunità d'investimento (5-7 frasi) che includa:
       * Contesto macroeconomico e geopolitico dell'idea (es. "Tightening supply due to Iran sanctions and OPEC+ output curbs supports a bullish crude outlook")
       * Analisi delle tendenze del settore rilevanti
       * Fattori di rischio e potenziali rendimenti
@@ -142,10 +142,18 @@ Il tuo compito è:
    - Il link (URL) della notizia di riferimento che ha ispirato l'idea.
    - Una lista di clienti potenzialmente affini. Analizza i profili dei clienti forniti e, per ciascuno, includi:
        - "clientId": l'ID del cliente,
-       - "reason": una spiegazione dettagliata (4-5 frasi) che analizzi specificamente:
+       - "reason": una spiegazione dettagliata (4-5 frasi) che analizzi specificatamente:
            * Come l'idea si adatta al loro profilo di rischio specifico
            * Come complementa i loro obiettivi di investimento dichiarati
            * Come potrebbe integrare la loro attuale strategia di investimento
+           * Fai SEMPRE riferimento esplicito alle raccomandazioni di Sigmund presenti nel sigmundProfile del cliente
+
+IMPORTANTE PER IL MATCHING DEI CLIENTI:
+- Utilizza attivamente i dati del profilo Sigmund (sigmundProfile) che contiene raccomandazioni generate dall'AI basate sulle interazioni precedenti con il cliente e la sua situazione personale
+- In particolare, cerca corrispondenze specifiche tra l'idea d'investimento e le raccomandazioni fornite da Sigmund
+- Quando trovi una corrispondenza tra un'idea e le raccomandazioni di Sigmund, menzionala esplicitamente nella spiegazione per il cliente
+- Spiega chiaramente come l'idea d'investimento supporta o implementa le raccomandazioni di Sigmund
+- Se Sigmund ha identificato interessi personali o obiettivi specifici del cliente, usali per giustificare la rilevanza dell'idea
 
 Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
 {
@@ -157,7 +165,7 @@ Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
       "matchedClients": [
         {
           "clientId": numero,
-          "reason": "Spiegazione dettagliata del perché l'idea è adatta a questo cliente specifico"
+          "reason": "Spiegazione dettagliata del perché l'idea è adatta a questo cliente specifico con riferimento alle raccomandazioni di Sigmund"
         }
       ]
     }
@@ -275,7 +283,10 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
       openaiResponse = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
         messages: [
-          { role: "system", content: "Sei un esperto analista finanziario." },
+          { 
+            role: "system", 
+            content: "Sei un esperto analista finanziario e consulente per investimenti di alto livello. Il tuo compito è fornire idee d'investimento personalizzate basate su notizie finanziarie recenti e profili dei clienti. Presta particolare attenzione ai profili arricchiti da Sigmund, che contengono raccomandazioni basate sulle interazioni precedenti con il cliente. Queste raccomandazioni di Sigmund sono estremamente importanti per determinare la rilevanza di un'idea d'investimento per un cliente specifico." 
+          },
           { role: "user", content: prompt }
         ],
         temperature: 0.3
