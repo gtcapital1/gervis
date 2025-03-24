@@ -60,7 +60,9 @@ const resourcesIt = {
       matchedClients: "Clienti associati",
       showClients: "Mostra clienti",
       promptTokens: "Token di prompt",
-      completionTokens: "Token di risposta"
+      completionTokens: "Token di risposta",
+      tokenErrorTitle: "Errore di token OpenAI",
+      tokenErrorClose: "Chiudi"
     },
     admin: {
       admin_panel: "Pannello Amministratore",

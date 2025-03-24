@@ -133,7 +133,7 @@ export default function Spark() {
       {errorMessage && (
         <Alert variant="destructive" className="mt-4">
           <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Errore di token OpenAI</AlertTitle>
+          <AlertTitle>{t("spark.tokenErrorTitle")}</AlertTitle>
           <AlertDescription className="space-y-2">
             <p>{errorMessage}</p>
             <div className="flex justify-end">
@@ -142,7 +142,7 @@ export default function Spark() {
                 size="sm"
                 onClick={() => setErrorMessage(null)}
               >
-                Chiudi
+                {t("spark.tokenErrorClose")}
               </Button>
             </div>
           </AlertDescription>
