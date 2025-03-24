@@ -87,16 +87,35 @@ Client profiles:
 ${JSON.stringify(clientData, null, 2)}
     `;
 
-    // 7. Invia il prompt a OpenAI (utilizzando GPT-3.5-turbo)
-    const openaiResponse = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
-      messages: [
-        { role: "system", content: "Sei un esperto analista finanziario." },
-        { role: "user", content: prompt }
-      ],
-      temperature: 0.3,
-      max_tokens: 2000
-    });
+    // 7. Invia il prompt a OpenAI (utilizzando GPT-3.5-turbo senza limite di token)
+    let openaiResponse;
+    try {
+      openaiResponse = await openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { role: "system", content: "Sei un esperto analista finanziario." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3
+        // Rimosso il limite di max_tokens per consentire la risposta completa
+      });
+    } catch (openaiError: any) {
+      // Cattura specificamente gli errori di token
+      if (openaiError.name === 'RateLimitError' || 
+          (openaiError.error && openaiError.error.code === 'context_length_exceeded') ||
+          (openaiError.message && openaiError.message.includes('maximum context length'))) {
+        
+        // Stima approssimativa dei token nel prompt
+        const promptTokens = Math.ceil(prompt.length / 4); // Stima approssimativa: ~4 caratteri = 1 token
+        
+        throw new Error(
+          `Errore di limite token OpenAI: il prompt contiene circa ${promptTokens} token, ` +
+          `che supera il limite consentito dal modello. ${openaiError.message}`
+        );
+      }
+      // Rilancia altri tipi di errori
+      throw openaiError;
+    }
 
     // 8. Estrai e parsifica il JSON restituito da OpenAI
     const responseContent = openaiResponse.choices[0]?.message?.content;

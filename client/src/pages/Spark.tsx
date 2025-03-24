@@ -54,6 +54,7 @@ export default function Spark() {
   const [ideas, setIdeas] = useState<InvestmentIdea[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
   const [tokensUsed, setTokensUsed] = useState<TokensUsed | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   
   // Funzione per ottenere il locale corretto per date-fns
   const getLocale = () => {
@@ -75,8 +76,16 @@ export default function Spark() {
       setTokensUsed(data.tokensUsed || null);
       setTimeout(() => setIsGenerating(false), 500);
     },
-    onError: () => {
+    onError: (error: any) => {
       setIsGenerating(false);
+      // Salva il messaggio di errore per visualizzarlo nell'UI
+      setErrorMessage(error?.message || "Si è verificato un errore imprevisto durante la generazione delle idee di investimento.");
+    },
+    onSettled: (data, error) => {
+      // Nasconde l'errore automaticamente dopo 20 secondi
+      if (error) {
+        setTimeout(() => setErrorMessage(null), 20000);
+      }
     }
   });
 
@@ -120,6 +129,26 @@ export default function Spark() {
         </Button>
       </div>
 
+      {/* Messaggio di errore specifico di token, se presente */}
+      {errorMessage && (
+        <Alert variant="destructive" className="mt-4">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Errore di token OpenAI</AlertTitle>
+          <AlertDescription className="space-y-2">
+            <p>{errorMessage}</p>
+            <div className="flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setErrorMessage(null)}
+              >
+                Chiudi
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {isGenerating ? (
         <div className="space-y-6">
           {[1, 2, 3, 4, 5].map((i) => (
@@ -138,7 +167,7 @@ export default function Spark() {
             </Card>
           ))}
         </div>
-      ) : generateMutation.isError ? (
+      ) : generateMutation.isError && !errorMessage ? (
         <Alert variant="destructive">
           <AlertTriangle className="h-4 w-4" />
           <AlertTitle>{t("spark.errorTitle")}</AlertTitle>
