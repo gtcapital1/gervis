@@ -14,7 +14,7 @@ import Settings from "@/pages/Settings";
 import AdminPanel from "@/pages/AdminPanel";
 import MarketUpdate from "@/pages/MarketUpdate";
 import Spark from "@/pages/Spark";
-import { Layout } from "@/components/advisor/Layout";
+import { Layout } from "@/components/dashboard/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 

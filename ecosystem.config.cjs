@@ -1,3 +1,7 @@
+/**
+ * PM2 ecosystem configuration file.
+ * Defines the settings for running the Gervis application with PM2.
+ */
 module.exports = {
   apps: [
     {

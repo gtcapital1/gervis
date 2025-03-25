@@ -7,7 +7,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
-import { Layout } from "@/components/advisor/Layout";
+import { Layout } from "@/components/dashboard/Layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,

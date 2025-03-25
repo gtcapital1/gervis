@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { UserManagement } from "@/components/admin/UserManagement";
-import { Layout } from "@/components/advisor/Layout";
+import { Layout } from "@/components/dashboard/Layout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";

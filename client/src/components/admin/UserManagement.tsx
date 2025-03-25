@@ -1,3 +1,25 @@
+/**
+ * User Management Component
+ * 
+ * This component provides an interface for administrators to manage users.
+ * It allows administrators to:
+ * - View all users and their approval status (pending, approved, rejected)
+ * - Approve, reject, or delete users
+ * - Display status badges for users based on their approval status
+ * - Show loading and error states during data fetching
+ * - Display confirmation dialogs before performing critical actions
+ * 
+ * The component uses React Query for data fetching and mutations, and it
+ * leverages various UI components such as Card, Table, Badge, and AlertDialog
+ * to create a user-friendly interface.
+ * 
+ * Key functionalities:
+ * - Fetch users from the server and categorize them based on their approval status
+ * - Handle user actions (approve, reject, delete) with confirmation dialogs
+ * - Display status badges and formatted dates for user information
+ * - Provide retry functionality in case of data fetching errors
+ */
+
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";

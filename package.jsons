@@ -1,3 +1,7 @@
+/**
+ * Package configuration file.
+ * Defines the dependencies and scripts for the project.
+ */
 {
   "name": "rest-express",
   "version": "1.0.0",

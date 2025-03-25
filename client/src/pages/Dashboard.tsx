@@ -52,7 +52,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
-import { ClientDialog } from "../components/advisor/ClientDialog";
+import { ClientDialog } from "../components/dashboard/ClientDialog";
 import { UpgradeDialog } from "../components/pro/UpgradeDialog";
 import { Client } from "@shared/schema";
 import { useLocation } from "wouter";

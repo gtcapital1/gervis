@@ -1,3 +1,7 @@
+/**
+ * Tailwind CSS configuration file.
+ * Used to customize the default Tailwind CSS framework settings.
+ */
 import type { Config } from "tailwindcss";
 
 export default {

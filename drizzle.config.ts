@@ -1,3 +1,7 @@
+/**
+ * Drizzle ORM configuration file.
+ * Defines the settings for database migrations and schema.
+ */
 import { defineConfig } from "drizzle-kit";
 
 if (!process.env.DATABASE_URL) {

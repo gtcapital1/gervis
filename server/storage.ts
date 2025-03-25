@@ -5,7 +5,6 @@ import {
   recommendations, type Recommendation, type InsertRecommendation,
   clientLogs, type ClientLog, type InsertClientLog,
   aiProfiles, type AiProfile, type InsertAiProfile,
-  sparkPriorities, type SparkPriority, type InsertSparkPriority,
   LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
@@ -73,12 +72,6 @@ export interface IStorage {
   updateAiProfile(clientId: number, profileData: any): Promise<AiProfile>;
   deleteAiProfile(clientId: number): Promise<boolean>;
   
-  // Spark Priority Methods
-  getSparkPriorities(advisorId: number): Promise<SparkPriority[]>;
-  createSparkPriority(priority: InsertSparkPriority): Promise<SparkPriority>;
-  updateSparkPriorityStatus(id: number, isNew: boolean): Promise<SparkPriority>;
-  deleteSparkPriority(id: number): Promise<boolean>;
-  clearOldSparkPriorities(advisorId: number): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1007,87 +1000,6 @@ export class PostgresStorage implements IStorage {
     }
   }
 
-  // Spark Priority Methods
-  async getSparkPriorities(advisorId: number): Promise<SparkPriority[]> {
-    // Recupera le priorità Spark, join con clients per ottenere il nome del cliente
-    const result = await db.select({
-      id: sparkPriorities.id,
-      clientId: sparkPriorities.clientId,
-      clientName: clients.name,
-      title: sparkPriorities.title,
-      description: sparkPriorities.description,
-      priority: sparkPriorities.priority,
-      relatedNewsTitle: sparkPriorities.relatedNewsTitle,
-      relatedNewsUrl: sparkPriorities.relatedNewsUrl,
-      isNew: sparkPriorities.isNew,
-      createdAt: sparkPriorities.createdAt,
-      lastUpdatedAt: sparkPriorities.lastUpdatedAt,
-      createdBy: sparkPriorities.createdBy,
-    })
-    .from(sparkPriorities)
-    .innerJoin(clients, eq(sparkPriorities.clientId, clients.id))
-    .where(eq(clients.advisorId, advisorId))
-    .orderBy(sparkPriorities.priority, sparkPriorities.createdAt)
-    .limit(5);
-    
-    return result;
-  }
-
-  async createSparkPriority(priority: InsertSparkPriority): Promise<SparkPriority> {
-    // Verifica che il client esista prima di creare la priorità
-    const client = await this.getClient(priority.clientId);
-    if (!client) {
-      throw new Error(`Client with id ${priority.clientId} not found`);
-    }
-    
-    const result = await db.insert(sparkPriorities)
-      .values({
-        ...priority,
-        createdAt: new Date(),
-        lastUpdatedAt: new Date()
-      })
-      .returning();
-    
-    return result[0];
-  }
-
-  async updateSparkPriorityStatus(id: number, isNew: boolean): Promise<SparkPriority> {
-    const result = await db.update(sparkPriorities)
-      .set({ 
-        isNew,
-        lastUpdatedAt: new Date()
-      })
-      .where(eq(sparkPriorities.id, id))
-      .returning();
-    
-    if (!result[0]) {
-      throw new Error(`Spark priority with id ${id} not found`);
-    }
-    
-    return result[0];
-  }
-
-  async deleteSparkPriority(id: number): Promise<boolean> {
-    const result = await db.delete(sparkPriorities).where(eq(sparkPriorities.id, id)).returning();
-    return result.length > 0;
-  }
-
-  async clearOldSparkPriorities(advisorId: number): Promise<boolean> {
-    // Recupera i clienti gestiti dall'advisor
-    const clientsForAdvisor = await this.getClientsByAdvisor(advisorId);
-    const clientIds = clientsForAdvisor.map(client => client.id);
-    
-    if (clientIds.length === 0) {
-      return true; // Nessun cliente, quindi niente da eliminare
-    }
-    
-    // Elimina tutte le vecchie priorità dei clienti dell'advisor
-    await db.delete(sparkPriorities)
-      .where(sql`${sparkPriorities.clientId} IN (${clientIds.join(',')})`)
-      .execute();
-    
-    return true;
-  }
 }
 
 export const storage = new PostgresStorage();
