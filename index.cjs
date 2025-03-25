@@ -35,14 +35,31 @@ async function startServer() {
   try {
     // Registra le route API
     await registerRoutes(app);
-    
+
     // Configurazione Vite in modalità dev, altrimenti server file statici
     if (process.env.NODE_ENV === 'production') {
       serveStatic(app);
     } else {
       await setupVite(app, server);
     }
-    
+
+    // Aggiunta di gestori di errori per il server
+    server.on('error', (error) => {
+      console.error('Server startup error:', error);
+      
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Port ${port} is already in use`);
+        process.exit(1);
+      } else if (error.code === 'ENOTSUP') {
+        console.error('Unsupported socket operation. Attempting alternative binding...');
+        
+        // Prova il binding con localhost
+        server.listen(port, 'localhost', () => {
+          console.log(`Server running on http://localhost:${port}`);
+        });
+      }
+    });
+
     // Avvia il server
     server.listen(port, host, () => {
       console.log(`Server running on http://${host}:${port}`);
