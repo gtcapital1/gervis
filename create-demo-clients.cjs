@@ -148,6 +148,7 @@ async function generateDemoClients() {
       const hasPortalAccess = false;
       const isOnboarded = true;
       const isArchived = false;
+      const age = getRandomItem([30, 35, 45, 50]);
       const riskProfile = getRandomItem(["conservative", "balanced", "growth", "aggressive"]);
       const investmentExperience = getRandomItem(["none", "beginner", "intermediate", "advanced"]);
       const investmentGoals = getRandomItems(["capital_preservation", "wealth_growth", "income_generation", "retirement"], 1, 3);
