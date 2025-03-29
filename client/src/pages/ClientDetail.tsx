@@ -66,6 +66,7 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { PageHeader } from "@/components/ui/page-header";
 
 // Form schema for editing client information
 const clientFormSchema = z.object({
@@ -378,64 +379,68 @@ Grazie per la tua fiducia e collaborazione.`
   return (
     <>
       <div className="flex flex-col h-full">
-        <div className="p-4 sm:p-6 border-b text-black">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center mb-4 sm:mb-0">
-              <Button variant="ghost" onClick={() => setLocation("/app")} className="self-start">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                {t('client.back')}
-              </Button>
-              <div className="mt-2 sm:mt-0 sm:ml-4">
-                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-black">{client.name}</h1>
-                <div className="flex gap-2 mt-2">
-                  {client.isArchived && (
-                    <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
-                  )}
-                  {client.isOnboarded ? (
-                    <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-red-500">{t('dashboard.not_onboarded')}</Badge>
-                  )}
-                </div>
+        <div className="p-4 sm:p-6">
+          <div className="flex items-center mb-6">
+            <Button variant="ghost" onClick={() => setLocation("/clients")} className="mr-4">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              {t('client.back')}
+            </Button>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <PageHeader 
+              title={client.name}
+              subtitle={t('client.client_details')}
+            >
+              {/* Badges */}
+              <div className="flex flex-wrap gap-2">
+                {client.isArchived && (
+                  <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
+                )}
+                {client.isOnboarded ? (
+                  <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-red-500">{t('dashboard.not_onboarded')}</Badge>
+                )}
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
-              {assets.length > 0 && (
-                <ClientPdfGenerator 
-                  client={{
-                    ...client,
-                    birthDate: null, // Aggiungiamo la proprietà birthDate mancante
-                    isOnboarded: Boolean(client.isOnboarded), // Convertiamo in booleano
-                    // Garantiamo che i campi non siano null se non previsto nell'interfaccia
-                    riskProfile: client.riskProfile || null,
-                    investmentGoals: client.investmentGoals || [],
-                    investmentHorizon: client.investmentHorizon || null,
-                    investmentExperience: client.investmentExperience || null
-                  }}
-                  assets={assets}
-                  advisorSignature={user?.signature || null}
-                  companyLogo={user?.companyLogo || null}
-                  companyInfo={user?.companyInfo || null}
-                />
-              )}
-              <Button 
-                className="bg-accent hover:bg-accent/90 flex items-center"
-                onClick={() => setIsEditDialogOpen(true)}
-              >
-                <Edit className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t('client.edit_client')}</span>
-                <span className="sm:hidden">Modifica</span>
-              </Button>
-              <Button 
-                className="bg-primary hover:bg-primary/90 flex items-center"
-                onClick={() => setLocation(`/clients/${clientId}/logs`)}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                <span className="hidden sm:inline">{t('client.view_logs') || "Visualizza log"}</span>
-                <span className="sm:hidden">Log</span>
-              </Button>
-            </div>
+            </PageHeader>
+          </div>
+          
+          <div className="flex flex-wrap gap-2 mb-6">
+            {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
+            {assets.length > 0 && (
+              <ClientPdfGenerator 
+                client={{
+                  ...client,
+                  birthDate: null,
+                  isOnboarded: Boolean(client.isOnboarded),
+                  riskProfile: client.riskProfile || null,
+                  investmentGoals: client.investmentGoals || [],
+                  investmentHorizon: client.investmentHorizon || null,
+                  investmentExperience: client.investmentExperience || null
+                }}
+                assets={assets}
+                advisorSignature={user?.signature || null}
+                companyLogo={user?.companyLogo || null}
+                companyInfo={user?.companyInfo || null}
+              />
+            )}
+            <Button 
+              className="bg-accent hover:bg-accent/90 flex items-center"
+              onClick={() => setIsEditDialogOpen(true)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t('client.edit_client')}</span>
+              <span className="sm:hidden">Modifica</span>
+            </Button>
+            <Button 
+              className="bg-primary hover:bg-primary/90 flex items-center"
+              onClick={() => setLocation(`/clients/${clientId}/logs`)}
+            >
+              <MessageSquare className="mr-2 h-4 w-4" />
+              <span className="hidden sm:inline">{t('client.view_logs') || "Visualizza log"}</span>
+              <span className="sm:hidden">Log</span>
+            </Button>
           </div>
         </div>
         

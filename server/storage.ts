@@ -5,6 +5,7 @@ import {
   recommendations, type Recommendation, type InsertRecommendation,
   clientLogs, type ClientLog, type InsertClientLog,
   aiProfiles, type AiProfile, type InsertAiProfile,
+  meetings, type Meeting, type InsertMeeting,
   LOG_TYPES, type LogType
 } from "@shared/schema";
 import session from "express-session";
@@ -72,6 +73,15 @@ export interface IStorage {
   updateAiProfile(clientId: number, profileData: any): Promise<AiProfile>;
   deleteAiProfile(clientId: number): Promise<boolean>;
   
+  // Meeting Methods
+  getMeetingsByAdvisor(advisorId: number): Promise<Meeting[]>;
+  getMeetingsByClient(clientId: number): Promise<Meeting[]>;
+  getMeeting(id: number): Promise<Meeting | undefined>;
+  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
+  updateMeeting(id: number, meeting: Partial<Meeting>): Promise<Meeting>;
+  deleteMeeting(id: number): Promise<boolean>;
+  getMeetingsForDate(advisorId: number, date: Date): Promise<Meeting[]>;
+  getAllMeetings(advisorId: number): Promise<Meeting[]>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1000,6 +1010,207 @@ export class PostgresStorage implements IStorage {
     }
   }
 
+  // Meeting Methods
+  async getMeetingsByAdvisor(advisorId: number): Promise<Meeting[]> {
+    const result = await db.select().from(meetings).where(eq(meetings.advisorId, advisorId)).orderBy(meetings.dateTime);
+    return result;
+  }
+
+  async getMeetingsByClient(clientId: number): Promise<Meeting[]> {
+    const result = await db.select().from(meetings).where(eq(meetings.clientId, clientId)).orderBy(meetings.dateTime);
+    return result;
+  }
+
+  async getMeeting(id: number): Promise<Meeting | undefined> {
+    const result = await db.select().from(meetings).where(eq(meetings.id, id));
+    return result[0];
+  }
+
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    try {
+      // Verifica che il client esista
+      const client = await this.getClient(insertMeeting.clientId as number);
+      if (!client) {
+        throw new Error(`Cliente con ID ${insertMeeting.clientId} non trovato`);
+      }
+      
+      // Verifica che l'advisor esista
+      const advisor = await this.getUser(insertMeeting.advisorId as number);
+      if (!advisor) {
+        throw new Error(`Advisor con ID ${insertMeeting.advisorId} non trovato`);
+      }
+      
+      // Assicurati che dateTime sia un oggetto Date
+      let meetingDateTime: Date;
+      if (typeof insertMeeting.dateTime === 'string') {
+        meetingDateTime = new Date(insertMeeting.dateTime);
+        if (isNaN(meetingDateTime.getTime())) {
+          throw new Error(`Data invalida: ${insertMeeting.dateTime}`);
+        }
+      } else if (insertMeeting.dateTime instanceof Date) {
+        meetingDateTime = insertMeeting.dateTime;
+      } else {
+        throw new Error('dateTime deve essere una stringa ISO o un oggetto Date');
+      }
+      
+      // Crea un nuovo oggetto da inserire nel database
+      const meetingToInsert = {
+        ...insertMeeting,
+        dateTime: meetingDateTime  // Ora siamo sicuri che sia un Date
+      };
+      
+      console.log(`Inserimento meeting nel DB con dateTime=${meetingDateTime}`);
+      
+      // Inserisci il meeting nel database
+      const result = await db.insert(meetings).values(meetingToInsert).returning();
+      
+      // Crea anche un log per tracciare l'attività
+      await this.createClientLog({
+        clientId: insertMeeting.clientId as number,
+        type: "meeting" as LogType,
+        title: insertMeeting.subject as string,
+        content: `Meeting programmato: ${insertMeeting.subject}`,
+        logDate: new Date()
+      });
+      
+      return result[0];
+    } catch (error) {
+      console.error("Errore nella creazione del meeting:", error);
+      throw error;
+    }
+  }
+
+  async updateMeeting(id: number, meetingUpdate: Partial<Meeting>): Promise<Meeting> {
+    try {
+      // Ottieni il meeting corrente
+      const currentMeeting = await this.getMeeting(id);
+      if (!currentMeeting) {
+        throw new Error(`Meeting con ID ${id} non trovato`);
+      }
+      
+      // Se c'è un campo dateTime, assicurati che sia un oggetto Date
+      let updatedFields = { ...meetingUpdate };
+      if (meetingUpdate.dateTime !== undefined) {
+        let meetingDateTime: Date;
+        if (typeof meetingUpdate.dateTime === 'string') {
+          meetingDateTime = new Date(meetingUpdate.dateTime);
+          if (isNaN(meetingDateTime.getTime())) {
+            throw new Error(`Data invalida: ${meetingUpdate.dateTime}`);
+          }
+        } else if (meetingUpdate.dateTime instanceof Date) {
+          meetingDateTime = meetingUpdate.dateTime;
+        } else {
+          throw new Error('dateTime deve essere una stringa ISO o un oggetto Date');
+        }
+        
+        // Sostituisci il campo dateTime con l'oggetto Date
+        updatedFields.dateTime = meetingDateTime;
+      }
+      
+      console.log(`Aggiornamento meeting nel DB con dati:`, updatedFields);
+      
+      // Aggiorna il meeting
+      const result = await db
+        .update(meetings)
+        .set(updatedFields)
+        .where(eq(meetings.id, id))
+        .returning();
+      
+      // Se la data è cambiata, crea un log per tracciare la modifica
+      if (meetingUpdate.dateTime && meetingUpdate.dateTime.toString() !== currentMeeting.dateTime.toString()) {
+        await this.createClientLog({
+          clientId: currentMeeting.clientId,
+          type: "meeting" as LogType,
+          title: `Aggiornamento meeting: ${currentMeeting.subject}`,
+          content: `Meeting riprogrammato: ${currentMeeting.dateTime.toLocaleString('it-IT')} -> ${updatedFields.dateTime.toLocaleString('it-IT')}`,
+          logDate: new Date()
+        });
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del meeting:", error);
+      throw error;
+    }
+  }
+
+  async deleteMeeting(id: number): Promise<boolean> {
+    try {
+      // Ottieni il meeting prima di eliminarlo per il logging
+      const meeting = await this.getMeeting(id);
+      if (!meeting) {
+        return false; // Meeting non trovato
+      }
+      
+      // Elimina il meeting
+      const deleted = await db.delete(meetings).where(eq(meetings.id, id)).returning();
+      
+      if (deleted.length > 0) {
+        // Crea un log per tracciare l'eliminazione
+        await this.createClientLog({
+          clientId: meeting.clientId,
+          type: "meeting" as LogType,
+          title: `Cancellazione meeting: ${meeting.subject}`,
+          content: `Meeting cancellato: ${meeting.subject} - ${new Date(meeting.dateTime).toLocaleString('it-IT')}`,
+          logDate: new Date()
+        });
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error("Errore nell'eliminazione del meeting:", error);
+      throw error;
+    }
+  }
+
+  async getMeetingsForDate(advisorId: number, date: Date): Promise<Meeting[]> {
+    try {
+      console.log(`DEBUG - Retrieving all meetings for advisor ${advisorId}`);
+      
+      // Rimosso il filtro per data per mostrare tutti i meeting dell'advisor
+      const result = await db
+        .select()
+        .from(meetings)
+        .where(
+          eq(meetings.advisorId, advisorId)
+        )
+        .orderBy(meetings.dateTime);
+      
+      console.log(`DEBUG - Found ${result.length} meetings for advisor ${advisorId}`);
+      
+      // Debug: mostra i meeting trovati
+      if (result.length > 0) {
+        console.log(`DEBUG - Meeting dates: ${result.map(m => new Date(m.dateTime).toISOString()).join(', ')}`);
+      }
+      
+      return result;
+    } catch (error) {
+      console.error("Errore nel recupero dei meeting per advisor:", error);
+      throw error;
+    }
+  }
+
+  async getAllMeetings(advisorId: number): Promise<Meeting[]> {
+    try {
+      console.log(`DEBUG - Retrieving all meetings for advisor ${advisorId}`);
+      
+      const result = await db
+        .select()
+        .from(meetings)
+        .where(
+          eq(meetings.advisorId, advisorId)
+        )
+        .orderBy(meetings.dateTime);
+      
+      console.log(`DEBUG - Found ${result.length} meetings for advisor ${advisorId}`);
+      
+      return result;
+    } catch (error) {
+      console.error("Errore nel recupero di tutti i meeting:", error);
+      throw error;
+    }
+  }
 }
 
 export const storage = new PostgresStorage();

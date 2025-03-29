@@ -30,6 +30,8 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { UpgradeDialog } from "@/components/pro/UpgradeDialog";
+import { useTheme } from "@/hooks/use-theme";
+import { PageHeader } from "@/components/ui/page-header";
 
 // Password form schema with validation
 const passwordFormSchema = z
@@ -341,370 +343,399 @@ export default function Settings() {
 
   return (
     <Layout>
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between p-6 border-b text-black">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-black">Settings</h1>
-            <p className="text-gray-600">
-              Manage your account settings and preferences
-            </p>
-          </div>
-        </div>
-        
-        <Separator />
-        
-        <div className="p-6 space-y-6 max-w-3xl mx-auto w-full">
-          {/* Account Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Profile Information</CardTitle>
-              <CardDescription>
-                View and update your profile information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-medium">Username</h3>
-                    <p className="text-muted-foreground">{user?.username}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Name</h3>
-                    <p className="text-muted-foreground">{user?.name || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Email</h3>
-                    <p className="text-muted-foreground">{user?.email || "Not provided"}</p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium">Account Type</h3>
-                    <p className="text-muted-foreground">
-                      {user?.isPro ? (
-                        <span className="text-accent font-semibold">Gervis PRO</span>
-                      ) : (
-                        "Standard"
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="space-y-6">
+        <PageHeader 
+          title={t('dashboard.settings')}
+          subtitle={t('settings.settings_description', 'Manage your account settings and preferences.')}
+        />
+        <Tabs defaultValue="account" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="account">{t('settings.account', 'Account')}</TabsTrigger>
+            <TabsTrigger value="appearance">{t('settings.appearance', 'Appearance')}</TabsTrigger>
+            <TabsTrigger value="notifications">{t('settings.notifications', 'Notifications')}</TabsTrigger>
+            <TabsTrigger value="company">{t('settings.company', 'Company')}</TabsTrigger>
+            <TabsTrigger value="subscription">{t('settings.subscription', 'Subscription')}</TabsTrigger>
+          </TabsList>
           
-          {/* Subscription Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Subscription Management</CardTitle>
-              <CardDescription>
-                Manage your subscription and billing
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="mb-6">
-                  <h3 className="font-medium text-lg">Current Plan</h3>
-                  <div className="flex items-center justify-between mt-2 p-4 border rounded-lg">
+          {/* Account tab - existing content */}
+          <TabsContent value="account" className="space-y-4">
+            {/* Account Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Profile Information</CardTitle>
+                <CardDescription>
+                  View and update your profile information
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="font-medium">
-                        {user?.isPro ? "Gervis PRO Plan" : "Standard Plan"}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {user?.isPro
-                          ? "Access to all premium features"
-                          : "Basic features only"}
+                      <h3 className="font-medium">Username</h3>
+                      <p className="text-muted-foreground">{user?.username}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Name</h3>
+                      <p className="text-muted-foreground">{user?.name || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Email</h3>
+                      <p className="text-muted-foreground">{user?.email || "Not provided"}</p>
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Account Type</h3>
+                      <p className="text-muted-foreground">
+                        {user?.isPro ? (
+                          <span className="text-accent font-semibold">Gervis PRO</span>
+                        ) : (
+                          "Standard"
+                        )}
                       </p>
                     </div>
-                    {!user?.isPro && (
-                      <Button 
-                        disabled={true}
-                        variant="outline"
-                        className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
-                      >
-                        <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
-                        Upgrade to Gervis PRO
-                      </Button>
-                    )}
                   </div>
                 </div>
-                
-                {user?.isPro && (
-                  <>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-medium text-lg">Premium Features</h3>
-                      <Button 
-                        variant="outline"
-                        onClick={() => downgradeMutation.mutate()}
-                        disabled={downgradeMutation.isPending}
-                        className="text-red-500 border-red-200 hover:bg-red-50"
-                      >
-                        {downgradeMutation.isPending ? "Downgrading..." : "Downgrade to Base"}
-                      </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Subscription Section */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Management</CardTitle>
+                <CardDescription>
+                  Manage your subscription and billing
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="mb-6">
+                    <h3 className="font-medium text-lg">Current Plan</h3>
+                    <div className="flex items-center justify-between mt-2 p-4 border rounded-lg">
+                      <div>
+                        <p className="font-medium">
+                          {user?.isPro ? "Gervis PRO Plan" : "Standard Plan"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {user?.isPro
+                            ? "Access to all premium features"
+                            : "Basic features only"}
+                        </p>
+                      </div>
+                      {!user?.isPro && (
+                        <Button 
+                          disabled={true}
+                          variant="outline"
+                          className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
+                        >
+                          <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
+                          Upgrade to Gervis PRO
+                        </Button>
+                      )}
                     </div>
-                    <ul className="mt-2 space-y-2">
-                      <li className="flex items-center">
-                        <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Advanced financial analytics
-                      </li>
-                      <li className="flex items-center">
-                        <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Personalized investment recommendations
-                      </li>
-                      <li className="flex items-center">
-                        <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Priority customer support
-                      </li>
-                      <li className="flex items-center">
-                        <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        Portfolio optimization tools
-                      </li>
-                    </ul>
-                  </>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  </div>
+                  
+                  {user?.isPro && (
+                    <>
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="font-medium text-lg">Premium Features</h3>
+                        <Button 
+                          variant="outline"
+                          onClick={() => downgradeMutation.mutate()}
+                          disabled={downgradeMutation.isPending}
+                          className="text-red-500 border-red-200 hover:bg-red-50"
+                        >
+                          {downgradeMutation.isPending ? "Downgrading..." : "Downgrade to Base"}
+                        </Button>
+                      </div>
+                      <ul className="mt-2 space-y-2">
+                        <li className="flex items-center">
+                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Advanced financial analytics
+                        </li>
+                        <li className="flex items-center">
+                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Personalized investment recommendations
+                        </li>
+                        <li className="flex items-center">
+                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Priority customer support
+                        </li>
+                        <li className="flex items-center">
+                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Portfolio optimization tools
+                        </li>
+                      </ul>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Appearance Tab - New Content */}
+          <TabsContent value="appearance" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('settings.appearance')}</CardTitle>
+                <CardDescription>
+                  {t('settings.choose_theme', 'Choose your preferred theme.')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-4">
+                  <ThemeSelector />
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* Company Logo Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Logo Aziendale</CardTitle>
-              <CardDescription>
-                Carica il logo della tua azienda da utilizzare nei documenti PDF
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...logoForm}>
-                <form onSubmit={logoForm.handleSubmit(onLogoSubmit)} className="space-y-4">
-                  <div className="flex flex-col space-y-6">
-                    {/* Logo preview */}
-                    {previewLogo && (
-                      <div className="mb-4">
-                        <div className="flex justify-between items-center mb-2">
-                          <h3 className="font-medium">Anteprima Logo</h3>
-                          {user?.companyLogo && (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="text-red-500 border-red-200 hover:bg-red-50"
-                              disabled={deleteLogoMutation.isPending}
-                              onClick={() => deleteLogoMutation.mutate()}
-                            >
-                              {deleteLogoMutation.isPending ? "Eliminando..." : "Elimina Logo"}
-                            </Button>
-                          )}
+          <TabsContent value="company">
+            <Card>
+              <CardHeader>
+                <CardTitle>Logo Aziendale</CardTitle>
+                <CardDescription>
+                  Carica il logo della tua azienda da utilizzare nei documenti PDF
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...logoForm}>
+                  <form onSubmit={logoForm.handleSubmit(onLogoSubmit)} className="space-y-4">
+                    <div className="flex flex-col space-y-6">
+                      {/* Logo preview */}
+                      {previewLogo && (
+                        <div className="mb-4">
+                          <div className="flex justify-between items-center mb-2">
+                            <h3 className="font-medium">Anteprima Logo</h3>
+                            {user?.companyLogo && (
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="text-red-500 border-red-200 hover:bg-red-50"
+                                disabled={deleteLogoMutation.isPending}
+                                onClick={() => deleteLogoMutation.mutate()}
+                              >
+                                {deleteLogoMutation.isPending ? "Eliminando..." : "Elimina Logo"}
+                              </Button>
+                            )}
+                          </div>
+                          <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
+                            <img 
+                              src={previewLogo} 
+                              alt="Company Logo Preview" 
+                              className="max-h-[150px] max-w-full object-contain"
+                            />
+                          </div>
                         </div>
-                        <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
-                          <img 
-                            src={previewLogo} 
-                            alt="Company Logo Preview" 
-                            className="max-h-[150px] max-w-full object-contain"
+                      )}
+                      
+                      {/* Upload input for logo */}
+                      <div>
+                        <FormLabel>Seleziona file logo (max 2MB)</FormLabel>
+                        <div className="mt-2">
+                          <Input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="cursor-pointer"
                           />
                         </div>
+                        <FormDescription>
+                          Il logo verrà utilizzato come filigrana nell'intestazione dei tuoi documenti PDF
+                        </FormDescription>
                       </div>
-                    )}
-                    
-                    {/* Upload input for logo */}
-                    <div>
-                      <FormLabel>Seleziona file logo (max 2MB)</FormLabel>
-                      <div className="mt-2">
-                        <Input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleLogoUpload}
-                          className="cursor-pointer"
-                        />
-                      </div>
-                      <FormDescription>
-                        Il logo verrà utilizzato come filigrana nell'intestazione dei tuoi documenti PDF
-                      </FormDescription>
+                      
+                      <Button
+                        type="submit"
+                        disabled={logoMutation.isPending || !previewLogo}
+                        className="mt-4"
+                      >
+                        {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
+                      </Button>
                     </div>
-                    
-                    <Button
-                      type="submit"
-                      disabled={logoMutation.isPending || !previewLogo}
-                      className="mt-4"
-                    >
-                      {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
-                    </Button>
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* Company Info Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informazioni Societarie</CardTitle>
-              <CardDescription>
-                Inserisci le informazioni societarie che appariranno nei documenti PDF
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...companyInfoForm}>
-                <form onSubmit={companyInfoForm.handleSubmit(onCompanyInfoSubmit)} className="space-y-4">
-                  <FormField
-                    control={companyInfoForm.control}
-                    name="companyInfo"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Informazioni societarie</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Inserisci i dettagli della società (indirizzo, telefono, email, P.IVA, ecc.)"
-                            {...field}
-                            className="min-h-[150px]"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Queste informazioni appariranno nell'intestazione dei documenti PDF sotto il logo aziendale
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={companyInfoMutation.isPending}
-                    className="mt-4"
-                  >
-                    {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          <TabsContent value="notifications">
+            <Card>
+              <CardHeader>
+                <CardTitle>Informazioni Societarie</CardTitle>
+                <CardDescription>
+                  Inserisci le informazioni societarie che appariranno nei documenti PDF
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...companyInfoForm}>
+                  <form onSubmit={companyInfoForm.handleSubmit(onCompanyInfoSubmit)} className="space-y-4">
+                    <FormField
+                      control={companyInfoForm.control}
+                      name="companyInfo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Informazioni societarie</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Inserisci i dettagli della società (indirizzo, telefono, email, P.IVA, ecc.)"
+                              {...field}
+                              className="min-h-[150px]"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Queste informazioni appariranno nell'intestazione dei documenti PDF sotto il logo aziendale
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={companyInfoMutation.isPending}
+                      className="mt-4"
+                    >
+                      {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
           
           {/* Email Signature Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Email Signature</CardTitle>
-              <CardDescription>
-                Customize your signature for client communications
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...signatureForm}>
-                <form onSubmit={signatureForm.handleSubmit(onSignatureSubmit)} className="space-y-4">
-                  <FormField
-                    control={signatureForm.control}
-                    name="signature"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Your Signature</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Enter your professional signature"
-                            {...field}
-                            className="min-h-[100px]"
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          This signature will appear at the end of all your client communications
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={signatureMutation.isPending}
-                    className="mt-4"
-                  >
-                    {signatureMutation.isPending ? "Saving..." : "Save Signature"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+          <TabsContent value="subscription">
+            <Card>
+              <CardHeader>
+                <CardTitle>Email Signature</CardTitle>
+                <CardDescription>
+                  Customize your signature for client communications
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...signatureForm}>
+                  <form onSubmit={signatureForm.handleSubmit(onSignatureSubmit)} className="space-y-4">
+                    <FormField
+                      control={signatureForm.control}
+                      name="signature"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Your Signature</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="Enter your professional signature"
+                              {...field}
+                              className="min-h-[100px]"
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            This signature will appear at the end of all your client communications
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={signatureMutation.isPending}
+                      className="mt-4"
+                    >
+                      {signatureMutation.isPending ? "Saving..." : "Save Signature"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           {/* Security Section */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Change Password</CardTitle>
-              <CardDescription>
-                Update your password to keep your account secure
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Current Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="Enter your current password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="newPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>New Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="Enter your new password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Password must be at least 8 characters long
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm New Password</FormLabel>
-                        <FormControl>
-                          <Input
-                            type="password"
-                            placeholder="Confirm your new password"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button
-                    type="submit"
-                    disabled={passwordMutation.isPending}
-                    className="mt-4"
-                  >
-                    {passwordMutation.isPending ? "Updating..." : "Update Password"}
-                  </Button>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-        </div>
+          <TabsContent value="security">
+            <Card>
+              <CardHeader>
+                <CardTitle>Change Password</CardTitle>
+                <CardDescription>
+                  Update your password to keep your account secure
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter your current password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Enter your new password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
+                            Password must be at least 8 characters long
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="password"
+                              placeholder="Confirm your new password"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={passwordMutation.isPending}
+                      className="mt-4"
+                    >
+                      {passwordMutation.isPending ? "Updating..." : "Update Password"}
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
       
       {/* Upgrade Dialog */}
@@ -716,5 +747,43 @@ export default function Settings() {
         />
       )}
     </Layout>
+  );
+}
+
+function ThemeSelector() {
+  const { theme, setTheme } = useTheme();
+  const { t } = useTranslation();
+  
+  return (
+    <div className="flex flex-col space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="space-y-1">
+          <h4 className="text-sm font-medium leading-none">{t('settings.theme', 'Theme')}</h4>
+          <p className="text-sm text-muted-foreground">
+            {t('settings.theme_description', 'Set your preferred theme for the app interface.')}
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-4">
+        <div
+          className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-white p-4 hover:border-accent cursor-pointer ${
+            theme === "light" ? "border-primary" : "border-muted"
+          }`}
+          onClick={() => setTheme("light")}
+        >
+          <div className="mb-2 mt-4 h-5 w-5 rounded-full bg-primary" />
+          <span className="text-xs font-medium">{t('settings.light_mode')}</span>
+        </div>
+        <div
+          className={`flex flex-col items-center justify-between rounded-md border-2 bg-gray-950 p-4 hover:border-accent cursor-pointer ${
+            theme === "dark" ? "border-primary" : "border-muted"
+          }`}
+          onClick={() => setTheme("dark")}
+        >
+          <div className="mb-2 mt-4 h-5 w-5 rounded-full bg-primary" />
+          <span className="text-xs font-medium text-white">{t('settings.dark_mode')}</span>
+        </div>
+      </div>
+    </div>
   );
 }

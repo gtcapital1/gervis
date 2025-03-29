@@ -1,610 +1,697 @@
-import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { 
-  Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
-  ChevronRight, 
-  Archive, 
+  Users, 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  BarChart4, 
+  DollarSign, 
+  LineChart, 
+  UserPlus,
+  UserCheck,
+  Percent,
+  Wallet,
   Clock, 
-  Phone,
-  Mail,
-  UserX,
+  CalendarClock,
+  CheckCircle2,
   AlertTriangle,
-  RefreshCcw,
-  Star,
-  Zap
+  Mail,
+  MessageSquare,
+  Phone,
+  FileText,
+  FileWarning,
+  Edit3,
+  Layers,
+  TrendingUp,
+  Activity,
+  PieChart,
+  CreditCard,
+  Info,
+  BarChart,
+  Inbox,
+  Bell,
+  FileCheck,
+  User
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { 
   Card, 
   CardContent, 
   CardDescription, 
   CardHeader, 
-  CardTitle 
+  CardTitle,
+  CardFooter
 } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { ClientDialog } from "../components/dashboard/ClientDialog";
-import { UpgradeDialog } from "../components/pro/UpgradeDialog";
 import { Client } from "@shared/schema";
-import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
+import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
+import { useLocation } from "wouter";
+import { PageHeader } from "@/components/ui/page-header";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+
+// Definizione delle interfacce per i tipi di dati
+interface Task {
+  id: number;
+  title: string;
+  dueDate: string;
+  priority: string;
+  clientId: number;
+  clientName: string;
+}
+
+interface Event {
+  id: number;
+  title: string;
+  type: string;
+  startTime: string;
+  endTime: string;
+  clientId: number;
+  clientName: string;
+  location: string;
+}
+
+interface AssetAllocation {
+  category: string;
+  percentage: number;
+  value: number;
+}
+
+interface Activity {
+  id: number;
+  type: string;
+  description: string;
+  client: string;
+  time: string;
+  status: string;
+  color?: string;
+}
+
+interface MissingDocument {
+  clientId: number;
+  clientName: string;
+  documentType: string;
+  daysOverdue: number;
+}
+
+interface PortfolioData {
+  totalAUM: number;
+  aumChange: number;
+  aumChangePercent: number;
+  averagePortfolioSize: number;
+  revenueYTD: number;
+  revenueLastYear: number;
+  revenueChangePercent: number;
+  assetAllocation: AssetAllocation[];
+  performanceLastMonth: number;
+  performanceYTD: number;
+}
 
 export default function Dashboard() {
-  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  const [isUpgradeDialogOpen, setIsUpgradeDialogOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [showArchived, setShowArchived] = useState(false);
-  const [clientToArchive, setClientToArchive] = useState<Client | null>(null);
-  const [isArchiveDialogOpen, setIsArchiveDialogOpen] = useState(false);
-  const [clientToDelete, setClientToDelete] = useState<Client | null>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [, setLocation] = useLocation();
+  const timeRange = "month";
 
   // Fetch clients
-  const { data, isLoading, isError } = useQuery<{clients: Client[]} | null>({
+  const { data: clientsData, isLoading: isLoadingClients } = useQuery<{clients: Client[]} | null>({
     queryKey: ['/api/clients'],
     retry: 2,
     refetchOnWindowFocus: false,
     staleTime: 30000,
   });
   
-  // Estrai i clienti dalla risposta o usa un array vuoto se non disponibili
-  const clients = data?.clients || [];
-
-  // Archive client mutation
-  const archiveClientMutation = useMutation({
-    mutationFn: (clientId: number) => {
-      return apiRequest(`/api/clients/${clientId}/archive`, {
-        method: 'POST',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      setIsArchiveDialogOpen(false);
-      toast({
-        title: "Client archived",
-        description: "The client has been moved to the archive.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to archive client. Please try again.",
-        variant: "destructive",
-      });
-    },
+  // Fetch portfolio data
+  const { data: portfolioData, isLoading: isLoadingPortfolio } = useQuery<PortfolioData>({
+    queryKey: ['/api/portfolio/overview'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
   
-  // Restore client mutation
-  const restoreClientMutation = useMutation({
-    mutationFn: (clientId: number) => {
-      return apiRequest(`/api/clients/${clientId}/restore`, {
-        method: 'POST',
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      toast({
-        title: "Client restored",
-        description: "The client has been restored from the archive.",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to restore client. Please try again.",
-        variant: "destructive",
-      });
-    },
+  // Fetch tasks
+  const { data: tasksData, isLoading: isLoadingTasks } = useQuery<{tasks: Task[]}>({
+    queryKey: ['/api/tasks/today'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
   
-  // Delete client mutation con verifica del risultato
-  const deleteClientMutation = useMutation({
-    mutationFn: async (clientId: number) => {
-      console.log(`[DEBUG] Avvio eliminazione cliente ${clientId}`);
-      
-      // Utilizziamo apiRequest standard per garantire la corretta gestione degli errori
-      const deleteResponse = await apiRequest(`/api/clients/${clientId}?_t=${Date.now()}`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-          'Pragma': 'no-cache',
-          'Expires': '-1',
-          'X-Requested-With': 'XMLHttpRequest',
-          'X-No-HTML-Response': 'true',
-          'X-Force-Content-Type': 'application/json',
-          'X-Debug-Delete': 'true'
-        }
-      });
-      
-      console.log(`[DEBUG] Risposta eliminazione:`, deleteResponse);
-      
-      // Verifica che l'eliminazione sia avvenuta realmente
-      // Aspetta un momento e poi richiedi l'elenco dei clienti per verificare
-      await new Promise(resolve => setTimeout(resolve, 300));
-      
-      const verifyResponse = await apiRequest('/api/clients', {
-        method: 'GET',
-        headers: {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
-      });
-      
-      console.log(`[DEBUG] Verifica post-eliminazione:`, verifyResponse);
-      
-      // Controlla se il cliente è ancora presente
-      const clientStillExists = verifyResponse.clients?.some((c: any) => c.id === clientId);
-      
-      if (clientStillExists) {
-        console.error(`[ERROR] Il cliente ${clientId} risulta ancora presente dopo l'eliminazione!`);
-        
-        // Tenta un'altra richiesta DELETE più aggressiva come fallback
-        console.warn(`[DEBUG] Tentativo di recupero eliminazione per cliente ${clientId}...`);
-        
-        const recoveryResponse = await fetch(`/api/clients/${clientId}?_fallback=true&_t=${Date.now()}_${Math.random()}`, {
-          method: 'DELETE',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate, max-age=0',
-            'Pragma': 'no-cache',
-            'Expires': '-1',
-            'X-Requested-With': 'XMLHttpRequest',
-            'X-No-HTML-Response': 'true',
-            'X-Force-Content-Type': 'application/json',
-            'X-Recovery-Delete': 'true'
-          }
-        });
-        
-        // Verifica nuovamente
-        await new Promise(resolve => setTimeout(resolve, 500));
-        
-        const secondVerifyResponse = await apiRequest('/api/clients', {
-          method: 'GET',
-          headers: {
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-        
-        const clientStillExistsAfterRecovery = secondVerifyResponse.clients?.some((c: any) => c.id === clientId);
-        
-        if (clientStillExistsAfterRecovery) {
-          console.error(`[ERROR] Eliminazione fallita anche dopo il recovery!`);
-          throw new Error("Impossibile eliminare il cliente. Si prega di contattare l'assistenza.");
-        } else {
-          console.log(`[DEBUG] Eliminazione riuscita dopo recovery`);
-          return { success: true, message: "Client deleted successfully (after recovery)" };
-        }
-      }
-      
-      // Se arriva qui, il cliente è stato eliminato con successo
-      return { success: true, message: "Client deleted successfully", verified: true };
-    },
-    onSuccess: (data) => {
-      console.log(`[DEBUG] Eliminazione cliente completata con successo:`, data);
-      
-      // Invalidiamo la query per aggiornare l'elenco clienti
-      queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
-      
-      // Toast di successo
-      toast({
-        title: t('dashboard.client_deleted'),
-        description: t('dashboard.client_deleted_success'),
-      });
-      
-      // Chiudi il dialog di conferma
-      setIsDeleteDialogOpen(false);
-    },
-    onError: (error) => {
-      // Log dettagliato dell'errore per debugging
-      console.error(`[ERROR] Errore nell'eliminazione cliente:`, error);
-      
-      // Mostriamo un messaggio di errore all'utente
-      toast({
-        title: "Errore",
-        description: `Non è stato possibile eliminare il cliente: ${error.message || 'Errore interno'}`,
-        variant: "destructive",
-      });
-      
-      // Chiudi il dialog di conferma
-      setIsDeleteDialogOpen(false);
-    },
+  // Fetch agenda
+  const { data: agendaData, isLoading: isLoadingAgenda } = useQuery<{events: Event[]}>({
+    queryKey: ['/api/agenda/today'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
+  
+  // Fetch compliance data
+  const { data: complianceData, isLoading: isLoadingCompliance } = useQuery<{
+    missingDocuments: MissingDocument[],
+    complianceRate: number,
+    daysToNextAudit: number
+  }>({
+    queryKey: ['/api/compliance/overview'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
+  
+  // Fetch activity feed
+  const { data: activityData, isLoading: isLoadingActivity } = useQuery<{activities: Activity[]}>({
+    queryKey: ['/api/activity/recent'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
 
-  // Filter clients based on search query and archived status
-  const filteredClients = clients
-    .filter((client: Client) => {
-      // First filter by search query
-      const matchesSearch = 
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      // Then filter by archive status
-      const matchesArchiveFilter = showArchived ? 
-        client.isArchived === true : 
-        client.isArchived !== true;
-      
-      return matchesSearch && matchesArchiveFilter;
-    })
-    .sort((a, b) => {
-      // Sort by last name first
-      return a.lastName.localeCompare(b.lastName);
-    });
+  // Prepare client data
+  const clients = clientsData?.clients || [];
+  const activeClients = clients.filter(client => !client.isArchived);
+  const archivedClients = clients.filter(client => client.isArchived);
+  const onboardedClients = clients.filter(client => client.isOnboarded);
+  const onboardingRate = clients.length > 0 ? (onboardedClients.length / clients.length) * 100 : 0;
+  
+  // Corretto l'errore di tipo per la data di creazione del cliente
+  const newClientsThisMonth = clients.filter(client => {
+    // Verifica che createdAt esista prima di usarlo
+    if (!client.createdAt) return false;
+    
+    const clientDate = new Date(client.createdAt);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    return clientDate >= thirtyDaysAgo;
+  }).length;
+  
+  // Prepare portfolio data
+  const portfolioStats = portfolioData || {
+    totalAUM: 0,
+    aumChange: 0,
+    aumChangePercent: 0,
+    averagePortfolioSize: 0,
+    revenueYTD: 0,
+    revenueLastYear: 0,
+    revenueChangePercent: 0,
+    assetAllocation: [],
+    performanceLastMonth: 0,
+    performanceYTD: 0
+  };
+  
+  // Data for client pipeline
+  const prospectClients = clients.filter(client => !client.isOnboarded && !client.isArchived).length;
+  
+  // Prepare risk profile distribution
+  const riskProfiles = activeClients.reduce((acc, client) => {
+    const profile = client.riskProfile || 'unknown';
+    acc[profile] = (acc[profile] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  const lowRiskClients = riskProfiles['conservative'] || 0;
+  const mediumRiskClients = (riskProfiles['moderate'] || 0) + (riskProfiles['balanced'] || 0);
+  const highRiskClients = (riskProfiles['growth'] || 0) + (riskProfiles['aggressive'] || 0);
 
-  function formatDate(date: Date | string | null) {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString();
-  }
+  // Prepare tasks data
+  const tasks = tasksData?.tasks || [];
+  const tasksDueToday = tasks.length;
+  const highPriorityTasks = tasks.filter((task: Task) => task.priority === 'high').length;
+  
+  // Prepare agenda
+  const todayEvents = agendaData?.events || [];
+  
+  // Prepare compliance data
+  const missingDocuments = complianceData?.missingDocuments || [];
+  const documentComplianceRate = complianceData?.complianceRate || 92;
+  const daysToNextAudit = complianceData?.daysToNextAudit || 15;
+  
+  // Prepare activity feed
+  const recentActivities = activityData?.activities || [];
 
-  function handleViewClient(id: number) {
-    setLocation(`/clients/${id}`);
-  }
-  
-  function handleArchiveClient(client: Client) {
-    setClientToArchive(client);
-    setIsArchiveDialogOpen(true);
-  }
-  
-  function confirmArchiveClient() {
-    if (clientToArchive) {
-      archiveClientMutation.mutate(clientToArchive.id);
-    }
-  }
-  
-  function handleDeleteClient(client: Client) {
-    setClientToDelete(client);
-    setIsDeleteDialogOpen(true);
-  }
-  
-  function confirmDeleteClient() {
-    if (clientToDelete) {
-      console.log("DEBUG Dashboard - Iniziando eliminazione cliente con ID:", clientToDelete.id);
-      setIsDeleteDialogOpen(false); // Chiudi subito il dialog per migliorare UX
-      
-      // Mostra un messaggio di avvio operazione
-      toast({
-        title: "Eliminazione in corso...",
-        description: "Attendere mentre eliminiamo il cliente e verifichiamo l'operazione.",
-      });
-      
-      // Invochiamo la mutazione con verifica automatica dell'esito reale
-      deleteClientMutation.mutate(clientToDelete.id);
-    }
-  }
+  // Format asset allocation data
+  const assetAllocation = portfolioStats.assetAllocation || [
+    { category: "Equities", percentage: 45, value: portfolioStats.totalAUM * 0.45 },
+    { category: "Bonds", percentage: 30, value: portfolioStats.totalAUM * 0.30 },
+    { category: "ETFs", percentage: 15, value: portfolioStats.totalAUM * 0.15 },
+    { category: "Cash", percentage: 10, value: portfolioStats.totalAUM * 0.10 }
+  ];
+
+  // Format communication data
+  const unreadMessages = 3; // Da sostituire con dati API reali
+  const pendingFollowUps = 5; // Da sostituire con dati API reali
+
+  // Format market data
+  const marketData = {
+    sp500: '+0.8%',
+    ftseMib: '+0.5%',
+    eurUsd: '-0.2%'
+  };
 
   return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-6 border-b text-black">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-black">{t('dashboard.clients')}</h1>
-          <p className="text-gray-600">
-            {t('dashboard.manage_portfolio')}
-          </p>
-        </div>
-        <div className="flex gap-3">
-          {/* Rimosso il pulsante "Passa a PRO" dalla dashboard come richiesto */}
-          <Button 
-            className="bg-accent hover:bg-accent/90" 
-            onClick={() => setIsClientDialogOpen(true)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            {t('dashboard.add_client')}
-          </Button>
-        </div>
-      </div>
-      
-      <Separator />
-      
-      <div className="p-6 space-y-6">
+    <div className="p-4 sm:p-6 space-y-6">
+      <PageHeader 
+        title={t('dashboard.title')}
+        subtitle={t('dashboard.subtitle')}
+      >
+      </PageHeader>
+
+      {/* 🔷 Dashboard Overview (at-a-glance) */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader>
-            <CardTitle>{t('dashboard.client_overview')}</CardTitle>
-            <CardDescription>
-              {t('dashboard.view_manage_clients')}
-            </CardDescription>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('dashboard.total_aum')}
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-4">
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder={t('dashboard.search_clients')}
-                    className="pl-8"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+            <div className="text-2xl font-bold">{formatCurrency(portfolioStats.totalAUM)}</div>
+            <div className={`flex items-center text-xs ${portfolioStats.aumChangePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {portfolioStats.aumChangePercent >= 0 ? <ArrowUpRight className="mr-1 h-4 w-4" /> : <ArrowDownRight className="mr-1 h-4 w-4" />}
+              <span>{formatPercent(Math.abs(portfolioStats.aumChangePercent))}</span>
+              <span className="text-muted-foreground ml-1">{t('dashboard.from_previous_period')}</span>
+        </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('dashboard.active_clients')}
+            </CardTitle>
+            <Users className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatNumber(activeClients.length)}</div>
+            <p className="text-xs text-muted-foreground">
+              {newClientsThisMonth} {t('dashboard.new_this_month')}
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">
+              {t('dashboard.tasks_due_today')}
+            </CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{tasksDueToday}</div>
+            <p className="text-xs text-muted-foreground">
+              {highPriorityTasks} {t('dashboard.high_priority')}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Two column layout for main content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left column - 2/3 width */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Today's Agenda */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.todays_agenda')}</CardTitle>
+              <CardDescription>{t('dashboard.scheduled_events')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingAgenda ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
                 </div>
-                <Button 
-                  variant={showArchived ? "default" : "outline"} 
-                  size="sm"
-                  onClick={() => setShowArchived(!showArchived)}
-                  className={showArchived ? "bg-amber-600" : ""}
-                >
-                  <Archive className="mr-2 h-4 w-4" />
-                  {showArchived ? t('dashboard.showing_archived') : t('dashboard.show_archived')}
-                </Button>
+              ) : todayEvents.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.no_events_today')}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {todayEvents.slice(0, 3).map((event: Event, index: number) => (
+                    <div key={index} className="flex items-start gap-4">
+                      <div className="bg-primary/10 p-2 rounded-md">
+                        {event.type === 'call' ? (
+                          <Phone className="h-5 w-5 text-primary" />
+                        ) : event.type === 'meeting' ? (
+                          <Users className="h-5 w-5 text-primary" />
+                        ) : (
+                          <FileText className="h-5 w-5 text-primary" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium">{event.title}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {event.startTime} - {event.endTime} · {event.clientName}
+                        </div>
+                      </div>
+                      <Badge className={
+                        event.location === 'zoom' ? "bg-blue-500" :
+                        event.location === 'office' ? "bg-green-500" :
+                        "bg-amber-500"
+                      }>
+                        {event.location.charAt(0).toUpperCase() + event.location.slice(1)}
+                      </Badge>
+                    </div>
+                  ))}
               </div>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => {
-                  toast({
-                    title: t('dashboard.filter'),
-                    description: "Advanced filtering will be available soon."
-                  });
-                }}
-              >
-                <Filter className="mr-2 h-4 w-4" />
-                {t('dashboard.filter')}
+              )}
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+              <Button variant="ghost" className="w-full" onClick={() => setLocation('/calendar')}>
+                {t('dashboard.view_calendar')}
               </Button>
+            </CardFooter>
+          </Card>
+
+          {/* Client Pipeline Snapshot */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.client_pipeline')}</CardTitle>
+              <CardDescription>{t('dashboard.conversion_funnel')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold">{formatNumber(prospectClients)}</div>
+                  <div className="text-sm text-muted-foreground">{t('dashboard.prospects')}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold">{formatNumber(onboardedClients.length)}</div>
+                  <div className="text-sm text-muted-foreground">{t('dashboard.onboarded')}</div>
+                </div>
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold">{formatNumber(activeClients.length)}</div>
+                  <div className="text-sm text-muted-foreground">{t('dashboard.active_clients')}</div>
             </div>
-            
-            {isLoading ? (
-              <div className="flex justify-center items-center h-64">
-                <p>{t('dashboard.loading_clients')}</p>
               </div>
-            ) : isError ? (
-              <div className="flex justify-center items-center h-64">
-                <p className="text-destructive">{t('dashboard.error_loading')}</p>
+
+              {/* Funnel visualization */}
+              <div className="space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span>{t('dashboard.prospects')}</span>
+                  <span>{formatNumber(prospectClients)}</span>
+                </div>
+                <Progress value={100} className="h-2" />
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span>{t('dashboard.qualified_leads')}</span>
+                  <span>{formatNumber(Math.round(prospectClients * 0.75))}</span>
+                </div>
+                <Progress value={75} className="h-2" />
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span>{t('dashboard.proposal_sent')}</span>
+                  <span>{formatNumber(Math.round(prospectClients * 0.5))}</span>
+                </div>
+                <Progress value={50} className="h-2" />
+                
+                <div className="flex justify-between items-center text-sm">
+                  <span>{t('dashboard.onboarded')}</span>
+                  <span>{formatNumber(onboardedClients.length)}</span>
               </div>
-            ) : filteredClients.length === 0 ? (
-              <div className="flex flex-col justify-center items-center h-64 space-y-3">
-                <p className="text-muted-foreground">{t('dashboard.no_clients_found')}</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => setIsClientDialogOpen(true)}
-                >
-                  {t('dashboard.add_first_client')}
-                </Button>
+                <Progress value={Math.round((onboardedClients.length / (prospectClients || 1)) * 100)} className="h-2" />
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">{t('dashboard.name')}</TableHead>
-                      <TableHead className="whitespace-nowrap">{t('dashboard.email')}</TableHead>
-                      <TableHead className="whitespace-nowrap hidden md:table-cell">{t('dashboard.phone')}</TableHead>
-                      <TableHead className="whitespace-nowrap">{t('dashboard.status')}</TableHead>
-                      <TableHead className="whitespace-nowrap hidden md:table-cell">{t('dashboard.created')}</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredClients.map((client: Client) => (
-                      <TableRow 
-                        key={client.id} 
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => handleViewClient(client.id)}
-                      >
-                        <TableCell className="font-medium whitespace-nowrap">
-                          {client.lastName}, {client.firstName}
-                        </TableCell>
-                        <TableCell className="max-w-[140px] truncate">{client.email}</TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">{client.phone || "—"}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={client.isOnboarded ? "default" : "outline"}
-                            className={client.isOnboarded ? "bg-green-600" : "border-red-500 text-red-500 font-medium"}
-                          >
-                            {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">{formatDate(client.createdAt)}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-2">
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
                             <Button
                               variant="ghost"
-                              size="icon"
-                              onClick={(e) => {
-                                e.stopPropagation(); // Previene la propagazione del click
-                                handleViewClient(client.id);
-                              }}
-                              className="hidden sm:flex"
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                              <span className="sr-only">{t('dashboard.view')}</span>
+                className="w-full"
+                onClick={() => setLocation('/clients')}
+              >
+                {t('dashboard.view_all_clients')}
                             </Button>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Previene la propagazione del click
-                                  }}
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">{t('dashboard.actions')}</span>
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleViewClient(client.id);
-                                  }}
-                                >
-                                  {t('dashboard.view_details')}
-                                </DropdownMenuItem>
-                                {client.isArchived ? (
-                                  <DropdownMenuItem 
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      restoreClientMutation.mutate(client.id);
-                                    }}
-                                    className="text-green-600"
-                                  >
-                                    <RefreshCcw className="mr-2 h-4 w-4" />
-                                    {t('dashboard.restore_client')}
-                                  </DropdownMenuItem>
+            </CardFooter>
+          </Card>
+
+          {/* 📊 Client Portfolio Insights */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.portfolio_insights')}</CardTitle>
+              <CardDescription>{t('dashboard.aum_overview')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {isLoadingPortfolio ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
+                </div>
                                 ) : (
                                   <>
-                                    <DropdownMenuItem 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleArchiveClient(client);
-                                      }}
-                                      className="text-amber-600"
-                                    >
-                                      <Archive className="mr-2 h-4 w-4" />
-                                      {t('dashboard.archive')}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteClient(client);
-                                      }}
-                                      className="text-red-600"
-                                    >
-                                      <UserX className="mr-2 h-4 w-4" />
-                                      {t('dashboard.delete_permanently')}
-                                    </DropdownMenuItem>
-                                  </>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                  {/* Asset Allocation */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">{t('dashboard.asset_allocation')}</h3>
+                    <div className="space-y-2">
+                      {assetAllocation.map((asset: AssetAllocation) => (
+                        <div key={asset.category} className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span>{asset.category}</span>
+                            <span>{formatPercent(asset.percentage)}</span>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                          <Progress value={asset.percentage} className="h-2" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Risk Distribution */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">{t('dashboard.risk_distribution')}</h3>
+                    <div className="h-[20px] w-full rounded-md overflow-hidden flex">
+                      <div className="bg-green-500" style={{ width: `${(lowRiskClients / activeClients.length * 100) || 0}%` }}></div>
+                      <div className="bg-amber-500" style={{ width: `${(mediumRiskClients / activeClients.length * 100) || 0}%` }}></div>
+                      <div className="bg-red-500" style={{ width: `${(highRiskClients / activeClients.length * 100) || 0}%` }}></div>
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs">
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
+                        <span>{t('dashboard.low_risk')}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-amber-500 mr-1"></div>
+                        <span>{t('dashboard.medium_risk')}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
+                        <span>{t('dashboard.high_risk')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Performance Summary */}
+                  <div>
+                    <h3 className="text-sm font-medium mb-2">{t('dashboard.performance_summary')}</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="rounded-lg border p-3">
+                        <div className="text-sm text-muted-foreground">{t('dashboard.last_30_days')}</div>
+                        <div className="flex items-center mt-1">
+                          <span className={`text-xl font-bold ${portfolioStats.performanceLastMonth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {portfolioStats.performanceLastMonth >= 0 ? '+' : ''}{formatPercent(portfolioStats.performanceLastMonth)}
+                          </span>
+                          {portfolioStats.performanceLastMonth >= 0 ? 
+                            <ArrowUpRight className="h-4 w-4 ml-1 text-green-500" /> : 
+                            <ArrowDownRight className="h-4 w-4 ml-1 text-red-500" />
+                          }
+                        </div>
+                      </div>
+                      <div className="rounded-lg border p-3">
+                        <div className="text-sm text-muted-foreground">{t('dashboard.ytd')}</div>
+                        <div className="flex items-center mt-1">
+                          <span className={`text-xl font-bold ${portfolioStats.performanceYTD >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {portfolioStats.performanceYTD >= 0 ? '+' : ''}{formatPercent(portfolioStats.performanceYTD)}
+                          </span>
+                          {portfolioStats.performanceYTD >= 0 ? 
+                            <ArrowUpRight className="h-4 w-4 ml-1 text-green-500" /> : 
+                            <ArrowDownRight className="h-4 w-4 ml-1 text-red-500" />
+                          }
+                        </div>
+                      </div>
+                    </div>
               </div>
+                </>
             )}
           </CardContent>
         </Card>
       </div>
       
-      <ClientDialog 
-        open={isClientDialogOpen}
-        onOpenChange={setIsClientDialogOpen}
-      />
-      
-      {/* Archive Client Confirmation Dialog */}
-      <Dialog open={isArchiveDialogOpen} onOpenChange={setIsArchiveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.archive_client')}</DialogTitle>
-            <DialogDescription>
-              {t('dashboard.archive_confirmation').replace('this client', clientToArchive ? `${clientToArchive.firstName} ${clientToArchive.lastName}` : '')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
-            <AlertTriangle className="h-10 w-10 text-amber-500" />
+        {/* Right column - 1/3 width */}
+        <div className="space-y-6">
+          {/* Recent Activity Feed */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.recent_activity')}</CardTitle>
+              <CardDescription>{t('dashboard.latest_updates')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingActivity ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
+                </div>
+              ) : recentActivities.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.no_recent_activity')}
+                </div>
+              ) : (
+                recentActivities.slice(0, 4).map((activity: Activity, index: number) => (
+                  <div key={index} className={`border-l-4 border-${activity.color || 'blue'}-500 pl-4 py-1`}>
+                    <div className="flex items-start gap-2">
+                      {activity.type === 'call' ? (
+                        <Activity className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      ) : activity.type === 'lead' ? (
+                        <UserPlus className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      ) : activity.type === 'document' ? (
+                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      ) : (
+                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
+                      )}
             <div>
-              <h4 className="font-medium">{t('dashboard.action_reversible')}</h4>
-              <p className="text-sm text-muted-foreground">
-                {t('dashboard.restore_info')}
-              </p>
+                        <p className="text-sm">{activity.description} <span className="font-medium">{activity.client}</span></p>
+                        <p className="text-xs text-muted-foreground">{activity.time} - {activity.status}</p>
+                      </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsArchiveDialogOpen(false)}
-            >
-              {t('dashboard.cancel')}
+                ))
+              )}
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+              <Button variant="ghost" className="w-full" onClick={() => setLocation('/activity')}>
+                {t('dashboard.view_all_activity')}
             </Button>
-            <Button 
-              variant="destructive"
-              onClick={confirmArchiveClient}
-              disabled={archiveClientMutation.isPending}
-            >
-              {archiveClientMutation.isPending ? t('dashboard.archiving') : t('dashboard.archive_client')}
+            </CardFooter>
+          </Card>
+
+          {/* 📁 Compliance Quick View */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.compliance')}</CardTitle>
+              <CardDescription>{t('dashboard.document_status')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {isLoadingCompliance ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
+                </div>
+              ) : missingDocuments.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.all_documents_compliant')}
+                </div>
+              ) : (
+                missingDocuments.slice(0, 3).map((doc: MissingDocument, index: number) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <FileWarning className="h-5 w-5 text-red-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{doc.clientName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('dashboard.missing')}: {doc.documentType} - {doc.daysOverdue} {t('dashboard.days_overdue')}
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={() => setLocation(`/clients/${doc.clientId}`)}>
+                      {t('dashboard.remind')}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Delete Client Confirmation Dialog */}
-      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.delete_client')}</DialogTitle>
-            <DialogDescription>
-              {t('dashboard.delete_confirmation').replace('this client', clientToDelete ? `${clientToDelete.firstName} ${clientToDelete.lastName}` : '')}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center p-4 border rounded-md bg-muted/50 space-x-4">
-            <AlertTriangle className="h-10 w-10 text-red-500" />
-            <div>
-              <h4 className="font-medium text-red-600">{t('dashboard.action_permanent')}</h4>
-              <p className="text-sm text-muted-foreground">
-                {t('dashboard.delete_data_warning')}
+                  </div>
+                ))
+              )}
+              
+              <div className="pt-2">
+                <div className="flex justify-between text-sm mb-1">
+                  <span>{t('dashboard.document_compliance')}</span>
+                  <span className="font-medium">{documentComplianceRate}%</span>
+                </div>
+                <Progress value={documentComplianceRate} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('dashboard.next_audit')}: {daysToNextAudit} {t('dashboard.days')}
               </p>
             </div>
+            </CardContent>
+          </Card>
+
+          {/* 💬 Communication & Engagement */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.communication')}</CardTitle>
+              <CardDescription>{t('dashboard.client_engagement')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{t('dashboard.unread_messages')}</span>
+                </div>
+                <Badge>{unreadMessages}</Badge>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
+                  <span className="text-sm">{t('dashboard.pending_follow_ups')}</span>
+                </div>
+                <Badge>{pendingFollowUps}</Badge>
           </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsDeleteDialogOpen(false)}
-            >
-              {t('dashboard.cancel')}
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={confirmDeleteClient}
-              disabled={deleteClientMutation.isPending}
-            >
-              {deleteClientMutation.isPending ? t('dashboard.deleting') : t('dashboard.delete_permanently')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Upgrade to PRO Dialog */}
-      {user && (
-        <UpgradeDialog
-          open={isUpgradeDialogOpen}
-          onOpenChange={setIsUpgradeDialogOpen}
-          userId={user.id}
-        />
-      )}
+              
+              <div className="pt-2">
+                <h3 className="text-sm font-medium mb-2">{t('dashboard.contact_heatmap')}</h3>
+                <div className="grid grid-cols-7 gap-1">
+                  {Array.from({ length: 14 }).map((_, i) => (
+                    <div 
+                      key={i}
+                      className={`h-4 rounded-sm ${
+                        i % 3 === 0 ? 'bg-green-500/80' :
+                        i % 4 === 0 ? 'bg-green-500/40' :
+                        i % 5 === 0 ? 'bg-green-500/20' :
+                        'bg-gray-200 dark:bg-gray-700'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {t('dashboard.last_two_weeks')}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Market Updates Widget */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('dashboard.market_updates')}</CardTitle>
+              <CardDescription>{t('dashboard.financial_news')}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-4 w-4 mt-0.5 text-green-500" />
+                  <p className="text-sm">S&P 500: <span className="font-medium">{marketData.sp500}</span></p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <TrendingUp className="h-4 w-4 mt-0.5 text-green-500" />
+                  <p className="text-sm">FTSE MIB: <span className="font-medium">{marketData.ftseMib}</span></p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <ArrowDownRight className="h-4 w-4 mt-0.5 text-red-500" />
+                  <p className="text-sm">EUR/USD: <span className="font-medium">{marketData.eurUsd}</span></p>
+                </div>
+              </div>
+
+              <div className="pt-2 space-y-2">
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <p className="text-sm">{t('dashboard.fed_interest_rate')}</p>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                  <p className="text-sm">{t('dashboard.quarterly_earnings')}</p>
+                </div>
+              </div>
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4">
+              <Button variant="ghost" className="w-full" onClick={() => setLocation('/market')}>
+                {t('dashboard.view_detailed_report')}
+              </Button>
+            </CardFooter>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

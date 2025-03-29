@@ -39,7 +39,7 @@ export default function Navbar() {
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             <a href="#" className="text-2xl font-bold tracking-tight flex items-center">
-              {t('common.app_name')}
+              Gervis
             </a>
           </div>
           

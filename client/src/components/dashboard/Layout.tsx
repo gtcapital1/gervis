@@ -27,6 +27,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslation } from "react-i18next";
 import { ApprovalPendingOverlay } from "@/components/ApprovalPendingOverlay";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useTheme } from "@/hooks/use-theme";
 
 interface LayoutProps {
   children: ReactNode;
@@ -37,6 +39,7 @@ export function Layout({ children }: LayoutProps) {
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
   const { t, i18n } = useTranslation();
+  const { theme } = useTheme();
   
   // Keep track of current language - update when i18n.language changes
   const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
@@ -73,9 +76,9 @@ export function Layout({ children }: LayoutProps) {
     },
     {
       name: "Clients",
-      href: "/app",
+      href: "/clients",
       icon: Users,
-      current: location.startsWith("/clients"),
+      current: location === "/clients" || location.startsWith("/clients/"),
     },
     {
       name: "Market",
@@ -127,8 +130,8 @@ export function Layout({ children }: LayoutProps) {
                     flex items-center px-4 py-2 text-sm font-medium rounded-md 
                     ${
                       item.current
-                        ? "bg-accent text-white"
-                        : "text-gray-300 hover:bg-gray-800"
+                        ? "bg-accent text-white dark:bg-accent dark:text-white"
+                        : "text-gray-300 hover:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-800"
                     }
                     ${item.disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                   `}
@@ -146,35 +149,42 @@ export function Layout({ children }: LayoutProps) {
           );
         })}
       </div>
-      <div className="pt-6 mt-6 border-t border-gray-800">
+      <div className="pt-6 mt-6 border-t border-gray-800 dark:border-gray-800">
         <div className="px-4 py-2 mb-4">
           <div className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-gray-700 flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-300" />
+            <div className="h-8 w-8 rounded-full bg-gray-700 dark:bg-gray-700 flex items-center justify-center">
+              <User className="h-4 w-4 text-gray-300 dark:text-gray-300" />
             </div>
             <div className="ml-3">
-              <p className="text-sm font-medium text-white">{user?.name || "Advisor"}</p>
-              <p className="text-xs text-gray-400">{user?.email || user?.username}</p>
+              <p className="text-sm font-medium text-white dark:text-white">{user?.name || "Advisor"}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-400">{user?.email || user?.username}</p>
             </div>
           </div>
         </div>
+        {/* Theme toggle button */}
+        <div 
+          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer mb-2"
+        >
+          <ThemeToggle />
+          <span className="ml-3">{theme === "light" ? t('settings.dark_mode') : t('settings.light_mode')}</span>
+        </div>
         {/* Language toggle button */}
         <div 
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer mb-2"
+          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer mb-2"
           onClick={toggleLanguage}
         >
           <Globe className="mr-3 h-5 w-5 text-green-500" />
           {t(`language.${currentLanguage === "en" ? "it" : "en"}`)}
         </div>
         <div 
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer"
+          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer"
           onClick={handleLogout}
         >
           <LogOut className="mr-3 h-5 w-5" />
           {t('dashboard.logout')}
         </div>
         <Link href="/">
-          <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 hover:bg-gray-800 hover:text-white rounded-md cursor-pointer">
+          <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer">
             <ArrowLeft className="mr-3 h-5 w-5" />
             {t('dashboard.return_to_home')}
           </div>
@@ -187,49 +197,47 @@ export function Layout({ children }: LayoutProps) {
   const isPendingApproval = user && user.approvalStatus === "pending";
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-100 flex">
       {/* Approval Pending Overlay */}
       {isPendingApproval && <ApprovalPendingOverlay email={user.email} />}
       
       {/* Desktop sidebar */}
       <div className="hidden md:flex md:flex-shrink-0">
-        <div className="flex flex-col w-64 bg-black text-white">
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex items-center h-16 flex-shrink-0 px-4 bg-black">
-              <Link href="/">
-                <div className="text-xl font-bold tracking-tight text-white flex items-center cursor-pointer">
-                  {t('common.app_name')}
-                </div>
-              </Link>
-            </div>
-            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-              <nav className="flex-1 px-2 space-y-1">
-                <NavLinks />
-              </nav>
-            </div>
+        <div className="flex flex-col w-64 bg-gray-900 dark:bg-black text-white dark:text-white border-r border-gray-800 dark:border-gray-800">
+          <div className="flex items-center h-16 flex-shrink-0 px-4 bg-gray-900 dark:bg-black">
+            <Link href="/">
+              <div className="text-xl font-bold tracking-tight text-white dark:text-white flex items-center cursor-pointer">
+                Gervis
+              </div>
+            </Link>
+          </div>
+          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+            <nav className="flex-1 px-2 space-y-1">
+              <NavLinks />
+            </nav>
           </div>
         </div>
       </div>
 
       {/* Mobile header & sheet */}
       <div className="flex flex-col w-0 flex-1">
-        <div className="md:hidden bg-black text-white flex items-center justify-between h-16 px-4">
+        <div className="md:hidden bg-gray-900 dark:bg-black text-white dark:text-white flex items-center justify-between h-16 px-4 border-b border-gray-800 dark:border-gray-800">
           <Link href="/">
             <div className="text-xl font-bold tracking-tight flex items-center cursor-pointer">
-              {t('common.app_name')}
+              Gervis
             </div>
           </Link>
 
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="text-white">
+              <Button variant="ghost" size="icon" className="text-white dark:text-white">
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Open menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent
               side={isMobile ? "bottom" : "right"}
-              className="w-[300px] bg-black text-white p-0"
+              className="w-[300px] bg-gray-900 dark:bg-black text-white dark:text-white p-0"
             >
               <div className="pt-5 pb-4 flex-1 h-full flex flex-col overflow-y-auto">
                 <div className="flex items-center justify-between px-4 mb-5">
@@ -239,7 +247,7 @@ export function Layout({ children }: LayoutProps) {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-white"
+                        className="text-white dark:text-white"
                       >
                         <X className="h-6 w-6" />
                         <span className="sr-only">Close menu</span>
@@ -255,8 +263,14 @@ export function Layout({ children }: LayoutProps) {
           </Sheet>
         </div>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-hidden">{children}</main>
+        {/* Page content */}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="py-6">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
+              {children}
+            </div>
+          </div>
+        </main>
       </div>
     </div>
   );

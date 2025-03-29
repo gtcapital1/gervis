@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Dashboard from "@/pages/Dashboard";
+import Clients from "@/pages/Clients";
 import ClientDetail from "@/pages/ClientDetail";
 import ClientLogs from "@/pages/ClientLogs";
 import OnboardingForm from "@/pages/OnboardingForm-fixed";
@@ -17,6 +18,8 @@ import Spark from "@/pages/Spark";
 import { Layout } from "@/components/dashboard/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
+import { ThemeProvider } from "@/hooks/use-theme";
+import Calendar from './pages/Calendar';
 
 function Router() {
   return (
@@ -36,6 +39,14 @@ function Router() {
         component={() => (
           <Layout>
             <Dashboard />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
+        path="/clients" 
+        component={() => (
+          <Layout>
+            <Clients />
           </Layout>
         )} 
       />
@@ -82,6 +93,9 @@ function Router() {
       <Route path="/onboarding/success" component={OnboardingSuccess} />
       <Route path="/onboarding" component={OnboardingForm} />
       <Route path="/onboarding/:token" component={OnboardingForm} />
+      <Route path="/market-update" component={MarketUpdate} />
+      <Route path="/admin-panel" component={AdminPanel} />
+      <Route path="/calendar" component={Calendar} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -90,10 +104,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <Router />
-        <Toaster />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <Router />
+          <Toaster />
+        </AuthProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

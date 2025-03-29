@@ -237,3 +237,31 @@ export const insertAiProfileSchema = createInsertSchema(aiProfiles).pick({
 
 export type InsertAiProfile = z.infer<typeof insertAiProfileSchema>;
 export type AiProfile = typeof aiProfiles.$inferSelect;
+
+// Meeting Schema
+export const meetings = pgTable("meetings", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id, { onDelete: "cascade" }),
+  advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }),
+  subject: text("subject").notNull(),
+  title: text("title"),
+  location: text("location").default("zoom"),
+  dateTime: timestamp("date_time").notNull(),
+  duration: integer("duration").default(60), // Durata in minuti, default 60 minuti
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertMeetingSchema = createInsertSchema(meetings).pick({
+  clientId: true,
+  advisorId: true,
+  subject: true,
+  title: true,
+  location: true,
+  dateTime: true,
+  duration: true,
+  notes: true,
+});
+
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type Meeting = typeof meetings.$inferSelect;
