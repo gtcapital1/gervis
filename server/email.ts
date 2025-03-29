@@ -477,134 +477,26 @@ export async function sendOnboardingEmail(
   }
 }
 
+/**
+ * Invia un'email di invito a un meeting al cliente
+ * @param to Email del destinatario
+ * @param clientName Nome del cliente
+ * @param advisorFirstName Nome dell'advisor
+ * @param advisorLastName Cognome dell'advisor
+ * @param subject Oggetto della riunione
+ * @param date Data della riunione (formattata)
+ * @param time Ora della riunione (formattata)
+ * @param location Luogo della riunione
+ * @param notes Note aggiuntive
+ * @param icalData Dati iCalendar per l'allegato
+ * @param advisorEmail Email dell'advisor
+ * @param clientId ID del cliente
+ * @param advisorId ID dell'advisor
+ * @param logEmail Se true, registra l'email nel database
+ */
 export async function sendMeetingInviteEmail(
-  clientEmail: string,
-  clientFirstName: string,
-  advisorFirstName: string,
-  advisorLastName: string,
-  subject: string,
-  meetingDate: string,
-  meetingTime: string,
-  meetingLocation: string,
-  notes: string,
-  icalData: string,
-  advisorEmail?: string,
-  clientId?: number,
-  advisorId?: number,
-  logEmail: boolean = true
-) {
-  try {
-    console.log(`DEBUG - Inizio sendMeetingInviteEmail per ${clientEmail}`);
-    
-    // Costruisci il corpo HTML dell'email
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="utf-8">
-      <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-        .meeting-details { margin: 20px 0; padding: 15px; background-color: #f5f5f5; border-left: 4px solid #0066cc; }
-        .meeting-label { font-weight: bold; color: #555; }
-        .notes { margin-top: 20px; padding: 15px; background-color: #f9f9f9; border-radius: 4px; }
-        .signature { margin-top: 30px; }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <p>Gentile ${clientFirstName},</p>
-        
-        <p>${advisorFirstName} ${advisorLastName} ha programmato un incontro con te.</p>
-        
-        <div class="meeting-details">
-          <p><span class="meeting-label">Oggetto:</span> ${subject}</p>
-          <p><span class="meeting-label">Data:</span> ${meetingDate}</p>
-          <p><span class="meeting-label">Ora:</span> ${meetingTime}</p>
-          <p><span class="meeting-label">Luogo:</span> ${meetingLocation}</p>
-        </div>
-        
-        ${notes ? `
-        <div class="notes">
-          <p class="meeting-label">Note:</p>
-          <p>${notes}</p>
-        </div>
-        ` : ''}
-        
-        <p>Puoi aggiungere questo appuntamento al tuo calendario usando l'invito allegato.</p>
-        
-        <div class="signature">
-          <p>Cordiali saluti,</p>
-          <p>Team Gervis</p>
-        </div>
-      </div>
-    </body>
-    </html>
-    `;
-    
-    // Prepara le opzioni per l'email
-    const mailOptions: {
-      from: string;
-      to: string;
-      subject: string;
-      html: string;
-      cc?: string;
-      attachments: Array<{filename: string, content: string, contentType: string}>;
-    } = {
-      from: `"Gervis" <${emailConfig.from}>`,
-      to: clientEmail,
-      subject: `Invito: ${subject}`,
-      html: html,
-      attachments: [
-        {
-          filename: 'meeting-invite.ics',
-          content: icalData,
-          contentType: 'text/calendar'
-        }
-      ]
-    };
-    
-    // Aggiungi CC se specificato
-    if (advisorEmail) {
-      mailOptions.cc = advisorEmail;
-    }
-    
-    // Invia l'email
-    console.log("DEBUG - Tentativo invio email invito meeting");
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`Meeting invite email sent to ${clientEmail}: ${info.messageId}`);
-    
-    // Registra l'email nei log del cliente se richiesto
-    if (logEmail && clientId && advisorId) {
-      try {
-        await storage.createClientLog({
-          clientId: clientId,
-          type: "email",
-          title: `Invito Meeting: ${subject}`,
-          content: `Invito per meeting del ${meetingDate} alle ${meetingTime}. ${notes ? `Note: ${notes}` : ''}`,
-          emailSubject: `Invito: ${subject}`,
-          emailRecipients: clientEmail,
-          logDate: new Date(),
-          createdBy: advisorId
-        });
-        console.log(`Meeting invite email logged in client history`);
-      } catch (logError) {
-        console.error("Errore durante la registrazione dell'email di invito al meeting:", logError);
-        // Non interrompiamo il flusso se la registrazione nel log fallisce
-      }
-    }
-    
-    return true;
-  } catch (error) {
-    console.error('Error sending meeting invite email:', error);
-    throw error;
-  }
-}
-
-// Funzione per inviare email di aggiornamento meeting
-export async function sendMeetingUpdateEmail(
-  recipientEmail: string,
-  recipientName: string,
+  to: string,
+  clientName: string,
   advisorFirstName: string,
   advisorLastName: string,
   subject: string,
@@ -613,67 +505,330 @@ export async function sendMeetingUpdateEmail(
   location: string,
   notes: string,
   icalData: string,
-  replyToEmail?: string
-): Promise<boolean> {
-  try {
-    const emailHtml = `
-    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 5px;">
-      <div style="text-align: center; padding-bottom: 20px; border-bottom: 2px solid #f0f0f0; margin-bottom: 20px;">
-        <h2 style="color: #333; margin-bottom: 10px;">Aggiornamento Appuntamento</h2>
-        <p style="color: #666; font-size: 16px; margin: 0;">Il tuo appuntamento è stato aggiornato</p>
-      </div>
-      
-      <p style="font-size: 15px; color: #333; margin-bottom: 25px;">
-        Gentile ${recipientName},<br><br>
-        Il tuo appuntamento con ${advisorFirstName} ${advisorLastName} è stato aggiornato.
-        Di seguito i nuovi dettagli:
-      </p>
-      
-      <div style="background-color: #f8f8f8; padding: 15px; border-radius: 4px; margin-bottom: 25px;">
-        <p style="margin: 0 0 10px 0;"><strong>Oggetto:</strong> ${subject}</p>
-        <p style="margin: 0 0 10px 0;"><strong>Data:</strong> ${date}</p>
-        <p style="margin: 0 0 10px 0;"><strong>Ora:</strong> ${time}</p>
-        <p style="margin: 0 0 10px 0;"><strong>Luogo:</strong> ${location}</p>
-        ${notes ? `<p style="margin: 0;"><strong>Note:</strong> ${notes}</p>` : ''}
-      </div>
-      
-      <p style="font-size: 15px; color: #333; margin-bottom: 25px;">
-        Ti preghiamo di verificare la tua disponibilità per questo nuovo orario e di contattarci se ci sono problemi.
-      </p>
-      
-      <p style="font-size: 15px; color: #333; margin-bottom: 25px;">
-        Questo appuntamento è stato aggiornato nel tuo calendario. Puoi trovare l'evento aggiornato nell'allegato.
-      </p>
-      
-      <p style="font-size: 14px; color: #666; margin-top: 30px; padding-top: 20px; border-top: 1px solid #f0f0f0;">
-        Cordiali Saluti,<br>
-        ${advisorFirstName} ${advisorLastName}
-      </p>
+  advisorEmail: string,
+  clientId: number,
+  advisorId: number,
+  logEmail: boolean = true
+) {
+  const emailTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invito a meeting</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    .meeting-details {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .meeting-details div {
+      margin-bottom: 10px;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #777;
+    }
+    p {
+      margin-bottom: 1em;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white !important;
+      text-decoration: none;
+      border-radius: 5px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Invito a Meeting</h2>
     </div>
-    `;
+    
+    <div class="content">
+      <p>Gentile ${clientName},</p>
+      
+      <p>${advisorFirstName} ${advisorLastName} ti ha invitato a un meeting con il seguente oggetto: <strong>${subject}</strong>.</p>
+      
+      <div class="meeting-details">
+        <div><strong>Data:</strong> ${date}</div>
+        <div><strong>Ora:</strong> ${time}</div>
+        <div><strong>Luogo:</strong> ${location}</div>
+        ${notes ? `<div><strong>Note:</strong> ${notes}</div>` : ''}
+      </div>
+      
+      <p>Puoi aggiungere questo evento al tuo calendario utilizzando l'allegato .ics in questa email.</p>
+      
+      <p>Per qualsiasi domanda o necessità di riorganizzare l'appuntamento, non esitare a contattarci.</p>
+      
+      <p>Cordiali saluti,<br>
+      ${advisorFirstName} ${advisorLastName}</p>
+    </div>
+    
+    <div class="footer">
+      <p>© ${new Date().getFullYear()} - Tutti i diritti riservati</p>
+    </div>
+  </div>
+</body>
+</html>`;
 
-    // Configura le opzioni dell'email
-    const emailOptions = {
-      to: recipientEmail,
-      from: emailConfig.from,
-      replyTo: replyToEmail || emailConfig.from,
-      subject: `Aggiornamento appuntamento: ${subject}`,
-      html: emailHtml,
-      attachments: [
-        {
-          filename: 'meeting.ics',
-          content: icalData,
-          contentType: 'text/calendar',
-        },
-      ],
-    };
+  const emailData = {
+    to,
+    from: emailConfig.from,
+    subject: `Invito a meeting: ${subject}`,
+    html: emailTemplate,
+    attachments: [
+      {
+        filename: 'meeting.ics',
+        content: icalData,
+        contentType: 'text/calendar'
+      }
+    ]
+  };
 
+  try {
     // Invia l'email
-    await transporter.sendMail(emailOptions);
-    console.log(`Meeting update email sent to ${recipientEmail}`);
+    await transporter.sendMail(emailData);
+    
+    if (logEmail) {
+      // Registra l'email nel database
+      const emailLog = {
+        emailType: 'meeting_invite',
+        recipientEmail: to,
+        recipientName: clientName,
+        subject: emailData.subject,
+        content: emailTemplate,
+        clientId,
+        advisorId
+      };
+      
+      await storage.createEmailLog(emailLog);
+    }
+    
+    console.log(`[Email Service] Meeting invite sent to ${to}`);
     return true;
   } catch (error) {
-    console.error('Error sending meeting update email:', error);
+    console.error("[Email Service] Error sending meeting invite:", error);
+    return false;
+  }
+}
+
+/**
+ * Invia un'email di aggiornamento di un meeting al cliente
+ * @param to Email del destinatario
+ * @param clientName Nome del cliente
+ * @param advisorFirstName Nome dell'advisor
+ * @param advisorLastName Cognome dell'advisor
+ * @param subject Oggetto aggiornato della riunione
+ * @param oldDate Data precedente (formattata)
+ * @param oldTime Ora precedente (formattata)
+ * @param newDate Nuova data (formattata)
+ * @param newTime Nuova ora (formattata)
+ * @param location Nuovo luogo della riunione
+ * @param notes Note aggiuntive aggiornate
+ * @param icalData Dati iCalendar aggiornati per l'allegato
+ * @param advisorEmail Email dell'advisor
+ * @param clientId ID del cliente
+ * @param advisorId ID dell'advisor
+ * @param logEmail Se true, registra l'email nel database
+ */
+export async function sendMeetingUpdateEmail(
+  to: string,
+  clientName: string,
+  advisorFirstName: string,
+  advisorLastName: string,
+  subject: string,
+  oldDate: string,
+  oldTime: string,
+  newDate: string,
+  newTime: string,
+  location: string,
+  notes: string,
+  icalData: string,
+  advisorEmail: string,
+  clientId: number,
+  advisorId: number,
+  logEmail: boolean = true
+) {
+  const emailTemplate = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aggiornamento Meeting</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .content {
+      padding: 20px 0;
+    }
+    .meeting-details {
+      background-color: #f9f9f9;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .meeting-details div {
+      margin-bottom: 10px;
+    }
+    .changes {
+      background-color: #fff8e1;
+      padding: 15px;
+      border-radius: 5px;
+      margin: 20px 0;
+    }
+    .footer {
+      text-align: center;
+      padding-top: 20px;
+      border-top: 1px solid #eee;
+      font-size: 12px;
+      color: #777;
+    }
+    p {
+      margin-bottom: 1em;
+    }
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+    .btn {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #007bff;
+      color: white !important;
+      text-decoration: none;
+      border-radius: 5px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h2>Aggiornamento Meeting</h2>
+    </div>
+    
+    <div class="content">
+      <p>Gentile ${clientName},</p>
+      
+      <p>${advisorFirstName} ${advisorLastName} ha aggiornato le informazioni del meeting "${subject}".</p>
+      
+      <div class="changes">
+        <h3>Modifiche all'appuntamento:</h3>
+        <div><strong>Data precedente:</strong> ${oldDate} alle ${oldTime}</div>
+        <div><strong>Nuova data:</strong> ${newDate} alle ${newTime}</div>
+      </div>
+      
+      <div class="meeting-details">
+        <h3>Nuovi dettagli dell'appuntamento:</h3>
+        <div><strong>Oggetto:</strong> ${subject}</div>
+        <div><strong>Data:</strong> ${newDate}</div>
+        <div><strong>Ora:</strong> ${newTime}</div>
+        <div><strong>Luogo:</strong> ${location}</div>
+        ${notes ? `<div><strong>Note:</strong> ${notes}</div>` : ''}
+      </div>
+      
+      <p>L'invito al calendario è stato aggiornato automaticamente. In alternativa, puoi aggiungere questo evento al tuo calendario utilizzando l'allegato .ics in questa email.</p>
+      
+      <p>Per qualsiasi domanda o necessità di riorganizzare l'appuntamento, non esitare a contattarci.</p>
+      
+      <p>Cordiali saluti,<br>
+      ${advisorFirstName} ${advisorLastName}</p>
+    </div>
+    
+    <div class="footer">
+      <p>© ${new Date().getFullYear()} - Tutti i diritti riservati</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const emailData = {
+    to,
+    from: emailConfig.from,
+    subject: `Aggiornamento meeting: ${subject}`,
+    html: emailTemplate,
+    attachments: [
+      {
+        filename: 'meeting.ics',
+        content: icalData,
+        contentType: 'text/calendar'
+      }
+    ]
+  };
+
+  try {
+    // Invia l'email
+    await transporter.sendMail(emailData);
+    
+    if (logEmail) {
+      // Registra l'email nel database
+      const emailLog = {
+        emailType: 'meeting_update',
+        recipientEmail: to,
+        recipientName: clientName,
+        subject: emailData.subject,
+        content: emailTemplate,
+        clientId,
+        advisorId
+      };
+      
+      await storage.createEmailLog(emailLog);
+    }
+    
+    console.log(`[Email Service] Meeting update sent to ${to}`);
+    return true;
+  } catch (error) {
+    console.error("[Email Service] Error sending meeting update:", error);
     return false;
   }
 }

@@ -265,3 +265,14 @@ export const insertMeetingSchema = createInsertSchema(meetings).pick({
 
 export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
 export type Meeting = typeof meetings.$inferSelect;
+
+// Task completion table
+export const completedTasks = pgTable("completed_tasks", {
+  id: serial("id").primaryKey(),
+  advisorId: integer("advisor_id").notNull(),
+  taskId: integer("task_id").notNull(),
+  completedAt: timestamp("completed_at").notNull().defaultNow()
+});
+
+export type CompletedTask = typeof completedTasks.$inferSelect;
+export type InsertCompletedTask = typeof completedTasks.$inferInsert;

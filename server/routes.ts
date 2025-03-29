@@ -1604,55 +1604,117 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Get tasks due today
+  // Get today's tasks
   app.get('/api/tasks/today', isAuthenticated, async (req, res) => {
     try {
-      // In una implementazione reale, questi dati verrebbero recuperati dal database
-      // Get current date in YYYY-MM-DD format
-      const today = new Date().toISOString().split('T')[0];
-      
       // Get all clients for this advisor
-      const clients = await storage.getClientsByAdvisor(req.user?.id as number);
+      const advisorId = req.user?.id as number;
+      const clients = await storage.getClientsByAdvisor(advisorId);
       
-      // Crea task simulati basati sui clienti reali
-      const tasks: Array<{
-        id: number;
-        title: string;
-        dueDate: string;
-        priority: string;
-        clientId: number;
-        clientName: string;
-      }> = [];
-      const taskTypes = [
-        { title: "Review portfolio allocation for", priority: "high" },
-        { title: "Complete risk assessment for", priority: "high" },
-        { title: "Follow up with", priority: "medium" },
-        { title: "Update financial plan for", priority: "medium" },
-        { title: "Schedule quarterly review with", priority: "low" },
-        { title: "Send investment proposal to", priority: "high" }
-      ];
+      // Array per contenere le attività reali di oggi
+      const tasks = [];
       
-      // Seleziona casualmente fino a 5 clienti per creare task
-      const selectedClients = clients
-        .sort(() => 0.5 - Math.random())
-        .slice(0, Math.min(5, clients.length));
-        
-      selectedClients.forEach((client, index) => {
-        const taskType = taskTypes[index % taskTypes.length];
-        tasks.push({
-          id: index + 1,
-          title: `${taskType.title} ${client.firstName} ${client.lastName}`,
-          dueDate: today,
-          priority: taskType.priority,
-          clientId: client.id,
-          clientName: `${client.firstName} ${client.lastName}`
-        });
+      // Ottieni i meeting di oggi per usarli come attività
+      const meetings = await storage.getMeetingsByAdvisor(advisorId);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      // NOTA: Temporaneamente usiamo un array vuoto finché la tabella non viene creata
+      const completedTaskIds = new Set();
+      
+      /*
+      // Ottieni le attività completate - COMMENTATO FINCHÉ LA TABELLA NON VIENE CREATA
+      try {
+        const completedTasks = await storage.getCompletedTasks(advisorId, today);
+        const completedTaskIds = new Set(completedTasks.map(task => task.taskId));
+      } catch (err) {
+        console.log("Impossibile recuperare le attività completate, tabella non ancora creata");
+        const completedTaskIds = new Set();
+      }
+      */
+      
+      // Filtra i meeting che avvengono oggi
+      const todayMeetings = meetings.filter(meeting => {
+        const meetingDate = new Date(meeting.dateTime);
+        return meetingDate >= today && meetingDate < tomorrow;
       });
       
-      res.json({ tasks });
+      // Aggiungi meeting alle attività
+      for (const meeting of todayMeetings) {
+        const client = clients.find(c => c.id === meeting.clientId);
+        if (client) {
+          tasks.push({
+            id: meeting.id,
+            title: `Meeting: ${meeting.title || meeting.subject}`,
+            dueDate: new Date(meeting.dateTime).toISOString(),
+            clientId: client.id,
+            clientName: `${client.firstName} ${client.lastName}`,
+            completed: completedTaskIds.has(meeting.id)
+          });
+        }
+      }
+      
+      // Per ora tutte le attività vanno nei pending
+      const completedTasksList: any[] = [];
+      const pendingTasks = tasks;
+      
+      res.json({ 
+        tasks: { 
+          completed: completedTasksList,
+          pending: pendingTasks
+        }
+      });
     } catch (error) {
       console.error('Error fetching tasks:', error);
       res.status(500).json({ error: 'Failed to fetch tasks' });
+    }
+  });
+  
+  // Mark task as completed
+  app.post('/api/tasks/:id/complete', isAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const advisorId = req.user?.id as number;
+      
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: 'ID attività non valido' });
+      }
+      
+      // Memorizza l'attività come completata
+      await storage.markTaskAsCompleted(taskId, advisorId);
+      
+      res.json({ 
+        success: true, 
+        message: 'Attività segnata come completata'
+      });
+    } catch (error) {
+      console.error('Error marking task as completed:', error);
+      res.status(500).json({ error: 'Failed to mark task as completed' });
+    }
+  });
+  
+  // Mark task as pending (uncomplete a task)
+  app.post('/api/tasks/:id/uncomplete', isAuthenticated, async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const advisorId = req.user?.id as number;
+      
+      if (isNaN(taskId)) {
+        return res.status(400).json({ error: 'ID attività non valido' });
+      }
+      
+      // Rimuove il segno di completamento dall'attività
+      await storage.markTaskAsUncompleted(taskId, advisorId);
+      
+      res.json({ 
+        success: true, 
+        message: 'Attività segnata come da completare'
+      });
+    } catch (error) {
+      console.error('Error marking task as uncompleted:', error);
+      res.status(500).json({ error: 'Failed to mark task as uncompleted' });
     }
   });
   
@@ -1729,10 +1791,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Schedule a meeting with a client
+  // Trova la route per creare un meeting POST /api/meetings
   app.post('/api/meetings', isAuthenticated, async (req, res) => {
     try {
-      const { clientId, subject, dateTime, duration, notes, location } = req.body;
+      const { clientId, subject, dateTime, duration, notes, location, sendEmail } = req.body;
       
       if (!clientId || !subject || !dateTime) {
         return res.status(400).json({ error: 'Missing required fields' });
@@ -1740,6 +1802,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log('Creating meeting with data:', req.body);
       console.log('DateTime received:', dateTime);
+      console.log('Send email option:', sendEmail);
       
       // Verifica che dateTime sia una stringa ISO valida e lo converte in un oggetto Date
       let meetingDate;
@@ -1758,7 +1821,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Invalid dateTime format. Please provide a valid ISO date string.' });
       }
       
-      // Get client information to send email
+      // Get client information
       const client = await storage.getClient(parseInt(clientId));
       
       if (!client) {
@@ -1790,76 +1853,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a new meeting in the database
       const meeting = await storage.createMeeting(meetingToCreate);
       
-      // Format the date for display in the email
-      const formattedDate = meetingDate.toLocaleDateString('it-IT', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      
-      const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
-        hour: '2-digit',
-        minute: '2-digit'
-      });
-      
-      // Calculate end time based on duration
-      const endTime = new Date(meetingDate);
-      endTime.setMinutes(endTime.getMinutes() + (duration || 60));
-      
-      // Generate iCalendar data
-      const icalData = generateICalendarEvent({
-        startTime: meetingDate,
-        endTime: endTime, // Use calculated end time based on duration
-        subject,
-        description: notes || '',
-        location: location || 'Online',
-        organizer: {
-          name: `${advisor.firstName} ${advisor.lastName}`,
-          email: advisor.email
-        },
-        attendees: [
-          {
-            name: `${client.firstName} ${client.lastName}`,
-            email: client.email
-          }
-        ]
-      });
-      
-      // Send email to client using the email service
-      try {
-        // Verifica che client.email sia definito prima di inviare l'email
-        if (client.email) {
-          await sendMeetingInviteEmail(
-            client.email,
-            client.firstName || '',
-            advisor.firstName || '',
-            advisor.lastName || '',
-            subject,
-            formattedDate,
-            formattedTime,
-            meeting.location || 'Online',
-            notes || '',
-            icalData,
-            advisor.email,
-            client.id,
-            advisor.id as number,
-            true // Log the email
-          );
+      // Invia email solo se l'opzione è attivata
+      let emailSent = false;
+      if (sendEmail === true) {
+        try {
+          // Format the date for display in the email
+          const formattedDate = meetingDate.toLocaleDateString('it-IT', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
           
-          console.log(`Meeting invitation email sent to ${client.email}`);
-        } else {
-          console.log(`Cannot send meeting invitation: client email is missing`);
+          const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          // Calculate end time based on duration
+          const endTime = new Date(meetingDate);
+          endTime.setMinutes(endTime.getMinutes() + (duration || 60));
+          
+          // Generate iCalendar data
+          const icalData = generateICalendarEvent({
+            startTime: meetingDate,
+            endTime: endTime, // Use calculated end time based on duration
+            subject,
+            description: notes || '',
+            location: location || 'Online',
+            organizer: {
+              name: `${advisor.firstName} ${advisor.lastName}`,
+              email: advisor.email
+            },
+            attendees: [
+              {
+                name: `${client.firstName} ${client.lastName}`,
+                email: client.email
+              }
+            ]
+          });
+          
+          // Verifica che client.email sia definito prima di inviare l'email
+          if (client.email) {
+            await sendMeetingInviteEmail(
+              client.email,
+              client.firstName || '',
+              advisor.firstName || '',
+              advisor.lastName || '',
+              subject,
+              formattedDate,
+              formattedTime,
+              meeting.location || 'Online',
+              notes || '',
+              icalData,
+              advisor.email,
+              client.id,
+              advisor.id as number,
+              true // Log the email
+            );
+            
+            console.log(`Meeting invitation email sent to ${client.email}`);
+            emailSent = true;
+          } else {
+            console.log(`Cannot send meeting invitation: client email is missing`);
+          }
+        } catch (emailError) {
+          console.error('Error sending meeting invitation email:', emailError);
+          // Continue even if email sending fails
         }
-      } catch (emailError) {
-        console.error('Error sending meeting invitation email:', emailError);
-        // Continue even if email sending fails
+      } else {
+        console.log('Email invito non inviata per scelta dell\'utente');
       }
       
       res.status(201).json({ 
         success: true, 
         meeting,
-        icalData // Include the iCalendar data in the response
+        emailSent,
+        icalData: sendEmail === true ? icalData : undefined // Include the iCalendar data in the response if email was sent
       });
     } catch (error) {
       console.error('Error scheduling meeting:', error);

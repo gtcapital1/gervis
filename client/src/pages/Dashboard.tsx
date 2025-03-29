@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Users, 
   ArrowUpRight, 
@@ -31,7 +31,8 @@ import {
   Inbox,
   Bell,
   FileCheck,
-  User
+  User,
+  Circle
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -59,9 +60,10 @@ interface Task {
   id: number;
   title: string;
   dueDate: string;
-  priority: string;
+  priority?: string;
   clientId: number;
   clientName: string;
+  completed?: boolean;
 }
 
 interface Event {
@@ -73,6 +75,7 @@ interface Event {
   clientId: number;
   clientName: string;
   location: string;
+  date: string;
 }
 
 interface AssetAllocation {
@@ -116,6 +119,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const timeRange = "month";
 
   // Fetch clients
@@ -217,12 +221,78 @@ export default function Dashboard() {
   const highRiskClients = (riskProfiles['growth'] || 0) + (riskProfiles['aggressive'] || 0);
 
   // Prepare tasks data
-  const tasks = tasksData?.tasks || [];
-  const tasksDueToday = tasks.length;
-  const highPriorityTasks = tasks.filter((task: Task) => task.priority === 'high').length;
-  
-  // Prepare agenda
-  const todayEvents = agendaData?.events || [];
+  const taskData = tasksData?.tasks || { completed: [], pending: [] };
+  const isNewTasksFormat = typeof taskData === 'object' && 'completed' in taskData && 'pending' in taskData;
+  const completedTasks = isNewTasksFormat ? taskData.completed || [] : [];
+  const pendingTasks = isNewTasksFormat ? taskData.pending || [] : [];
+  const allTasks = [...completedTasks, ...pendingTasks];
+  const tasksDueToday = allTasks.length;
+  const highPriorityTasks = allTasks.filter((task: any) => task.priority === 'high').length || 0;
+
+  // Aggiungo uno stato per tenere traccia delle attività completate localmente
+  // Quest'array conterrà gli ID delle attività che l'utente ha contrassegnato come completate
+  const [localCompletedTaskIds, setLocalCompletedTaskIds] = useState<Set<number>>(new Set());
+
+  // All'inizio, quando arrivano i dati, sincronizziamo lo stato locale 
+  useEffect(() => {
+    if (isNewTasksFormat && completedTasks && completedTasks.length > 0) {
+      // Crea un nuovo Set con gli ID delle attività completate
+      const newCompletedIds = new Set((completedTasks as any[]).map(task => task.id));
+      setLocalCompletedTaskIds(newCompletedIds);
+    }
+  }, [completedTasks, isNewTasksFormat]);
+
+  // Modifico la funzione handleTaskCompletion per usare lo stato locale
+  const handleTaskCompletion = async (taskId: number, isCompleted: boolean) => {
+    try {
+      console.log(`Starting task completion toggle: ID=${taskId}, currently completed=${isCompleted}`);
+      
+      // Aggiorna immediatamente lo stato locale per un feedback visivo istantaneo
+      setLocalCompletedTaskIds(prev => {
+        const newSet = new Set(prev);
+        if (isCompleted) {
+          newSet.delete(taskId);
+        } else {
+          newSet.add(taskId);
+        }
+        return newSet;
+      });
+      
+      const url = isCompleted 
+        ? `/api/tasks/${taskId}/uncomplete`
+        : `/api/tasks/${taskId}/complete`;
+      
+      console.log(`Calling API endpoint: ${url}`);
+      
+      // Tenta di chiamare l'API
+      try {
+        const response = await apiRequest(url, {
+          method: 'POST',
+        });
+        console.log(`API response:`, response);
+        
+        // Invalida le query rilevanti per aggiornare i dati
+        console.log('Invalidating queries...');
+        queryClient.invalidateQueries({ queryKey: ['/api/tasks/today'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+      } catch (e) {
+        console.warn('API non funzionante, usando solo lo stato locale:', e);
+        // Non serve fare altro perché abbiamo già aggiornato lo stato locale
+      }
+      
+    } catch (error) {
+      console.error('Error toggling task completion:', error);
+      toast({
+        title: t('common.error'),
+        description: t('dashboard.task_toggle_error'),
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Prepare agenda - filtra per assicurarsi che vengano mostrati solo gli eventi di oggi
+  const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const todayEvents = (agendaData?.events || []).filter(event => event.date === todayDate);
   
   // Prepare compliance data
   const missingDocuments = complianceData?.missingDocuments || [];
@@ -250,6 +320,34 @@ export default function Dashboard() {
     ftseMib: '+0.5%',
     eurUsd: '-0.2%'
   };
+
+  // Calcolo dinamico della percentuale di completamento in base allo stato locale
+  const calculateCompletionPercentage = () => {
+    if (allTasks.length === 0) return 0;
+    
+    // Conta quante attività sono effettivamente completate in base allo stato locale
+    const completedCount = allTasks.filter(task => 
+      // Un'attività è completata se era originariamente completata e non è stata deselezionata
+      // OPPURE se è stata selezionata localmente
+      (task.completed && !localCompletedTaskIds.has(task.id)) || 
+      (!task.completed && localCompletedTaskIds.has(task.id))
+    ).length;
+    
+    return (completedCount / allTasks.length) * 100;
+  };
+
+  // Usa il calcolo dinamico invece del valore statico
+  const completionPercentage = calculateCompletionPercentage();
+
+  // Funzione per determinare il colore in base alla percentuale di completamento
+  const getCompletionColor = (percentage: number) => {
+    if (percentage < 30) return "text-red-500";
+    if (percentage < 70) return "text-amber-500";
+    return "text-green-500";
+  };
+
+  // Nella dashboard, dopo la dichiarazione di forceUpdate
+  const [forceUpdate, setForceUpdate] = useState(false);
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -301,10 +399,22 @@ export default function Dashboard() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{tasksDueToday}</div>
-            <p className="text-xs text-muted-foreground">
-              {highPriorityTasks} {t('dashboard.high_priority')}
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-2xl font-bold">{tasksDueToday}</div>
+              <div className={`text-sm font-medium ${getCompletionColor(completionPercentage)}`}>
+                {Math.round(completionPercentage)}% {t('dashboard.completed')}
+              </div>
+            </div>
+            <div className="h-2 mb-4 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className={`h-full rounded-full ${
+                  completionPercentage < 30 ? 'bg-red-500' : 
+                  completionPercentage < 70 ? 'bg-amber-500' : 
+                  'bg-green-500'
+                }`} 
+                style={{ width: `${completionPercentage}%` }}
+              />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -327,11 +437,22 @@ export default function Dashboard() {
               ) : todayEvents.length === 0 ? (
                 <div className="py-6 text-center text-muted-foreground">
                   {t('dashboard.no_events_today')}
-                </div>
+              </div>
               ) : (
                 <div className="space-y-4">
                   {todayEvents.slice(0, 3).map((event: Event, index: number) => (
                     <div key={index} className="flex items-start gap-4">
+              <Button 
+                        variant="ghost"
+                        size="icon"
+                        className={`h-6 w-6 rounded-full p-0 mt-2 ${localCompletedTaskIds.has(event.id) ? 'bg-green-100 text-green-500' : 'bg-muted'}`}
+                onClick={() => {
+                          console.log('Toggling task completion for event ID:', event.id);
+                          handleTaskCompletion(event.id, localCompletedTaskIds.has(event.id));
+                        }}
+                      >
+                        {localCompletedTaskIds.has(event.id) ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+                      </Button>
                       <div className="bg-primary/10 p-2 rounded-md">
                         {event.type === 'call' ? (
                           <Phone className="h-5 w-5 text-primary" />
@@ -342,7 +463,9 @@ export default function Dashboard() {
                         )}
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">{event.title}</div>
+                        <div className={`font-medium ${localCompletedTaskIds.has(event.id) ? 'line-through text-muted-foreground' : ''}`}>
+                          {event.title}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {event.startTime} - {event.endTime} · {event.clientName}
                         </div>
@@ -356,7 +479,7 @@ export default function Dashboard() {
                       </Badge>
                     </div>
                   ))}
-              </div>
+                </div>
               )}
             </CardContent>
             <CardFooter className="border-t px-6 py-4">

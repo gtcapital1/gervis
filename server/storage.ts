@@ -6,10 +6,11 @@ import {
   clientLogs, type ClientLog, type InsertClientLog,
   aiProfiles, type AiProfile, type InsertAiProfile,
   meetings, type Meeting, type InsertMeeting,
-  LOG_TYPES, type LogType
+  LOG_TYPES, type LogType,
+  completedTasks, type CompletedTask, type InsertCompletedTask
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt, sql, desc } from 'drizzle-orm';
+import { eq, and, gt, sql, desc, gte, lte } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
@@ -82,6 +83,11 @@ export interface IStorage {
   deleteMeeting(id: number): Promise<boolean>;
   getMeetingsForDate(advisorId: number, date: Date): Promise<Meeting[]>;
   getAllMeetings(advisorId: number): Promise<Meeting[]>;
+
+  // Task Completion Methods
+  getCompletedTasks(advisorId: number, date: Date): Promise<CompletedTask[]>;
+  markTaskAsCompleted(taskId: number, advisorId: number): Promise<boolean>;
+  markTaskAsUncompleted(taskId: number, advisorId: number): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1209,6 +1215,91 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       console.error("Errore nel recupero di tutti i meeting:", error);
       throw error;
+    }
+  }
+
+  // --- Task Completion Methods ---
+
+  /**
+   * Ottiene tutte le attività completate per un consulente in una determinata data
+   */
+  async getCompletedTasks(advisorId: number, date: Date): Promise<CompletedTask[]> {
+    // Imposta l'inizio della giornata
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    // Imposta la fine della giornata
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    try {
+      // Cerca le attività completate nella tabella completed_tasks
+      const result = await db
+        .select()
+        .from(completedTasks)
+        .where(and(
+          eq(completedTasks.advisorId, advisorId),
+          gte(completedTasks.completedAt, startOfDay),
+          lte(completedTasks.completedAt, endOfDay)
+        ));
+      
+      return result;
+    } catch (error) {
+      console.error('Error getting completed tasks:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Segna un'attività come completata
+   */
+  async markTaskAsCompleted(taskId: number, advisorId: number): Promise<boolean> {
+    try {
+      // Verifica se l'attività è già stata segnata come completata
+      const existing = await db
+        .select()
+        .from(completedTasks)
+        .where(and(
+          eq(completedTasks.taskId, taskId),
+          eq(completedTasks.advisorId, advisorId)
+        ));
+      
+      // Se l'attività è già stata segnata come completata, non fare nulla
+      if (existing.length > 0) {
+        return true;
+      }
+      
+      // Inserisci il record nella tabella completed_tasks
+      await db.insert(completedTasks).values({
+        advisorId,
+        taskId,
+        completedAt: new Date()
+      });
+      
+      return true;
+    } catch (error) {
+      console.error('Error marking task as completed:', error);
+      return false;
+    }
+  }
+
+  /**
+   * Segna un'attività come da completare (rimuove il segno di completamento)
+   */
+  async markTaskAsUncompleted(taskId: number, advisorId: number): Promise<boolean> {
+    try {
+      // Elimina il record dalla tabella completed_tasks
+      await db
+        .delete(completedTasks)
+        .where(and(
+          eq(completedTasks.taskId, taskId),
+          eq(completedTasks.advisorId, advisorId)
+        ));
+      
+      return true;
+    } catch (error) {
+      console.error('Error marking task as uncompleted:', error);
+      return false;
     }
   }
 }
