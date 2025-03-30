@@ -1287,6 +1287,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // API per i Log dei Clienti
+  app.get("/api/client-logs/all", isAuthenticated, async (req, res) => {
+    try {
+      // Ottieni tutti i clienti dell'utente
+      const clients = await storage.getClientsByAdvisor(req.user?.id as number);
+      const clientIds = clients.map(client => client.id);
+      
+      // Ottieni tutti i log per questi clienti
+      const allLogs: any[] = [];
+      for (const clientId of clientIds) {
+        const logs = await storage.getClientLogs(clientId);
+        allLogs.push(...logs);
+      }
+      
+      res.json({
+        success: true,
+        logs: allLogs
+      });
+    } catch (error) {
+      console.error("[ERROR] Errore recupero log di tutti i clienti:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to retrieve all client logs",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   app.get("/api/client-logs/:clientId", isAuthenticated, async (req, res) => {
     try {
       const clientId = parseInt(req.params.clientId);
@@ -1329,7 +1356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/client-logs", isAuthenticated, async (req, res) => {
     try {
-      const { clientId, type, title, content } = req.body;
+      const { clientId, type, title, content, logDate } = req.body;
       
       if (!clientId || !type || !title || !content) {
         return res.status(400).json({
@@ -1352,13 +1379,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       console.log(`[INFO] Creazione log per cliente ID: ${clientId}, tipo: ${type}`);
+      console.log(`[INFO] Data del log ricevuta (raw): ${logDate}`);
+      console.log(`[INFO] Tipo di dato logDate: ${typeof logDate}`);
+      
+      // Elaborazione esplicita della data
+      let logDateTime: Date;
+      if (logDate) {
+        try {
+          logDateTime = new Date(logDate);
+          
+          // Verifica che la data sia valida
+          if (isNaN(logDateTime.getTime())) {
+            console.warn(`[WARN] Data non valida ricevuta: ${logDate}`);
+            return res.status(400).json({
+              success: false,
+              message: "La data fornita non è valida. Formato richiesto: ISO 8601 (YYYY-MM-DDTHH:MM:SS.sssZ)"
+            });
+          } else {
+            console.log(`[INFO] Data convertita con successo: ${logDateTime.toISOString()}`);
+          }
+        } catch (e) {
+          console.error(`[ERROR] Errore nella conversione della data: ${e}`);
+          return res.status(400).json({
+            success: false,
+            message: "Errore nella conversione della data. Usa il formato ISO 8601."
+          });
+        }
+      } else {
+        // Default a 10:00 di oggi se nessuna data fornita
+        logDateTime = new Date();
+        logDateTime.setHours(10, 0, 0, 0);
+        console.log(`[INFO] Nessuna data fornita, utilizzo oggi alle 10:00: ${logDateTime.toISOString()}`);
+      }
       
       const logData = {
         clientId,
         type,
         title,
         content,
-        logDate: new Date(),
+        logDate: logDateTime,
         createdBy: req.user?.id
       };
 
@@ -1389,9 +1448,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { type, title, content } = req.body;
+      const { type, title, content, logDate } = req.body;
       
-      if (!type && !title && !content) {
+      if (!type && !title && !content && !logDate) {
         return res.status(400).json({
           success: false,
           message: "No fields to update"
@@ -1400,11 +1459,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[INFO] Aggiornamento log ID: ${logId}`);
       
-      const updatedLog = await storage.updateClientLog(logId, {
+      // Elaborazione della data, se fornita
+      let logDateTime: Date | undefined;
+      if (logDate) {
+        try {
+          logDateTime = new Date(logDate);
+          // Verifica che la data sia valida
+          if (isNaN(logDateTime.getTime())) {
+            console.warn(`[WARN] Data non valida ricevuta per aggiornamento: ${logDate}, ignoro questo campo`);
+            logDateTime = undefined;
+          } else {
+            console.log(`[INFO] Data di aggiornamento convertita: ${logDateTime.toISOString()}`);
+          }
+        } catch (e) {
+          console.error(`[ERROR] Errore nella conversione della data di aggiornamento: ${e}`);
+          logDateTime = undefined;
+        }
+      }
+      
+      const updateData: any = {
         type,
         title,
         content
-      });
+      };
+      
+      // Aggiungi la data solo se valida
+      if (logDateTime) {
+        updateData.logDate = logDateTime;
+      }
+      
+      const updatedLog = await storage.updateClientLog(logId, updateData);
       
       res.json({
         success: true,
@@ -1909,7 +1993,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               advisor.email,
               client.id,
               advisor.id as number,
-              true // Log the email
+              false // Non creare automaticamente un log per l'email
             );
             
             console.log(`Meeting invitation email sent to ${client.email}`);

@@ -45,7 +45,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Badge } from "@/components/ui/badge";
-import { AlertCircle, Mail, Phone, CalendarClock, MessageSquare, Trash2 } from "lucide-react";
+import { AlertCircle, Mail, Phone, CalendarClock, MessageSquare, Trash2, Edit } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   Popover,
@@ -56,7 +56,7 @@ import { Calendar } from "@/components/ui/calendar";
 
 // Form schema per i log
 const logFormSchema = z.object({
-  type: z.enum(["email", "call", "meeting"], {
+  type: z.enum(["note", "call", "meeting"], {
     required_error: "Seleziona il tipo di log",
   }),
   title: z.string().min(1, {
@@ -67,7 +67,11 @@ const logFormSchema = z.object({
   }),
   emailSubject: z.string().optional(),
   emailRecipients: z.string().optional(),
-  logDate: z.date().default(() => new Date()),
+  logDate: z.date().default(() => {
+    const date = new Date();
+    date.setHours(10, 0, 0, 0);
+    return date;
+  }),
   clientId: z.number(),
   createdBy: z.number().optional(),
 });
@@ -106,6 +110,8 @@ export default function ClientLogs() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [selectedLogId, setSelectedLogId] = useState<number | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingLog, setEditingLog] = useState<ClientLog | null>(null);
 
   // Form per la creazione/modifica di log
   const form = useForm<LogFormValues>({
@@ -116,7 +122,11 @@ export default function ClientLogs() {
       content: "",
       emailSubject: "",
       emailRecipients: "",
-      logDate: new Date(),
+      logDate: (() => {
+        const date = new Date();
+        date.setHours(10, 0, 0, 0);
+        return date;
+      })(),
       clientId: clientId,
       createdBy: undefined,
     },
@@ -137,12 +147,17 @@ export default function ClientLogs() {
   // Mutazione per creare un nuovo log
   const createLogMutation = useMutation({
     mutationFn: (data: LogFormValues) => {
+      // Assicuriamoci che la data venga serializzata correttamente per JSON
       return apiRequest("/api/client-logs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+          ...data,
+          // Convertiamo esplicitamente la data in formato ISO per garantire che arrivi correttamente al server
+          logDate: data.logDate.toISOString()
+        }),
       });
     },
     onSuccess: () => {
@@ -158,6 +173,41 @@ export default function ClientLogs() {
       toast({
         title: "Errore",
         description: `Errore durante la creazione del log: ${error.message}`,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Mutazione per aggiornare un log esistente
+  const updateLogMutation = useMutation({
+    mutationFn: (data: LogFormValues & { id: number }) => {
+      const { id, ...logData } = data;
+      return apiRequest(`/api/client-logs/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...logData,
+          // Convertiamo esplicitamente la data in formato ISO anche per l'aggiornamento
+          logDate: logData.logDate.toISOString()
+        }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Log aggiornato",
+        description: "Il log è stato aggiornato con successo",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/client-logs", clientId] });
+      form.reset();
+      setIsEditDialogOpen(false);
+      setEditingLog(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: `Errore durante l'aggiornamento del log: ${error.message}`,
         variant: "destructive",
       });
     },
@@ -191,6 +241,16 @@ export default function ClientLogs() {
   // Funzione per gestire la sottomissione del form
   function onSubmit(data: LogFormValues) {
     createLogMutation.mutate(data);
+  }
+
+  // Funzione per gestire la sottomissione del form di modifica
+  function onSubmitEdit(data: LogFormValues) {
+    if (editingLog) {
+      updateLogMutation.mutate({
+        ...data,
+        id: editingLog.id,
+      });
+    }
   }
 
   // Apertura dialog per eliminazione con conferma
@@ -237,7 +297,7 @@ export default function ClientLogs() {
       case "email":
         return "default";
       case "call":
-        return "outline";
+        return "primary";
       case "meeting":
         return "secondary";
       case "note":
@@ -260,6 +320,58 @@ export default function ClientLogs() {
         return t("Nota");
     }
   }
+
+  // Funzione per aprire il dialog di modifica
+  function handleEditClick(log: ClientLog) {
+    setEditingLog(log);
+    
+    // Prepara il form con i dati del log da modificare
+    // Se il tipo è "email", convertiamo a "note" poiché non è più un tipo valido nel form
+    const safeType = log.type === "email" ? "note" : log.type;
+    
+    form.reset({
+      type: safeType as "note" | "call" | "meeting",
+      title: log.title,
+      content: log.content,
+      emailSubject: log.emailSubject || "",
+      emailRecipients: log.emailRecipients || "",
+      logDate: new Date(log.logDate),
+      clientId: log.clientId,
+      createdBy: log.createdBy || undefined,
+    });
+    
+    setIsEditDialogOpen(true);
+  }
+
+  // Reset del form quando si apre il dialog di creazione
+  useEffect(() => {
+    if (isAddDialogOpen) {
+      form.reset({
+        type: "call",
+        title: "", 
+        content: "",
+        emailSubject: "",
+        emailRecipients: "",
+        logDate: (() => {
+          const date = new Date();
+          date.setHours(10, 0, 0, 0);
+          return date;
+        })(),
+        clientId: clientId,
+        createdBy: undefined,
+      });
+    }
+  }, [isAddDialogOpen, clientId, form]);
+
+  // Imposta l'ora a 10:00 quando si cambia la data del calendario
+  const handleCalendarSelect = (date: Date, field: any) => {
+    // Mantieni l'ora corrente se già impostata, altrimenti imposta alle 10:00
+    const currentHours = field.value ? field.value.getHours() : 10;
+    const currentMinutes = field.value ? field.value.getMinutes() : 0;
+    
+    date.setHours(currentHours, currentMinutes, 0, 0);
+    field.onChange(date);
+  };
 
   if (clientQuery.isLoading || logsQuery.isLoading) {
     return (
@@ -311,7 +423,9 @@ export default function ClientLogs() {
                     <FormItem>
                       <FormLabel>{t("Tipo di interazione")}</FormLabel>
                       <Select
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                        }}
                         defaultValue={field.value}
                       >
                         <FormControl>
@@ -320,11 +434,16 @@ export default function ClientLogs() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="email">{t("Email")}</SelectItem>
                           <SelectItem value="call">{t("Chiamata")}</SelectItem>
                           <SelectItem value="meeting">{t("Incontro")}</SelectItem>
+                          <SelectItem value="note">{t("Nota")}</SelectItem>
                         </SelectContent>
                       </Select>
+                      <FormDescription>
+                        {field.value === "note" ? 
+                          t("Le note non vengono conteggiate nelle statistiche di interazione") : 
+                          t("Seleziona il tipo di interazione con il cliente")}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -363,40 +482,6 @@ export default function ClientLogs() {
                   )}
                 />
                 
-                {form.watch("type") === "email" && (
-                  <>
-                    <FormField
-                      control={form.control}
-                      name="emailSubject"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("Oggetto dell'email")}</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("Inserisci l'oggetto dell'email")} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="emailRecipients"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>{t("Destinatari")}</FormLabel>
-                          <FormControl>
-                            <Input placeholder={t("email@esempio.com, altro@esempio.com")} {...field} />
-                          </FormControl>
-                          <FormDescription>
-                            {t("Separare gli indirizzi email con una virgola")}
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </>
-                )}
-                
                 <FormField
                   control={form.control}
                   name="logDate"
@@ -427,7 +512,7 @@ export default function ClientLogs() {
                             <Calendar
                               mode="single"
                               selected={field.value}
-                              onSelect={field.onChange}
+                              onSelect={(date) => date && handleCalendarSelect(date, field)}
                               initialFocus
                             />
                             <div className="flex items-center justify-between mt-4 px-3">
@@ -506,32 +591,61 @@ export default function ClientLogs() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
+        <div className="mt-6 space-y-4">
           {logs.map((log) => (
             <Card key={log.id} className="overflow-hidden">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-2">
-                    <Badge variant={getLogTypeBadgeVariant(log.type) as any} className="flex items-center gap-1">
-                      {getLogTypeIcon(log.type)}
-                      {getLogTypeTranslation(log.type)}
-                    </Badge>
-                    <CardTitle className="text-xl">{log.title}</CardTitle>
+                  <div>
+                    <CardTitle>{log.title}</CardTitle>
+                    <CardDescription>
+                      {formatDate(log.logDate)}
+                    </CardDescription>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex space-x-2">
+                    {log.type === "email" && (
+                      <Badge className="bg-gray-200 text-gray-800 hover:bg-gray-300">
+                        {getLogTypeIcon(log.type)}
+                        <span className="ml-1">{getLogTypeTranslation(log.type)}</span>
+                      </Badge>
+                    )}
+                    {log.type === "call" && (
+                      <Badge className="bg-blue-200 text-blue-800 hover:bg-blue-300">
+                        {getLogTypeIcon(log.type)}
+                        <span className="ml-1">{getLogTypeTranslation(log.type)}</span>
+                      </Badge>
+                    )}
+                    {log.type === "meeting" && (
+                      <Badge className="bg-purple-200 text-purple-800 hover:bg-purple-300">
+                        {getLogTypeIcon(log.type)}
+                        <span className="ml-1">{getLogTypeTranslation(log.type)}</span>
+                      </Badge>
+                    )}
+                    {log.type === "note" && (
+                      <Badge className="bg-red-200 text-red-800 hover:bg-red-300">
+                        {getLogTypeIcon(log.type)}
+                        <span className="ml-1">{getLogTypeTranslation(log.type)}</span>
+                      </Badge>
+                    )}
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={() => handleEditClick(log)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteClick(log.id)}
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </div>
-                <CardDescription>{formatDate(log.createdAt)}</CardDescription>
               </CardHeader>
-              <CardContent className="whitespace-pre-line">
-                {log.content}
+              <CardContent>
+                <p className="whitespace-pre-wrap">{log.content}</p>
               </CardContent>
             </Card>
           ))}
@@ -561,6 +675,179 @@ export default function ClientLogs() {
               {deleteLogMutation.isPending ? t("Eliminazione...") : t("Elimina")}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog di modifica */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{t("Modifica log")}</DialogTitle>
+            <DialogDescription>
+              {t("Modifica i dettagli del log")}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmitEdit)} className="space-y-4">
+              {/* Gli stessi campi del form di creazione */}
+              <FormField
+                control={form.control}
+                name="type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Tipo di log")}</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={(value) =>
+                        field.onChange(value as "note" | "call" | "meeting")
+                      }
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder={t("Seleziona il tipo di log")} />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="call">{t("Chiamata")}</SelectItem>
+                        <SelectItem value="meeting">{t("Incontro")}</SelectItem>
+                        <SelectItem value="note">{t("Nota")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {field.value === "note" ? 
+                        t("Le note non vengono conteggiate nelle statistiche di interazione") : 
+                        t("Seleziona il tipo di interazione con il cliente")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="title"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Titolo")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder={t("Inserisci un titolo")} {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="content"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("Contenuto")}</FormLabel>
+                    <FormControl>
+                      <Textarea 
+                        placeholder={t("Inserisci il contenuto del log")} 
+                        rows={5}
+                        {...field} 
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <FormField
+                control={form.control}
+                name="logDate"
+                render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>{t("Data dell'interazione")}</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP HH:mm", { locale: it })
+                            ) : (
+                              <span>{t("Seleziona una data e ora")}</span>
+                            )}
+                            <CalendarClock className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <div className="p-2">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={(date) => date && handleCalendarSelect(date, field)}
+                            initialFocus
+                          />
+                          <div className="flex items-center justify-between mt-4 px-3">
+                            <div className="grid gap-1">
+                              <label className="text-sm font-medium">{t("Ora")}</label>
+                              <select 
+                                className="border border-input bg-background rounded p-1"
+                                value={field.value ? field.value.getHours() : 12}
+                                onChange={(e) => {
+                                  const date = new Date(field.value || new Date());
+                                  date.setHours(parseInt(e.target.value));
+                                  field.onChange(date);
+                                }}
+                              >
+                                {Array.from({ length: 24 }, (_, i) => i).map((hour) => (
+                                  <option key={hour} value={hour}>{hour.toString().padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="grid gap-1">
+                              <label className="text-sm font-medium">{t("Minuti")}</label>
+                              <select
+                                className="border border-input bg-background rounded p-1"
+                                value={field.value ? field.value.getMinutes() : 0}
+                                onChange={(e) => {
+                                  const date = new Date(field.value || new Date());
+                                  date.setMinutes(parseInt(e.target.value));
+                                  field.onChange(date);
+                                }}
+                              >
+                                {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                                  <option key={minute} value={minute}>{minute.toString().padStart(2, '0')}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                    <FormDescription>
+                      {t("Data e ora dell'interazione con il cliente")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              <input type="hidden" {...form.register("clientId")} />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  {t("Annulla")}
+                </Button>
+                <Button type="submit" disabled={updateLogMutation.isPending}>
+                  {updateLogMutation.isPending ? t("Salvataggio...") : t("Salva")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

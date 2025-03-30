@@ -32,7 +32,10 @@ import {
   Bell,
   FileCheck,
   User,
-  Circle
+  Circle,
+  CalendarRange,
+  UsersRound,
+  BarChart
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -62,15 +65,20 @@ import {
   DialogClose 
 } from "@/components/ui/dialog";
 import { 
-  BarChart, 
-  Bar, 
   XAxis, 
   YAxis, 
   CartesianGrid, 
   Tooltip as RechartsTooltip, 
   Legend, 
-  ResponsiveContainer
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  LineChart as RechartsLineChart,
+  Line,
+  BarChart as RechartsBarChart,
+  Bar
 } from "recharts";
+import { DialogTrend, TrendData } from "@/components/ui/dialog-trend";
 
 // Definizione delle interfacce per i tipi di dati
 interface Task {
@@ -81,6 +89,20 @@ interface Task {
   clientId: number;
   clientName: string;
   completed?: boolean;
+}
+
+// Interfaccia per i ClientLog
+interface ClientLog {
+  id: number;
+  clientId: number;
+  type: 'email' | 'note' | 'call' | 'meeting';
+  title: string;
+  content: string;
+  emailSubject?: string;
+  emailRecipients?: string;
+  logDate: string;
+  createdAt: string;
+  createdBy?: number;
 }
 
 interface Event {
@@ -131,13 +153,7 @@ interface PortfolioData {
   performanceYTD: number;
 }
 
-// Aggiungo tipi per i dati dei trend
-type TrendData = {
-  period: string;
-  value1: number;
-  value2: number;
-};
-
+// Interfaccia per i periodi di tempo
 type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
 
 export default function Dashboard() {
@@ -237,6 +253,30 @@ export default function Dashboard() {
     retry: 2,
     refetchOnWindowFocus: false,
     staleTime: 30000,
+  });
+
+  // Fetch della lista degli eventi dal server
+  const { data: eventsData, isLoading: isLoadingEvents } = useQuery<{events: Event[]} | null>({
+    queryKey: ['/api/events'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    queryFn: () => apiRequest('/api/events', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    }),
+  });
+
+  // Fetch di tutti i client logs
+  const { data: allClientLogsData, isLoading: isLoadingClientLogs } = useQuery<{logs: ClientLog[]} | null>({
+    queryKey: ['/api/client-logs/all'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+    queryFn: () => apiRequest('/api/client-logs/all', {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' }
+    }),
   });
 
   // Prepare client data
@@ -491,11 +531,221 @@ export default function Dashboard() {
   const unreadMessages = 3; // Da sostituire con dati API reali
   const pendingFollowUps = 5; // Da sostituire con dati API reali
 
-  // Format market data
-  const marketData = {
-    sp500: '+0.8%',
-    ftseMib: '+0.5%',
-    eurUsd: '-0.2%'
+  // Prepara i dati di comunicazione dai client logs
+  const clientLogs = allClientLogsData?.logs || [];
+  
+  // Calcola una matrice di log per cliente
+  const calculateClientInteractions = (selectedTimeframe: TimeframePeriod = timeframe) => {
+    // Se non ci sono clienti o log, ritorna un array vuoto
+    if (!clients.length || !clientLogs.length) return [];
+    
+    // Calcola la data di inizio in base al timeframe selezionato
+    const startDate = (() => {
+      const now = new Date();
+      switch (selectedTimeframe) {
+        case '1w': return new Date(now.setDate(now.getDate() - 7));
+        case '1m': return new Date(now.setDate(now.getDate() - 30));
+        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+        default: return new Date(now.setDate(now.getDate() - 30));
+      }
+    })();
+    
+    // Filtra i log in base al periodo selezionato
+    const filteredLogs = clientLogs.filter(log => new Date(log.logDate) >= startDate);
+    
+    // Crea un map di conteggi per cliente
+    const interactionCounts = new Map();
+    
+    // Inizializza il map con tutti i clienti
+    clients.forEach(client => {
+      interactionCounts.set(client.id, {
+        id: client.id,
+        name: client.name || `${client.firstName} ${client.lastName}`,
+        emails: 0,
+        calls: 0,
+        meetings: 0,
+        total: 0
+      });
+    });
+    
+    // Conta i log per ogni cliente
+    filteredLogs.forEach(log => {
+      if (!interactionCounts.has(log.clientId)) return;
+      
+      const clientStats = interactionCounts.get(log.clientId);
+      
+      // Non conteggiare le note nel totale delle interazioni
+      if (log.type === 'email') {
+        clientStats.emails++;
+        clientStats.total++;
+      }
+      else if (log.type === 'call') {
+        clientStats.calls++;
+        clientStats.total++;
+      }
+      else if (log.type === 'meeting') {
+        clientStats.meetings++;
+        clientStats.total++;
+      }
+      // Le note non vengono conteggiate nel totale
+      
+      interactionCounts.set(log.clientId, clientStats);
+    });
+    
+    // Converti il map in array e ordina per totale interazioni
+    const result = Array.from(interactionCounts.values())
+      .sort((a, b) => b.total - a.total);
+      
+    return result;
+  };
+  
+  // Calcola i percentili per colorare le interazioni
+  const calculatePercentiles = (interactions: any[]) => {
+    if (!interactions.length) return { 
+      emailP25: 0, emailP50: 0, emailP75: 0, emailP90: 0,
+      callsP25: 0, callsP50: 0, callsP75: 0, callsP90: 0,
+      meetingsP25: 0, meetingsP50: 0, meetingsP75: 0, meetingsP90: 0
+    };
+    
+    // Estrai tutti i valori di email, chiamate e meeting
+    const emails = interactions.map(i => i.emails).sort((a, b) => a - b);
+    const calls = interactions.map(i => i.calls).sort((a, b) => a - b);
+    const meetings = interactions.map(i => i.meetings).sort((a, b) => a - b);
+    
+    // Calcola i percentili (25°, 50°, 75°, 90°) per ogni tipo
+    const p25Index = Math.floor(interactions.length * 0.25);
+    const p50Index = Math.floor(interactions.length * 0.5);
+    const p75Index = Math.floor(interactions.length * 0.75);
+    const p90Index = Math.floor(interactions.length * 0.9);
+    
+    return {
+      emailP25: emails[p25Index] || 0,
+      emailP50: emails[p50Index] || 0,
+      emailP75: emails[p75Index] || 0,
+      emailP90: emails[p90Index] || 0,
+      callsP25: calls[p25Index] || 0,
+      callsP50: calls[p50Index] || 0,
+      callsP75: calls[p75Index] || 0,
+      callsP90: calls[p90Index] || 0,
+      meetingsP25: meetings[p25Index] || 0,
+      meetingsP50: meetings[p50Index] || 0,
+      meetingsP75: meetings[p75Index] || 0,
+      meetingsP90: meetings[p90Index] || 0
+    };
+  };
+
+  // Calcola il numero medio di interazioni per cliente in base al timeframe
+  const calculateAverageInteractions = (selectedTimeframe: TimeframePeriod = timeframe) => {
+    // Se non ci sono clienti o log, ritorna valori di default
+    if (!clients.length || !clientLogs.length) return { emails: 0, calls: 0, meetings: 0 };
+    
+    // Calcola la data di inizio in base al timeframe selezionato
+    const startDate = (() => {
+      const now = new Date();
+      switch (selectedTimeframe) {
+        case '1w': return new Date(now.setDate(now.getDate() - 7));
+        case '1m': return new Date(now.setDate(now.getDate() - 30));
+        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+        default: return new Date(now.setDate(now.getDate() - 30));
+      }
+    })();
+    
+    // Filtra i log in base al periodo selezionato
+    const filteredLogs = clientLogs.filter(log => new Date(log.logDate) >= startDate);
+    
+    // Conta i vari tipi di interazioni per cliente (escluse le note)
+    const emailCount = filteredLogs.filter(log => log.type === 'email').length;
+    const callCount = filteredLogs.filter(log => log.type === 'call').length;
+    const meetingCount = filteredLogs.filter(log => log.type === 'meeting').length;
+    
+    // Calcola la media per cliente
+    return {
+      emails: parseFloat((emailCount / clients.length).toFixed(1)),
+      calls: parseFloat((callCount / clients.length).toFixed(1)),
+      meetings: parseFloat((meetingCount / clients.length).toFixed(1)),
+      total: parseFloat(((emailCount + callCount + meetingCount) / clients.length).toFixed(1))
+    };
+  };
+
+  // Calcola le statistiche totali per le interazioni in base al timeframe
+  const calculateInteractionStats = (selectedTimeframe: TimeframePeriod = timeframe) => {
+    // Se non ci sono log, ritorna valori di default
+    if (!clientLogs.length) return { emails: 0, calls: 0, meetings: 0, total: 0 };
+    
+    // Calcola la data di inizio in base al timeframe selezionato
+    const startDate = (() => {
+      const now = new Date();
+      switch (selectedTimeframe) {
+        case '1w': return new Date(now.setDate(now.getDate() - 7));
+        case '1m': return new Date(now.setDate(now.getDate() - 30));
+        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+        default: return new Date(now.setDate(now.getDate() - 30));
+      }
+    })();
+    
+    // Filtra i log in base al periodo selezionato
+    const filteredLogs = clientLogs.filter(log => new Date(log.logDate) >= startDate);
+    
+    // Conta i vari tipi di interazioni (escluse le note)
+    const emailCount = filteredLogs.filter(log => log.type === 'email').length;
+    const callCount = filteredLogs.filter(log => log.type === 'call').length;
+    const meetingCount = filteredLogs.filter(log => log.type === 'meeting').length;
+    
+    return {
+      emails: emailCount,
+      calls: callCount,
+      meetings: meetingCount,
+      total: emailCount + callCount + meetingCount
+    };
+  };
+  
+  // Stato per il timeframe delle interazioni dei clienti
+  const [interactionsTimeframe, setInteractionsTimeframe] = useState<TimeframePeriod>('1m');
+  
+  // Calcola le statistiche sulle interazioni in base al timeframe
+  const interactionStats = calculateInteractionStats(interactionsTimeframe);
+  
+  // Calcola la media delle interazioni per cliente
+  const averageInteractions = calculateAverageInteractions(interactionsTimeframe);
+  
+  // Calcola le interazioni dei clienti basate sul timeframe selezionato
+  const clientInteractions = calculateClientInteractions(interactionsTimeframe);
+  
+  // Calcola i percentili per la colorazione
+  const percentiles = calculatePercentiles(clientInteractions);
+
+  // Stato per il dialog dei trend
+  const [showTrendDialog, setShowTrendDialog] = useState(false);
+  const [showCommunicationTrendDialog, setShowCommunicationTrendDialog] = useState(false);
+
+  // Genera dati di trend per il dialog
+  const generateTrendData = (type: 'conversion' | 'acquisition' | 'assets' | 'time'): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      // Non generare più dati casuali, ma utilizza solo valori reali o zero
+      const result: TrendData = {
+        period,
+        value1: 0,
+        value2: 0
+      };
+      
+      // In una versione futura, qui si possono aggiungere calcoli basati su dati reali
+      // per ora restituiamo solo zeri
+      
+      results.push(result);
+    });
+    
+    return results;
   };
 
   // Calcolo dinamico della percentuale di completamento in base allo stato locale
@@ -526,150 +776,218 @@ export default function Dashboard() {
   // Nella dashboard, dopo la dichiarazione di forceUpdate
   const [forceUpdate, setForceUpdate] = useState(false);
 
-  // Stato per il dialog dei trend
-  const [showTrendDialog, setShowTrendDialog] = useState(false);
-
-  // Funzione per generare i dati dei trend per tutti i periodi
-  const generateTrendData = (indicator: string) => {
-    // Array di risultati per ogni periodo
+  // Genera dati per il trend dei nuovi prospect
+  const generateProspectTrendData = (): TrendData[] => {
     const results: TrendData[] = [];
     
     // Periodi da confrontare - dal più lungo al più breve
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
-    // Per ogni periodo, cambia temporaneamente il timeframe e ottieni i dati
     periods.forEach(period => {
-      // Imposta temporaneamente il periodo per calcolare i valori
       const tempStartDate = (() => {
         const now = new Date();
         switch (period) {
-          case '1w':
-            const oneWeekAgo = new Date();
-            oneWeekAgo.setDate(now.getDate() - 7);
-            return oneWeekAgo;
-          case '1m':
-            const oneMonthAgo = new Date();
-            oneMonthAgo.setDate(now.getDate() - 30);
-            return oneMonthAgo;
-          case '3m':
-            const threeMonthsAgo = new Date();
-            threeMonthsAgo.setMonth(now.getMonth() - 3);
-            return threeMonthsAgo;
-          case '6m':
-            const sixMonthsAgo = new Date();
-            sixMonthsAgo.setMonth(now.getMonth() - 6);
-            return sixMonthsAgo;
-          case '1y':
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(now.getFullYear() - 1);
-            return oneYearAgo;
-          default:
-            return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+          case '1w': return new Date(now.setDate(now.getDate() - 7));
+          case '1m': return new Date(now.setDate(now.getDate() - 30));
+          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+          default: return new Date(now.setDate(now.getDate() - 30));
         }
       })();
       
-      const tempDaysInPeriod = Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (1000 * 3600 * 24));
+      // Calcola il numero di giorni nel periodo
+      const daysInPeriod = Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (1000 * 3600 * 24));
       
-      // Calcola i valori in base all'indicatore selezionato
-      let value1 = 0;
-      let value2 = 0;
+      // Filtra i clienti diventati prospect nel periodo
+      const prospectsInPeriod = clients.filter(client => 
+        client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate
+      );
       
-      if (indicator === 'conversion') {
-        // Tassi di conversione
-        const tempNewClientsInPeriod = clients.filter(client => 
-          client.createdAt && new Date(client.createdAt) >= tempStartDate
-        );
-        
-        const tempNewProspectsInPeriod = clients.filter(client => 
-          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate
-        );
-        
-        const tempNewActiveClientsInPeriod = clients.filter(client => 
-          client.activatedAt && new Date(client.activatedAt) >= tempStartDate && client.active
-        );
-        
-        const tempTotalNewClients = tempNewClientsInPeriod.length;
-        
-        value1 = tempTotalNewClients > 0 
-          ? (tempNewProspectsInPeriod.length / tempTotalNewClients) * 100 
-          : 0;
-          
-        value2 = tempNewProspectsInPeriod.length > 0 
-          ? (tempNewActiveClientsInPeriod.length / tempNewProspectsInPeriod.length) * 100 
-          : 0;
-      } 
-      else if (indicator === 'acquisition') {
-        // Acquisizione giornaliera
-        const tempNewClientsInPeriod = clients.filter(client => 
-          client.createdAt && new Date(client.createdAt) >= tempStartDate
-        );
-        
-        const tempNewActiveClientsInPeriod = clients.filter(client => 
-          client.activatedAt && new Date(client.activatedAt) >= tempStartDate && client.active
-        );
-        
-        value1 = parseFloat((tempNewClientsInPeriod.length / tempDaysInPeriod).toFixed(1));
-        value2 = parseFloat((tempNewActiveClientsInPeriod.length / tempDaysInPeriod).toFixed(1));
-      } 
-      else if (indicator === 'assets') {
-        // Media Asset
-        const tempProspectsInPeriod = clients.filter(client => 
-          client.isOnboarded && !client.isArchived && !client.active &&
-          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate
-        );
-        
-        const tempActiveClientsInPeriod = clients.filter(client => 
-          client.isOnboarded && !client.isArchived && client.active &&
-          client.activatedAt && new Date(client.activatedAt) >= tempStartDate
-        );
-        
-        value1 = tempProspectsInPeriod.length > 0 ? 
-          parseFloat((tempProspectsInPeriod.reduce((sum, client) => sum + (client.totalAssets || 0), 0) / tempProspectsInPeriod.length).toFixed(1)) : 0;
-        
-        value2 = tempActiveClientsInPeriod.length > 0 ? 
-          parseFloat((tempActiveClientsInPeriod.reduce((sum, client) => sum + (client.totalAssets || 0), 0) / tempActiveClientsInPeriod.length).toFixed(1)) : 0;
-      } 
-      else if (indicator === 'time') {
-        // Tempo Medio
-        const tempClientsCreatedInPeriod = clients.filter(client => 
-          client.createdAt && new Date(client.createdAt) >= tempStartDate && client.onboardedAt
-        );
-        
-        const tempLeadTimeTotal = tempClientsCreatedInPeriod.reduce((total, client) => {
-          const createdDate = new Date(client.createdAt!);
-          const onboardedDate = new Date(client.onboardedAt!);
-          const dayDiff = Math.floor((onboardedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
-          return total + dayDiff;
-        }, 0);
-        
-        const tempClientsBecameProspectInPeriod = clients.filter(client => 
-          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate && client.active && client.activatedAt
-        );
-        
-        const tempProspectTimeTotal = tempClientsBecameProspectInPeriod.reduce((total, client) => {
-          const onboardedDate = new Date(client.onboardedAt!);
-          const activatedDate = new Date(client.activatedAt!);
-          const dayDiff = Math.floor((activatedDate.getTime() - onboardedDate.getTime()) / (1000 * 3600 * 24));
-          return total + dayDiff;
-        }, 0);
-        
-        value1 = tempClientsCreatedInPeriod.length > 0 ? 
-          Math.max(0, Math.round(tempLeadTimeTotal / tempClientsCreatedInPeriod.length)) : 0;
-          
-        value2 = tempClientsBecameProspectInPeriod.length > 0 ? 
-          Math.max(0, Math.round(tempProspectTimeTotal / tempClientsBecameProspectInPeriod.length)) : 0;
-      }
+      // Calcola la media giornaliera di nuovi prospect
+      const newProspectsPerDay = parseFloat((prospectsInPeriod.length / daysInPeriod).toFixed(1));
       
-      // Aggiungi i risultati all'array
+      // Aggiungi all'array risultati
       results.push({
-        period: period,
-        value1: value1,
-        value2: value2
+        period,
+        value1: newProspectsPerDay
       });
     });
     
     return results;
   };
+  
+  // Genera dati per il trend del lead time
+  const generateLeadTimeTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      const tempStartDate = (() => {
+        const now = new Date();
+        switch (period) {
+          case '1w': return new Date(now.setDate(now.getDate() - 7));
+          case '1m': return new Date(now.setDate(now.getDate() - 30));
+          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+          default: return new Date(now.setDate(now.getDate() - 30));
+        }
+      })();
+      
+      // Filtra i clienti che sono diventati prospect nel periodo
+      const clientsWithLeadTime = clients.filter(client => 
+        client.createdAt && client.onboardedAt && 
+        new Date(client.onboardedAt) >= tempStartDate
+      );
+      
+      // Calcola il lead time medio
+      let avgLeadTime = 0;
+      if (clientsWithLeadTime.length > 0) {
+        const totalLeadTime = clientsWithLeadTime.reduce((sum, client) => {
+          const createdDate = new Date(client.createdAt!);
+          const onboardedDate = new Date(client.onboardedAt!);
+          const dayDiff = Math.ceil((onboardedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+          return sum + dayDiff;
+        }, 0);
+        
+        avgLeadTime = parseFloat((totalLeadTime / clientsWithLeadTime.length).toFixed(1));
+      }
+      
+      // Aggiungi all'array risultati
+      results.push({
+        period,
+        value1: avgLeadTime
+      });
+    });
+    
+    return results;
+  };
+  
+  // Genera dati per il trend del prospect time
+  const generateProspectTimeTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      const tempStartDate = (() => {
+        const now = new Date();
+        switch (period) {
+          case '1w': return new Date(now.setDate(now.getDate() - 7));
+          case '1m': return new Date(now.setDate(now.getDate() - 30));
+          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+          default: return new Date(now.setDate(now.getDate() - 30));
+        }
+      })();
+      
+      // Filtra i clienti che sono diventati attivi nel periodo
+      const clientsWithProspectTime = clients.filter(client => 
+        client.onboardedAt && client.activatedAt && 
+        new Date(client.activatedAt) >= tempStartDate
+      );
+      
+      // Calcola il prospect time medio
+      let avgProspectTime = 0;
+      if (clientsWithProspectTime.length > 0) {
+        const totalProspectTime = clientsWithProspectTime.reduce((sum, client) => {
+          const onboardedDate = new Date(client.onboardedAt!);
+          const activatedDate = new Date(client.activatedAt!);
+          const dayDiff = Math.ceil((activatedDate.getTime() - onboardedDate.getTime()) / (1000 * 3600 * 24));
+          return sum + dayDiff;
+        }, 0);
+        
+        avgProspectTime = parseFloat((totalProspectTime / clientsWithProspectTime.length).toFixed(1));
+      }
+      
+      // Aggiungi all'array risultati
+      results.push({
+        period,
+        value1: avgProspectTime
+      });
+    });
+    
+    return results;
+  };
+
+  // Genera dati per il trend di comunicazione
+  const generateCommunicationTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Se non ci sono log, restituisci solo zeri
+    if (!clientLogs.length) {
+      const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+      return periods.map(period => ({
+        period,
+        value1: 0,
+        value2: 0,
+        value3: 0
+      }));
+    }
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      const tempStartDate = (() => {
+        const now = new Date();
+        switch (period) {
+          case '1w': return new Date(now.setDate(now.getDate() - 7));
+          case '1m': return new Date(now.setDate(now.getDate() - 30));
+          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
+          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
+          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
+          default: return new Date(now.setDate(now.getDate() - 30));
+        }
+      })();
+      
+      // Filtra i log in base al periodo
+      const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
+      
+      // Conta i vari tipi di log
+      const emailsInPeriod = logsInPeriod.filter(log => log.type === 'email').length;
+      const callsInPeriod = logsInPeriod.filter(log => log.type === 'call').length;
+      const meetingsInPeriod = logsInPeriod.filter(log => log.type === 'meeting').length;
+      
+      // Aggiungi all'array risultati
+      results.push({
+        period,
+        value1: emailsInPeriod / (clients.length || 1), // Email medie per cliente
+        value2: callsInPeriod / (clients.length || 1),   // Chiamate medie per cliente
+        value3: meetingsInPeriod / (clients.length || 1) // Incontri medi per cliente
+      });
+    });
+    
+    return results;
+  };
+
+  // Prepara i dati del portfolio filtrando solo i clienti attivi
+  const calculateActiveClientAUM = () => {
+    // Se non ci sono dati sugli asset o sui clienti, usa i dati dall'API
+    if (!assets || !assets.length || !clients || !clients.length) {
+      return portfolioStats.totalAUM;
+    }
+    
+    // Ottieni gli ID dei clienti attivi
+    const activeClientIds = clients
+      .filter(client => client.active && !client.isArchived)
+      .map(client => client.id);
+    
+    // Somma solo gli asset dei clienti attivi
+    const totalActiveAUM = assets
+      .filter(asset => activeClientIds.includes(asset.clientId))
+      .reduce((sum, asset) => sum + asset.value, 0);
+    
+    return totalActiveAUM || portfolioStats.totalAUM; // Fallback ai dati dell'API se la somma è zero
+  };
+
+  // Usa il valore calcolato invece di quello dell'API
+  const activeClientAUM = calculateActiveClientAUM();
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -689,7 +1007,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(portfolioStats.totalAUM)}</div>
+            <div className="text-2xl font-bold">{formatCurrency(activeClientAUM)}</div>
             <div className={`flex items-center text-xs ${portfolioStats.aumChangePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
               {portfolioStats.aumChangePercent >= 0 ? <ArrowUpRight className="mr-1 h-4 w-4" /> : <ArrowDownRight className="mr-1 h-4 w-4" />}
               <span>{formatPercent(Math.abs(portfolioStats.aumChangePercent))}</span>
@@ -985,13 +1303,13 @@ export default function Dashboard() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-              <Button
-                variant="ghost"
+                            <Button
+                              variant="ghost"
                 className="w-full"
                 onClick={() => setShowTrendDialog(true)}
               >
                 {t('dashboard.view_trends')}
-              </Button>
+                            </Button>
             </CardFooter>
           </Card>
 
@@ -1086,195 +1404,150 @@ export default function Dashboard() {
       
         {/* Right column - 1/3 width */}
         <div className="space-y-6">
-          {/* Recent Activity Feed */}
+          {/* Client Interactions */}
           <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.recent_activity')}</CardTitle>
-              <CardDescription>{t('dashboard.latest_updates')}</CardDescription>
+            <CardHeader className="pb-2">
+              <div>
+                <CardTitle>{t('dashboard.client_engagement')}</CardTitle>
+                </div>
+              <div className="flex border rounded-md overflow-hidden mt-4 w-fit ml-auto">
+                <button 
+                  onClick={() => setInteractionsTimeframe('1w')} 
+                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1w' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t('dashboard.timeframe_1w')}
+                </button>
+                <button 
+                  onClick={() => setInteractionsTimeframe('1m')} 
+                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t('dashboard.timeframe_1m')}
+                </button>
+                <button 
+                  onClick={() => setInteractionsTimeframe('3m')} 
+                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '3m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t('dashboard.timeframe_3m')}
+                </button>
+                <button 
+                  onClick={() => setInteractionsTimeframe('6m')} 
+                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '6m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t('dashboard.timeframe_6m')}
+                </button>
+                <button 
+                  onClick={() => setInteractionsTimeframe('1y')} 
+                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1y' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
+                >
+                  {t('dashboard.timeframe_1y')}
+                </button>
+                </div>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingActivity ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  {t('dashboard.loading')}...
-                </div>
-              ) : recentActivities.length === 0 ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  {t('dashboard.no_recent_activity')}
-                </div>
-              ) : (
-                recentActivities.slice(0, 4).map((activity: Activity, index: number) => (
-                  <div key={index} className={`border-l-4 border-${activity.color || 'blue'}-500 pl-4 py-1`}>
-                    <div className="flex items-start gap-2">
-                      {activity.type === 'call' ? (
-                        <Activity className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      ) : activity.type === 'lead' ? (
-                        <UserPlus className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      ) : activity.type === 'document' ? (
-                        <FileText className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      ) : (
-                        <MessageSquare className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      )}
-            <div>
-                        <p className="text-sm">{activity.description} <span className="font-medium">{activity.client}</span></p>
-                        <p className="text-xs text-muted-foreground">{activity.time} - {activity.status}</p>
+            <CardContent>
+              {/* Media di interazioni per cliente */}
+              <div className="grid grid-cols-3 gap-2 mb-2 py-1 px-2 bg-muted/10">
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_emails')}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.emails}</div>
                       </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_calls')}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.calls}</div>
             </div>
+                <div className="text-center">
+                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_meetings')}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.meetings}</div>
           </div>
-                ))
-              )}
-            </CardContent>
-            <CardFooter className="border-t px-6 py-4">
-              <Button variant="ghost" className="w-full" onClick={() => setLocation('/activity')}>
-                {t('dashboard.view_all_activity')}
-            </Button>
-            </CardFooter>
-          </Card>
-
-          {/* 📁 Compliance Quick View */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.compliance')}</CardTitle>
-              <CardDescription>{t('dashboard.document_status')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoadingCompliance ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  {t('dashboard.loading')}...
-                </div>
-              ) : missingDocuments.length === 0 ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  {t('dashboard.all_documents_compliant')}
-                </div>
-              ) : (
-                missingDocuments.slice(0, 3).map((doc: MissingDocument, index: number) => (
-                  <div key={index} className="flex items-start gap-2">
-                    <FileWarning className="h-5 w-5 text-red-500 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{doc.clientName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {t('dashboard.missing')}: {doc.documentType} - {doc.daysOverdue} {t('dashboard.days_overdue')}
-                      </p>
-                    </div>
-                    <Button variant="outline" size="sm" onClick={() => setLocation(`/clients/${doc.clientId}`)}>
-                      {t('dashboard.remind')}
-            </Button>
-                  </div>
-                ))
-              )}
-              
-              <div className="pt-2">
-                <div className="flex justify-between text-sm mb-1">
-                  <span>{t('dashboard.document_compliance')}</span>
-                  <span className="font-medium">{documentComplianceRate}%</span>
-                </div>
-                <Progress value={documentComplianceRate} className="h-2" />
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('dashboard.next_audit')}: {daysToNextAudit} {t('dashboard.days')}
-              </p>
-            </div>
-            </CardContent>
-          </Card>
-
-          {/* 💬 Communication & Engagement */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.communication')}</CardTitle>
-              <CardDescription>{t('dashboard.client_engagement')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Inbox className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{t('dashboard.unread_messages')}</span>
-                </div>
-                <Badge>{unreadMessages}</Badge>
               </div>
               
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Bell className="h-4 w-4 mr-2 text-muted-foreground" />
-                  <span className="text-sm">{t('dashboard.pending_follow_ups')}</span>
+              <div className="space-y-4">
+                {isLoadingClientLogs ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
                 </div>
-                <Badge>{pendingFollowUps}</Badge>
+                ) : clientInteractions.length === 0 ? (
+                <div className="py-6 text-center text-muted-foreground">
+                    {t('dashboard.no_recent_activity')}
+                </div>
+              ) : (
+                  <>
+                    <div className="mt-4 mb-3 flex justify-between items-center text-sm font-medium">
+                      <div>{t('dashboard.clients')}</div>
+                      <div className="text-center w-7">{t('dashboard.total_interactions')}</div>
+                    </div>
+                    <div className="h-[520px] overflow-y-auto pr-2">
+                      {clientInteractions.slice(0, 10).map((client) => (
+                        <div key={client.id} className="flex items-center mb-3">
+                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
+                            {client.name.charAt(0)}
+                  </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{client.name}</p>
+                            <div className="flex gap-2 text-xs text-muted-foreground">
+                              <div className={`px-1.5 py-0.5 rounded ${
+                                client.emails > 5 ? 'bg-green-800 text-green-100 dark:bg-green-900 dark:text-green-50' : 
+                                client.emails > 3 ? 'bg-green-600 text-green-100 dark:bg-green-800 dark:text-green-100' : 
+                                client.emails > 1 ? 'bg-green-400 text-green-800 dark:bg-green-600 dark:text-green-200' : 
+                                client.emails > 0 ? 'bg-green-200 text-green-800 dark:bg-green-400 dark:text-green-900' : 
+                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                              }`}>
+                                <Mail className="h-3 w-3 inline mr-0.5" /> {client.emails}
+                </div>
+                              <div className={`px-1.5 py-0.5 rounded ${
+                                client.calls > 5 ? 'bg-blue-800 text-blue-100 dark:bg-blue-900 dark:text-blue-50' : 
+                                client.calls > 3 ? 'bg-blue-600 text-blue-100 dark:bg-blue-800 dark:text-blue-100' : 
+                                client.calls > 1 ? 'bg-blue-400 text-blue-800 dark:bg-blue-600 dark:text-blue-200' : 
+                                client.calls > 0 ? 'bg-blue-200 text-blue-800 dark:bg-blue-400 dark:text-blue-900' : 
+                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                              }`}>
+                                <Phone className="h-3 w-3 inline mr-0.5" /> {client.calls}
+            </div>
+                              <div className={`px-1.5 py-0.5 rounded ${
+                                client.meetings > 5 ? 'bg-purple-800 text-purple-100 dark:bg-purple-900 dark:text-purple-50' : 
+                                client.meetings > 3 ? 'bg-purple-600 text-purple-100 dark:bg-purple-800 dark:text-purple-100' : 
+                                client.meetings > 1 ? 'bg-purple-400 text-purple-800 dark:bg-purple-600 dark:text-purple-200' : 
+                                client.meetings > 0 ? 'bg-purple-200 text-purple-800 dark:bg-purple-400 dark:text-purple-900' : 
+                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
+                              }`}>
+                                <CalendarClock className="h-3 w-3 inline mr-0.5" /> {client.meetings}
+                </div>
+              </div>
+                </div>
+                          <div className="text-sm font-medium text-center w-7">
+                            {client.total}
           </div>
-              
-              <div className="pt-2">
-                <h3 className="text-sm font-medium mb-2">{t('dashboard.contact_heatmap')}</h3>
-                <div className="grid grid-cols-7 gap-1">
-                  {Array.from({ length: 14 }).map((_, i) => (
-                    <div 
-                      key={i}
-                      className={`h-4 rounded-sm ${
-                        i % 3 === 0 ? 'bg-green-500/80' :
-                        i % 4 === 0 ? 'bg-green-500/40' :
-                        i % 5 === 0 ? 'bg-green-500/20' :
-                        'bg-gray-200 dark:bg-gray-700'
-                      }`}
-                    />
+                        </div>
                   ))}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t('dashboard.last_two_weeks')}
-                </p>
+                  </>
+                )}
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Market Updates Widget */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.market_updates')}</CardTitle>
-              <CardDescription>{t('dashboard.financial_news')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-start gap-2">
-                  <TrendingUp className="h-4 w-4 mt-0.5 text-green-500" />
-                  <p className="text-sm">S&P 500: <span className="font-medium">{marketData.sp500}</span></p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <TrendingUp className="h-4 w-4 mt-0.5 text-green-500" />
-                  <p className="text-sm">FTSE MIB: <span className="font-medium">{marketData.ftseMib}</span></p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <ArrowDownRight className="h-4 w-4 mt-0.5 text-red-500" />
-                  <p className="text-sm">EUR/USD: <span className="font-medium">{marketData.eurUsd}</span></p>
-                </div>
-              </div>
-
-              <div className="pt-2 space-y-2">
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <p className="text-sm">{t('dashboard.fed_interest_rate')}</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Info className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                  <p className="text-sm">{t('dashboard.quarterly_earnings')}</p>
-                </div>
-              </div>
-            </CardContent>
-            <CardFooter className="border-t px-6 py-4">
-              <Button variant="ghost" className="w-full" onClick={() => setLocation('/market')}>
-                {t('dashboard.view_detailed_report')}
+              
+              <Button 
+                variant="outline" 
+                className="w-full mt-4" 
+                onClick={() => setShowCommunicationTrendDialog(true)}
+              >
+                {t('dashboard.view_trends')}
               </Button>
-            </CardFooter>
+            </CardContent>
           </Card>
-        </div>
-      </div>
+                </div>
+                </div>
 
       {/* Trend Dialog */}
       <Dialog open={showTrendDialog} onOpenChange={setShowTrendDialog}>
-        <DialogContent className="sm:max-w-[950px]">
+        <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto py-6">
           <DialogHeader>
             <DialogTitle>{t('dashboard.trend_analysis')}</DialogTitle>
             <DialogClose />
           </DialogHeader>
-          <div className="grid grid-cols-2 gap-6 pt-4">
+          <div className="grid grid-cols-2 gap-6 pt-4 pb-4">
             {/* Grafico Tassi di Conversione */}
             <div className="border rounded-lg p-4">
               <h3 className="text-sm font-medium mb-2">{t('dashboard.conversion_rates')}</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={generateTrendData('conversion')}>
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={generateTrendData('conversion')}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" />
                   <YAxis unit="%" />
@@ -1282,15 +1555,15 @@ export default function Dashboard() {
                   <Legend />
                   <Bar dataKey="value1" name={t('dashboard.lead_to_prospect')} fill="#4F46E5" />
                   <Bar dataKey="value2" name={t('dashboard.prospect_to_active')} fill="#8884d8" />
-                </BarChart>
+                </RechartsBarChart>
               </ResponsiveContainer>
             </div>
             
             {/* Grafico Acquisizione Giornaliera */}
             <div className="border rounded-lg p-4">
               <h3 className="text-sm font-medium mb-2">{t('dashboard.daily_acquisition')}</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={generateTrendData('acquisition')}>
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={generateTrendData('acquisition')}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" />
                   <YAxis />
@@ -1298,15 +1571,15 @@ export default function Dashboard() {
                   <Legend />
                   <Bar dataKey="value1" name={t('dashboard.new_leads_per_day')} fill="#10B981" />
                   <Bar dataKey="value2" name={t('dashboard.new_active_clients_per_day')} fill="#34D399" />
-                </BarChart>
+                </RechartsBarChart>
               </ResponsiveContainer>
             </div>
-            
+
             {/* Grafico Media Asset */}
             <div className="border rounded-lg p-4">
               <h3 className="text-sm font-medium mb-2">{t('dashboard.average_assets')}</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={generateTrendData('assets')}>
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={generateTrendData('assets')}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" />
                   <YAxis />
@@ -1321,15 +1594,15 @@ export default function Dashboard() {
                   <Legend />
                   <Bar dataKey="value1" name={t('dashboard.per_prospect')} fill="#F59E0B" />
                   <Bar dataKey="value2" name={t('dashboard.per_active_client')} fill="#FBBF24" />
-                </BarChart>
+                </RechartsBarChart>
               </ResponsiveContainer>
             </div>
             
             {/* Grafico Tempo Medio */}
             <div className="border rounded-lg p-4">
               <h3 className="text-sm font-medium mb-2">{t('dashboard.average_time')}</h3>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={generateTrendData('time')}>
+              <ResponsiveContainer width="100%" height={200}>
+                <RechartsBarChart data={generateTrendData('time')}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="period" />
                   <YAxis unit=" d" />
@@ -1337,7 +1610,60 @@ export default function Dashboard() {
                   <Legend />
                   <Bar dataKey="value1" name={t('dashboard.as_lead')} fill="#EC4899" />
                   <Bar dataKey="value2" name={t('dashboard.as_prospect')} fill="#F472B6" />
-                </BarChart>
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Communication Trend Dialog */}
+      <Dialog open={showCommunicationTrendDialog} onOpenChange={setShowCommunicationTrendDialog}>
+        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto py-6">
+          <DialogHeader>
+            <DialogTitle>{t('dashboard.communication_trend_analysis')}</DialogTitle>
+            <DialogClose />
+          </DialogHeader>
+          <div className="grid grid-cols-1 gap-6 pt-4 pb-4">
+            {/* Grafico Email medie per cliente */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_emails_trend')}</h3>
+              <ResponsiveContainer width="100%" height={150}>
+                <RechartsBarChart data={generateCommunicationTrendData()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
+                  <Bar dataKey="value1" name={t('dashboard.avg_emails')} fill="#10B981" />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Grafico Chiamate medie per cliente */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_calls_trend')}</h3>
+              <ResponsiveContainer width="100%" height={150}>
+                <RechartsBarChart data={generateCommunicationTrendData()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
+                  <Bar dataKey="value2" name={t('dashboard.avg_calls')} fill="#3B82F6" />
+                </RechartsBarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Grafico Incontri medi per cliente */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_meetings_trend')}</h3>
+              <ResponsiveContainer width="100%" height={150}>
+                <RechartsBarChart data={generateCommunicationTrendData()}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
+                  <Bar dataKey="value3" name={t('dashboard.avg_meetings')} fill="#F59E0B" />
+                </RechartsBarChart>
               </ResponsiveContainer>
             </div>
           </div>

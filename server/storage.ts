@@ -863,9 +863,14 @@ export class PostgresStorage implements IStorage {
   async createClientLog(insertLog: InsertClientLog): Promise<ClientLog> {
     try {
       // Verifichiamo che il cliente esista prima di creare il log
-      const client = await this.getClient(insertLog.clientId || 0);
+      const clientId = Number(insertLog.clientId);
+      if (isNaN(clientId)) {
+        throw new Error(`Invalid clientId: ${insertLog.clientId}`);
+      }
+      
+      const client = await this.getClient(clientId);
       if (!client) {
-        throw new Error(`Client with id ${insertLog.clientId} not found`);
+        throw new Error(`Client with id ${clientId} not found`);
       }
       
       // Verifichiamo che il tipo sia valido
@@ -899,7 +904,7 @@ export class PostgresStorage implements IStorage {
       // Ora costruiamo un oggetto che rispetta esattamente lo schema atteso
       const result = await db.insert(clientLogs)
         .values([{
-          clientId: insertLog.clientId,
+          clientId,
           type: logType, // Ora è sicuramente uno dei valori accettati
           title: insertLog.title,
           content: insertLog.content,
@@ -1079,15 +1084,25 @@ export class PostgresStorage implements IStorage {
   async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
     try {
       // Verifica che il client esista
-      const client = await this.getClient(insertMeeting.clientId as number);
+      const clientId = Number(insertMeeting.clientId);
+      if (isNaN(clientId)) {
+        throw new Error(`Invalid clientId: ${insertMeeting.clientId}`);
+      }
+      
+      const client = await this.getClient(clientId);
       if (!client) {
-        throw new Error(`Cliente con ID ${insertMeeting.clientId} non trovato`);
+        throw new Error(`Cliente con ID ${clientId} non trovato`);
       }
       
       // Verifica che l'advisor esista
-      const advisor = await this.getUser(insertMeeting.advisorId as number);
+      const advisorId = Number(insertMeeting.advisorId);
+      if (isNaN(advisorId)) {
+        throw new Error(`Invalid advisorId: ${insertMeeting.advisorId}`);
+      }
+      
+      const advisor = await this.getUser(advisorId);
       if (!advisor) {
-        throw new Error(`Advisor con ID ${insertMeeting.advisorId} non trovato`);
+        throw new Error(`Advisor con ID ${advisorId} non trovato`);
       }
       
       // Assicurati che dateTime sia un oggetto Date
@@ -1106,6 +1121,8 @@ export class PostgresStorage implements IStorage {
       // Crea un nuovo oggetto da inserire nel database
       const meetingToInsert = {
         ...insertMeeting,
+        clientId,
+        advisorId,
         dateTime: meetingDateTime  // Ora siamo sicuri che sia un Date
       };
       
@@ -1113,15 +1130,6 @@ export class PostgresStorage implements IStorage {
       
       // Inserisci il meeting nel database
       const result = await db.insert(meetings).values(meetingToInsert).returning();
-      
-      // Crea anche un log per tracciare l'attività
-      await this.createClientLog({
-        clientId: insertMeeting.clientId as number,
-        type: "meeting" as LogType,
-        title: insertMeeting.subject as string,
-        content: `Meeting programmato: ${insertMeeting.subject}`,
-        logDate: new Date()
-      });
       
       return result[0];
     } catch (error) {
@@ -1139,7 +1147,25 @@ export class PostgresStorage implements IStorage {
       }
       
       // Se c'è un campo dateTime, assicurati che sia un oggetto Date
-      let updatedFields = { ...meetingUpdate };
+      let updatedFields: Partial<Meeting> = { ...meetingUpdate };
+      
+      // Se vengono aggiornati clientId o advisorId, assicurati che siano numeri validi
+      if (meetingUpdate.clientId !== undefined) {
+        const clientId = Number(meetingUpdate.clientId);
+        if (isNaN(clientId)) {
+          throw new Error(`Invalid clientId: ${meetingUpdate.clientId}`);
+        }
+        updatedFields.clientId = clientId;
+      }
+      
+      if (meetingUpdate.advisorId !== undefined) {
+        const advisorId = Number(meetingUpdate.advisorId);
+        if (isNaN(advisorId)) {
+          throw new Error(`Invalid advisorId: ${meetingUpdate.advisorId}`);
+        }
+        updatedFields.advisorId = advisorId;
+      }
+      
       if (meetingUpdate.dateTime !== undefined) {
         let meetingDateTime: Date;
         if (typeof meetingUpdate.dateTime === 'string') {
@@ -1166,17 +1192,6 @@ export class PostgresStorage implements IStorage {
         .where(eq(meetings.id, id))
         .returning();
       
-      // Se la data è cambiata, crea un log per tracciare la modifica
-      if (meetingUpdate.dateTime && meetingUpdate.dateTime.toString() !== currentMeeting.dateTime.toString()) {
-        await this.createClientLog({
-          clientId: currentMeeting.clientId,
-          type: "meeting" as LogType,
-          title: `Aggiornamento meeting: ${currentMeeting.subject}`,
-          content: `Meeting riprogrammato: ${currentMeeting.dateTime.toLocaleString('it-IT')} -> ${updatedFields.dateTime.toLocaleString('it-IT')}`,
-          logDate: new Date()
-        });
-      }
-      
       return result[0];
     } catch (error) {
       console.error("Errore nell'aggiornamento del meeting:", error);
@@ -1186,7 +1201,7 @@ export class PostgresStorage implements IStorage {
 
   async deleteMeeting(id: number): Promise<boolean> {
     try {
-      // Ottieni il meeting prima di eliminarlo per il logging
+      // Ottieni il meeting prima di eliminarlo
       const meeting = await this.getMeeting(id);
       if (!meeting) {
         return false; // Meeting non trovato
@@ -1195,19 +1210,7 @@ export class PostgresStorage implements IStorage {
       // Elimina il meeting
       const deleted = await db.delete(meetings).where(eq(meetings.id, id)).returning();
       
-      if (deleted.length > 0) {
-        // Crea un log per tracciare l'eliminazione
-        await this.createClientLog({
-          clientId: meeting.clientId,
-          type: "meeting" as LogType,
-          title: `Cancellazione meeting: ${meeting.subject}`,
-          content: `Meeting cancellato: ${meeting.subject} - ${new Date(meeting.dateTime).toLocaleString('it-IT')}`,
-          logDate: new Date()
-        });
-        return true;
-      }
-      
-      return false;
+      return deleted.length > 0;
     } catch (error) {
       console.error("Errore nell'eliminazione del meeting:", error);
       throw error;
