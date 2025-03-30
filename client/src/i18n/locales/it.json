@@ -219,7 +219,13 @@
     "meeting_created_success": "L'appuntamento è stato creato con successo",
     "add_event": "Aggiungi evento",
     "select_client": "Seleziona un cliente",
-    "new_active_clients_per_day": "Nuovi Clienti Attivi/Giorno"
+    "new_active_clients_per_day": "Nuovi Clienti Attivi/Giorno",
+    "client_insights": "Insight Clienti Attivi",
+    "active_clients_overview": "Panoramica dei clienti attivi",
+    "client_segment_distribution": "Distribuzione Clienti per Segmento",
+    "asset_by_segment": "Asset per Segmento",
+    "asset_by_type": "Asset per Tipologia",
+    "segment": "Segmento"
   },
   "client": {
     "active_client": "Cliente Attivo",
@@ -313,13 +319,16 @@
   "client_edit": {
     "email": "Indirizzo Email",
     "title": "Modifica Informazioni Cliente",
-    "subtitle": "Aggiorna profilo completo del cliente",
+    "subtitle": "Aggiorna il profilo completo del cliente",
     "personal_info": "Informazioni Personali",
     "personal_info_desc": "Dettagli di contatto e identificazione di base",
     "investment_profile": "Profilo di Investimento",
-    "investment_profile_desc": "Informazioni sulle preferenze e l'esperienza di investimento",
+    "investment_profile_desc": "Informazioni sulle preferenze di investimento ed esperienza",
     "assets": "Asset",
     "assets_desc": "Informazioni sugli asset attuali",
+    "client_segment": "Segmento Cliente",
+    "client_segment_desc": "Classificazione del cliente in base al patrimonio",
+    "select_client_segment": "Seleziona segmento cliente",
     "first_name": "Nome",
     "last_name": "Cognome",
     "phone_number": "Numero di Telefono",

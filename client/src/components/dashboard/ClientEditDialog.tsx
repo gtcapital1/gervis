@@ -38,7 +38,8 @@ import {
   EXPERIENCE_LEVELS,
   INVESTMENT_GOALS,
   INVESTMENT_HORIZONS,
-  Client
+  Client,
+  CLIENT_SEGMENTS
 } from "@shared/schema";
 
 // Define the asset schema
@@ -92,7 +93,12 @@ const clientEditFormSchema = z.object({
   estatePlanningInterest: z.number().min(1).max(5),
 
   // Assets
-  assets: z.array(assetSchema).min(1, "Please add at least one asset")
+  assets: z.array(assetSchema).min(1, "Please add at least one asset"),
+
+  // New fields
+  clientSegment: z.string().refine(val => CLIENT_SEGMENTS.includes(val as any), {
+    message: "Please select a valid client segment"
+  }),
 });
 
 type ClientEditFormValues = z.infer<typeof clientEditFormSchema>;
@@ -116,6 +122,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
   const experienceLevelOptions = EXPERIENCE_LEVELS as unknown as [string, ...string[]];
   const investmentHorizonOptions = INVESTMENT_HORIZONS as unknown as [string, ...string[]];
   const investmentGoalOptions = INVESTMENT_GOALS as unknown as [string, ...string[]];
+  const clientSegmentOptions = CLIENT_SEGMENTS as unknown as [string, ...string[]];
   
   // Setup form with default values
   const form = useForm<ClientEditFormValues>({
@@ -148,7 +155,8 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         category: asset.category,
         value: asset.value,
         description: asset.description || ""
-      }))
+      })),
+      clientSegment: client.clientSegment || ""
     }
   });
 
@@ -183,7 +191,8 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
           category: asset.category,
           value: asset.value,
           description: asset.description || ""
-        }))
+        })),
+        clientSegment: client.clientSegment || ""
       });
     }
   }, [open, assets, client, form]);
@@ -882,6 +891,54 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                   <PlusCircle className="mr-2 h-4 w-4" />
                   {t('client_edit.add_asset')}
                 </Button>
+              </CardContent>
+            </Card>
+            
+            {/* Client Segment */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center text-xl font-semibold">
+                  <ArrowRight className="mr-2 h-5 w-5 text-primary" />
+                  {t('client_edit.client_segment')}
+                </CardTitle>
+                <CardDescription>
+                  {t('client_edit.client_segment_desc')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <FormField
+                  control={form.control}
+                  name="clientSegment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t('client_edit.client_segment')}</FormLabel>
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={t('client_edit.select_client_segment')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">
+                            {t('client_edit.not_specified')}
+                          </SelectItem>
+                          {CLIENT_SEGMENTS.map(segment => (
+                            <SelectItem key={segment} value={segment}>
+                              {segment === 'mass_market' ? '🧊 Mass Market (< €100.000)' : 
+                               segment === 'affluent' ? '🔵 Affluent (€100.000 - €500.000)' : 
+                               segment === 'hnw' ? '🟣 HNW (€500.000 - €2.000.000)' : 
+                               segment === 'vhnw' ? '🟡 VHNW (€2.000.000 - €10.000.000)' : 
+                               segment === 'uhnw' ? '🔴 UHNW (> €10.000.000)' : 
+                               segment}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </CardContent>
             </Card>
             

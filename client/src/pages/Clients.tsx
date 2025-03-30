@@ -56,7 +56,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ClientDialog } from "../components/dashboard/ClientDialog";
 import { UpgradeDialog } from "../components/pro/UpgradeDialog";
-import { Client } from "@shared/schema";
+import { Client, CLIENT_SEGMENTS } from "@shared/schema";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -362,6 +362,40 @@ export default function Clients() {
     }
   }
 
+  // Funzione per renderizzare un badge colorato in base al segmento cliente
+  function renderClientSegmentBadge(segment: string | null) {
+    if (!segment) return null;
+    
+    const segmentColors = {
+      mass_market: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
+      affluent: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+      hnw: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
+      vhnw: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+      uhnw: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
+    };
+    
+    const segmentEmojis = {
+      mass_market: "🧊",
+      affluent: "🔵",
+      hnw: "🟣",
+      vhnw: "🟡",
+      uhnw: "🔴"
+    };
+    
+    const color = segmentColors[segment as keyof typeof segmentColors] || "bg-gray-100 text-gray-800";
+    const emoji = segmentEmojis[segment as keyof typeof segmentEmojis] || "";
+    
+    return (
+      <Badge variant="outline" className={`${color} font-semibold`}>
+        {emoji} {segment === 'mass_market' ? 'Mass Market' : 
+          segment === 'hnw' ? 'HNW' : 
+          segment === 'vhnw' ? 'VHNW' : 
+          segment === 'uhnw' ? 'UHNW' : 
+          segment.charAt(0).toUpperCase() + segment.slice(1)}
+      </Badge>
+    );
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader 
@@ -432,11 +466,11 @@ export default function Clients() {
                     <TableRow>
                       <TableHead>{t('dashboard.name')}</TableHead>
                       <TableHead>{t('dashboard.email')}</TableHead>
-                      <TableHead className="hidden md:table-cell">{t('dashboard.phone')}</TableHead>
-                      <TableHead className="hidden md:table-cell">{t('dashboard.meeting')}</TableHead>
+                      <TableHead>{t('dashboard.phone')}</TableHead>
+                      <TableHead>{t('dashboard.segment')}</TableHead>
                       <TableHead>{t('dashboard.status')}</TableHead>
-                      <TableHead className="hidden md:table-cell">{t('dashboard.created')}</TableHead>
-                      <TableHead className="w-16"></TableHead>
+                      <TableHead>{t('dashboard.created')}</TableHead>
+                      <TableHead className="text-right">{t('dashboard.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -451,26 +485,15 @@ export default function Clients() {
                         </TableCell>
                         <TableCell className="max-w-[140px] truncate">{client.email}</TableCell>
                         <TableCell className="whitespace-nowrap hidden md:table-cell">{client.phone || "—"}</TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleScheduleMeeting(client);
-                            }}
-                          >
-                            <CalendarClock className="h-4 w-4 mr-2" />
-                            {t('dashboard.schedule_meeting')}
-                          </Button>
+                        <TableCell>
+                          {renderClientSegmentBadge(client.clientSegment)}
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={client.isOnboarded ? "default" : "outline"}
-                            className={client.isOnboarded ? "bg-green-600" : "border-red-500 text-red-500 font-medium"}
-                          >
-                            {client.isOnboarded ? t('dashboard.onboarded') : t('dashboard.not_onboarded')}
-                          </Badge>
+                          {client.isOnboarded ? (
+                            <Badge variant="default" className="bg-green-600 text-white">{t('dashboard.onboarded')}</Badge>
+                          ) : (
+                            <Badge variant="secondary">{t('dashboard.not_onboarded')}</Badge>
+                          )}
                         </TableCell>
                         <TableCell className="whitespace-nowrap hidden md:table-cell">{formatDate(client.createdAt)}</TableCell>
                         <TableCell>

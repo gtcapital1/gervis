@@ -24,7 +24,7 @@ import {
   Layers,
   TrendingUp,
   Activity,
-  PieChart,
+  PieChart as LucidePieChart,
   CreditCard,
   Info,
   BarChart as LucideBarChart,
@@ -49,7 +49,7 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Client } from "@shared/schema";
+import { Client, RISK_PROFILES, CLIENT_SEGMENTS } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency, formatNumber, formatPercent } from "@/lib/utils";
@@ -76,9 +76,17 @@ import {
   LineChart as RechartsLineChart,
   Line,
   BarChart as RechartsBarChart,
-  Bar
+  Bar,
+  PieChart,
+  Pie,
+  Cell
 } from "recharts";
 import { DialogTrend, TrendData } from "@/components/ui/dialog-trend";
+import { 
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger
+} from "@/components/ui/hover-card";
 
 // Definizione delle interfacce per i tipi di dati
 interface Task {
@@ -1312,104 +1320,16 @@ export default function Dashboard() {
                             </Button>
             </CardFooter>
           </Card>
-
-          {/* 📊 Client Portfolio Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('dashboard.portfolio_insights')}</CardTitle>
-              <CardDescription>{t('dashboard.aum_overview')}</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {isLoadingPortfolio ? (
-                <div className="py-6 text-center text-muted-foreground">
-                  {t('dashboard.loading')}...
                 </div>
-                                ) : (
-                                  <>
-                  {/* Asset Allocation */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">{t('dashboard.asset_allocation')}</h3>
-                    <div className="space-y-2">
-                      {assetAllocation.map((asset: AssetAllocation) => (
-                        <div key={asset.category} className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span>{asset.category}</span>
-                            <span>{formatPercent(asset.percentage)}</span>
-                          </div>
-                          <Progress value={asset.percentage} className="h-2" />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Risk Distribution */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">{t('dashboard.risk_distribution')}</h3>
-                    <div className="h-[20px] w-full rounded-md overflow-hidden flex">
-                      <div className="bg-green-500" style={{ width: `${(lowRiskClients / activeClients.length * 100) || 0}%` }}></div>
-                      <div className="bg-amber-500" style={{ width: `${(mediumRiskClients / activeClients.length * 100) || 0}%` }}></div>
-                      <div className="bg-red-500" style={{ width: `${(highRiskClients / activeClients.length * 100) || 0}%` }}></div>
-                    </div>
-                    <div className="flex justify-between mt-2 text-xs">
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-green-500 mr-1"></div>
-                        <span>{t('dashboard.low_risk')}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-amber-500 mr-1"></div>
-                        <span>{t('dashboard.medium_risk')}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <div className="w-3 h-3 rounded-full bg-red-500 mr-1"></div>
-                        <span>{t('dashboard.high_risk')}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Performance Summary */}
-                  <div>
-                    <h3 className="text-sm font-medium mb-2">{t('dashboard.performance_summary')}</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="rounded-lg border p-3">
-                        <div className="text-sm text-muted-foreground">{t('dashboard.last_30_days')}</div>
-                        <div className="flex items-center mt-1">
-                          <span className={`text-xl font-bold ${portfolioStats.performanceLastMonth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {portfolioStats.performanceLastMonth >= 0 ? '+' : ''}{formatPercent(portfolioStats.performanceLastMonth)}
-                          </span>
-                          {portfolioStats.performanceLastMonth >= 0 ? 
-                            <ArrowUpRight className="h-4 w-4 ml-1 text-green-500" /> : 
-                            <ArrowDownRight className="h-4 w-4 ml-1 text-red-500" />
-                          }
-                        </div>
-                      </div>
-                      <div className="rounded-lg border p-3">
-                        <div className="text-sm text-muted-foreground">{t('dashboard.ytd')}</div>
-                        <div className="flex items-center mt-1">
-                          <span className={`text-xl font-bold ${portfolioStats.performanceYTD >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                            {portfolioStats.performanceYTD >= 0 ? '+' : ''}{formatPercent(portfolioStats.performanceYTD)}
-                          </span>
-                          {portfolioStats.performanceYTD >= 0 ? 
-                            <ArrowUpRight className="h-4 w-4 ml-1 text-green-500" /> : 
-                            <ArrowDownRight className="h-4 w-4 ml-1 text-red-500" />
-                          }
-                        </div>
-                      </div>
-                    </div>
-              </div>
-                </>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-      
+        
         {/* Right column - 1/3 width */}
         <div className="space-y-6">
           {/* Client Interactions */}
-          <Card>
+          <Card className="h-full flex flex-col">
             <CardHeader className="pb-2">
-              <div>
+                  <div>
                 <CardTitle>{t('dashboard.client_engagement')}</CardTitle>
-                </div>
+                          </div>
               <div className="flex border rounded-md overflow-hidden mt-4 w-fit ml-auto">
                 <button 
                   onClick={() => setInteractionsTimeframe('1w')} 
@@ -1441,9 +1361,9 @@ export default function Dashboard() {
                 >
                   {t('dashboard.timeframe_1y')}
                 </button>
-                </div>
+                        </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col">
               {/* Media di interazioni per cliente */}
               <div className="grid grid-cols-3 gap-2 mb-2 py-1 px-2 bg-muted/10">
                 <div className="text-center">
@@ -1457,30 +1377,30 @@ export default function Dashboard() {
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">{t('dashboard.avg_meetings')}</div>
                   <div className="text-lg font-semibold">{averageInteractions.meetings}</div>
-          </div>
-              </div>
-              
-              <div className="space-y-4">
+                    </div>
+                  </div>
+
+              <div className="space-y-4 flex-1 flex flex-col">
                 {isLoadingClientLogs ? (
                 <div className="py-6 text-center text-muted-foreground">
                   {t('dashboard.loading')}...
-                </div>
+                    </div>
                 ) : clientInteractions.length === 0 ? (
                 <div className="py-6 text-center text-muted-foreground">
                     {t('dashboard.no_recent_activity')}
-                </div>
+                      </div>
               ) : (
                   <>
                     <div className="mt-4 mb-3 flex justify-between items-center text-sm font-medium">
                       <div>{t('dashboard.clients')}</div>
                       <div className="text-center w-7">{t('dashboard.total_interactions')}</div>
-                    </div>
-                    <div className="h-[520px] overflow-y-auto pr-2">
+                      </div>
+                    <div className="flex-1 overflow-y-auto pr-2">
                       {clientInteractions.slice(0, 10).map((client) => (
                         <div key={client.id} className="flex items-center mb-3">
                           <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
                             {client.name.charAt(0)}
-                  </div>
+                      </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium truncate">{client.name}</p>
                             <div className="flex gap-2 text-xs text-muted-foreground">
@@ -1492,7 +1412,7 @@ export default function Dashboard() {
                                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                               }`}>
                                 <Mail className="h-3 w-3 inline mr-0.5" /> {client.emails}
-                </div>
+                    </div>
                               <div className={`px-1.5 py-0.5 rounded ${
                                 client.calls > 5 ? 'bg-blue-800 text-blue-100 dark:bg-blue-900 dark:text-blue-50' : 
                                 client.calls > 3 ? 'bg-blue-600 text-blue-100 dark:bg-blue-800 dark:text-blue-100' : 
@@ -1501,7 +1421,7 @@ export default function Dashboard() {
                                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                               }`}>
                                 <Phone className="h-3 w-3 inline mr-0.5" /> {client.calls}
-            </div>
+                  </div>
                               <div className={`px-1.5 py-0.5 rounded ${
                                 client.meetings > 5 ? 'bg-purple-800 text-purple-100 dark:bg-purple-900 dark:text-purple-50' : 
                                 client.meetings > 3 ? 'bg-purple-600 text-purple-100 dark:bg-purple-800 dark:text-purple-100' : 
@@ -1510,17 +1430,17 @@ export default function Dashboard() {
                                 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                               }`}>
                                 <CalendarClock className="h-3 w-3 inline mr-0.5" /> {client.meetings}
-                </div>
-              </div>
-                </div>
+                        </div>
+                      </div>
+                        </div>
                           <div className="text-sm font-medium text-center w-7">
                             {client.total}
-          </div>
-                        </div>
+                      </div>
+                    </div>
                   ))}
-                </div>
-                  </>
-                )}
+              </div>
+                </>
+            )}
               </div>
               
               <Button 
@@ -1530,145 +1450,319 @@ export default function Dashboard() {
               >
                 {t('dashboard.view_trends')}
               </Button>
+          </CardContent>
+        </Card>
+        </div>
+      </div>
+      
+      {/* 📊 Client Portfolio Insights - a tutta larghezza */}
+      <Card className="col-span-full">
+            <CardHeader>
+          <CardTitle>{t('dashboard.client_insights')}</CardTitle>
+          <CardDescription>{t('dashboard.active_clients_overview')}</CardDescription>
+            </CardHeader>
+        <CardContent className="space-y-6">
+          {isLoadingPortfolio || isLoadingClients ? (
+                <div className="py-6 text-center text-muted-foreground">
+                  {t('dashboard.loading')}...
+                </div>
+          ) : (
+            <>
+              {/* Distribuzione Clienti per Asset */}
+            <div>
+                <h3 className="text-sm font-medium mb-2 flex items-center">
+                  {t('dashboard.client_segment_distribution')} 
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <div className="ml-1 cursor-help">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80 text-xs p-3 shadow-lg">
+                      <div className="text-muted-foreground space-y-1.5">
+                        <p>Segmenti clienti:</p>
+                        <div className="grid grid-cols-2 gap-x-2 gap-y-1">
+                          <span>Mass Market</span> <span>&lt;100.000€</span>
+                          <span>Affluent</span> <span>100.000€-500.000€</span>
+                          <span>HNW</span> <span>500.000€-2.000.000€</span>
+                          <span>VHNW</span> <span>2.000.000€-10.000.000€</span>
+                          <span>UHNW</span> <span>&gt;10.000.000€</span>
+            </div>
+          </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </h3>
+                <div className="grid grid-cols-5 gap-3 mt-4">
+                  {(() => {
+                    // Definire le fasce di asset con i valori corretti
+                    const segments = [
+                      { name: 'mass_market', max: 100000, count: 0, percentage: 0 },
+                      { name: 'affluent', max: 500000, count: 0, percentage: 0 },
+                      { name: 'hnw', max: 2000000, count: 0, percentage: 0 },
+                      { name: 'vhnw', max: 10000000, count: 0, percentage: 0 },
+                      { name: 'uhnw', max: Infinity, count: 0, percentage: 0 }
+                    ];
+                    
+                    // Conteggio clienti per segmento dalla proprietà clientSegment se disponibile, altrimenti calcola dagli asset
+                    activeClients.forEach(client => {
+                      if (client.clientSegment && CLIENT_SEGMENTS.includes(client.clientSegment as any)) {
+                        // Se il client ha già il segmento definito, usa quello
+                        const segmentName = client.clientSegment;
+                        const segment = segments.find(s => s.name === segmentName);
+                        if (segment) {
+                          segment.count++;
+                        }
+                      } else {
+                        // Altrimenti calcola in base al patrimonio
+                        const clientId = client.id;
+                        const clientTotal = assets
+                          .filter(asset => asset.clientId === clientId)
+                          .reduce((sum, asset) => sum + asset.value, 0);
+                        
+                        // Assegna al segmento appropriato
+                        for (let i = 0; i < segments.length; i++) {
+                          const segment = segments[i];
+                          const prevMax = i > 0 ? segments[i - 1].max : 0;
+                          
+                          if (clientTotal > prevMax && clientTotal <= segment.max) {
+                            segment.count++;
+                            break;
+                          }
+                        }
+                      }
+                    });
+                    
+                    // Calcolare le percentuali
+                    const totalClients = activeClients.length;
+                    segments.forEach(segment => {
+                      segment.percentage = totalClients > 0 ? (segment.count / totalClients) * 100 : 0;
+                    });
+                    
+                    // Visualizzazione dei segmenti con percentuali e range
+                    return segments.map((segment, index) => {                 
+                      return (
+                        <div key={segment.name} className="text-center">
+                          <div className="text-xl font-bold">
+                            {segment.count} <span className="text-sm font-normal text-muted-foreground">({segment.percentage.toFixed(0)}%)</span>
+                </div>
+                          <div className="text-sm text-muted-foreground">
+                            {segment.name === 'mass_market' ? 'Mass Market' : 
+                              segment.name === 'hnw' ? 'HNW' : 
+                              segment.name === 'vhnw' ? 'VHNW' : 
+                              segment.name === 'uhnw' ? 'UHNW' : 
+                              segment.name.charAt(0).toUpperCase() + segment.name.slice(1)}
+                </div>
+                    </div>
+                      );
+                    });
+                  })()}
+                  </div>
+                </div>
+
+              {/* Grafici a torta */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Distribuzione Asset per Segmento */}
+                <div className="border rounded-lg p-3">
+                  <h3 className="text-sm font-medium mb-2 flex items-center">
+                    {t('dashboard.asset_by_segment')}
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <div className="ml-1 cursor-help">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-80 text-xs p-3 shadow-lg">
+                        <div className="text-muted-foreground">
+                          <p>Distribuzione degli asset per segmento</p>
+                          <p className="mt-1">Mostra come sono distribuiti gli asset tra i diversi segmenti di clientela.</p>
+              </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </h3>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                      <Pie
+                        data={(() => {
+                          // Definire le fasce di asset
+                          const segments = [
+                            { name: 'mass_market', label: 'Mass Market', max: 100000, value: 0, fill: '#86efac' },
+                            { name: 'affluent', label: 'Affluent', max: 500000, value: 0, fill: '#4ade80' },
+                            { name: 'hnw', label: 'HNW', max: 2000000, value: 0, fill: '#22c55e' },
+                            { name: 'vhnw', label: 'VHNW', max: 10000000, value: 0, fill: '#16a34a' },
+                            { name: 'uhnw', label: 'UHNW', max: Infinity, value: 0, fill: '#15803d' }
+                          ];
+                          
+                          // Calcolare il totale degli asset per cliente e assegnare al segmento corretto
+                          activeClients.forEach(client => {
+                            const clientId = client.id;
+                            const clientAssets = assets.filter(asset => asset.clientId === clientId);
+                            const clientTotal = clientAssets.reduce((sum, asset) => sum + asset.value, 0);
+                            
+                            // Assegnare al segmento corretto - verifica prima se il cliente ha già un segmento assegnato
+                            if (client.clientSegment && CLIENT_SEGMENTS.includes(client.clientSegment as any)) {
+                              const segmentName = client.clientSegment;
+                              const segment = segments.find(s => s.name === segmentName);
+                              if (segment) {
+                                segment.value += clientTotal;
+                              }
+                            } else {
+                              // Altrimenti assegna in base al totale degli asset
+                              for (let i = 0; i < segments.length; i++) {
+                                const segment = segments[i];
+                                const prevMax = i > 0 ? segments[i - 1].max : 0;
+                                
+                                if (clientTotal > prevMax && clientTotal <= segment.max) {
+                                  segment.value += clientTotal;
+                                  break;
+                                }
+                              }
+                            }
+                          });
+                          
+                          // Assicuriamoci che ci sia sempre almeno un valore per ogni segmento per la visualizzazione
+                          // Valori minimi per evitare torte vuote
+                          const minValueForVisualization = 1;
+                          segments.forEach(segment => {
+                            if (segment.value === 0) segment.value = minValueForVisualization;
+                          });
+                          
+                          return segments.map(segment => ({
+                            ...segment,
+                            displayName: segment.label
+                          }));
+                        })()}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ displayName, percent }) => `${displayName}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={55}
+                        innerRadius={0}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="displayName"
+                      >
+                        {/* Aggiungiamo celle colorate esplicite con scala di verdi */}
+                        {[
+                          { name: 'mass_market', fill: '#86efac' },
+                          { name: 'affluent', fill: '#4ade80' },
+                          { name: 'hnw', fill: '#22c55e' },
+                          { name: 'vhnw', fill: '#16a34a' },
+                          { name: 'uhnw', fill: '#15803d' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.fill} />
+                        ))}
+                      </Pie>
+                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                {/* Distribuzione Asset per Tipo */}
+                <div className="border rounded-lg p-3">
+                  <h3 className="text-sm font-medium mb-2 flex items-center">
+                    {t('dashboard.asset_by_type')}
+                    <HoverCard>
+                      <HoverCardTrigger asChild>
+                        <div className="ml-1 cursor-help">
+                          <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                </div>
+                      </HoverCardTrigger>
+                      <HoverCardContent className="w-80 text-xs p-3 shadow-lg">
+                        <div className="text-muted-foreground">
+                          <p>Distribuzione degli asset per tipo</p>
+                          <p className="mt-1">Mostra come sono distribuiti gli asset per categoria di investimento.</p>
+                </div>
+                      </HoverCardContent>
+                    </HoverCard>
+                  </h3>
+                  <ResponsiveContainer width="100%" height={180}>
+                    <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                      <Pie
+                        data={assetAllocation}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={true}
+                        label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={55}
+                        innerRadius={0}
+                        fill="#8884d8"
+                        dataKey="value"
+                        nameKey="category"
+                      >
+                        {
+                          assetAllocation.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={
+                              index === 0 ? '#93c5fd' : // Lightest blue
+                              index === 1 ? '#60a5fa' : // Light blue
+                              index === 2 ? '#3b82f6' : // Medium blue
+                              index === 3 ? '#2563eb' : // Dark blue
+                              '#1d4ed8'  // Darkest blue
+                            } />
+                          ))
+                        }
+                      </Pie>
+                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Risk Distribution */}
+              <div>
+                <h3 className="text-sm font-medium mb-2">{t('dashboard.risk_distribution')}</h3>
+                {/* Usiamo i 5 profili di rischio reali */}
+                {(() => {
+                  const riskProfiles = {
+                    conservative: { color: 'bg-green-500', count: 0, percentage: 0 },
+                    moderate: { color: 'bg-emerald-500', count: 0, percentage: 0 },
+                    balanced: { color: 'bg-yellow-500', count: 0, percentage: 0 },
+                    growth: { color: 'bg-orange-500', count: 0, percentage: 0 },
+                    aggressive: { color: 'bg-red-500', count: 0, percentage: 0 }
+                  };
+                  
+                  // Conta i clienti per profilo di rischio
+                  activeClients.forEach(client => {
+                    const profile = client.riskProfile || 'unknown';
+                    if (profile !== 'unknown' && profile in riskProfiles) {
+                      riskProfiles[profile as keyof typeof riskProfiles].count++;
+                    }
+                  });
+                  
+                  // Calcola le percentuali
+                  const totalClients = activeClients.length;
+                  Object.values(riskProfiles).forEach(profile => {
+                    profile.percentage = totalClients > 0 ? (profile.count / totalClients) * 100 : 0;
+                  });
+                  
+                  // Visualizzazione
+                  return (
+                    <>
+              <div className="h-[20px] w-full rounded-md overflow-hidden flex">
+                      {Object.entries(riskProfiles).map(([name, profile]) => (
+                        <div 
+                          key={name} 
+                          className={profile.color} 
+                          style={{ width: `${profile.percentage}%` }}
+                          title={`${name}: ${profile.count} ${t('dashboard.clients')} (${profile.percentage.toFixed(1)}%)`}
+                        ></div>
+                      ))}
+                </div>
+              <div className="flex justify-between mt-2 text-xs">
+                      {Object.entries(riskProfiles).map(([name, profile]) => (
+                        <div key={name} className="flex items-center">
+                          <div className={`w-3 h-3 rounded-full ${profile.color} mr-1`}></div>
+                          <span>{name}</span>
+                </div>
+                      ))}
+              </div>
+                    </>
+                  );
+                })()}
+            </div>
+            </>
+          )}
             </CardContent>
           </Card>
-                </div>
-                </div>
-
-      {/* Trend Dialog */}
-      <Dialog open={showTrendDialog} onOpenChange={setShowTrendDialog}>
-        <DialogContent className="sm:max-w-[850px] max-h-[90vh] overflow-y-auto py-6">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.trend_analysis')}</DialogTitle>
-            <DialogClose />
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-6 pt-4 pb-4">
-            {/* Grafico Tassi di Conversione */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.conversion_rates')}</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsBarChart data={generateTrendData('conversion')}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis unit="%" />
-                  <RechartsTooltip formatter={(value: any) => [`${Number(value).toFixed(1)}%`, '']} />
-                  <Legend />
-                  <Bar dataKey="value1" name={t('dashboard.lead_to_prospect')} fill="#4F46E5" />
-                  <Bar dataKey="value2" name={t('dashboard.prospect_to_active')} fill="#8884d8" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Grafico Acquisizione Giornaliera */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.daily_acquisition')}</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsBarChart data={generateTrendData('acquisition')}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
-                  <Legend />
-                  <Bar dataKey="value1" name={t('dashboard.new_leads_per_day')} fill="#10B981" />
-                  <Bar dataKey="value2" name={t('dashboard.new_active_clients_per_day')} fill="#34D399" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Grafico Media Asset */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.average_assets')}</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsBarChart data={generateTrendData('assets')}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value: any) => {
-                    const numValue = Number(value);
-                    return [numValue >= 1000000 ? 
-                      (numValue / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M' : 
-                      numValue >= 1000 ? 
-                        (numValue / 1000).toFixed(2).replace(/\.?0+$/, '') + 'K' : 
-                        numValue.toString(), ''];
-                  }} />
-                  <Legend />
-                  <Bar dataKey="value1" name={t('dashboard.per_prospect')} fill="#F59E0B" />
-                  <Bar dataKey="value2" name={t('dashboard.per_active_client')} fill="#FBBF24" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Grafico Tempo Medio */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.average_time')}</h3>
-              <ResponsiveContainer width="100%" height={200}>
-                <RechartsBarChart data={generateTrendData('time')}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis unit=" d" />
-                  <RechartsTooltip formatter={(value: any) => [`${Number(value)} ${t('dashboard.days')}`, '']} />
-                  <Legend />
-                  <Bar dataKey="value1" name={t('dashboard.as_lead')} fill="#EC4899" />
-                  <Bar dataKey="value2" name={t('dashboard.as_prospect')} fill="#F472B6" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Communication Trend Dialog */}
-      <Dialog open={showCommunicationTrendDialog} onOpenChange={setShowCommunicationTrendDialog}>
-        <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto py-6">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.communication_trend_analysis')}</DialogTitle>
-            <DialogClose />
-          </DialogHeader>
-          <div className="grid grid-cols-1 gap-6 pt-4 pb-4">
-            {/* Grafico Email medie per cliente */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_emails_trend')}</h3>
-              <ResponsiveContainer width="100%" height={150}>
-                <RechartsBarChart data={generateCommunicationTrendData()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
-                  <Bar dataKey="value1" name={t('dashboard.avg_emails')} fill="#10B981" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Grafico Chiamate medie per cliente */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_calls_trend')}</h3>
-              <ResponsiveContainer width="100%" height={150}>
-                <RechartsBarChart data={generateCommunicationTrendData()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
-                  <Bar dataKey="value2" name={t('dashboard.avg_calls')} fill="#3B82F6" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Grafico Incontri medi per cliente */}
-            <div className="border rounded-lg p-4">
-              <h3 className="text-sm font-medium mb-2">{t('dashboard.avg_meetings_trend')}</h3>
-              <ResponsiveContainer width="100%" height={150}>
-                <RechartsBarChart data={generateCommunicationTrendData()}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="period" />
-                  <YAxis />
-                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
-                  <Bar dataKey="value3" name={t('dashboard.avg_meetings')} fill="#F59E0B" />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

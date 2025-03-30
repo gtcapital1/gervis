@@ -6,6 +6,10 @@ import { z } from "zod";
 export const APPROVAL_STATUSES = ["pending", "approved", "rejected"] as const;
 export type ApprovalStatus = typeof APPROVAL_STATUSES[number];
 
+// Definizione dei segmenti di clienti
+export const CLIENT_SEGMENTS = ["mass_market", "affluent", "hnw", "vhnw", "uhnw"] as const;
+export type ClientSegment = typeof CLIENT_SEGMENTS[number];
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
@@ -95,6 +99,7 @@ export const clients = pgTable("clients", {
   active: boolean("active").default(true), // Whether the client is active (manually managed)
   onboardedAt: timestamp("onboarded_at"), // Timestamp when client was onboarded
   activatedAt: timestamp("activated_at"), // Timestamp when client became active
+  clientSegment: text("client_segment").$type<ClientSegment>(), // Segmento cliente (mass_market, affluent, hnw, vhnw, uhnw)
   riskProfile: text("risk_profile"),
   investmentExperience: text("investment_experience"),
   investmentGoals: text("investment_goals").array(),
@@ -133,6 +138,7 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   active: true,
   onboardedAt: true,
   activatedAt: true,
+  clientSegment: true,
   riskProfile: true,
   investmentExperience: true,
   investmentGoals: true,
