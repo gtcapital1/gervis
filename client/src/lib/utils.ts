@@ -41,3 +41,14 @@ export function formatDate(date: string | Date): string {
     year: 'numeric'
   }).format(d)
 }
+
+export function formatMillions(value: number): string {
+  // Format numbers in millions with 2 decimals and "M" suffix
+  if (value >= 1000000) {
+    return (value / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
+  } else if (value >= 1000) {
+    return (value / 1000).toFixed(2).replace(/\.?0+$/, '') + 'K';
+  } else {
+    return value.toString();
+  }
+}

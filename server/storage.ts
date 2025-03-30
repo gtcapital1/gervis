@@ -695,11 +695,35 @@ export class PostgresStorage implements IStorage {
     return result;
   }
   
+  // Funzione di utilità per aggiornare il totalAssets di un cliente
+  private async updateClientTotalAssets(clientId: number): Promise<void> {
+    try {
+      // Ottieni tutti gli asset del cliente
+      const clientAssets = await this.getAssetsByClient(clientId);
+      
+      // Calcola la somma totale del valore degli asset
+      const totalValue = clientAssets.reduce((sum, asset) => sum + asset.value, 0);
+      
+      // Aggiorna il campo totalAssets del cliente
+      await db.update(clients)
+        .set({ totalAssets: totalValue })
+        .where(eq(clients.id, clientId));
+      
+      console.log(`[INFO] Aggiornato totalAssets per il cliente ${clientId}: €${totalValue}`);
+    } catch (error) {
+      console.error(`[ERROR] Errore durante l'aggiornamento del totalAssets per il cliente ${clientId}:`, error);
+    }
+  }
+  
   async createAsset(insertAsset: InsertAsset): Promise<Asset> {
     const result = await db.insert(assets).values({
       ...insertAsset,
       createdAt: new Date()
     }).returning();
+    
+    // Aggiorna il totalAssets del cliente
+    await this.updateClientTotalAssets(insertAsset.clientId);
+    
     return result[0];
   }
   
@@ -713,11 +737,31 @@ export class PostgresStorage implements IStorage {
       throw new Error(`Asset with id ${id} not found`);
     }
     
+    // Aggiorna il totalAssets del cliente se il valore è cambiato
+    if ('value' in assetUpdate) {
+      await this.updateClientTotalAssets(result[0].clientId);
+    }
+    
     return result[0];
   }
   
   async deleteAsset(id: number): Promise<boolean> {
+    // Prima recuperiamo l'asset per ottenere il clientId
+    const assetToDelete = await db.select().from(assets).where(eq(assets.id, id)).limit(1);
+    if (!assetToDelete[0]) {
+      return false;
+    }
+    
+    const clientId = assetToDelete[0].clientId;
+    
+    // Quindi eliminare l'asset
     const result = await db.delete(assets).where(eq(assets.id, id)).returning();
+    
+    // E infine aggiornare il totalAssets del cliente
+    if (result.length > 0) {
+      await this.updateClientTotalAssets(clientId);
+    }
+    
     return result.length > 0;
   }
   
@@ -1300,6 +1344,27 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       console.error('Error marking task as uncompleted:', error);
       return false;
+    }
+  }
+
+  // Modifica lo stato "active" di un cliente
+  async updateClientActiveStatus(clientId: number, active: boolean) {
+    try {
+      const now = new Date();
+      await db
+        .update(clients)
+        .set({ 
+          active,
+          ...(active ? { activatedAt: now } : {}) // Se il cliente viene attivato, imposta activatedAt
+        })
+        .where(eq(clients.id, clientId));
+      
+      console.log(`Client ${clientId} active status updated to ${active}`);
+      
+      return { success: true };
+    } catch (error) {
+      console.error(`Error updating client active status: ${error}`);
+      return { success: false, error: 'Database error' };
     }
   }
 }

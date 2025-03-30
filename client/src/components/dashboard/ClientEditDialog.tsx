@@ -57,6 +57,7 @@ const clientEditFormSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
+  active: z.boolean().default(true), // Whether the client is active
   
   // Personal Information
   address: z.string().min(5, "Address must be at least 5 characters"),
@@ -123,6 +124,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
       firstName: client.firstName || "",
       lastName: client.lastName || "",
       email: client.email,
+      active: client.active !== undefined ? client.active : true,
       address: client.address || "",
       phone: client.phone || "",
       taxCode: client.taxCode || "",
@@ -157,6 +159,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         firstName: client.firstName || "",
         lastName: client.lastName || "",
         email: client.email,
+        active: client.active !== undefined ? client.active : true,
         address: client.address || "",
         phone: client.phone || "",
         taxCode: client.taxCode || "",
@@ -325,6 +328,27 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         <Input {...field} type="email" />
                       </FormControl>
                       <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="active"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Cliente attivo</FormLabel>
+                        <FormDescription>
+                          Indica se il cliente è attualmente attivo
+                        </FormDescription>
+                      </div>
                     </FormItem>
                   )}
                 />

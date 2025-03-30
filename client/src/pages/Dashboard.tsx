@@ -27,7 +27,7 @@ import {
   PieChart,
   CreditCard,
   Info,
-  BarChart,
+  BarChart as LucideBarChart,
   Inbox,
   Bell,
   FileCheck,
@@ -54,6 +54,23 @@ import { useLocation } from "wouter";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogClose 
+} from "@/components/ui/dialog";
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as RechartsTooltip, 
+  Legend, 
+  ResponsiveContainer
+} from "recharts";
 
 // Definizione delle interfacce per i tipi di dati
 interface Task {
@@ -114,13 +131,53 @@ interface PortfolioData {
   performanceYTD: number;
 }
 
+// Aggiungo tipi per i dati dei trend
+type TrendData = {
+  period: string;
+  value1: number;
+  value2: number;
+};
+
+type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
+
 export default function Dashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const timeRange = "month";
+  const [timeframe, setTimeframe] = useState<'1w' | '1m' | '3m' | '6m' | '1y'>('1m'); // Default: 1 mese
+  
+  // Funzione per calcolare la data di inizio in base al timeframe
+  const getStartDateFromTimeframe = () => {
+    const now = new Date();
+    switch (timeframe) {
+      case '1w':
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(now.getDate() - 7);
+        return oneWeekAgo;
+      case '1m':
+        const oneMonthAgo = new Date();
+        oneMonthAgo.setDate(now.getDate() - 30);
+        return oneMonthAgo;
+      case '3m':
+        const threeMonthsAgo = new Date();
+        threeMonthsAgo.setMonth(now.getMonth() - 3);
+        return threeMonthsAgo;
+      case '6m':
+        const sixMonthsAgo = new Date();
+        sixMonthsAgo.setMonth(now.getMonth() - 6);
+        return sixMonthsAgo;
+      case '1y':
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(now.getFullYear() - 1);
+        return oneYearAgo;
+      default:
+        const defaultDate = new Date();
+        defaultDate.setDate(now.getDate() - 30);
+        return defaultDate;
+    }
+  };
 
   // Fetch clients
   const { data: clientsData, isLoading: isLoadingClients } = useQuery<{clients: Client[]} | null>({
@@ -173,10 +230,18 @@ export default function Dashboard() {
     refetchOnWindowFocus: false,
     staleTime: 30000,
   });
+  
+  // Fetch assets
+  const { data: assetsData, isLoading: isLoadingAssets } = useQuery<{assets: any[]}>({
+    queryKey: ['/api/assets'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
 
   // Prepare client data
   const clients = clientsData?.clients || [];
-  const activeClients = clients.filter(client => !client.isArchived);
+  const activeClients = clients.filter(client => !client.isArchived && client.active);
   const archivedClients = clients.filter(client => client.isArchived);
   const onboardedClients = clients.filter(client => client.isOnboarded);
   const onboardingRate = clients.length > 0 ? (onboardedClients.length / clients.length) * 100 : 0;
@@ -187,11 +252,126 @@ export default function Dashboard() {
     if (!client.createdAt) return false;
     
     const clientDate = new Date(client.createdAt);
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    return clientDate >= thirtyDaysAgo;
+    const startDate = getStartDateFromTimeframe();
+    return clientDate >= startDate;
   }).length;
   
+  // Data for client pipeline
+  const leadClients = clients.filter(client => !client.isOnboarded && !client.isArchived).length;
+  const prospectClients = clients.filter(client => client.isOnboarded && !client.isArchived && !client.active).length;
+  const activeClientCount = clients.filter(client => client.isOnboarded && !client.isArchived && client.active).length;
+  
+  // Calculate the start date based on selected timeframe
+  const startDate = getStartDateFromTimeframe();
+  
+  // Calculate conversion rates for the selected period
+  // Clients created in the selected period
+  const newClientsInPeriod = clients.filter(client => {
+    if (!client.createdAt) return false;
+    const createDate = new Date(client.createdAt);
+    return createDate >= startDate;
+  });
+  
+  // Clients who became prospects in the selected period
+  const newProspectsInPeriod = clients.filter(client => {
+    if (!client.onboardedAt) return false;
+    const onboardDate = new Date(client.onboardedAt);
+    return onboardDate >= startDate;
+  });
+  
+  // Clients who became active in the selected period
+  const newActiveClientsInPeriod = clients.filter(client => {
+    // Since we don't have activatedAt, we'll use a rough estimate
+    if (!client.onboardedAt || !client.active) return false;
+    const onboardDate = new Date(client.onboardedAt);
+    return onboardDate >= startDate && client.active;
+  });
+  
+  // Calculate period-specific conversion rates
+  const totalNewClients = newClientsInPeriod.length;
+  const prospectConversionRate = totalNewClients > 0 
+    ? (newProspectsInPeriod.length / totalNewClients) * 100 
+    : 0;
+  
+  const activeConversionRate = newProspectsInPeriod.length > 0 
+    ? (newActiveClientsInPeriod.length / newProspectsInPeriod.length) * 100 
+    : 0;
+  
+  // Number of days in the selected period
+  const daysInSelectedPeriod = Math.ceil((new Date().getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+  
+  // Leads and prospects per day
+  const newLeadsPerDay = parseFloat((newClientsInPeriod.length / daysInSelectedPeriod).toFixed(1));
+  const newProspectsPerDay = parseFloat((newProspectsInPeriod.length / daysInSelectedPeriod).toFixed(1));
+
+  // Calculate average time metrics based on client data
+  const ninetyDaysAgo = new Date();
+  ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
+  
+  // Average time as lead (for clients that became prospects in the selected period)
+  const clientsWithOnboardingDate = clients.filter(client => 
+    client.onboardedAt && client.createdAt && 
+    new Date(client.onboardedAt) >= startDate
+  );
+  
+  const leadTimeTotal = clientsWithOnboardingDate.reduce((total, client) => {
+    const createdDate = new Date(client.createdAt!);
+    const onboardedDate = new Date(client.onboardedAt!);
+    const dayDiff = Math.floor((onboardedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+    return total + dayDiff;
+  }, 0);
+  
+  const avgLeadTime = clientsWithOnboardingDate.length > 0 ? 
+    Math.round(leadTimeTotal / clientsWithOnboardingDate.length) : 14;
+  
+  // Average time as prospect (for clients that became active in the selected period)
+  const clientsWithActiveDate = clients.filter(client => 
+    client.active && client.onboardedAt && 
+    new Date(client.onboardedAt) >= startDate
+  );
+  
+  const prospectTimeTotal = clientsWithActiveDate.reduce((total, client) => {
+    const onboardedDate = new Date(client.onboardedAt!);
+    // Poiché non abbiamo la data di attivazione, usiamo la data attuale come approssimazione
+    const activatedDate = new Date();
+    const dayDiff = Math.floor((activatedDate.getTime() - onboardedDate.getTime()) / (1000 * 3600 * 24));
+    return total + dayDiff;
+  }, 0);
+  
+  const avgProspectTime = clientsWithActiveDate.length > 0 ? 
+    Math.round(prospectTimeTotal / clientsWithActiveDate.length) : 30;
+  
+  // Calculate average assets per client type based on period selection
+  const assets = assetsData?.assets || [];
+  
+  // Get prospects and active clients within the selected period
+  const prospectsInPeriod = clients.filter(client => 
+    client.isOnboarded && !client.isArchived && !client.active && 
+    client.onboardedAt && new Date(client.onboardedAt) >= startDate
+  );
+  
+  const activeClientsInPeriod = clients.filter(client => 
+    client.isOnboarded && !client.isArchived && client.active && 
+    client.onboardedAt && new Date(client.onboardedAt) >= startDate
+  );
+  
+  // Filter assets for these clients
+  const prospectAssets = assets.filter(asset => {
+    const client = prospectsInPeriod.find(c => c.id === asset.clientId);
+    return client !== undefined;
+  });
+  
+  const activeClientAssets = assets.filter(asset => {
+    const client = activeClientsInPeriod.find(c => c.id === asset.clientId);
+    return client !== undefined;
+  });
+  
+  const assetsPerProspect = prospectsInPeriod.length > 0 ? 
+    parseFloat((prospectAssets.reduce((sum, asset) => sum + asset.value, 0) / prospectsInPeriod.length).toFixed(1)) : 0;
+  
+  const assetsPerActiveClient = activeClientsInPeriod.length > 0 ? 
+    parseFloat((activeClientAssets.reduce((sum, asset) => sum + asset.value, 0) / activeClientsInPeriod.length).toFixed(1)) : 0;
+
   // Prepare portfolio data
   const portfolioStats = portfolioData || {
     totalAUM: 0,
@@ -206,14 +386,11 @@ export default function Dashboard() {
     performanceYTD: 0
   };
   
-  // Data for client pipeline
-  const prospectClients = clients.filter(client => !client.isOnboarded && !client.isArchived).length;
-  
   // Prepare risk profile distribution
   const riskProfiles = activeClients.reduce((acc, client) => {
     const profile = client.riskProfile || 'unknown';
     acc[profile] = (acc[profile] || 0) + 1;
-    return acc;
+    return acc as Record<string, number>;
   }, {} as Record<string, number>);
   
   const lowRiskClients = riskProfiles['conservative'] || 0;
@@ -326,7 +503,7 @@ export default function Dashboard() {
     if (allTasks.length === 0) return 0;
     
     // Conta quante attività sono effettivamente completate in base allo stato locale
-    const completedCount = allTasks.filter(task => 
+    const completedCount = allTasks.filter((task: any) => 
       // Un'attività è completata se era originariamente completata e non è stata deselezionata
       // OPPURE se è stata selezionata localmente
       (task.completed && !localCompletedTaskIds.has(task.id)) || 
@@ -348,6 +525,151 @@ export default function Dashboard() {
 
   // Nella dashboard, dopo la dichiarazione di forceUpdate
   const [forceUpdate, setForceUpdate] = useState(false);
+
+  // Stato per il dialog dei trend
+  const [showTrendDialog, setShowTrendDialog] = useState(false);
+
+  // Funzione per generare i dati dei trend per tutti i periodi
+  const generateTrendData = (indicator: string) => {
+    // Array di risultati per ogni periodo
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Per ogni periodo, cambia temporaneamente il timeframe e ottieni i dati
+    periods.forEach(period => {
+      // Imposta temporaneamente il periodo per calcolare i valori
+      const tempStartDate = (() => {
+        const now = new Date();
+        switch (period) {
+          case '1w':
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(now.getDate() - 7);
+            return oneWeekAgo;
+          case '1m':
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setDate(now.getDate() - 30);
+            return oneMonthAgo;
+          case '3m':
+            const threeMonthsAgo = new Date();
+            threeMonthsAgo.setMonth(now.getMonth() - 3);
+            return threeMonthsAgo;
+          case '6m':
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(now.getMonth() - 6);
+            return sixMonthsAgo;
+          case '1y':
+            const oneYearAgo = new Date();
+            oneYearAgo.setFullYear(now.getFullYear() - 1);
+            return oneYearAgo;
+          default:
+            return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+      })();
+      
+      const tempDaysInPeriod = Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (1000 * 3600 * 24));
+      
+      // Calcola i valori in base all'indicatore selezionato
+      let value1 = 0;
+      let value2 = 0;
+      
+      if (indicator === 'conversion') {
+        // Tassi di conversione
+        const tempNewClientsInPeriod = clients.filter(client => 
+          client.createdAt && new Date(client.createdAt) >= tempStartDate
+        );
+        
+        const tempNewProspectsInPeriod = clients.filter(client => 
+          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate
+        );
+        
+        const tempNewActiveClientsInPeriod = clients.filter(client => 
+          client.activatedAt && new Date(client.activatedAt) >= tempStartDate && client.active
+        );
+        
+        const tempTotalNewClients = tempNewClientsInPeriod.length;
+        
+        value1 = tempTotalNewClients > 0 
+          ? (tempNewProspectsInPeriod.length / tempTotalNewClients) * 100 
+          : 0;
+          
+        value2 = tempNewProspectsInPeriod.length > 0 
+          ? (tempNewActiveClientsInPeriod.length / tempNewProspectsInPeriod.length) * 100 
+          : 0;
+      } 
+      else if (indicator === 'acquisition') {
+        // Acquisizione giornaliera
+        const tempNewClientsInPeriod = clients.filter(client => 
+          client.createdAt && new Date(client.createdAt) >= tempStartDate
+        );
+        
+        const tempNewActiveClientsInPeriod = clients.filter(client => 
+          client.activatedAt && new Date(client.activatedAt) >= tempStartDate && client.active
+        );
+        
+        value1 = parseFloat((tempNewClientsInPeriod.length / tempDaysInPeriod).toFixed(1));
+        value2 = parseFloat((tempNewActiveClientsInPeriod.length / tempDaysInPeriod).toFixed(1));
+      } 
+      else if (indicator === 'assets') {
+        // Media Asset
+        const tempProspectsInPeriod = clients.filter(client => 
+          client.isOnboarded && !client.isArchived && !client.active &&
+          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate
+        );
+        
+        const tempActiveClientsInPeriod = clients.filter(client => 
+          client.isOnboarded && !client.isArchived && client.active &&
+          client.activatedAt && new Date(client.activatedAt) >= tempStartDate
+        );
+        
+        value1 = tempProspectsInPeriod.length > 0 ? 
+          parseFloat((tempProspectsInPeriod.reduce((sum, client) => sum + (client.totalAssets || 0), 0) / tempProspectsInPeriod.length).toFixed(1)) : 0;
+        
+        value2 = tempActiveClientsInPeriod.length > 0 ? 
+          parseFloat((tempActiveClientsInPeriod.reduce((sum, client) => sum + (client.totalAssets || 0), 0) / tempActiveClientsInPeriod.length).toFixed(1)) : 0;
+      } 
+      else if (indicator === 'time') {
+        // Tempo Medio
+        const tempClientsCreatedInPeriod = clients.filter(client => 
+          client.createdAt && new Date(client.createdAt) >= tempStartDate && client.onboardedAt
+        );
+        
+        const tempLeadTimeTotal = tempClientsCreatedInPeriod.reduce((total, client) => {
+          const createdDate = new Date(client.createdAt!);
+          const onboardedDate = new Date(client.onboardedAt!);
+          const dayDiff = Math.floor((onboardedDate.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+          return total + dayDiff;
+        }, 0);
+        
+        const tempClientsBecameProspectInPeriod = clients.filter(client => 
+          client.onboardedAt && new Date(client.onboardedAt) >= tempStartDate && client.active && client.activatedAt
+        );
+        
+        const tempProspectTimeTotal = tempClientsBecameProspectInPeriod.reduce((total, client) => {
+          const onboardedDate = new Date(client.onboardedAt!);
+          const activatedDate = new Date(client.activatedAt!);
+          const dayDiff = Math.floor((activatedDate.getTime() - onboardedDate.getTime()) / (1000 * 3600 * 24));
+          return total + dayDiff;
+        }, 0);
+        
+        value1 = tempClientsCreatedInPeriod.length > 0 ? 
+          Math.max(0, Math.round(tempLeadTimeTotal / tempClientsCreatedInPeriod.length)) : 0;
+          
+        value2 = tempClientsBecameProspectInPeriod.length > 0 ? 
+          Math.max(0, Math.round(tempProspectTimeTotal / tempClientsBecameProspectInPeriod.length)) : 0;
+      }
+      
+      // Aggiungi i risultati all'array
+      results.push({
+        period: period,
+        value1: value1,
+        value2: value2
+      });
+    });
+    
+    return results;
+  };
 
   return (
     <div className="p-4 sm:p-6 space-y-6">
@@ -493,59 +815,183 @@ export default function Dashboard() {
           <Card>
             <CardHeader>
               <CardTitle>{t('dashboard.client_pipeline')}</CardTitle>
-              <CardDescription>{t('dashboard.conversion_funnel')}</CardDescription>
+              <CardDescription className="flex justify-between items-center">
+                <span>{t('dashboard.conversion_funnel')}</span>
+                <div className="flex border rounded-md overflow-hidden">
+                  <button 
+                    onClick={() => setTimeframe('1w')} 
+                    className={`px-1.5 py-0.5 text-xs ${timeframe === '1w' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+                  >
+                    {t('dashboard.timeframe_1w')}
+                  </button>
+                  <button 
+                    onClick={() => setTimeframe('1m')} 
+                    className={`px-1.5 py-0.5 text-xs ${timeframe === '1m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+                  >
+                    {t('dashboard.timeframe_1m')}
+                  </button>
+                  <button 
+                    onClick={() => setTimeframe('3m')} 
+                    className={`px-1.5 py-0.5 text-xs ${timeframe === '3m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+                  >
+                    {t('dashboard.timeframe_3m')}
+                  </button>
+                  <button 
+                    onClick={() => setTimeframe('6m')} 
+                    className={`px-1.5 py-0.5 text-xs ${timeframe === '6m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+                  >
+                    {t('dashboard.timeframe_6m')}
+                  </button>
+                  <button 
+                    onClick={() => setTimeframe('1y')} 
+                    className={`px-1.5 py-0.5 text-xs ${timeframe === '1y' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
+                  >
+                    {t('dashboard.timeframe_1y')}
+                  </button>
+                </div>
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="space-y-1">
+                  <div className="text-3xl font-bold">{formatNumber(leadClients)}</div>
+                  <div className="text-sm text-muted-foreground">{t('dashboard.leads')}</div>
+                </div>
                 <div className="space-y-1">
                   <div className="text-3xl font-bold">{formatNumber(prospectClients)}</div>
                   <div className="text-sm text-muted-foreground">{t('dashboard.prospects')}</div>
                 </div>
                 <div className="space-y-1">
-                  <div className="text-3xl font-bold">{formatNumber(onboardedClients.length)}</div>
-                  <div className="text-sm text-muted-foreground">{t('dashboard.onboarded')}</div>
-                </div>
-                <div className="space-y-1">
-                  <div className="text-3xl font-bold">{formatNumber(activeClients.length)}</div>
+                  <div className="text-3xl font-bold">{formatNumber(activeClientCount)}</div>
                   <div className="text-sm text-muted-foreground">{t('dashboard.active_clients')}</div>
             </div>
               </div>
 
-              {/* Funnel visualization */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-center text-sm">
-                  <span>{t('dashboard.prospects')}</span>
-                  <span>{formatNumber(prospectClients)}</span>
-                </div>
-                <Progress value={100} className="h-2" />
+              {/* Conversion stats */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <Card className="border shadow-sm">
+                  <CardHeader className="p-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-muted-foreground" />
+                      {t('dashboard.conversion_rates')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.lead_to_prospect')}</span>
+                        <span className="text-sm font-medium">{formatPercent(prospectConversionRate)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.prospect_to_active')}</span>
+                        <span className="text-sm font-medium">{formatPercent(activeConversionRate)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 italic text-right">
+                        {timeframe === '1w' ? t('dashboard.last_week') : 
+                          timeframe === '1m' ? t('dashboard.last_month') :
+                          timeframe === '3m' ? t('dashboard.last_3_months') :
+                          timeframe === '6m' ? t('dashboard.last_6_months') : 
+                          t('dashboard.last_year')}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
                 
-                <div className="flex justify-between items-center text-sm">
-                  <span>{t('dashboard.qualified_leads')}</span>
-                  <span>{formatNumber(Math.round(prospectClients * 0.75))}</span>
-                </div>
-                <Progress value={75} className="h-2" />
-                
-                <div className="flex justify-between items-center text-sm">
-                  <span>{t('dashboard.proposal_sent')}</span>
-                  <span>{formatNumber(Math.round(prospectClients * 0.5))}</span>
-                </div>
-                <Progress value={50} className="h-2" />
-                
-                <div className="flex justify-between items-center text-sm">
-                  <span>{t('dashboard.onboarded')}</span>
-                  <span>{formatNumber(onboardedClients.length)}</span>
+                <Card className="border shadow-sm">
+                  <CardHeader className="p-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <UserPlus className="h-4 w-4 text-muted-foreground" />
+                      {t('dashboard.daily_acquisition')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.new_leads_per_day')}</span>
+                        <span className="text-sm font-medium">{newLeadsPerDay.toFixed(1)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.new_prospects_per_day')}</span>
+                        <span className="text-sm font-medium">{newProspectsPerDay.toFixed(1)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 italic text-right">
+                        {timeframe === '1w' ? t('dashboard.last_week') : 
+                          timeframe === '1m' ? t('dashboard.last_month') :
+                          timeframe === '3m' ? t('dashboard.last_3_months') :
+                          timeframe === '6m' ? t('dashboard.last_6_months') : 
+                          t('dashboard.last_year')}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-                <Progress value={Math.round((onboardedClients.length / (prospectClients || 1)) * 100)} className="h-2" />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="border shadow-sm">
+                  <CardHeader className="p-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-muted-foreground" />
+                      {t('dashboard.average_assets')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.per_prospect')}</span>
+                        <span className="text-sm font-medium">{assetsPerProspect.toFixed(1)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.per_active_client')}</span>
+                        <span className="text-sm font-medium">{assetsPerActiveClient.toFixed(1)}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 italic text-right">
+                        {timeframe === '1w' ? t('dashboard.last_week') : 
+                          timeframe === '1m' ? t('dashboard.last_month') :
+                          timeframe === '3m' ? t('dashboard.last_3_months') :
+                          timeframe === '6m' ? t('dashboard.last_6_months') : 
+                          t('dashboard.last_year')}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                
+                <Card className="border shadow-sm">
+                  <CardHeader className="p-3">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                      {t('dashboard.average_time')}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 pt-0">
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.as_lead')}</span>
+                        <span className="text-sm font-medium">{avgLeadTime} {t('dashboard.days')}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-muted-foreground">{t('dashboard.as_prospect')}</span>
+                        <span className="text-sm font-medium">{avgProspectTime} {t('dashboard.days')}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-2 italic text-right">
+                        {timeframe === '1w' ? t('dashboard.last_week') : 
+                          timeframe === '1m' ? t('dashboard.last_month') :
+                          timeframe === '3m' ? t('dashboard.last_3_months') :
+                          timeframe === '6m' ? t('dashboard.last_6_months') : 
+                          t('dashboard.last_year')}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-                            <Button
-                              variant="ghost"
+              <Button
+                variant="ghost"
                 className="w-full"
-                onClick={() => setLocation('/clients')}
+                onClick={() => setShowTrendDialog(true)}
               >
-                {t('dashboard.view_all_clients')}
-                            </Button>
+                {t('dashboard.view_trends')}
+              </Button>
             </CardFooter>
           </Card>
 
@@ -815,6 +1261,88 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Trend Dialog */}
+      <Dialog open={showTrendDialog} onOpenChange={setShowTrendDialog}>
+        <DialogContent className="sm:max-w-[950px]">
+          <DialogHeader>
+            <DialogTitle>{t('dashboard.trend_analysis')}</DialogTitle>
+            <DialogClose />
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-6 pt-4">
+            {/* Grafico Tassi di Conversione */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.conversion_rates')}</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={generateTrendData('conversion')}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis unit="%" />
+                  <RechartsTooltip formatter={(value: any) => [`${Number(value).toFixed(1)}%`, '']} />
+                  <Legend />
+                  <Bar dataKey="value1" name={t('dashboard.lead_to_prospect')} fill="#4F46E5" />
+                  <Bar dataKey="value2" name={t('dashboard.prospect_to_active')} fill="#8884d8" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Grafico Acquisizione Giornaliera */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.daily_acquisition')}</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={generateTrendData('acquisition')}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <RechartsTooltip formatter={(value: any) => [Number(value).toFixed(1), '']} />
+                  <Legend />
+                  <Bar dataKey="value1" name={t('dashboard.new_leads_per_day')} fill="#10B981" />
+                  <Bar dataKey="value2" name={t('dashboard.new_active_clients_per_day')} fill="#34D399" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Grafico Media Asset */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.average_assets')}</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={generateTrendData('assets')}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis />
+                  <RechartsTooltip formatter={(value: any) => {
+                    const numValue = Number(value);
+                    return [numValue >= 1000000 ? 
+                      (numValue / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M' : 
+                      numValue >= 1000 ? 
+                        (numValue / 1000).toFixed(2).replace(/\.?0+$/, '') + 'K' : 
+                        numValue.toString(), ''];
+                  }} />
+                  <Legend />
+                  <Bar dataKey="value1" name={t('dashboard.per_prospect')} fill="#F59E0B" />
+                  <Bar dataKey="value2" name={t('dashboard.per_active_client')} fill="#FBBF24" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            
+            {/* Grafico Tempo Medio */}
+            <div className="border rounded-lg p-4">
+              <h3 className="text-sm font-medium mb-2">{t('dashboard.average_time')}</h3>
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={generateTrendData('time')}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="period" />
+                  <YAxis unit=" d" />
+                  <RechartsTooltip formatter={(value: any) => [`${Number(value)} ${t('dashboard.days')}`, '']} />
+                  <Legend />
+                  <Bar dataKey="value1" name={t('dashboard.as_lead')} fill="#EC4899" />
+                  <Bar dataKey="value2" name={t('dashboard.as_prospect')} fill="#F472B6" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

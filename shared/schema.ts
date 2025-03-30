@@ -92,6 +92,9 @@ export const clients = pgTable("clients", {
   hasPortalAccess: boolean("has_portal_access").default(false),
   isOnboarded: boolean("is_onboarded").default(false),
   isArchived: boolean("is_archived").default(false),
+  active: boolean("active").default(true), // Whether the client is active (manually managed)
+  onboardedAt: timestamp("onboarded_at"), // Timestamp when client was onboarded
+  activatedAt: timestamp("activated_at"), // Timestamp when client became active
   riskProfile: text("risk_profile"),
   investmentExperience: text("investment_experience"),
   investmentGoals: text("investment_goals").array(),
@@ -114,6 +117,7 @@ export const clients = pgTable("clients", {
   tokenExpiry: timestamp("token_expiry"),
   createdAt: timestamp("created_at").defaultNow(),
   advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }),
+  totalAssets: integer("total_assets").default(0), // Nuova colonna per memorizzare la somma totale degli asset
 });
 
 export const insertClientSchema = createInsertSchema(clients).pick({
@@ -126,6 +130,9 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   taxCode: true,
   isOnboarded: true,
   isArchived: true,
+  active: true,
+  onboardedAt: true,
+  activatedAt: true,
   riskProfile: true,
   investmentExperience: true,
   investmentGoals: true,
@@ -135,10 +142,8 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   monthlyExpenses: true,
   dependents: true,
   employmentStatus: true,
-  // Nuovi campi per interessi personali
   personalInterests: true,
   personalInterestsNotes: true,
-  // Campi per la valutazione degli obiettivi di investimento
   retirementInterest: true,
   wealthGrowthInterest: true,
   incomeGenerationInterest: true,

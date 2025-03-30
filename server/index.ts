@@ -11,6 +11,7 @@ import { autorunCascadeFix } from "./migrations/autorun-cascade-fix";
 import { autorunCreateClientLogs } from "./migrations/autorun-create-client-logs";
 import { autorunCreateAiProfiles } from "./migrations/autorun-create-ai-profiles";
 import { autorunCreateMeetingsTable } from "./migrations/autorun-create-meetings-table";
+import { autorunAddActiveAndOnboardedAt } from "./migrations/autorun-add-active-onboardedat";
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -172,6 +173,15 @@ app.use((req, res, next) => {
     console.log("DEBUG - Verifica tabella meetings completata");
   } catch (error) {
     console.error("ERRORE - Impossibile verificare/creare la tabella meetings:", error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Esegui automaticamente l'aggiunta delle colonne active e onboarded_at
+  try {
+    await autorunAddActiveAndOnboardedAt();
+    console.log("DEBUG - Verifica colonne active e onboarded_at completata");
+  } catch (error) {
+    console.error("ERRORE - Impossibile verificare/aggiungere le colonne active e onboarded_at:", error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

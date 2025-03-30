@@ -1,5 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
+import enTranslations from "../i18n/locales/en.json";
 
 // Italian translations
 const resourcesIt = {
@@ -293,6 +294,7 @@ const resourcesIt = {
       not_onboarded: "Non Registrato",
       view: "Visualizza",
       edit: "Modifica",
+      leads: "Leads",
       delete: "Elimina",
       archived: "Archiviato",
       active: "Attivo",
@@ -441,7 +443,7 @@ const resourcesIt = {
       meeting: "Meeting",
       calendar: "Calendario",
       calendar_description: "Gestisci i tuoi appuntamenti e incontri con i clienti",
-      weekly_view: "Vista settimanale",
+      weekly_view: "Programma settimanale",
       weekly_overview: "Panoramica della settimana",
       daily_schedule: "Programma giornaliero",
       no_events_today: "Nessun evento oggi",
@@ -518,7 +520,33 @@ const resourcesIt = {
       meeting_deleted: "Meeting eliminato",
       meeting_deleted_success: "Il meeting è stato eliminato con successo",
       add_event: "Aggiungi evento",
-      back_to_dashboard: "Torna alla dashboard"
+      back_to_dashboard: "Torna alla dashboard",
+      conversion_rates: "Tassi di Conversione",
+      lead_to_prospect: "Lead → Prospect",
+      prospect_to_active: "Prospect → Cliente Attivo",
+      daily_acquisition: "Acquisizione Giornaliera",
+      new_leads_per_day: "Nuovi Lead/Giorno",
+      new_prospects_per_day: "Nuovi Clienti Attivi/Giorno",
+      new_active_clients_per_day: "Nuovi Clienti Attivi/Giorno",
+      average_assets: "Media Asset",
+      per_prospect: "Per Prospect",
+      per_active_client: "Per Cliente Attivo",
+      average_time: "Tempo Medio",
+      as_lead: "Come Lead",
+      as_prospect: "Come Prospect",
+      days: "giorni",
+      last_week: "Ultimi 7 giorni",
+      last_month: "Ultimi 30 giorni",
+      last_3_months: "Ultimi 3 mesi",
+      last_6_months: "Ultimi 6 mesi",
+      last_year: "Ultimo anno",
+      timeframe_1w: "1S",  // 1 Week
+      timeframe_1m: "1M",  // 1 Month
+      timeframe_3m: "3M",  // 3 Months
+      timeframe_6m: "6M",  // 6 Months
+      timeframe_1y: "1A",  // 1 Year
+      view_trends: "Visualizza trend",
+      trend_analysis: "Analisi dei Trend"
     },
     onboarding: {
       title: "Questionario Profilo Finanziario",
@@ -1243,6 +1271,7 @@ const resourcesEn = {
       add_first_client: "Add Your First Client",
       phone: "Phone",
       created: "Created",
+      leads: "Leads",
       view_details: "View Details",
       restore_client: "Restore Client",
       archive: "Archive",
@@ -1440,7 +1469,33 @@ const resourcesEn = {
       meeting_deleted: "Appointment Deleted",
       meeting_deleted_success: "The appointment has been deleted successfully",
       add_event: "Add Event",
-      back_to_dashboard: "Back to Dashboard"
+      back_to_dashboard: "Back to Dashboard",
+      conversion_rates: "Conversion Rates",
+      lead_to_prospect: "Lead → Prospect",
+      prospect_to_active: "Prospect → Active Client",
+      daily_acquisition: "Daily Acquisition",
+      new_leads_per_day: "New Leads/Day",
+      new_prospects_per_day: "New Active Clients/Day",
+      new_active_clients_per_day: "New Active Clients/Day",
+      average_assets: "Average Assets",
+      per_prospect: "Per Prospect",
+      per_active_client: "Per Active Client",
+      average_time: "Average Time",
+      as_lead: "As Lead",
+      as_prospect: "As Prospect",
+      days: "days",
+      last_week: "Last 7 days",
+      last_month: "Last 30 days",
+      last_3_months: "Last 3 months",
+      last_6_months: "Last 6 months",
+      last_year: "Last year",
+      timeframe_1w: "1W",  // 1 Week
+      timeframe_1m: "1M",  // 1 Month
+      timeframe_3m: "3M",  // 3 Months
+      timeframe_6m: "6M",  // 6 Months
+      timeframe_1y: "1Y",  // 1 Year
+      view_trends: "Visualizza trend",
+      trend_analysis: "Analisi dei Trend"
     },
     onboarding: {
       title: "Financial Profile Questionnaire",
@@ -1636,7 +1691,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      en: resourcesEn,
+      en: { translation: enTranslations },
       it: resourcesIt
     },
     lng: "it", // default language

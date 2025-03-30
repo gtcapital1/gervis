@@ -385,17 +385,40 @@ export default function CalendarPage() {
     console.log("Data selezionata:", selectedDate);
     console.log("Ora selezionata:", eventTime);
     console.log("Data creata:", startDateTime);
+    console.log("Invia email:", sendMeetingEmail);
     
-    // Creazione evento tramite mutazione
-    createMeetingMutation.mutate({
-      clientId: newEventClientId,
-      title: eventTitle,
-      subject: eventTitle,
-      dateTime: startDateTime.toISOString(),
-      duration: eventDuration,
-      location: eventLocation,
-      notes: newEventNotes,
-      sendEmail: sendMeetingEmail
+    // URL con parametro query sendEmail
+    const url = sendMeetingEmail ? '/api/meetings?sendEmail=true' : '/api/meetings';
+    
+    // Creazione evento tramite apiRequest
+    apiRequest(url, {
+      method: 'POST',
+      body: JSON.stringify({
+        clientId: newEventClientId,
+        subject: eventTitle,
+        dateTime: startDateTime.toISOString(),
+        duration: eventDuration,
+        location: eventLocation,
+        notes: newEventNotes
+      })
+    }).then(() => {
+      setIsCreateDialogOpen(false);
+      setNewEventClientId(null);
+      setEventTitle("");
+      setNewEventNotes("");
+      setSelectedTimeSlot("");
+      toast({
+        title: "Meeting creato",
+        description: "Il meeting è stato creato con successo.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+    }).catch((error) => {
+      console.error("Error creating meeting:", error);
+      toast({
+        title: "Errore",
+        description: "Impossibile creare il meeting. Riprova più tardi.",
+        variant: "destructive",
+      });
     });
   }, [
     selectedDate,
@@ -406,8 +429,8 @@ export default function CalendarPage() {
     newEventNotes,
     eventDuration,
     sendMeetingEmail,
-    createMeetingMutation,
-    toast
+    toast,
+    queryClient
   ]);
 
   // Funzione per gestire il click su una cella oraria nella vista settimanale
@@ -667,10 +690,17 @@ export default function CalendarPage() {
                                     <span className="font-medium text-xs truncate text-blue-800 block w-4/5">{event.title}</span>
                                     <div className="flex">
                                       <Edit 
-                                        className="h-3 w-3 text-blue-600 hover:text-blue-800 cursor-pointer flex-shrink-0"
+                                        className="h-3 w-3 text-blue-600 hover:text-blue-800 cursor-pointer flex-shrink-0 mr-1"
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleEditEvent(event);
+                                        }}
+                                      />
+                                      <Trash2 
+                                        className="h-3 w-3 text-red-500 hover:text-red-700 cursor-pointer flex-shrink-0"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDeleteEvent(event);
                                         }}
                                       />
                                     </div>
@@ -710,100 +740,124 @@ export default function CalendarPage() {
 
       {/* Dialog per modificare un evento */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Modifica appuntamento</DialogTitle>
-            <DialogDescription>
-              Modifica i dettagli dell'appuntamento
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-lg shadow-xl border-0">
+          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
+            <DialogTitle className="text-xl font-bold">Modifica appuntamento</DialogTitle>
+            <DialogDescription className="text-blue-100 mt-1">
+              Modifica i dettagli dell'appuntamento con {editingEvent?.clientName}
             </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="event-title" className="text-sm font-medium">
-                Titolo
-              </label>
-              <Input
-                id="event-title"
-                value={eventTitle}
-                onChange={(e) => setEventTitle(e.target.value)}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">
-                  Data
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="event-title" className="text-sm font-medium flex items-center">
+                  <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                  Titolo
                 </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="text-left font-normal justify-start"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {eventDate ? format(eventDate, "PPP", { locale: it }) : "Seleziona data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={eventDate}
-                      onSelect={setEventDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  id="event-title"
+                  value={eventTitle}
+                  onChange={(e) => setEventTitle(e.target.value)}
+                  className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  autoFocus
+                />
               </div>
-              <div className="grid gap-2">
-                <label htmlFor="event-time" className="text-sm font-medium">
-                  Ora
-                </label>
-                <select
-                  id="event-time"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={eventTime}
-                  onChange={(e) => setEventTime(e.target.value)}
-                >
-                  {getTimeOptions()}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center">
+                    <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
+                    Data
+                  </label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full text-left font-normal justify-start bg-white hover:bg-gray-50"
+                      >
+                        <Calendar className="mr-2 h-4 w-4 text-blue-500" />
+                        {eventDate ? format(eventDate, "PPP", { locale: it }) : "Seleziona data"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={eventDate}
+                        onSelect={setEventDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="event-time" className="text-sm font-medium flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                    Ora
+                  </label>
+                  <select
+                    id="event-time"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={eventTime}
+                    onChange={(e) => setEventTime(e.target.value)}
+                  >
+                    {getTimeOptions()}
+                  </select>
+                </div>
               </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label htmlFor="event-location" className="text-sm font-medium">
-                  Luogo
-                </label>
-                <select
-                  id="event-location"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={eventLocation}
-                  onChange={(e) => setEventLocation(e.target.value)}
-                >
-                  <option value="zoom">Zoom</option>
-                  <option value="office">Ufficio</option>
-                  <option value="phone">Telefono</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="event-duration" className="text-sm font-medium">
-                  Durata
-                </label>
-                <select
-                  id="event-duration"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={eventDuration}
-                  onChange={(e) => setEventDuration(parseInt(e.target.value))}
-                >
-                  {getDurationOptions()}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label htmlFor="event-location" className="text-sm font-medium flex items-center">
+                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                    Luogo
+                  </label>
+                  <select
+                    id="event-location"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={eventLocation}
+                    onChange={(e) => setEventLocation(e.target.value)}
+                  >
+                    <option value="zoom">Zoom</option>
+                    <option value="office">Ufficio</option>
+                    <option value="phone">Telefono</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="event-duration" className="text-sm font-medium flex items-center">
+                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                    Durata
+                  </label>
+                  <select
+                    id="event-duration"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={eventDuration}
+                    onChange={(e) => setEventDuration(parseInt(e.target.value))}
+                  >
+                    {getDurationOptions()}
+                  </select>
+                </div>
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Annulla
+          <DialogFooter className="bg-gray-50 p-4 flex justify-between">
+            <Button 
+              variant="destructive" 
+              onClick={() => {
+                setIsEditDialogOpen(false);
+                handleDeleteEvent(editingEvent!);
+              }}
+              className="hover:bg-red-600"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Elimina
             </Button>
-            <Button onClick={handleUpdateEvent}>Salva</Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="bg-white">
+                Annulla
+              </Button>
+              <Button onClick={handleUpdateEvent} className="bg-blue-600 hover:bg-blue-700">
+                <Edit className="mr-2 h-4 w-4" />
+                Salva
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -831,152 +885,163 @@ export default function CalendarPage() {
       {/* Dialog per creare un nuovo evento */}
       {isCreateDialogOpen && (
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-xl">
-            <DialogHeader>
-              <DialogTitle>{t('calendar.create_event')}</DialogTitle>
-              <DialogDescription>
-                {t('calendar.create_event_description')}
+          <DialogContent className="max-w-xl p-0 overflow-hidden rounded-lg shadow-xl border-0">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
+              <DialogTitle className="text-xl font-bold">Nuovo appuntamento</DialogTitle>
+              <DialogDescription className="text-blue-100 mt-1">
+                Aggiungi un nuovo appuntamento al calendario
               </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-1 gap-2">
-                <label htmlFor="client" className="text-sm font-medium">
-                  {t('calendar.client')}
-                </label>
-                <Select 
-                  value={newEventClientId?.toString() || ""} 
-                  onValueChange={(value) => setNewEventClientId(parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={t('calendar.select_client')} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clients.map(client => (
-                      <SelectItem key={client.id} value={client.id.toString()}>
-                        {client.firstName} {client.lastName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <label htmlFor="title" className="text-sm font-medium">
-                  {t('calendar.title')}
-                </label>
-                <Input
-                  id="title"
-                  placeholder={t('calendar.title_placeholder')}
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label htmlFor="date" className="text-sm font-medium">
-                    {t('calendar.date')}
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="date"
-                        variant={"outline"}
-                        className="justify-start text-left font-normal"
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, "PPP", { locale: it }) : 
-                          <span>{t('calendar.select_date')}</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <CalendarComponent
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={setSelectedDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="time" className="text-sm font-medium">
-                    {t('calendar.time')}
-                  </label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <label htmlFor="location" className="text-sm font-medium">
-                    {t('calendar.location')}
-                  </label>
-                  <Input
-                    id="location"
-                    placeholder={t('calendar.location_placeholder')}
-                    value={eventLocation}
-                    onChange={(e) => setEventLocation(e.target.value)}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <label htmlFor="duration" className="text-sm font-medium">
-                    {t('calendar.duration')}
+            </div>
+            <div className="p-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label htmlFor="client" className="text-sm font-medium flex items-center">
+                    <User className="h-4 w-4 mr-2 text-blue-500" />
+                    Cliente
                   </label>
                   <Select 
-                    value={eventDuration.toString()} 
-                    onValueChange={(value) => setEventDuration(parseInt(value))}
+                    value={newEventClientId?.toString() || ""} 
+                    onValueChange={(value) => setNewEventClientId(parseInt(value))}
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('calendar.select_duration')} />
+                    <SelectTrigger className="bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue placeholder="Seleziona cliente" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="15">15 minuti</SelectItem>
-                      <SelectItem value="30">30 minuti</SelectItem>
-                      <SelectItem value="45">45 minuti</SelectItem>
-                      <SelectItem value="60">60 minuti</SelectItem>
-                      <SelectItem value="90">90 minuti</SelectItem>
-                      <SelectItem value="120">120 minuti</SelectItem>
+                      {clients.map(client => (
+                        <SelectItem key={client.id} value={client.id.toString()}>
+                          {client.firstName} {client.lastName}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                <label htmlFor="notes" className="text-sm font-medium">
-                  {t('calendar.notes')}
-                </label>
-                <Textarea
-                  id="notes"
-                  placeholder={t('calendar.notes_placeholder')}
-                  value={newEventNotes}
-                  onChange={(e) => setNewEventNotes(e.target.value)}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Checkbox 
-                  id="sendEmail" 
-                  checked={sendMeetingEmail} 
-                  onCheckedChange={(checked) => setSendMeetingEmail(checked === true)} 
-                />
-                <label
-                  htmlFor="sendEmail"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Invia email di invito al cliente
-                </label>
+                <div className="space-y-2">
+                  <label htmlFor="title" className="text-sm font-medium flex items-center">
+                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                    Titolo
+                  </label>
+                  <Input
+                    id="title"
+                    placeholder="Titolo appuntamento"
+                    value={eventTitle}
+                    onChange={(e) => setEventTitle(e.target.value)}
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="date" className="text-sm font-medium flex items-center">
+                      <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
+                      Data
+                    </label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          id="date"
+                          variant={"outline"}
+                          className="w-full text-left font-normal justify-start bg-white hover:bg-gray-50 border-gray-300"
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
+                          {selectedDate ? format(selectedDate, "PPP", { locale: it }) : 
+                            <span>Seleziona data</span>}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0">
+                        <CalendarComponent
+                          mode="single"
+                          selected={selectedDate}
+                          onSelect={setSelectedDate}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="time" className="text-sm font-medium flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                      Orario
+                    </label>
+                    <select
+                      id="time"
+                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      value={eventTime}
+                      onChange={(e) => setEventTime(e.target.value)}
+                    >
+                      {getTimeOptions()}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label htmlFor="location" className="text-sm font-medium flex items-center">
+                      <MapPin className="h-4 w-4 mr-2 text-blue-500" />
+                      Luogo
+                    </label>
+                    <select
+                      id="location"
+                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      value={eventLocation}
+                      onChange={(e) => setEventLocation(e.target.value)}
+                    >
+                      <option value="zoom">Zoom</option>
+                      <option value="office">Ufficio</option>
+                      <option value="phone">Telefono</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="duration" className="text-sm font-medium flex items-center">
+                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
+                      Durata
+                    </label>
+                    <select
+                      id="duration"
+                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
+                      value={eventDuration}
+                      onChange={(e) => setEventDuration(parseInt(e.target.value))}
+                    >
+                      {getDurationOptions()}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="notes" className="text-sm font-medium flex items-center">
+                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                    Note
+                  </label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Note aggiuntive"
+                    value={newEventNotes}
+                    onChange={(e) => setNewEventNotes(e.target.value)}
+                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
+                  />
+                </div>
+                <div className="flex items-center space-x-2 pt-2">
+                  <Checkbox 
+                    id="sendEmail" 
+                    checked={sendMeetingEmail} 
+                    onCheckedChange={(checked) => setSendMeetingEmail(checked === true)} 
+                  />
+                  <label
+                    htmlFor="sendEmail"
+                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                  >
+                    Invia email di invito al cliente
+                  </label>
+                </div>
               </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                {t('calendar.cancel')}
+            <DialogFooter className="bg-gray-50 p-4 flex justify-between">
+              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="bg-white">
+                Annulla
               </Button>
               <Button 
                 disabled={!eventTitle || !newEventClientId || !selectedDate}
                 onClick={handleCreateEvent}
+                className="bg-blue-600 hover:bg-blue-700"
               >
-                {t('calendar.create')}
+                <CalendarCheck className="mr-2 h-4 w-4" />
+                Crea Appuntamento
               </Button>
             </DialogFooter>
           </DialogContent>
