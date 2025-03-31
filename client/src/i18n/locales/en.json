@@ -276,7 +276,7 @@
     }
   },
   "common": {
-    "cancel": "Cancel",
+    "edit": "Edit",
     "saving": "Saving...",
     "save_changes": "Save Changes",
     "pro_version": "Gervis PRO",
@@ -498,6 +498,7 @@
     "error_loading": "Error loading client details",
     "back_to_dashboard": "Back to Dashboard",
     "edit": "Edit",
+    "edit_mifid_data": "Edit client data",
     "investment_profile": "Investment Profile",
     "asset_allocation": "Asset Allocation",
     "portfolio_snapshot": "Current portfolio allocation",

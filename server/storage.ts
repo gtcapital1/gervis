@@ -18,7 +18,8 @@ import createMemoryStore from 'memorystore';
 import { db, sql as pgClient } from './db';
 import { sendOnboardingEmail } from './email';
 import { promisify } from 'util';
-import { Pool } from 'pg';
+import pg from 'pg';
+const { Pool } = pg;
 
 const MemoryStore = createMemoryStore(session);
 const PgSession = connectPgSimple(session);
@@ -377,6 +378,12 @@ export class PostgresStorage implements IStorage {
         .where(eq(clientLogs.clientId, id))
         .returning({ id: clientLogs.id });
       console.log(`[INFO] Eliminati ${deletedLogs.length} logs del cliente`);
+      
+      // Eliminiamo i dati MIFID
+      const deletedMifid = await db.delete(mifid)
+        .where(eq(mifid.clientId, id))
+        .returning({ id: mifid.id });
+      console.log(`[INFO] Eliminati ${deletedMifid.length} dati MIFID del cliente`);
       
       // 2. Ora che tutte le dipendenze sono state rimosse, possiamo eliminare il cliente
       const result = await db.delete(clients)

@@ -86,10 +86,50 @@ const clientFormSchema = z.object({
   phone: z.string().optional(),
   address: z.string().optional(),
   taxCode: z.string().optional(),
-  riskProfile: z.enum(RISK_PROFILES).optional().nullable(),
+  riskProfile: z.string().nullable(),
+});
+
+const mifidFormSchema = z.object({
+  // Personal Information
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  birthDate: z.string().optional(),
+  maritalStatus: z.string().optional(),
+  employmentStatus: z.string().optional(),
+  educationLevel: z.string().optional(),
+  
+  // Financial Situation
+  annualIncome: z.number().optional(),
+  monthlyExpenses: z.number().optional(),
+  debts: z.number().optional(),
+  dependents: z.number().optional(),
+  
+  // Investment Profile
+  riskProfile: z.string().optional(),
+  investmentHorizon: z.string().optional(),
+  
+  // Investment Goals
+  retirementInterest: z.number().optional(),
+  wealthGrowthInterest: z.number().optional(),
+  incomeGenerationInterest: z.number().optional(),
+  capitalPreservationInterest: z.number().optional(),
+  estatePlanningInterest: z.number().optional(),
+  
+  // Investment Experience
+  investmentExperience: z.string().optional(),
+  pastInvestmentExperience: z.array(z.string()).optional(),
+  financialEducation: z.array(z.string()).optional(),
+  portfolioDropReaction: z.string().optional(),
+  volatilityTolerance: z.string().optional(),
+  yearsOfExperience: z.string().optional(),
+  investmentFrequency: z.string().optional(),
+  advisorUsage: z.string().optional(),
+  monitoringTime: z.string().optional(),
+  specificQuestions: z.string().optional(),
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
+type MifidFormValues = z.infer<typeof mifidFormSchema>;
 
 // Definizione dell'interfaccia per i parametri di onboarding
 interface OnboardingParams {
@@ -175,6 +215,7 @@ export default function ClientDetail() {
   const { t } = useTranslation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
+  const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
   
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -297,6 +338,49 @@ Grazie per la tua fiducia e collaborazione.`
     },
   });
   
+  // Form for editing MIFID data
+  const mifidForm = useForm<MifidFormValues>({
+    resolver: zodResolver(mifidFormSchema),
+    defaultValues: {
+      // Personal Information
+      address: "",
+      phone: "",
+      birthDate: "",
+      maritalStatus: "",
+      employmentStatus: "",
+      educationLevel: "",
+      
+      // Financial Situation
+      annualIncome: 0,
+      monthlyExpenses: 0,
+      debts: 0,
+      dependents: 0,
+      
+      // Investment Profile
+      riskProfile: "",
+      investmentHorizon: "",
+      
+      // Investment Goals
+      retirementInterest: 0,
+      wealthGrowthInterest: 0,
+      incomeGenerationInterest: 0,
+      capitalPreservationInterest: 0,
+      estatePlanningInterest: 0,
+      
+      // Investment Experience
+      investmentExperience: "",
+      pastInvestmentExperience: [],
+      financialEducation: [],
+      portfolioDropReaction: "",
+      volatilityTolerance: "",
+      yearsOfExperience: "",
+      investmentFrequency: "",
+      advisorUsage: "",
+      monitoringTime: "",
+      specificQuestions: "",
+    },
+  });
+
   // Update form values when client data is loaded
   React.useEffect(() => {
     if (client) {
@@ -310,6 +394,50 @@ Grazie per la tua fiducia e collaborazione.`
       });
     }
   }, [client, form]);
+
+  // Update MIFID form values when MIFID data is loaded
+  React.useEffect(() => {
+    if (mifid) {
+      mifidForm.reset({
+        // Personal Information
+        address: mifid.address || "",
+        phone: mifid.phone || "",
+        birthDate: mifid.birthDate || "",
+        maritalStatus: mifid.maritalStatus || "",
+        employmentStatus: mifid.employmentStatus || "",
+        educationLevel: mifid.educationLevel || "",
+        
+        // Financial Situation
+        annualIncome: mifid.annualIncome || 0,
+        monthlyExpenses: mifid.monthlyExpenses || 0,
+        debts: mifid.debts || 0,
+        dependents: mifid.dependents || 0,
+        
+        // Investment Profile
+        riskProfile: mifid.riskProfile || "",
+        investmentHorizon: mifid.investmentHorizon || "",
+        
+        // Investment Goals
+        retirementInterest: mifid.retirementInterest || 0,
+        wealthGrowthInterest: mifid.wealthGrowthInterest || 0,
+        incomeGenerationInterest: mifid.incomeGenerationInterest || 0,
+        capitalPreservationInterest: mifid.capitalPreservationInterest || 0,
+        estatePlanningInterest: mifid.estatePlanningInterest || 0,
+        
+        // Investment Experience
+        investmentExperience: mifid.investmentExperience || "",
+        pastInvestmentExperience: mifid.pastInvestmentExperience || [],
+        financialEducation: mifid.financialEducation || [],
+        portfolioDropReaction: mifid.portfolioDropReaction || "",
+        volatilityTolerance: mifid.volatilityTolerance || "",
+        yearsOfExperience: mifid.yearsOfExperience || "",
+        investmentFrequency: mifid.investmentFrequency || "",
+        advisorUsage: mifid.advisorUsage || "",
+        monitoringTime: mifid.monitoringTime || "",
+        specificQuestions: mifid.specificQuestions || "",
+      });
+    }
+  }, [mifid, mifidForm]);
   
   // Update client information mutation
   const updateClientMutation = useMutation({
@@ -335,9 +463,38 @@ Grazie per la tua fiducia e collaborazione.`
       });
     },
   });
+
+  // Mutation for updating MIFID data
+  const updateMifidMutation = useMutation({
+    mutationFn: (data: MifidFormValues) => {
+      return apiRequest(`/api/clients/${clientId}/mifid`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+      setIsMifidEditDialogOpen(false);
+      toast({
+        title: t('client.mifid_updated'),
+        description: t('client.mifid_updated_success'),
+      });
+    },
+    onError: () => {
+      toast({
+        title: t('common.error'),
+        description: t('client.mifid_update_failed'),
+        variant: "destructive",
+      });
+    },
+  });
   
   function onSubmit(data: ClientFormValues) {
     updateClientMutation.mutate(data);
+  }
+
+  function onSubmitMifid(data: MifidFormValues) {
+    updateMifidMutation.mutate(data);
   }
   
   // Mutation per gestire l'onboarding
@@ -615,10 +772,10 @@ Grazie per la tua fiducia e collaborazione.`
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsEditDialogOpen(true)}
+                onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
               >
                 <Edit className="h-4 w-4 mr-2" />
-                {t('client.edit')}
+                {t('common.edit')}
               </Button>
             ) : (
               <Button 
@@ -1045,6 +1202,436 @@ Grazie per la tua fiducia e collaborazione.`
           userId={user.id}
         />
       )}
+
+      {/* Dialog per la modifica dei dati MIFID */}
+      <Dialog open={isMifidEditDialogOpen} onOpenChange={setIsMifidEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('client.edit_mifid_data')}</DialogTitle>
+            <DialogDescription>
+              {t('client.edit_mifid_description')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <form onSubmit={mifidForm.handleSubmit(onSubmitMifid)} className="space-y-6">
+            {/* Personal Information */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">{t('client.personal_info')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="address">{t('client.address')}</Label>
+                  <Input
+                    id="address"
+                    {...mifidForm.register("address")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">{t('client.phone')}</Label>
+                  <Input
+                    id="phone"
+                    {...mifidForm.register("phone")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="birthDate">{t('client.birth_date')}</Label>
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    {...mifidForm.register("birthDate")}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="maritalStatus">{t('client.marital_status')}</Label>
+                  <Select 
+                    value={mifidForm.watch("maritalStatus")} 
+                    onValueChange={(value) => mifidForm.setValue("maritalStatus", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_marital_status')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="single">{t('marital_status.single')}</SelectItem>
+                      <SelectItem value="married">{t('marital_status.married')}</SelectItem>
+                      <SelectItem value="divorced">{t('marital_status.divorced')}</SelectItem>
+                      <SelectItem value="widowed">{t('marital_status.widowed')}</SelectItem>
+                      <SelectItem value="separated">{t('marital_status.separated')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="employmentStatus">{t('client.employment_status')}</Label>
+                  <Select 
+                    value={mifidForm.watch("employmentStatus")} 
+                    onValueChange={(value) => mifidForm.setValue("employmentStatus", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_employment_status')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="employed">{t('employment_status.employed')}</SelectItem>
+                      <SelectItem value="unemployed">{t('employment_status.unemployed')}</SelectItem>
+                      <SelectItem value="self_employed">{t('employment_status.self_employed')}</SelectItem>
+                      <SelectItem value="retired">{t('employment_status.retired')}</SelectItem>
+                      <SelectItem value="student">{t('employment_status.student')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="educationLevel">{t('client.education_level')}</Label>
+                  <Select 
+                    value={mifidForm.watch("educationLevel")} 
+                    onValueChange={(value) => mifidForm.setValue("educationLevel", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_education_level')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="high_school">{t('education_levels.high_school')}</SelectItem>
+                      <SelectItem value="bachelor">{t('education_levels.bachelor')}</SelectItem>
+                      <SelectItem value="master">{t('education_levels.master')}</SelectItem>
+                      <SelectItem value="phd">{t('education_levels.phd')}</SelectItem>
+                      <SelectItem value="other">{t('education_levels.other')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Financial Situation */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">{t('client.current_financial_situation')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="annualIncome">{t('client.annual_income')}</Label>
+                  <Input
+                    id="annualIncome"
+                    type="number"
+                    {...mifidForm.register("annualIncome", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="monthlyExpenses">{t('client.monthly_expenses')}</Label>
+                  <Input
+                    id="monthlyExpenses"
+                    type="number"
+                    {...mifidForm.register("monthlyExpenses", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="debts">{t('client.debts')}</Label>
+                  <Input
+                    id="debts"
+                    type="number"
+                    {...mifidForm.register("debts", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dependents">{t('client.dependents')}</Label>
+                  <Input
+                    id="dependents"
+                    type="number"
+                    {...mifidForm.register("dependents", { valueAsNumber: true })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Investment Profile */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">{t('client.investment_profile')}</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="riskProfile">{t('client.risk_profile')}</Label>
+                  <Select 
+                    value={mifidForm.watch("riskProfile")} 
+                    onValueChange={(value) => mifidForm.setValue("riskProfile", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_risk_profile')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="conservative">{t('risk_profiles.conservative')}</SelectItem>
+                      <SelectItem value="moderate">{t('risk_profiles.moderate')}</SelectItem>
+                      <SelectItem value="balanced">{t('risk_profiles.balanced')}</SelectItem>
+                      <SelectItem value="growth">{t('risk_profiles.growth')}</SelectItem>
+                      <SelectItem value="aggressive">{t('risk_profiles.aggressive')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="investmentHorizon">{t('client.investment_horizon')}</Label>
+                  <Select 
+                    value={mifidForm.watch("investmentHorizon")} 
+                    onValueChange={(value) => mifidForm.setValue("investmentHorizon", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_investment_horizon')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="short_term">{t('investment_horizons.short_term')}</SelectItem>
+                      <SelectItem value="medium_term">{t('investment_horizons.medium_term')}</SelectItem>
+                      <SelectItem value="long_term">{t('investment_horizons.long_term')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+
+            {/* Investment Goals */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">{t('client.investment_goals')}</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="retirementInterest">{t('investment_goals.retirement')}</Label>
+                  <Input
+                    id="retirementInterest"
+                    type="number"
+                    min="0"
+                    max="100"
+                    {...mifidForm.register("retirementInterest", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="wealthGrowthInterest">{t('investment_goals.wealth_growth')}</Label>
+                  <Input
+                    id="wealthGrowthInterest"
+                    type="number"
+                    min="0"
+                    max="100"
+                    {...mifidForm.register("wealthGrowthInterest", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="incomeGenerationInterest">{t('investment_goals.income_generation')}</Label>
+                  <Input
+                    id="incomeGenerationInterest"
+                    type="number"
+                    min="0"
+                    max="100"
+                    {...mifidForm.register("incomeGenerationInterest", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="capitalPreservationInterest">{t('investment_goals.capital_preservation')}</Label>
+                  <Input
+                    id="capitalPreservationInterest"
+                    type="number"
+                    min="0"
+                    max="100"
+                    {...mifidForm.register("capitalPreservationInterest", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estatePlanningInterest">{t('investment_goals.estate_planning')}</Label>
+                  <Input
+                    id="estatePlanningInterest"
+                    type="number"
+                    min="0"
+                    max="100"
+                    {...mifidForm.register("estatePlanningInterest", { valueAsNumber: true })}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Investment Experience */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">{t('client.investment_experience')}</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="investmentExperience">{t('client.investment_experience_level')}</Label>
+                  <Select 
+                    value={mifidForm.watch("investmentExperience")} 
+                    onValueChange={(value) => mifidForm.setValue("investmentExperience", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_investment_experience')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('investment_experience.none')}</SelectItem>
+                      <SelectItem value="limited">{t('investment_experience.limited')}</SelectItem>
+                      <SelectItem value="good">{t('investment_experience.good')}</SelectItem>
+                      <SelectItem value="extensive">{t('investment_experience.extensive')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t('client.past_investment_experience')}</Label>
+                  <div className="space-y-2">
+                    {['stocks', 'bonds', 'mutual_funds', 'etfs', 'real_estate', 'crypto'].map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={type}
+                          checked={mifidForm.watch("pastInvestmentExperience")?.includes(type)}
+                          onChange={(e) => {
+                            const current = mifidForm.watch("pastInvestmentExperience") || [];
+                            if (e.target.checked) {
+                              mifidForm.setValue("pastInvestmentExperience", [...current, type]);
+                            } else {
+                              mifidForm.setValue("pastInvestmentExperience", current.filter(t => t !== type));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={type}>{t(`investment_types.${type}`)}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>{t('client.financial_education')}</Label>
+                  <div className="space-y-2">
+                    {['courses', 'books', 'seminars', 'online_resources', 'professional_advice'].map((type) => (
+                      <div key={type} className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={type}
+                          checked={mifidForm.watch("financialEducation")?.includes(type)}
+                          onChange={(e) => {
+                            const current = mifidForm.watch("financialEducation") || [];
+                            if (e.target.checked) {
+                              mifidForm.setValue("financialEducation", [...current, type]);
+                            } else {
+                              mifidForm.setValue("financialEducation", current.filter(t => t !== type));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={type}>{t(`education_types.${type}`)}</Label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="portfolioDropReaction">{t('client.portfolio_drop_reaction')}</Label>
+                  <Select 
+                    value={mifidForm.watch("portfolioDropReaction")} 
+                    onValueChange={(value) => mifidForm.setValue("portfolioDropReaction", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_portfolio_drop_reaction')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sell">{t('portfolio_reactions.sell')}</SelectItem>
+                      <SelectItem value="hold">{t('portfolio_reactions.hold')}</SelectItem>
+                      <SelectItem value="buy">{t('portfolio_reactions.buy')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="volatilityTolerance">{t('client.volatility_tolerance')}</Label>
+                  <Select 
+                    value={mifidForm.watch("volatilityTolerance")} 
+                    onValueChange={(value) => mifidForm.setValue("volatilityTolerance", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_volatility_tolerance')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="low">{t('volatility_tolerance.low')}</SelectItem>
+                      <SelectItem value="medium">{t('volatility_tolerance.medium')}</SelectItem>
+                      <SelectItem value="high">{t('volatility_tolerance.high')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="yearsOfExperience">{t('client.years_of_experience')}</Label>
+                  <Select 
+                    value={mifidForm.watch("yearsOfExperience")} 
+                    onValueChange={(value) => mifidForm.setValue("yearsOfExperience", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_years_of_experience')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">{t('years_experience.none')}</SelectItem>
+                      <SelectItem value="less_than_1">{t('years_experience.less_than_1')}</SelectItem>
+                      <SelectItem value="1_to_3">{t('years_experience.1_to_3')}</SelectItem>
+                      <SelectItem value="3_to_5">{t('years_experience.3_to_5')}</SelectItem>
+                      <SelectItem value="more_than_5">{t('years_experience.more_than_5')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="investmentFrequency">{t('client.investment_frequency')}</Label>
+                  <Select 
+                    value={mifidForm.watch("investmentFrequency")} 
+                    onValueChange={(value) => mifidForm.setValue("investmentFrequency", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_investment_frequency')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="monthly">{t('investment_frequency.monthly')}</SelectItem>
+                      <SelectItem value="quarterly">{t('investment_frequency.quarterly')}</SelectItem>
+                      <SelectItem value="annually">{t('investment_frequency.annually')}</SelectItem>
+                      <SelectItem value="irregular">{t('investment_frequency.irregular')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="advisorUsage">{t('client.advisor_usage')}</Label>
+                  <Select 
+                    value={mifidForm.watch("advisorUsage")} 
+                    onValueChange={(value) => mifidForm.setValue("advisorUsage", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_advisor_usage')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full_service">{t('advisor_usage.full_service')}</SelectItem>
+                      <SelectItem value="partial_service">{t('advisor_usage.partial_service')}</SelectItem>
+                      <SelectItem value="self_managed">{t('advisor_usage.self_managed')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="monitoringTime">{t('client.monitoring_time')}</Label>
+                  <Select 
+                    value={mifidForm.watch("monitoringTime")} 
+                    onValueChange={(value) => mifidForm.setValue("monitoringTime", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t('client.select_monitoring_time')} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="daily">{t('monitoring_time.daily')}</SelectItem>
+                      <SelectItem value="weekly">{t('monitoring_time.weekly')}</SelectItem>
+                      <SelectItem value="monthly">{t('monitoring_time.monthly')}</SelectItem>
+                      <SelectItem value="quarterly">{t('monitoring_time.quarterly')}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="specificQuestions">{t('client.specific_questions')}</Label>
+                  <Textarea
+                    id="specificQuestions"
+                    {...mifidForm.register("specificQuestions")}
+                    placeholder={t('client.specific_questions_placeholder')}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setIsMifidEditDialogOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button type="submit" disabled={updateMifidMutation.isPending}>
+                {updateMifidMutation.isPending ? t('common.saving') : t('common.save')}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

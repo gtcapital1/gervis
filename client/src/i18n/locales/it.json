@@ -235,6 +235,7 @@
     "back_to_dashboard": "Torna alla Dashboard",
     "back": "Indietro",
     "edit_client": "Modifica Cliente",
+    "edit_mifid_data": "Modifica dati cliente",
     "view_logs": "Visualizza Log",
     "email_sent": "Email inviata",
     "email_sent_success": "L'email di onboarding è stata inviata con successo al cliente.",
@@ -406,8 +407,10 @@
     }
   },
   "common": {
+    "edit": "Modifica",
     "cancel": "Annulla",
     "saving": "Salvataggio in corso...",
+    "save": "Salva ed esci",
     "save_changes": "Salva Modifiche",
     "pro_version": "Gervis PRO",
     "coming_soon": "PROSSIMAMENTE",

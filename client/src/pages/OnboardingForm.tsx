@@ -251,60 +251,6 @@ export default function OnboardingForm() {
     }
   }
   
-  // Funzione temporanea per compilare automaticamente il form
-  const autoFillForm = () => {
-    form.reset({
-      // Personal Information
-      address: "Via Roma 123",
-      phone: "+39 1234567890",
-      birthDate: "1990-01-01",
-      maritalStatus: "single",
-      employmentStatus: "employed",
-      educationLevel: "bachelor",
-      annualIncome: 50000,
-      monthlyExpenses: 2000,
-      debts: 10000,
-      dependents: 1,
-      
-      // Investment Profile
-      riskProfile: "balanced",
-      investmentExperience: "intermediate",
-      investmentHorizon: "medium_term",
-      
-      // Past Investment Experience
-      pastInvestmentExperience: ["stocks", "bonds", "funds"],
-      financialEducation: ["university", "courses"],
-      
-      // Investment Interests
-      retirementInterest: 1,
-      wealthGrowthInterest: 2,
-      incomeGenerationInterest: 3,
-      capitalPreservationInterest: 4,
-      estatePlanningInterest: 5,
-      
-      // Assets
-      assets: [
-        { value: 100000, category: "real_estate", description: "Casa di proprietà" },
-        { value: 50000, category: "equity", description: "Azioni" },
-        { value: 30000, category: "bonds", description: "Obbligazioni" },
-        { value: 20000, category: "cash", description: "Contanti" }
-      ],
-
-      // Risk Tolerance
-      portfolioDropReaction: "hold",
-      volatilityTolerance: "medium",
-
-      // Investment Behavior
-      yearsOfExperience: "3_to_5",
-      investmentFrequency: "monthly",
-      advisorUsage: "balanced",
-      monitoringTime: "weekly",
-
-      // Specific Questions
-      specificQuestions: "Nessuna domanda specifica"
-    });
-  };
-
   // Modifica la funzione onSubmit per gestire meglio gli errori
   async function onSubmit(data: MifidData) {
     setFormError(null);
@@ -424,14 +370,6 @@ export default function OnboardingForm() {
   
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4 sm:px-6">
-      {/* Aggiungi il pulsante per l'autocompilazione temporaneo */}
-      <Button 
-        onClick={autoFillForm}
-        className="mb-4 bg-yellow-500 hover:bg-yellow-600"
-      >
-        🚀 Compila Automaticamente (Temporaneo)
-      </Button>
-
       <Card className="mb-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">{t('onboarding.welcome')}, {client?.name}</CardTitle>
@@ -822,98 +760,111 @@ export default function OnboardingForm() {
                 )}
               />
 
-              <h3 className="text-md font-semibold pt-4">Priorità degli obiettivi d'investimento</h3>
-              <FormDescription className="mb-4">
-                Ordina gli obiettivi per importanza (1 = più importante, 5 = meno importante). 
-                <span className="text-red-500 font-semibold"> Ogni numero deve essere assegnato a un solo obiettivo.</span>
-              </FormDescription>
-              
-              {hasDuplicatePriorities() && (
-                <div className="mb-4 p-3 border border-red-400 bg-red-50 rounded-md text-red-700">
-                  <p className="text-sm font-medium">
-                    Attenzione: hai assegnato lo stesso numero di priorità a più obiettivi. Per procedere, assicurati che ogni obiettivo abbia un valore di priorità unico.
-                  </p>
-                </div>
-              )}
-
+              {/* Interessi di Investimento */}
               <div className="space-y-6">
-                {[
-                  { 
-                    name: "retirementInterest", 
-                    label: "Pianificazione della pensione",
-                    description: "Costruire un capitale sufficiente per mantenere il tuo tenore di vita dopo il pensionamento"
-                  },
-                  { 
-                    name: "wealthGrowthInterest", 
-                    label: "Crescita del capitale",
-                    description: "Aumentare il valore complessivo del tuo patrimonio nel medio-lungo periodo"
-                  },
-                  { 
-                    name: "incomeGenerationInterest", 
-                    label: "Generazione di reddito",
-                    description: "Ottenere flussi di cassa periodici dagli investimenti per integrare le entrate correnti"
-                  },
-                  { 
-                    name: "capitalPreservationInterest", 
-                    label: "Protezione del capitale",
-                    description: "Difendere il valore del tuo patrimonio dall'inflazione e da perdite potenziali"
-                  },
-                  { 
-                    name: "estatePlanningInterest", 
-                    label: "Pianificazione ereditaria",
-                    description: "Organizzare il trasferimento efficiente del patrimonio ai tuoi eredi o enti benefici"
-                  }
-                ].map(({ name, label, description }) => (
-              <FormField
-                    key={name}
-                control={form.control}
-                    name={name as any}
-                render={({ field }) => (
-                  <FormItem>
-                        <div className="flex justify-between items-center">
-                          <FormLabel>{label}</FormLabel>
-                          <div className="flex items-center space-x-2">
-                            {[1, 2, 3, 4, 5].map((value) => {
-                              // Controlla se questo valore è già usato da un altro campo
-                              const isUsedElsewhere = [
-                                "retirementInterest",
-                                "wealthGrowthInterest",
-                                "incomeGenerationInterest",
-                                "capitalPreservationInterest",
-                                "estatePlanningInterest"
-                              ]
-                                .filter(n => n !== name)
-                                .some(otherName => form.getValues(otherName as any) === value);
-                              
-                              // Ora permettiamo la selezione anche se il valore è duplicato
-                              const isDuplicate = isUsedElsewhere && field.value === value;
-                              
-                              return (
-                                <div 
-                                  key={value}
-                                  className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer ${
-                                    field.value === value 
-                                      ? isUsedElsewhere 
-                                        ? 'bg-red-500 text-white' // Selezione duplicata
-                                        : 'bg-primary text-primary-foreground' // Selezione normale
-                                      : 'bg-muted hover:bg-muted/80' // Non selezionato
-                                  }`}
-                                  onClick={() => field.onChange(value)}
-                                >
-                                  {value}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                    <FormDescription>
-                          {description}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
+                <div className="space-y-2">
+                  <FormLabel className="text-base">Priorità degli obiettivi d'investimento</FormLabel>
+                  <FormDescription className="mb-4">
+                    Ordina gli obiettivi per importanza (1 = più importante, 5 = meno importante).
+                    <span className="text-gray-500"> Ogni numero deve essere assegnato a un solo obiettivo.</span>
+                  </FormDescription>
+                </div>
+                
+                {hasDuplicatePriorities() && (
+                  <div className="mb-4 p-3 border border-red-400 bg-red-50 rounded-md text-red-700">
+                    <p className="text-sm font-medium">
+                      Attenzione: hai assegnato lo stesso numero di priorità a più obiettivi. Per procedere, assicurati che ogni obiettivo abbia un valore di priorità unico.
+                    </p>
+                  </div>
                 )}
-              />
-                ))}
+
+                <div className="space-y-4">
+                  {[
+                    { 
+                      name: "retirementInterest" as const, 
+                      label: "Pianificazione della pensione",
+                      description: "Costruire un capitale sufficiente per mantenere il tuo tenore di vita dopo il pensionamento"
+                    },
+                    { 
+                      name: "wealthGrowthInterest" as const, 
+                      label: "Crescita del capitale",
+                      description: "Aumentare il valore complessivo del tuo patrimonio nel medio-lungo periodo"
+                    },
+                    { 
+                      name: "incomeGenerationInterest" as const, 
+                      label: "Generazione di reddito",
+                      description: "Ottenere flussi di cassa periodici dagli investimenti per integrare le entrate correnti"
+                    },
+                    { 
+                      name: "capitalPreservationInterest" as const, 
+                      label: "Protezione del capitale",
+                      description: "Difendere il valore del tuo patrimonio dall'inflazione e da perdite potenziali"
+                    },
+                    { 
+                      name: "estatePlanningInterest" as const, 
+                      label: "Pianificazione ereditaria",
+                      description: "Organizzare il trasferimento efficiente del patrimonio ai tuoi eredi o enti benefici"
+                    }
+                  ].map((goal, index) => (
+                    <FormField
+                      key={goal.name}
+                      control={form.control}
+                      name={goal.name}
+                      render={({ field }) => {
+                        const currentValue = field.value;
+                        const allValues = form.getValues();
+                        const isNumberUsed = (num: number) => {
+                          return Object.entries(allValues).some(([key, value]) => 
+                            key !== goal.name && value === num
+                          );
+                        };
+
+                        return (
+                          <FormItem>
+                            <div className="flex items-center gap-4">
+                              <div className="flex flex-col items-center gap-1">
+                                {index === 0 && (
+                                  <div className="flex gap-2">
+                                    <div className="w-8 text-center text-xs text-gray-500">Massima priorità</div>
+                                    <div className="w-8"></div>
+                                    <div className="w-8"></div>
+                                    <div className="w-8"></div>
+                                    <div className="w-8 text-center text-xs text-gray-500">Minima priorità</div>
+                                  </div>
+                                )}
+                                <div className="flex gap-2">
+                                  {[1, 2, 3, 4, 5].map((num) => (
+                                    <button
+                                      key={num}
+                                      type="button"
+                                      onClick={() => field.onChange(num)}
+                                      className={`w-8 h-8 flex items-center justify-center border-2 rounded-md ${
+                                        currentValue === num 
+                                          ? hasDuplicatePriorities() && Object.entries(allValues).some(([key, value]) => 
+                                              key !== goal.name && value === num
+                                            )
+                                            ? 'border-red-500 bg-red-500 text-white'
+                                            : 'border-blue-500 bg-blue-500 text-white'
+                                          : 'border-gray-300 text-gray-400 hover:border-gray-500 hover:text-gray-600'
+                                      }`}
+                                    >
+                                      {num}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <FormLabel>{goal.label}</FormLabel>
+                                <FormDescription>{goal.description}</FormDescription>
+                              </div>
+                            </div>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
             </CardContent>
           </Card>

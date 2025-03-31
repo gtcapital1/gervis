@@ -20,6 +20,7 @@ import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
 import { ThemeProvider } from "@/hooks/use-theme";
 import Calendar from './pages/Calendar';
+import EditMifidForm from "@/pages/EditMifidForm";
 
 function Router() {
   return (
@@ -63,6 +64,14 @@ function Router() {
         component={() => (
           <Layout>
             <ClientLogs />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
+        path="/app/clients/:id/edit-mifid" 
+        component={() => (
+          <Layout>
+            <EditMifidForm />
           </Layout>
         )} 
       />
