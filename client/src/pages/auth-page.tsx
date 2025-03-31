@@ -581,11 +581,12 @@ export default function AuthPage() {
                                 <Input
                                   placeholder={`${t('contact.form.company')}...`}
                                   disabled={registerForm.watch("isIndependent")}
-                                  value={registerForm.watch("isIndependent") ? "" : field.value}
-                                  onChange={field.onChange}
-                                  onBlur={field.onBlur}
-                                  name={field.name}
-                                  ref={field.ref}
+                                  {...field}
+                                  onChange={(e) => {
+                                    if (!registerForm.watch("isIndependent")) {
+                                      field.onChange(e);
+                                    }
+                                  }}
                                 />
                               </FormControl>
                               <FormMessage />

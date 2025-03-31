@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertClientSchema, insertAssetSchema, insertRecommendationSchema } from "@shared/schema";
+import { insertClientSchema, insertAssetSchema, insertRecommendationSchema, mifid } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
@@ -319,12 +319,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Get recommendations for this client
       const recommendations = await storage.getRecommendationsByClient(clientId);
+
+      // Get MIFID data for this client
+      const mifid = await storage.getMifidByClient(clientId);
       
       res.json({ 
         success: true, 
         client,
         assets,
-        recommendations
+        recommendations,
+        mifid
       });
     } catch (error) {
       console.error('Error fetching client details:', error);
@@ -1125,6 +1129,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Complete client onboarding with query parameter
   app.post('/api/onboarding', async (req, res) => {
     try {
+      console.log("[DEBUG] Onboarding - Request body:", JSON.stringify(req.body, null, 2));
+      
       const token = req.query.token as string;
       
       if (!token) {
@@ -1133,6 +1139,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: "Token is required" 
         });
       }
+      
+      console.log("[DEBUG] Onboarding - Token:", token);
       
       // Get client by onboarding token
       const client = await storage.getClientByToken(token);
@@ -1144,17 +1152,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      console.log("[DEBUG] Onboarding - Found client:", client.id);
+      
       // Validate the request body against the schema
       const { 
         assets,
-        ...clientData
+        ...mifidData
       } = req.body;
+      
+      console.log("[DEBUG] Onboarding - MIFID data to save:", JSON.stringify(mifidData, null, 2));
+      
+      try {
+        // Save MIFID data
+        const savedMifid = await db.insert(mifid).values({
+          clientId: client.id,
+          ...mifidData,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        }).returning();
+        
+        console.log("[DEBUG] Onboarding - Saved MIFID data:", JSON.stringify(savedMifid, null, 2));
+      } catch (mifidError) {
+        console.error("[ERROR] Failed to save MIFID data:", mifidError);
+        return res.status(500).json({
+          success: false,
+          message: "Failed to save MIFID data",
+          error: mifidError instanceof Error ? mifidError.message : "Unknown error"
+        });
+      }
       
       // Update client with onboarding data
       const updatedClient = await storage.updateClient(client.id, {
-        ...clientData,
         isOnboarded: true
       });
+      
+      console.log("[DEBUG] Onboarding - Updated client:", updatedClient);
       
       // Add assets if provided
       if (assets && Array.isArray(assets)) {
@@ -1164,6 +1196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId: client.id
           });
         }
+        console.log("[DEBUG] Onboarding - Saved assets:", assets.length);
       }
       
       res.json({ 
@@ -1172,7 +1205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: updatedClient
       });
     } catch (error) {
-      console.error("Error completing onboarding:", error);
+      console.error("[ERROR] Error completing onboarding:", error);
       if (error instanceof z.ZodError) {
         res.status(400).json({ 
           success: false, 
@@ -1182,7 +1215,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ 
           success: false, 
-          message: "Failed to complete onboarding process" 
+          message: "Failed to complete onboarding process",
+          error: error instanceof Error ? error.message : "Unknown error"
         });
       }
     }

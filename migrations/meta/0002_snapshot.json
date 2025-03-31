@@ -1,6 +1,6 @@
 {
-  "id": "258e0e08-3166-4867-9d95-193772ba38d9",
-  "prevId": "5df4c43b-b915-4d69-b21d-b759948eb815",
+  "id": "be97e35e-9587-4e9f-acbc-f59f5982064f",
+  "prevId": "4ee85df2-81c2-4e69-8180-b508a0f34a7b",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -268,12 +268,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "age": {
-          "name": "age",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "email": {
           "name": "email",
           "type": "text",
@@ -330,6 +324,31 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
+        },
+        "active": {
+          "name": "active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "onboarded_at": {
+          "name": "onboarded_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activated_at": {
+          "name": "activated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "client_segment": {
+          "name": "client_segment",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "risk_profile": {
           "name": "risk_profile",
@@ -451,6 +470,13 @@
           "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "total_assets": {
+          "name": "total_assets",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
         }
       },
       "indexes": {},
@@ -461,6 +487,368 @@
           "tableTo": "users",
           "columnsFrom": [
             "advisor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.completed_tasks": {
+      "name": "completed_tasks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "advisor_id": {
+          "name": "advisor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "task_id": {
+          "name": "task_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "completed_at": {
+          "name": "completed_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.meetings": {
+      "name": "meetings",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "advisor_id": {
+          "name": "advisor_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location": {
+          "name": "location",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'zoom'"
+        },
+        "date_time": {
+          "name": "date_time",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 60
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "meetings_client_id_clients_id_fk": {
+          "name": "meetings_client_id_clients_id_fk",
+          "tableFrom": "meetings",
+          "tableTo": "clients",
+          "columnsFrom": [
+            "client_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "meetings_advisor_id_users_id_fk": {
+          "name": "meetings_advisor_id_users_id_fk",
+          "tableFrom": "meetings",
+          "tableTo": "users",
+          "columnsFrom": [
+            "advisor_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.mifid": {
+      "name": "mifid",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "client_id": {
+          "name": "client_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        },
+        "address": {
+          "name": "address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "birth_date": {
+          "name": "birth_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "marital_status": {
+          "name": "marital_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "employment_status": {
+          "name": "employment_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "education_level": {
+          "name": "education_level",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "annual_income": {
+          "name": "annual_income",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monthly_expenses": {
+          "name": "monthly_expenses",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "debts": {
+          "name": "debts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dependents": {
+          "name": "dependents",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assets": {
+          "name": "assets",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investment_horizon": {
+          "name": "investment_horizon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "retirement_interest": {
+          "name": "retirement_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "wealth_growth_interest": {
+          "name": "wealth_growth_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "income_generation_interest": {
+          "name": "income_generation_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "capital_preservation_interest": {
+          "name": "capital_preservation_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estate_planning_interest": {
+          "name": "estate_planning_interest",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investment_experience": {
+          "name": "investment_experience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "past_investment_experience": {
+          "name": "past_investment_experience",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "financial_education": {
+          "name": "financial_education",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "risk_profile": {
+          "name": "risk_profile",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "portfolio_drop_reaction": {
+          "name": "portfolio_drop_reaction",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "volatility_tolerance": {
+          "name": "volatility_tolerance",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "years_of_experience": {
+          "name": "years_of_experience",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "investment_frequency": {
+          "name": "investment_frequency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "advisor_usage": {
+          "name": "advisor_usage",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "monitoring_time": {
+          "name": "monitoring_time",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "specific_questions": {
+          "name": "specific_questions",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "mifid_client_id_clients_id_fk": {
+          "name": "mifid_client_id_clients_id_fk",
+          "tableFrom": "mifid",
+          "tableTo": "clients",
+          "columnsFrom": [
+            "client_id"
           ],
           "columnsTo": [
             "id"
@@ -527,37 +915,6 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.session": {
-      "name": "session",
-      "schema": "",
-      "columns": {
-        "sid": {
-          "name": "sid",
-          "type": "varchar(255)",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "sess": {
-          "name": "sess",
-          "type": "json",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "expire": {
-          "name": "expire",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},

@@ -73,6 +73,8 @@ export function setupAuth(app: Express) {
       sameSite: isProduction && isHttps ? 'none' : 'lax',
       // Aggiunto path esplicito
       path: '/',
+      // Aggiunto httpOnly per sicurezza
+      httpOnly: true
     }
   };
 

@@ -8,7 +8,7 @@ import Dashboard from "@/pages/Dashboard";
 import Clients from "@/pages/Clients";
 import ClientDetail from "@/pages/ClientDetail";
 import ClientLogs from "@/pages/ClientLogs";
-import OnboardingForm from "@/pages/OnboardingForm-fixed";
+import OnboardingForm from "@/pages/OnboardingForm";
 import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import AuthPage from "@/pages/auth-page";
 import Settings from "@/pages/Settings";

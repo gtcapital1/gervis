@@ -465,5 +465,104 @@
       "title": "AI-Powered Allocation",
       "description": "Asset allocation suggestions based on advanced artificial intelligence algorithms."
     }
+  },
+  "client": {
+    "personal_info": "Personal Information",
+    "address": "Address",
+    "phone": "Phone",
+    "birth_date": "Birth Date",
+    "marital_status": "Marital Status",
+    "employment_status": "Employment Status",
+    "education_level": "Education Level",
+    "email_placeholder": "Enter your personalized message here...",
+    "email_personalization_tip": "Customize the message by including specific details. The onboarding link will be automatically included in the email.",
+    "send_email": "Send Email",
+    "onboarding_required": "Onboarding Required",
+    "onboarding_required_description": "This client needs to complete the onboarding process to access all features.",
+    "onboard_first": "The client must complete the onboarding process before accessing features.",
+    "onboarding_link": "Onboarding Link",
+    "onboarding_link_description": "Share this link with your client to complete the onboarding process.",
+    "generate_onboarding_link": "Generate Onboarding Link",
+    "generate_new_link": "Generate New Link",
+    "generate_link": "Generate Link",
+    "sending": "Sending...",
+    "link_generated": "Link Generated",
+    "link_generated_success": "The onboarding link has been generated successfully.",
+    "link_generation_failed": "Failed to generate the onboarding link. Please try again.",
+    "email_sent": "Email Sent",
+    "email_sent_success": "The onboarding link has been sent to the client's email.",
+    "customize_email": "Customize Email",
+    "customize_email_desc": "Personalize the email message for {{clientName}}",
+    "email_content": "Email Content",
+    "loading_details": "Loading client details...",
+    "error_loading": "Error loading client details",
+    "back_to_dashboard": "Back to Dashboard",
+    "edit": "Edit",
+    "investment_profile": "Investment Profile",
+    "asset_allocation": "Asset Allocation",
+    "portfolio_snapshot": "Current portfolio allocation",
+    "portfolio_overview": "Portfolio Overview",
+    "loading_assets": "Loading assets...",
+    "no_assets": "No assets found",
+    "asset_details": "Asset Details",
+    "total": "Total",
+    "ai_analysis_center": "AI Analysis Center",
+    "profile_incomplete_description": "Complete the client's profile to generate AI-powered insights",
+    "annual_income": "Annual Income",
+    "monthly_expenses": "Monthly Expenses",
+    "debts": "Debts",
+    "dependents": "Dependents",
+    "investment_horizon": "Investment Horizon",
+    "risk_profile": "Risk Profile",
+    "current_financial_situation": "Current Financial Situation"
+  },
+  "marital_status": {
+    "single": "Single",
+    "married": "Married",
+    "divorced": "Divorced",
+    "widowed": "Widowed",
+    "separated": "Separated"
+  },
+  "employment_status": {
+    "employed": "Employed",
+    "unemployed": "Unemployed",
+    "self_employed": "Self-employed",
+    "retired": "Retired",
+    "student": "Student"
+  },
+  "education_levels": {
+    "high_school": "High School Diploma",
+    "bachelor": "Bachelor's Degree",
+    "master": "Master's Degree",
+    "phd": "PhD",
+    "other": "Other"
+  },
+  "investment_horizons": {
+    "short_term": "Short Term",
+    "medium_term": "Medium Term",
+    "long_term": "Long Term"
+  },
+  "risk_profiles": {
+    "conservative": "Conservative",
+    "moderate": "Moderate",
+    "balanced": "Balanced",
+    "growth": "Growth",
+    "aggressive": "Aggressive"
+  },
+  "investment_goals": {
+    "retirement": "Retirement Planning",
+    "wealth_growth": "Wealth Growth",
+    "income_generation": "Income Generation",
+    "capital_preservation": "Capital Preservation",
+    "estate_planning": "Estate Planning"
+  },
+  "asset_categories": {
+    "cash": "Cash",
+    "bonds": "Bonds",
+    "stocks": "Stocks",
+    "real_estate": "Real Estate",
+    "commodities": "Commodities",
+    "crypto": "Cryptocurrencies",
+    "other": "Other"
   }
 } 

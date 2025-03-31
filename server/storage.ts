@@ -7,7 +7,8 @@ import {
   aiProfiles, type AiProfile, type InsertAiProfile,
   meetings, type Meeting, type InsertMeeting,
   LOG_TYPES, type LogType,
-  completedTasks, type CompletedTask, type InsertCompletedTask
+  completedTasks, type CompletedTask, type InsertCompletedTask,
+  mifid, type Mifid
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql, desc, gte, lte } from 'drizzle-orm';
@@ -88,6 +89,9 @@ export interface IStorage {
   getCompletedTasks(advisorId: number, date: Date): Promise<CompletedTask[]>;
   markTaskAsCompleted(taskId: number, advisorId: number): Promise<boolean>;
   markTaskAsUncompleted(taskId: number, advisorId: number): Promise<boolean>;
+
+  // MIFID Methods
+  getMifidByClient(clientId: number): Promise<Mifid | undefined>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -96,77 +100,52 @@ export class PostgresStorage implements IStorage {
   constructor() {
     console.log("DEBUG - Inizializzazione PostgresStorage");
     
-    // Start with memory store for sessions
-    try {
-      console.log("DEBUG - Creazione MemoryStore temporaneo per sessioni");
-      this.sessionStore = new MemoryStore({
-        checkPeriod: 86400000 // Clear expired sessions every day
-      });
-      console.log("DEBUG - MemoryStore creato con successo");
-    } catch (err) {
-      console.error("ERRORE - Fallita creazione MemoryStore:", err);
-      // Crea un dummy store per evitare errori null
-      const MemoryStore = createMemoryStore(session);
-      this.sessionStore = new MemoryStore({
-        checkPeriod: 86400000 // Clear expired sessions every day
-      });
-    }
-    
-    // Set up PG session asynchronously
-    console.log("DEBUG - Avvio setup sessione PostgreSQL");
-    this.setupPgSession().catch(err => {
-      console.error("ERRORE - setupPgSession fallito nella promise:", err);
+    // Initialize with memory store as default
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // Clear expired sessions every day
     });
     
-    // Log database status
-    console.log('DEBUG - PostgreSQL storage initialized with database connection');
+    // Try to initialize PostgreSQL session store
+    this.initializePgSession().catch(err => {
+      console.error("ERRORE - Inizializzazione PgSession fallita:", err);
+      console.log("DEBUG - Continuo con MemoryStore");
+    });
   }
   
-  private async setupPgSession() {
-    console.log("DEBUG - setupPgSession iniziato");
+  private async initializePgSession() {
+    console.log("DEBUG - Inizializzazione PgSession");
     try {
-      console.log("DEBUG - Importazione modulo pg");
-      const pg = await import('pg');
-      
-      console.log("DEBUG - Verifico DATABASE_URL");
       const dbUrl = process.env.DATABASE_URL;
       if (!dbUrl) {
         throw new Error("DATABASE_URL non è definito");
       }
       
-      console.log("DEBUG - Creazione pool di connessioni per sessione");
       // Create a separate connection for the session store
-      const pool = new pg.default.Pool({
+      const pool = new Pool({
         connectionString: dbUrl
       });
       
-      console.log("DEBUG - Test connessione pool");
-      // Test di connessione al database
+      // Test connection
       const client = await pool.connect();
       try {
-        console.log("DEBUG - Test query sul pool");
-        const result = await client.query('SELECT NOW()');
-        console.log("DEBUG - Test query riuscito:", result.rows[0]);
-      } catch (queryError) {
-        console.error("ERRORE - Test query fallito:", queryError);
-        throw queryError;
+        await client.query('SELECT NOW()');
+        console.log("DEBUG - Connessione PostgreSQL testata con successo");
       } finally {
         client.release();
-        console.log("DEBUG - Client rilasciato");
       }
       
-      console.log("DEBUG - Inizializzazione PgSession");
       // Initialize session store with the pool
       this.sessionStore = new PgSession({
         pool: pool,
         createTableIfMissing: true,
-        tableName: 'session' // Nome tabella esplicito
+        tableName: 'session'
       });
       
       console.log('DEBUG - PostgreSQL session store inizializzato con successo');
     } catch (error) {
       console.error('ERRORE CRITICO - Failed to setup PG session store:', error);
-      // Continue using memory store if this fails
+      // Don't throw, just log the error and continue with memory store
     }
   }
 
@@ -1369,6 +1348,12 @@ export class PostgresStorage implements IStorage {
       console.error(`Error updating client active status: ${error}`);
       return { success: false, error: 'Database error' };
     }
+  }
+
+  // MIFID Methods
+  async getMifidByClient(clientId: number): Promise<Mifid | undefined> {
+    const result = await db.select().from(mifid).where(eq(mifid.clientId, clientId));
+    return result[0];
   }
 }
 

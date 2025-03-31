@@ -1,6 +1,8 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { createId } from "@paralleldrive/cuid2";
+import { relations } from "drizzle-orm";
 
 // Definizione degli stati di approvazione
 export const APPROVAL_STATUSES = ["pending", "approved", "rejected"] as const;
@@ -287,3 +289,65 @@ export const completedTasks = pgTable("completed_tasks", {
 
 export type CompletedTask = typeof completedTasks.$inferSelect;
 export type InsertCompletedTask = typeof completedTasks.$inferInsert;
+
+// MIFID Schema
+export const mifid = pgTable("mifid", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  clientId: integer("client_id").notNull().references(() => clients.id),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+
+  // Sezione 1: Dati Anagrafici e Informazioni Personali
+  address: text("address").notNull(),
+  phone: text("phone").notNull(),
+  birthDate: text("birth_date").notNull(),
+  maritalStatus: text("marital_status").notNull(),
+  employmentStatus: text("employment_status").notNull(),
+  educationLevel: text("education_level").notNull(),
+  annualIncome: integer("annual_income").notNull(),
+  monthlyExpenses: integer("monthly_expenses").notNull(),
+  debts: integer("debts").notNull(),
+  dependents: integer("dependents").notNull(),
+
+  // Sezione 2: Situazione Finanziaria Attuale
+  assets: jsonb("assets").notNull().$default(() => []), // Array vuoto come default
+
+  // Sezione 3: Obiettivi d'Investimento
+  investmentHorizon: text("investment_horizon").notNull(),
+  retirementInterest: integer("retirement_interest").notNull(),
+  wealthGrowthInterest: integer("wealth_growth_interest").notNull(),
+  incomeGenerationInterest: integer("income_generation_interest").notNull(),
+  capitalPreservationInterest: integer("capital_preservation_interest").notNull(),
+  estatePlanningInterest: integer("estate_planning_interest").notNull(),
+
+  // Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari
+  investmentExperience: text("investment_experience").notNull(),
+  pastInvestmentExperience: jsonb("past_investment_experience").notNull(), // Array di stringhe
+  financialEducation: jsonb("financial_education").notNull(), // Array di stringhe
+
+  // Sezione 5: Tolleranza al Rischio
+  riskProfile: text("risk_profile").notNull(),
+  portfolioDropReaction: text("portfolio_drop_reaction").notNull(),
+  volatilityTolerance: text("volatility_tolerance").notNull(),
+
+  // Sezione 6: Esperienza e Comportamento d'Investimento
+  yearsOfExperience: text("years_of_experience").notNull(),
+  investmentFrequency: text("investment_frequency").notNull(),
+  advisorUsage: text("advisor_usage").notNull(),
+  monitoringTime: text("monitoring_time").notNull(),
+
+  // Sezione 7: Domande Specifiche (opzionale)
+  specificQuestions: text("specific_questions"),
+});
+
+// Relazione con la tabella clients
+export const mifidRelations = relations(mifid, ({ one }) => ({
+  client: one(clients, {
+    fields: [mifid.clientId],
+    references: [clients.id],
+  }),
+}));
+
+// Tipo per i dati dell'onboarding
+export type MifidData = typeof mifid.$inferInsert;
+export type Mifid = typeof mifid.$inferSelect;

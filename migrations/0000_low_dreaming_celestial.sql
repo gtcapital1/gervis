@@ -42,6 +42,10 @@ CREATE TABLE "clients" (
 	"has_portal_access" boolean DEFAULT false,
 	"is_onboarded" boolean DEFAULT false,
 	"is_archived" boolean DEFAULT false,
+	"active" boolean DEFAULT true,
+	"onboarded_at" timestamp,
+	"activated_at" timestamp,
+	"client_segment" text,
 	"risk_profile" text,
 	"investment_experience" text,
 	"investment_goals" text[],
@@ -61,7 +65,63 @@ CREATE TABLE "clients" (
 	"onboarding_token" text,
 	"token_expiry" timestamp,
 	"created_at" timestamp DEFAULT now(),
-	"advisor_id" integer
+	"advisor_id" integer,
+	"total_assets" integer DEFAULT 0
+);
+--> statement-breakpoint
+CREATE TABLE "completed_tasks" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"advisor_id" integer NOT NULL,
+	"task_id" integer NOT NULL,
+	"completed_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "meetings" (
+	"id" serial PRIMARY KEY NOT NULL,
+	"client_id" integer,
+	"advisor_id" integer,
+	"subject" text NOT NULL,
+	"title" text,
+	"location" text DEFAULT 'zoom',
+	"date_time" timestamp NOT NULL,
+	"duration" integer DEFAULT 60,
+	"notes" text,
+	"created_at" timestamp DEFAULT now()
+);
+--> statement-breakpoint
+CREATE TABLE "mifid" (
+	"id" text PRIMARY KEY NOT NULL,
+	"client_id" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	"address" text NOT NULL,
+	"phone" text NOT NULL,
+	"birth_date" text NOT NULL,
+	"marital_status" text NOT NULL,
+	"employment_status" text NOT NULL,
+	"education_level" text NOT NULL,
+	"annual_income" integer NOT NULL,
+	"monthly_expenses" integer NOT NULL,
+	"debts" integer NOT NULL,
+	"dependents" integer NOT NULL,
+	"assets" jsonb NOT NULL,
+	"investment_horizon" text NOT NULL,
+	"retirement_interest" integer NOT NULL,
+	"wealth_growth_interest" integer NOT NULL,
+	"income_generation_interest" integer NOT NULL,
+	"capital_preservation_interest" integer NOT NULL,
+	"estate_planning_interest" integer NOT NULL,
+	"investment_experience" text NOT NULL,
+	"past_investment_experience" jsonb NOT NULL,
+	"financial_education" jsonb NOT NULL,
+	"risk_profile" text NOT NULL,
+	"portfolio_drop_reaction" text NOT NULL,
+	"volatility_tolerance" text NOT NULL,
+	"years_of_experience" text NOT NULL,
+	"investment_frequency" text NOT NULL,
+	"advisor_usage" text NOT NULL,
+	"monitoring_time" text NOT NULL,
+	"specific_questions" text
 );
 --> statement-breakpoint
 CREATE TABLE "recommendations" (
@@ -77,7 +137,6 @@ CREATE TABLE "users" (
 	"username" text NOT NULL,
 	"first_name" text,
 	"last_name" text,
-	"age" integer,
 	"company" text,
 	"is_independent" boolean DEFAULT false,
 	"password" text NOT NULL,
@@ -107,4 +166,7 @@ ALTER TABLE "assets" ADD CONSTRAINT "assets_client_id_clients_id_fk" FOREIGN KEY
 ALTER TABLE "client_logs" ADD CONSTRAINT "client_logs_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "client_logs" ADD CONSTRAINT "client_logs_created_by_users_id_fk" FOREIGN KEY ("created_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "clients" ADD CONSTRAINT "clients_advisor_id_users_id_fk" FOREIGN KEY ("advisor_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "meetings" ADD CONSTRAINT "meetings_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "meetings" ADD CONSTRAINT "meetings_advisor_id_users_id_fk" FOREIGN KEY ("advisor_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "mifid" ADD CONSTRAINT "mifid_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "recommendations" ADD CONSTRAINT "recommendations_client_id_clients_id_fk" FOREIGN KEY ("client_id") REFERENCES "public"."clients"("id") ON DELETE cascade ON UPDATE no action;

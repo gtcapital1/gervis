@@ -1,0 +1,1 @@
+ALTER TABLE "mifid" ALTER COLUMN "client_id" SET DATA TYPE integer;

@@ -24,9 +24,20 @@ import {
   Info,
   Link2,
   MessageSquare,
-  Brain
+  Brain,
+  MapPin,
+  Copy,
+  RefreshCw,
+  Building2, // Per real estate
+  Coins, // Per cash
+  LineChart, // Per equity
+  Wallet, // Per bonds
+  PiggyBank, // Per crypto
+  Landmark, // Per commodities
+  BriefcaseIcon, // Per alternative
+  Banknote // Per other
 } from "lucide-react";
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/dashboard/ClientEditDialog";
 import { ClientSettings } from "@/components/settings/ClientSettings";
 import { ClientPdfGenerator } from "@/components/dashboard/ClientPdfGenerator";
@@ -88,41 +99,140 @@ interface OnboardingParams {
   sendEmail?: boolean;
 }
 
+// Define colors for the pie chart
+const COLORS = [
+  "#2563eb", // Medium dark blue
+  "#3b82f6", // Medium blue
+  "#60a5fa", // Medium light blue
+  "#93c5fd", // Light blue
+  "#1e40af", // Dark blue
+  "#2563eb", // Medium dark blue
+  "#3b82f6", // Medium blue
+  "#bfdbfe"  // Very light blue
+];
+
+// Define the asset type to fix TypeScript errors
+type AssetType = {
+  id: number;
+  clientId: number;
+  category: string;
+  value: number;
+  description: string;
+  createdAt: string;
+};
+
+// Define the MIFID type
+type MifidType = {
+  id: string;
+  clientId: number;
+  createdAt: string;
+  updatedAt: string;
+  address: string;
+  phone: string;
+  birthDate: string;
+  maritalStatus: string;
+  employmentStatus: string;
+  educationLevel: string;
+  annualIncome: number;
+  monthlyExpenses: number;
+  debts: number;
+  dependents: number;
+  assets: AssetType[];
+  investmentHorizon: string;
+  retirementInterest: number;
+  wealthGrowthInterest: number;
+  incomeGenerationInterest: number;
+  capitalPreservationInterest: number;
+  estatePlanningInterest: number;
+  investmentExperience: string;
+  pastInvestmentExperience: string[];
+  financialEducation: string[];
+  riskProfile: string;
+  portfolioDropReaction: string;
+  volatilityTolerance: string;
+  yearsOfExperience: string;
+  investmentFrequency: string;
+  advisorUsage: string;
+  monitoringTime: string;
+  specificQuestions: string | null;
+};
+
+// Define the query response type
+type ClientQueryResponse = {
+  success: boolean;
+  client: Client;
+  assets: AssetType[];
+  recommendations: any[];
+  mifid: MifidType | null;
+};
+
 export default function ClientDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const clientId = parseInt(id || "0");
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const { t } = useTranslation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   
-  // Fetch client details
+  // Redirect if not authenticated
+  React.useEffect(() => {
+    if (!isAuthLoading && !user) {
+      console.log("DEBUG - Utente non autenticato, redirect a /login");
+      setLocation("/login");
+    }
+  }, [user, isAuthLoading, setLocation]);
+
+  // Show loading while checking auth
+  if (isAuthLoading) {
+    return (
+      <div className="flex justify-center items-center h-full">
+        <p>{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  // Show error if not authenticated
+  if (!user) {
+    return null; // Will redirect in useEffect
+  }
+  
+  // Fetch client details and MIFID data
   const { 
     data: clientData, 
     isLoading, 
-    isError 
-  } = useQuery<{success: boolean; client: Client; assets: any[]; recommendations: any[]}>({
-    queryKey: [`/api/clients/${clientId}`],
-    enabled: !isNaN(clientId)
+    isError,
+    error 
+  } = useQuery<ClientQueryResponse>({
+    queryKey: ['client', clientId],
+    queryFn: async () => {
+      console.log("DEBUG - Fetching client data for ID:", clientId);
+      const response = await apiRequest(`/api/clients/${clientId}`);
+      console.log("DEBUG - API Response:", response);
+      
+      // La risposta API ha già la struttura corretta
+      return response;
+    },
+    enabled: !isNaN(clientId) && clientId > 0 && !!user
   });
   
-  // Estrai il client e gli asset dalla risposta
+  // Estrai il client, gli asset e i dati MIFID dalla risposta
   const client = clientData?.client;
+  const mifid = clientData?.mifid;
+  
+  // Debug logs per verificare i dati
+  console.log("DEBUG - Client Data:", clientData);
+  console.log("DEBUG - Client:", client);
+  console.log("DEBUG - Is Client Onboarded:", client?.isOnboarded);
+  console.log("DEBUG - Error:", error);
+  
   // Filtra gli asset per mostrare solo quelli con valore maggiore di 0
-  const assets = (clientData?.assets || []).filter(asset => asset.value > 0);
+  const assets = (clientData?.assets || []).filter((asset: AssetType) => asset.value > 0);
   const recommendations = clientData?.recommendations || [];
   
-  // Define the asset type to fix TypeScript errors
-  type AssetType = {
-    id: number, 
-    clientId: number, 
-    category: string, 
-    value: number, 
-    description: string, 
-    createdAt: string
-  };
+  // Calculate total asset value for percentage calculations
+  const totalValue = assets.reduce((sum: number, asset: AssetType) => sum + asset.value, 0);
   
   // Definiamo variabili fittizie per compatibilità con il codice esistente
   const isLoadingAssets = isLoading;
@@ -353,9 +463,6 @@ Grazie per la tua fiducia e collaborazione.`
     return new Date(date).toLocaleDateString();
   }
   
-  // Calculate total asset value for percentage calculations
-  const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -375,658 +482,471 @@ Grazie per la tua fiducia e collaborazione.`
       </div>
     );
   }
-  
-  return (
-    <>
-      <div className="flex flex-col h-full">
-        <div className="p-4 sm:p-6">
-          <div className="flex items-center mb-6">
-            <Button variant="ghost" onClick={() => setLocation("/clients")} className="mr-4">
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              {t('client.back')}
-            </Button>
+
+  // Check if client is onboarded - simplified to only check isOnboarded
+  if (!client.isOnboarded) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="flex flex-col space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setLocation("/dashboard")}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <h1 className="text-2xl font-bold">{client.name}</h1>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button 
+                onClick={handleGenerateOnboardingLink}
+                disabled={sendOnboardingMutation.isPending}
+                className="bg-accent hover:bg-accent/90"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
+              </Button>
+            </div>
           </div>
-          
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-            <PageHeader 
-              title={client.name}
-              subtitle={t('client.client_details')}
-            >
-              {/* Badges */}
-              <div className="flex flex-wrap gap-2">
-                {client.isArchived && (
-                  <Badge className="bg-amber-600">{t('dashboard.archived')}</Badge>
-                )}
-                {client.isOnboarded ? (
-                  <Badge className="bg-green-600">{t('dashboard.onboarded')}</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-red-500">{t('dashboard.not_onboarded')}</Badge>
+
+          {/* Onboarding Required Message */}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('client.onboarding_required')}</CardTitle>
+              <CardDescription>
+                {t('client.onboarding_required_description')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                <AlertTriangle className="h-12 w-12 text-amber-500" />
+                <p className="text-center text-muted-foreground">
+                  {t('client.onboard_first')}
+                </p>
+                {!client.onboardingToken && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleGenerateOnboardingLink}
+                  >
+                    <Link2 className="mr-2 h-4 w-4" />
+                    {t('client.generate_onboarding_link')}
+                  </Button>
                 )}
               </div>
-            </PageHeader>
-          </div>
-          
-          <div className="flex flex-wrap gap-2 mb-6">
-            {/* Mostra il PDF generator se ci sono asset, indipendentemente dallo stato di onboarding */}
-            {assets.length > 0 && (
-              <ClientPdfGenerator 
-                client={{
-                  ...client,
-                  birthDate: null,
-                  isOnboarded: Boolean(client.isOnboarded),
-                  riskProfile: client.riskProfile || null,
-                  investmentGoals: client.investmentGoals || [],
-                  investmentHorizon: client.investmentHorizon || null,
-                  investmentExperience: client.investmentExperience || null
-                }}
-                assets={assets}
-                advisorSignature={user?.signature || null}
-                companyLogo={user?.companyLogo || null}
-                companyInfo={user?.companyInfo || null}
-              />
-            )}
-            <Button 
-              className="bg-accent hover:bg-accent/90 flex items-center"
-              onClick={() => setIsEditDialogOpen(true)}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{t('client.edit_client')}</span>
-              <span className="sm:hidden">Modifica</span>
-            </Button>
-            <Button 
-              className="bg-primary hover:bg-primary/90 flex items-center"
-              onClick={() => setLocation(`/clients/${clientId}/logs`)}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">{t('client.view_logs') || "Visualizza log"}</span>
-              <span className="sm:hidden">Log</span>
-            </Button>
-          </div>
-        </div>
-        
-        <Separator />
-        
-        <div className="p-6 flex-1 overflow-auto">
-          {!client.isOnboarded ? (
-            <Card className="mb-6">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-xl">{t('client.onboarding_required')}</CardTitle>
+            </CardContent>
+          </Card>
+
+          {/* Onboarding Link Section */}
+          {onboardingLink && (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('client.onboarding_link')}</CardTitle>
                 <CardDescription>
-                  {t('client.onboarding_required_desc')}
+                  {t('client.onboarding_link_description')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {onboardingLink ? (
-                  <div className="space-y-4">
-                    <div className="p-3 bg-muted rounded-md overflow-x-auto">
-                      <p className="text-sm font-mono break-all">{onboardingLink}</p>
-                    </div>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <Button 
-                        variant="outline" 
-                        onClick={() => {
-                          navigator.clipboard.writeText(onboardingLink);
-                          toast({
-                            title: t('client.link_copied'),
-                            description: t('client.link_copied_desc')
-                          });
-                        }}
-                      >
-                        {t('client.copy_link')}
-                      </Button>
-                      <Button 
-                        className="bg-accent hover:bg-accent/90"
-                        onClick={handleOpenEmailDialog}
-                      >
-                        <Send className="mr-2 h-4 w-4" />
-                        {t('client.send_email')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleGenerateNewLink}
-                      >
-                        {t('client.generate_new_link')}
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {t('client.share_link_desc')}
-                    </p>
+                <div className="flex flex-col space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      readOnly
+                      value={onboardingLink}
+                      className="font-mono text-sm"
+                    />
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => {
+                        navigator.clipboard.writeText(onboardingLink);
+                        toast({
+                          title: t('common.copied'),
+                          description: t('common.link_copied'),
+                        });
+                      }}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
                   </div>
-                ) : (
-                  <Button 
-                    onClick={handleGenerateOnboardingLink}
-                    disabled={sendOnboardingMutation.isPending}
-                    className="bg-accent hover:bg-accent/90"
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
-                  </Button>
-                )}
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateNewLink}
+                    >
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      {t('client.generate_new_link')}
+                    </Button>
+                    <Button
+                      onClick={handleOpenEmailDialog}
+                    >
+                      <Mail className="mr-2 h-4 w-4" />
+                      {t('client.send_email')}
+                    </Button>
+                  </div>
+                </div>
               </CardContent>
             </Card>
-          ) : null}
-          
-          <div className="space-y-6">
-            {/* Top row: Personal Information and Investment Profile side by side */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 overflow-x-auto">
-              {/* First Box: Personal Information */}
-              <Card className="lg:col-span-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">{t('client.personal_information')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center">
-                      <User className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">{t('client.name')}:</span>
-                      <span>{client.name}</span>
-                    </div>
-                    <div className="flex items-center">
-                      <Mail className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">{t('client.email')}:</span>
-                      <span>{client.email}</span>
-                    </div>
-                    {client.phone && (
+          )}
+        </div>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex flex-col space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setLocation("/dashboard")}
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <h1 className="text-2xl font-bold">{client?.name}</h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            {client?.isOnboarded ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditDialogOpen(true)}
+              >
+                <Edit className="h-4 w-4 mr-2" />
+                {t('client.edit')}
+              </Button>
+            ) : (
+              <Button 
+                onClick={handleGenerateOnboardingLink}
+                disabled={sendOnboardingMutation.isPending}
+                className="bg-accent hover:bg-accent/90"
+              >
+                <Send className="mr-2 h-4 w-4" />
+                {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="grid grid-cols-1 gap-6">
+          {/* Personal Information and Financial Situation */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Left column: Personal Information */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">{t('client.personal_info')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {mifid && (
+                    <>
+                      <div className="flex items-center">
+                        <MapPin className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.address')}:</span>
+                        <span>{mifid.address}</span>
+                      </div>
                       <div className="flex items-center">
                         <Phone className="h-4 w-4 mr-2 opacity-70" />
                         <span className="text-sm text-muted-foreground mr-2">{t('client.phone')}:</span>
-                        <span>{client.phone}</span>
+                        <span>{mifid.phone}</span>
                       </div>
-                    )}
-                    {client.address && (
                       <div className="flex items-center">
-                        <Home className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.address')}:</span>
-                        <span>{client.address}</span>
+                        <Calendar className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.birth_date')}:</span>
+                        <span>{mifid.birthDate}</span>
                       </div>
-                    )}
-                    {client.taxCode && (
                       <div className="flex items-center">
-                        <FileText className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.tax_code')}:</span>
-                        <span>{client.taxCode}</span>
+                        <User className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.marital_status')}:</span>
+                        <span>{t(`marital_status.${mifid.maritalStatus}`)}</span>
                       </div>
-                    )}
-                    {client.employmentStatus && (
                       <div className="flex items-center">
                         <Briefcase className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.employment')}:</span>
-                        <span>{client.employmentStatus}</span>
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.employment_status')}:</span>
+                        <span>{t(`employment_status.${mifid.employmentStatus}`)}</span>
                       </div>
-                    )}
-                    {client.dependents !== undefined && (
                       <div className="flex items-center">
-                        <Users className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.dependents')}:</span>
-                        <span>{client.dependents}</span>
-                      </div>
-                    )}
-                    <div className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-2 opacity-70" />
-                      <span className="text-sm text-muted-foreground mr-2">{t('client.created')}:</span>
-                      <span>{formatDate(client.createdAt)}</span>
-                    </div>
-                  </div>
-                  
-                  {/* Financial Information */}
-                  {(client.annualIncome !== undefined || 
-                    client.monthlyExpenses !== undefined || 
-                    client.netWorth !== undefined) && (
-                    <>
-                      <Separator className="my-3" />
-                      <div className="grid grid-cols-1 gap-3 mt-3">
-                        {client.annualIncome ? (
-                          <div>
-                            <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
-                            <span className="text-lg font-medium">€{client.annualIncome.toLocaleString()}</span>
-                          </div>
-                        ) : null}
-                        {client.monthlyExpenses ? (
-                          <div>
-                            <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
-                            <span className="text-lg font-medium">€{client.monthlyExpenses.toLocaleString()}</span>
-                          </div>
-                        ) : null}
-                        {client.netWorth ? (
-                          <div>
-                            <span className="text-sm text-muted-foreground block">{t('client.net_worth')}:</span>
-                            <span className="text-lg font-medium">€{client.netWorth.toLocaleString()}</span>
-                          </div>
-                        ) : null}
+                        <FileText className="h-4 w-4 mr-2 opacity-70" />
+                        <span className="text-sm text-muted-foreground mr-2">{t('client.education_level')}:</span>
+                        <span>{t(`education_levels.${mifid.educationLevel}`)}</span>
                       </div>
                     </>
                   )}
-                </CardContent>
-              </Card>
-              
-              {/* Second Box: Investment Profile */}
-              <Card className="lg:col-span-3">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                    <div className="space-y-4 md:col-span-1">
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
-                        {client.riskProfile ? (
-                          <Badge 
-                            className="capitalize"
-                            style={{
-                              backgroundColor: 
-                                client.riskProfile === "conservative" ? "#93c5fd" : // Light blue
-                                client.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
-                                client.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
-                                client.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
-                                client.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
-                                "#6b7280", // Gray default
-                              color: "#ffffff"
-                            }}
-                          >
-                            {t(`risk_profiles.${client.riskProfile}`)}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            {t('client.not_assessed')}
-                          </Badge>
-                        )}
-                      </div>
-                    
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
-                        {client.investmentExperience ? (
-                          <Badge 
-                            className="capitalize"
-                            style={{
-                              backgroundColor: 
-                                client.investmentExperience === "none" ? "#dbeafe" : // Very light blue
-                                client.investmentExperience === "beginner" ? "#93c5fd" : // Light blue
-                                client.investmentExperience === "intermediate" ? "#60a5fa" : // Medium light blue
-                                client.investmentExperience === "advanced" ? "#3b82f6" : // Medium blue
-                                client.investmentExperience === "expert" ? "#1e40af" : // Dark blue
-                                "#6b7280", // Gray default
-                              color: client.investmentExperience === "none" || client.investmentExperience === "beginner" ? "#1e3a8a" : "#ffffff"
-                            }}
-                          >
-                            {t(`experience_levels.${client.investmentExperience}`)}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            {t('client.not_specified')}
-                          </Badge>
-                        )}
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
-                        {client.investmentHorizon ? (
-                          <Badge 
-                            className="capitalize"
-                            style={{
-                              backgroundColor: 
-                                client.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
-                                client.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
-                                client.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
-                                "#6b7280", // Gray default
-                              color: client.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
-                            }}
-                          >
-                            {t(`investment_horizons.${client.investmentHorizon}`)}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline">
-                            {t('client.not_specified')}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                      
-                    {/* Grafico a ragno per gli obiettivi di investimento */}
-                    {/* Mostro il grafico radar sempre quando il cliente è onboarded */}
-                    {/* Grafico radar degli interessi di investimento nella colonna 2 */}
-                    {client.isOnboarded && (
-                      <div className="md:col-span-4">
-                        <span className="text-sm font-medium block mb-2">{t('client.investment_priorities')}</span>
-                        <div className="h-[270px] w-full">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <RadarChart outerRadius={90} data={[
-                              {
-                                goal: t('investment_goals.retirement'),
-                                value: client.retirementInterest || 3,
-                                fullMark: 5
-                              },
-                              {
-                                goal: t('investment_goals.wealth_growth'),
-                                value: client.wealthGrowthInterest || 3,
-                                fullMark: 5
-                              },
-                              {
-                                goal: t('investment_goals.income_generation'),
-                                value: client.incomeGenerationInterest || 3,
-                                fullMark: 5
-                              },
-                              {
-                                goal: t('investment_goals.capital_preservation'),
-                                value: client.capitalPreservationInterest || 3,
-                                fullMark: 5
-                              },
-                              {
-                                goal: t('investment_goals.estate_planning'),
-                                value: client.estatePlanningInterest || 3,
-                                fullMark: 5
-                              }
-                            ]}>
-                              <PolarGrid />
-                              <PolarAngleAxis dataKey="goal" />
-                              <PolarRadiusAxis angle={90} domain={[0, 5]} tick={false} />
-                              <Radar 
-                                name={t('client.investment_priorities')} 
-                                dataKey="value" 
-                                stroke="#3b82f6" 
-                                fill="#3b82f6" 
-                                fillOpacity={0.6} 
-                              />
-                              <Tooltip />
-                            </RadarChart>
-                          </ResponsiveContainer>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Sezione Interessi Personali */}
-                    {client.personalInterests && client.personalInterests.length > 0 && (
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.personal_interests')}:</span>
-                        <div className="flex flex-wrap gap-2">
-                          {client.personalInterests.map(interest => (
-                            <Badge 
-                              key={interest} 
-                              className="capitalize"
-                              style={{
-                                backgroundColor: "#dbeafe", // Light blue
-                                color: "#1e3a8a" // Dark blue text
-                              }}
-                            >
-                              {t(`personal_interests.${interest}`)}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-            
-            {/* Bottom row: Asset Allocation full width */}
-            {/* Mostra gli asset se ce ne sono, indipendentemente dallo stato di onboarding */}
-            {assets.length > 0 ? (
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
-                  <CardDescription>
-                    {t('client.portfolio_snapshot')}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Tabs defaultValue="portfolio">
-                    <TabsList className="mb-4">
-                      <TabsTrigger value="portfolio">
-                        <PieChart className="mr-2 h-4 w-4" />
-                        {t('client.portfolio_overview')}
-                      </TabsTrigger>
-                    </TabsList>
-                    
-                    <TabsContent value="portfolio" className="space-y-6">
-                      {isLoadingAssets ? (
-                        <div className="flex justify-center items-center h-32">
-                          <p>{t('client.loading_assets')}</p>
-                        </div>
-                      ) : assets.length === 0 ? (
-                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
-                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Left side: Asset list */}
-                          <div>
-                            <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
-                            <div className="space-y-2">
-                              {assets.map((asset) => (
-                                <div key={asset.id} className="flex items-center justify-between p-2 border rounded bg-black text-white">
-                                  <div className="flex items-center">
-                                    <div className="w-2 h-2 rounded-full mr-2" 
-                                      style={{
-                                        backgroundColor: 
-                                          asset.category === "equity" ? "#2563eb" : // Medium dark blue
-                                          asset.category === "real_estate" ? "#3b82f6" : // Medium blue
-                                          asset.category === "bonds" ? "#60a5fa" : // Medium light blue
-                                          asset.category === "cash" ? "#93c5fd" : // Light blue
-                                          asset.category === "private_equity" ? "#1e40af" : // Dark blue
-                                          asset.category === "venture_capital" ? "#2563eb" : // Medium dark blue
-                                          asset.category === "cryptocurrencies" ? "#3b82f6" : // Medium blue
-                                          "#bfdbfe" // Very light blue
-                                      }}
-                                    />
-                                    <span className="font-medium capitalize">{t(`asset_categories.${asset.category}`)}</span>
-                                  </div>
-                                  <div className="font-semibold">€{asset.value.toLocaleString()}</div>
-                                </div>
-                              ))}
-                              <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
-                                <div className="font-semibold">{t('client.total')}</div>
-                                <div className="font-bold">€{totalValue.toLocaleString()}</div>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          {/* Right side: Pie chart */}
-                          <div>
-                            <h3 className="text-lg font-medium mb-3">{t('client.asset_split')}</h3>
-                            <div className="h-[200px] sm:h-[180px] flex items-center justify-center">
-                              {(() => {
-                                const COLORS = {
-                                  equity: "#2563eb", // Medium dark blue
-                                  real_estate: "#3b82f6", // Medium blue
-                                  bonds: "#60a5fa", // Medium light blue
-                                  cash: "#93c5fd", // Light blue
-                                  private_equity: "#1e40af", // Dark blue
-                                  venture_capital: "#2563eb", // Medium dark blue
-                                  cryptocurrencies: "#3b82f6", // Medium blue
-                                  other: "#bfdbfe" // Very light blue
-                                };
-                                
-                                // Group assets by category
-                                const assetsByCategory: Record<string, number> = {};
-                                assets.forEach(asset => {
-                                  if (assetsByCategory[asset.category]) {
-                                    assetsByCategory[asset.category] += asset.value;
-                                  } else {
-                                    assetsByCategory[asset.category] = asset.value;
-                                  }
-                                });
-                                
-                                // Convert to data format needed for pie chart
-                                const data = Object.entries(assetsByCategory).map(([category, value]) => ({
-                                  name: t(`asset_categories.${category}`), // Utilizziamo le chiavi tradotte
-                                  value,
-                                  category
-                                }));
-                                
-                                return (
-                                  <ResponsiveContainer width="100%" height="100%">
-                                    <RechartsPieChart>
-                                      <Pie
-                                        data={data}
-                                        cx="50%"
-                                        cy="50%"
-                                        labelLine={false}
-                                        outerRadius={65}
-                                        fill="#8884d8"
-                                        dataKey="value"
-                                        nameKey="name"
-                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                                      >
-                                        {data.map((entry, index) => (
-                                          <Cell 
-                                            key={`cell-${index}`} 
-                                            fill={COLORS[entry.category as keyof typeof COLORS] || COLORS.other}
-                                          />
-                                        ))}
-                                      </Pie>
-                                      <Tooltip 
-                                        formatter={(value: number) => [`€${value.toLocaleString()}`, 'Value']}
-                                      />
-                                    </RechartsPieChart>
-                                  </ResponsiveContainer>
-                                );
-                              })()}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-                    
-                    <TabsContent value="assets" className="space-y-6">
-                      {isLoadingAssets ? (
-                        <div className="flex justify-center items-center h-32">
-                          <p>{t('client.loading_assets')}</p>
-                        </div>
-                      ) : assets.length === 0 ? (
-                        <div className="flex flex-col justify-center items-center h-32 space-y-4">
-                          <p className="text-muted-foreground">{t('client.no_assets')}</p>
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => setIsEditDialogOpen(true)}
-                          >
-                            <PlusCircle className="mr-2 h-4 w-4" />
-                            {t('client.add_asset')}
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            <div className="bg-black text-white p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">{t('asset_categories.real_estate')}</h4>
-                              <p className="text-xl font-bold">
-                                €{assets.filter(a => a.category === "real_estate").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="bg-black text-white p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">{t('asset_categories.equity')}</h4>
-                              <p className="text-xl font-bold">
-                                €{assets.filter(a => a.category === "equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="bg-black text-white p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">{t('asset_categories.bonds')}</h4>
-                              <p className="text-xl font-bold">
-                                €{assets.filter(a => a.category === "bonds").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="bg-black text-white p-4 rounded-lg">
-                              <h4 className="font-semibold mb-2">{t('asset_categories.cash')}</h4>
-                              <p className="text-xl font-bold">
-                                €{assets.filter(a => a.category === "cash").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                              </p>
-                            </div>
-                            {assets.some(a => a.category === "private_equity") && (
-                              <div className="bg-black text-white p-4 rounded-lg">
-                                <h4 className="font-semibold mb-2">{t('asset_categories.private_equity')}</h4>
-                                <p className="text-xl font-bold">
-                                  €{assets.filter(a => a.category === "private_equity").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                                </p>
-                              </div>
-                            )}
-                            {assets.some(a => a.category === "cryptocurrencies") && (
-                              <div className="bg-black text-white p-4 rounded-lg">
-                                <h4 className="font-semibold mb-2">{t('asset_categories.cryptocurrencies')}</h4>
-                                <p className="text-xl font-bold">
-                                  €{assets.filter(a => a.category === "cryptocurrencies").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                                </p>
-                              </div>
-                            )}
-                            {assets.some(a => a.category === "venture_capital") && (
-                              <div className="bg-black text-white p-4 rounded-lg">
-                                <h4 className="font-semibold mb-2">{t('asset_categories.venture_capital')}</h4>
-                                <p className="text-xl font-bold">
-                                  €{assets.filter(a => a.category === "venture_capital").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                                </p>
-                              </div>
-                            )}
-                            {assets.some(a => a.category === "other") && (
-                              <div className="bg-black text-white p-4 rounded-lg">
-                                <h4 className="font-semibold mb-2">{t('asset_categories.other')}</h4>
-                                <p className="text-xl font-bold">
-                                  €{assets.filter(a => a.category === "other").reduce((sum, a) => sum + a.value, 0).toLocaleString()}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                          
-                          <div className="flex justify-center mt-6">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setIsEditDialogOpen(true)}
-                            >
-                              <Edit className="mr-2 h-4 w-4" />
-                              {t('client.edit_assets')}
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-                    </TabsContent>
-                  </Tabs>
-                </CardContent>
-              </Card>
-            ) : null}
-            
-            {/* Contenitore per Sigmund */}
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>
-                  {t('client.ai_analysis_center') || "Centro Analisi AI"}
-                </CardTitle>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Right column: Financial Situation */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">{t('client.current_financial_situation')}</CardTitle>
               </CardHeader>
               <CardContent>
-                {/* Sigmund (ex AI Profile) */}
                 <div className="space-y-4">
-                  {client.isOnboarded ? (
-                    <AiClientProfile clientId={clientId} />
-                  ) : (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Sigmund</CardTitle>
-                        <CardDescription>
-                          {t('client.profile_incomplete_description')}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                          <AlertTriangle className="h-12 w-12 text-amber-500" />
-                          <p className="text-center text-muted-foreground">
-                            {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
-                          </p>
-                          {!client.onboardingToken && (
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={handleGenerateOnboardingLink}
-                            >
-                              <Link2 className="mr-2 h-4 w-4" />
-                              {t('client.generate_onboarding_link')}
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
+                  {mifid && (
+                    <>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
+                        <span className="text-lg font-medium">€{mifid.annualIncome.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
+                        <span className="text-lg font-medium">€{mifid.monthlyExpenses.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">{t('client.debts')}:</span>
+                        <span className="text-lg font-medium">€{mifid.debts.toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-sm text-muted-foreground block">{t('client.dependents')}:</span>
+                        <span className="text-lg font-medium">{mifid.dependents}</span>
+                      </div>
+                    </>
                   )}
                 </div>
               </CardContent>
             </Card>
           </div>
+          
+          {/* Investment Profile */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Left column: Risk Profile and Investment Horizon */}
+                <div className="space-y-4">
+                  {mifid && (
+                    <>
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              mifid.riskProfile === "conservative" ? "#93c5fd" : // Light blue
+                              mifid.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
+                              mifid.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
+                              mifid.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
+                              mifid.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
+                              "#6b7280", // Gray default
+                            color: "#ffffff"
+                          }}
+                        >
+                          {t(`risk_profiles.${mifid.riskProfile}`)}
+                        </Badge>
+                      </div>
+                      
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              mifid.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
+                              mifid.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
+                              mifid.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
+                              "#6b7280", // Gray default
+                            color: mifid.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
+                          }}
+                        >
+                          {t(`investment_horizons.${mifid.investmentHorizon}`)}
+                        </Badge>
+                      </div>
+                    </>
+                  )}
+                </div>
+                
+                {/* Right column: Investment Goals */}
+                <div className="space-y-4">
+                  <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-500">#1</span>
+                      <span className="text-sm">{t('investment_goals.retirement')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-500">#2</span>
+                      <span className="text-sm">{t('investment_goals.wealth_growth')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-500">#3</span>
+                      <span className="text-sm">{t('investment_goals.income_generation')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-500">#4</span>
+                      <span className="text-sm">{t('investment_goals.capital_preservation')}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-medium text-gray-500">#5</span>
+                      <span className="text-sm">{t('investment_goals.estate_planning')}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* Asset Allocation */}
+          {assets.length > 0 ? (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
+                <CardDescription>
+                  {t('client.portfolio_snapshot')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Left side: Asset list */}
+                  <div>
+                    <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
+                    <div className="space-y-2">
+                      {assets.map((asset) => {
+                        // Funzione per ottenere l'icona appropriata in base alla categoria
+                        const getAssetIcon = (category: string) => {
+                          switch (category.toLowerCase()) {
+                            case 'real_estate':
+                              return <Building2 className="h-4 w-4 mr-2" />;
+                            case 'equity':
+                              return <LineChart className="h-4 w-4 mr-2" />;
+                            case 'bonds':
+                              return <Wallet className="h-4 w-4 mr-2" />;
+                            case 'cash':
+                              return <Coins className="h-4 w-4 mr-2" />;
+                            case 'crypto':
+                              return <PiggyBank className="h-4 w-4 mr-2" />;
+                            case 'commodities':
+                              return <Landmark className="h-4 w-4 mr-2" />;
+                            case 'alternative':
+                              return <BriefcaseIcon className="h-4 w-4 mr-2" />;
+                            default:
+                              return <Banknote className="h-4 w-4 mr-2" />;
+                          }
+                        };
+
+                        return (
+                          <div key={asset.id} className="flex items-center justify-between p-2 border rounded bg-white">
+                            <div className="flex items-center">
+                              {getAssetIcon(asset.category)}
+                              <span className="font-medium capitalize">{t(`asset_categories.${asset.category}`)}</span>
+                            </div>
+                            <div className="font-semibold">€{asset.value.toLocaleString()}</div>
+                          </div>
+                        );
+                      })}
+                      <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
+                        <div className="font-semibold">{t('client.total')}</div>
+                        <div className="font-bold">€{totalValue.toLocaleString()}</div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Right side: Pie chart */}
+                  <div className="h-[250px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsPieChart>
+                        <Pie
+                          data={assets}
+                          dataKey="value"
+                          nameKey="category"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          label={({ name, value }) => {
+                            // Formatta il valore in formato compatto (es. 100k, 1.1m)
+                            const formatValue = (val: number) => {
+                              if (val >= 1000000) {
+                                return `${(val / 1000000).toFixed(1)}m`;
+                              } else if (val >= 1000) {
+                                return `${(val / 1000).toFixed(0)}k`;
+                              }
+                              return val.toString();
+                            };
+                            return `${t(`asset_categories.${name}`)} (${formatValue(value)})`;
+                          }}
+                        >
+                          {assets.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => `€${value.toLocaleString()}`}
+                          labelFormatter={(label) => t(`asset_categories.${label}`)}
+                        />
+                      </RechartsPieChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ) : null}
+          
+          {/* Contenitore per Sigmund */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>
+                {t('client.ai_analysis_center') || "Centro Analisi AI"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Sigmund (ex AI Profile) */}
+              <div className="space-y-4">
+                {client?.isOnboarded ? (
+                  <AiClientProfile clientId={clientId} />
+                ) : (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Sigmund</CardTitle>
+                      <CardDescription>
+                        {t('client.profile_incomplete_description')}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                        <AlertTriangle className="h-12 w-12 text-amber-500" />
+                        <p className="text-center text-muted-foreground">
+                          {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
+                        </p>
+                        {!client?.onboardingToken && (
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={handleGenerateOnboardingLink}
+                          >
+                            <Link2 className="mr-2 h-4 w-4" />
+                            {t('client.generate_onboarding_link')}
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+              {recommendations.map((rec, index) => (
+                <div key={index} className="p-4 border rounded-lg bg-white">
+                  <div className="flex items-start space-x-4">
+                    <div className="flex-shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
+                        <Brain className="h-4 w-4 text-accent" />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                      <h4 className="font-medium">{rec.title}</h4>
+                      <p className="text-sm text-muted-foreground">{rec.description}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         </div>
       </div>
       
@@ -1125,6 +1045,6 @@ Grazie per la tua fiducia e collaborazione.`
           userId={user.id}
         />
       )}
-    </>
+    </div>
   );
 }

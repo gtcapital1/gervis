@@ -191,9 +191,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               console.log(`Item ${index} actions:`, actions);
               
               return (
-                <li key={index} className="border-l-2 border-primary bg-black text-white pl-3 py-3 px-4 rounded-md shadow-sm">
+                <li key={index} className="border-l-2 border-primary bg-white text-gray-900 pl-3 py-3 px-4 rounded-md shadow-sm">
                   {title && <h4 className="font-semibold text-sm text-blue-400">{title}</h4>}
-                  <p className="text-sm text-white mt-2">{description || JSON.stringify(item)}</p>
+                  <p className="text-sm text-gray-900 mt-2">{description || JSON.stringify(item)}</p>
                   
                   {/* Mostra le azioni raccomandate se presenti */}
                   {Array.isArray(actions) && actions.length > 0 && (
@@ -201,7 +201,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                       <h5 className="text-xs font-medium text-blue-400 uppercase tracking-wide mb-2">Azioni consigliate</h5>
                       <ul className="space-y-1">
                         {actions.map((action, actionIndex) => (
-                          <li key={actionIndex} className="text-sm flex items-start text-white">
+                          <li key={actionIndex} className="text-sm flex items-start text-gray-900">
                             <svg 
                               xmlns="http://www.w3.org/2000/svg" 
                               width="24" 
@@ -248,11 +248,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       // Se ha una struttura logica con titolo/descrizione
       if (content.title || content.titolo || content.description || content.descrizione) {
         return (
-          <div className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
+          <div className="border-l-2 border-gray-700 bg-white text-gray-900 pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
             {(content.title || content.titolo) && (
               <h4 className="font-semibold text-sm text-blue-400">{content.title || content.titolo}</h4>
             )}
-            <p className="text-sm text-white mt-1">
+            <p className="text-sm text-gray-900 mt-1">
               {content.description || content.descrizione || content.content || content.contenuto || ''}
             </p>
           </div>
@@ -265,9 +265,9 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         return (
           <div className="space-y-2">
             {Object.entries(content).map(([key, value], index) => (
-              <div key={index} className="border-l-2 border-gray-700 bg-black text-white pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
+              <div key={index} className="border-l-2 border-gray-700 bg-white text-gray-900 pl-3 py-2 px-3 rounded-md shadow-sm mb-2">
                 <h4 className="font-semibold text-sm capitalize text-blue-400">{key.replace(/_/g, ' ')}</h4>
-                <div className="text-sm text-white mt-1">
+                <div className="text-sm text-gray-900 mt-1">
                   {typeof value === 'string' ? value : JSON.stringify(value)}
                 </div>
               </div>

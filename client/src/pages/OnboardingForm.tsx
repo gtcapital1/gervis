@@ -12,6 +12,12 @@ import {
   ArrowRight,
   CheckCircle2,
   HomeIcon,
+  Wallet,
+  Target,
+  BookOpen,
+  ShieldAlert,
+  Settings,
+  MessageSquare,
 } from "lucide-react";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -32,54 +38,18 @@ import {
   INVESTMENT_HORIZONS,
   PERSONAL_INTERESTS
 } from "@shared/schema";
+import { Loader2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { MIFID_SCHEMA, type MifidData } from "@shared/schemas";
 
 // Define the form schema
 const assetSchema = z.object({
-  value: z.coerce.number().min(1, "Value must be greater than 0"),
+  value: z.coerce.number().min(0, "Il valore non può essere negativo"),
   category: z.string().refine(val => ASSET_CATEGORIES.includes(val as any), {
-    message: "Please select a valid category"
+    message: "Seleziona una categoria valida"
   }),
   description: z.string().optional(),
 });
-
-const onboardingFormSchema = z.object({
-  // Personal Information
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  phone: z.string().min(5, "Phone number must be at least 5 characters"),
-  taxCode: z.string().min(3, "Tax code must be at least 3 characters"),
-  employmentStatus: z.string().min(1, "Employment status is required"),
-  annualIncome: z.coerce.number().min(0, "Annual income must be 0 or greater"),
-  monthlyExpenses: z.coerce.number().min(0, "Monthly expenses must be 0 or greater"),
-  netWorth: z.coerce.number().min(0, "Net worth must be 0 or greater"),
-  dependents: z.coerce.number().min(0, "Number of dependents must be 0 or greater"),
-  
-  // Investment Profile
-  riskProfile: z.string().refine(val => RISK_PROFILES.includes(val as any), {
-    message: "Please select a valid risk profile"
-  }),
-  investmentExperience: z.string().refine(val => EXPERIENCE_LEVELS.includes(val as any), {
-    message: "Please select a valid experience level"
-  }),
-  investmentHorizon: z.string().refine(val => INVESTMENT_HORIZONS.includes(val as any), {
-    message: "Please select a valid investment horizon"
-  }),
-
-  // Interessi di investimento (scala 1-5)
-  retirementInterest: z.number().min(1).max(5),
-  wealthGrowthInterest: z.number().min(1).max(5),
-  incomeGenerationInterest: z.number().min(1).max(5),
-  capitalPreservationInterest: z.number().min(1).max(5),
-  estatePlanningInterest: z.number().min(1).max(5),
-  
-  // Interessi Personali
-  personalInterests: z.array(z.string()).optional(),
-  personalInterestsNotes: z.string().optional(),
-
-  // Assets (mantenuto per compatibilità ma gestito diversamente nell'interfaccia)
-  assets: z.array(assetSchema)
-});
-
-type OnboardingFormValues = z.infer<typeof onboardingFormSchema>;
 
 export default function OnboardingForm() {
   // Invece di usare params, prendi il token dalla query
@@ -88,6 +58,60 @@ export default function OnboardingForm() {
   const { t, i18n } = useTranslation();
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState(false);
+  
+  // Setup form with the shared schema
+  const form = useForm<MifidData>({
+    resolver: zodResolver(MIFID_SCHEMA),
+    defaultValues: {
+      // Personal Information
+      address: "",
+      phone: "",
+      birthDate: "",
+      maritalStatus: "",
+      employmentStatus: "",
+      educationLevel: "",
+      annualIncome: 0,
+      monthlyExpenses: 0,
+      debts: 0,
+      dependents: 0,
+      
+      // Investment Profile
+      riskProfile: "balanced", // Default to balanced risk
+      investmentExperience: "none", // Default to no experience
+      investmentHorizon: "medium_term", // Default to medium term
+      
+      // Nuovi campi per esperienze di investimento
+      pastInvestmentExperience: [],
+      financialEducation: [],
+      
+      // Obiettivi di investimento con rank 1-5
+      retirementInterest: 3,
+      wealthGrowthInterest: 3,
+      incomeGenerationInterest: 3,
+      capitalPreservationInterest: 3,
+      estatePlanningInterest: 3,
+      
+      // Assets (precompilati con tutti i tipi e valore 0)
+      assets: ASSET_CATEGORIES.map(category => ({
+        value: 0,
+        category,
+        description: ""
+      })),
+
+      // Nuovi campi per la tolleranza al rischio
+      portfolioDropReaction: "",
+      volatilityTolerance: "",
+
+      // Campi per la sezione 6: Esperienza e Comportamento d'Investimento
+      yearsOfExperience: "",
+      investmentFrequency: "",
+      advisorUsage: "",
+      monitoringTime: "",
+
+      // Domande specifiche (opzionale)
+      specificQuestions: "",
+    }
+  });
   
   // Otteniamo il token dalla query string o dai parametri di route
   const [token, setToken] = useState<string | null>(null);
@@ -155,51 +179,32 @@ export default function OnboardingForm() {
     enabled: !!token
   });
   
-  // Prepara gli asset predefiniti con valore 0
-  const defaultAssets = ASSET_CATEGORIES.map(category => ({
-    value: 0,
-    category,
-    description: ""
-  }));
-
-  // Form setup
-  const form = useForm<OnboardingFormValues>({
-    resolver: zodResolver(onboardingFormSchema),
-    defaultValues: {
-      // Personal Information
-      address: "",
-      phone: "",
-      taxCode: "",
-      employmentStatus: "",
-      annualIncome: 0,
-      monthlyExpenses: 0,
-      netWorth: 0,
-      dependents: 0,
-      
-      // Investment Profile
-      riskProfile: "balanced", // Default to balanced risk
-      investmentExperience: "none", // Default to no experience
-      investmentHorizon: "medium_term", // Default to medium term
-      
-      // Obiettivi di investimento con scala 1-5 (3 = valore neutro di default)
-      retirementInterest: 3,
-      wealthGrowthInterest: 3,
-      incomeGenerationInterest: 3,
-      capitalPreservationInterest: 3,
-      estatePlanningInterest: 3,
-      
-      // Interessi personali
-      personalInterests: [],
-      personalInterestsNotes: "",
-      
-      // Assets (precompilati con tutti i tipi e valore 0)
-      assets: defaultAssets
-    }
-  });
+  // Calcolatore del patrimonio netto
+  const calculateNetWorth = () => {
+    const assets = form.getValues().assets || [];
+    const totalAssets = assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
+    const debts = form.getValues().debts || 0;
+    return totalAssets - debts;
+  };
+  
+  // Controllo delle priorità duplicate
+  const hasDuplicatePriorities = () => {
+    const priorities = [
+      form.getValues().retirementInterest,
+      form.getValues().wealthGrowthInterest,
+      form.getValues().incomeGenerationInterest,
+      form.getValues().capitalPreservationInterest,
+      form.getValues().estatePlanningInterest
+    ];
+    
+    // Verifica se ci sono duplicati tra i valori non-zero
+    const nonZeros = priorities.filter(p => p > 0);
+    return new Set(nonZeros).size !== nonZeros.length;
+  };
   
   // Handle form submission
   const mutation = useMutation({
-    mutationFn: (data: OnboardingFormValues) => {
+    mutationFn: (data: MifidData) => {
       if (!token) throw new Error("No token provided");
       return apiRequest(`/api/onboarding?token=${token}`, {
         method: "POST",
@@ -208,12 +213,20 @@ export default function OnboardingForm() {
     },
     onSuccess: () => {
       setFormSuccess(true);
+      // Mostra il messaggio di successo per 2 secondi e poi reindirizza alla home
       setTimeout(() => {
-        setLocation("/onboarding/success");
-      }, 1500);
+        setLocation('/');
+      }, 2000);
     },
     onError: (error: any) => {
-      setFormError(error.message || "Failed to submit onboarding form. Please try again.");
+      console.error("Error submitting form:", error);
+      if (error.message?.includes("token")) {
+        setFormError("Errore durante l'invio del modulo. Per favore, richiedi un nuovo link di onboarding.");
+      } else if (error.response?.data?.error) {
+        setFormError(error.response.data.error);
+      } else {
+        setFormError("Si è verificato un errore durante l'invio del modulo. Per favore, riprova.");
+      }
     }
   });
   
@@ -238,32 +251,76 @@ export default function OnboardingForm() {
     }
   }
   
-  async function onSubmit(data: OnboardingFormValues) {
+  // Funzione temporanea per compilare automaticamente il form
+  const autoFillForm = () => {
+    form.reset({
+      // Personal Information
+      address: "Via Roma 123",
+      phone: "+39 1234567890",
+      birthDate: "1990-01-01",
+      maritalStatus: "single",
+      employmentStatus: "employed",
+      educationLevel: "bachelor",
+      annualIncome: 50000,
+      monthlyExpenses: 2000,
+      debts: 10000,
+      dependents: 1,
+      
+      // Investment Profile
+      riskProfile: "balanced",
+      investmentExperience: "intermediate",
+      investmentHorizon: "medium_term",
+      
+      // Past Investment Experience
+      pastInvestmentExperience: ["stocks", "bonds", "funds"],
+      financialEducation: ["university", "courses"],
+      
+      // Investment Interests
+      retirementInterest: 1,
+      wealthGrowthInterest: 2,
+      incomeGenerationInterest: 3,
+      capitalPreservationInterest: 4,
+      estatePlanningInterest: 5,
+      
+      // Assets
+      assets: [
+        { value: 100000, category: "real_estate", description: "Casa di proprietà" },
+        { value: 50000, category: "equity", description: "Azioni" },
+        { value: 30000, category: "bonds", description: "Obbligazioni" },
+        { value: 20000, category: "cash", description: "Contanti" }
+      ],
+
+      // Risk Tolerance
+      portfolioDropReaction: "hold",
+      volatilityTolerance: "medium",
+
+      // Investment Behavior
+      yearsOfExperience: "3_to_5",
+      investmentFrequency: "monthly",
+      advisorUsage: "balanced",
+      monitoringTime: "weekly",
+
+      // Specific Questions
+      specificQuestions: "Nessuna domanda specifica"
+    });
+  };
+
+  // Modifica la funzione onSubmit per gestire meglio gli errori
+  async function onSubmit(data: MifidData) {
     setFormError(null);
     
-    // Assicuriamo che i valori degli interessi siano convertiti correttamente 
-    // da stringhe a numeri prima di inviarli e siano del tipo numerico 
-    data.retirementInterest = Number(data.retirementInterest) || 3;
-    data.wealthGrowthInterest = Number(data.wealthGrowthInterest) || 3;
-    data.incomeGenerationInterest = Number(data.incomeGenerationInterest) || 3;
-    data.capitalPreservationInterest = Number(data.capitalPreservationInterest) || 3;
-    data.estatePlanningInterest = Number(data.estatePlanningInterest) || 3;
-    
-    // Log dei valori per debug
-    console.log("DEBUG - Valori interessi inviati:", {
-      retirement: data.retirementInterest,
-      wealthGrowth: data.wealthGrowthInterest,
-      incomeGeneration: data.incomeGenerationInterest,
-      capitalPreservation: data.capitalPreservationInterest,
-      estatePlanning: data.estatePlanningInterest
-    });
-    
     try {
-      mutation.mutate(data);
+      console.log("DEBUG - Invio dati:", data);
+      
+      await mutation.mutateAsync(data);
     } catch (error: any) {
-      // Se c'è un errore relativo al token, mostra un messaggio più specifico
+      console.error("DEBUG - Errore durante l'invio:", error);
       if (error.message?.includes("token")) {
         setFormError("Errore durante l'invio del modulo. Per favore, richiedi un nuovo link di onboarding.");
+      } else if (error.response?.data?.error) {
+        setFormError(error.response.data.error);
+      } else {
+        setFormError("Si è verificato un errore durante l'invio del modulo. Per favore, riprova.");
       }
     }
   }
@@ -350,14 +407,15 @@ export default function OnboardingForm() {
       <div className="container max-w-4xl mx-auto py-20 px-4 sm:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Submitting Your Information</CardTitle>
+            <CardTitle>Onboarding Completato</CardTitle>
             <CardDescription>
-              Please wait while we process your information.
+              Grazie per aver completato il processo di onboarding
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col items-center justify-center py-10">
             <CheckCircle2 className="h-16 w-16 text-green-500 animate-pulse" />
-            <p className="mt-4 text-center">Your information is being processed...</p>
+            <p className="mt-4 text-center">I tuoi dati sono stati salvati con successo.</p>
+            <p className="mt-2 text-center text-muted-foreground">Verrai reindirizzato alla home page tra qualche secondo...</p>
           </CardContent>
         </Card>
       </div>
@@ -366,6 +424,14 @@ export default function OnboardingForm() {
   
   return (
     <div className="container max-w-4xl mx-auto py-10 px-4 sm:px-6">
+      {/* Aggiungi il pulsante per l'autocompilazione temporaneo */}
+      <Button 
+        onClick={autoFillForm}
+        className="mb-4 bg-yellow-500 hover:bg-yellow-600"
+      >
+        🚀 Compila Automaticamente (Temporaneo)
+      </Button>
+
       <Card className="mb-10">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">{t('onboarding.welcome')}, {client?.name}</CardTitle>
@@ -385,26 +451,47 @@ export default function OnboardingForm() {
       
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Container flex per il layout 2/5 - 3/5 */}
-          <div className="flex flex-col md:flex-row gap-6">
-            {/* Card 1: Informazioni personali (2/5) */}
-            <Card className="w-full md:w-[40%]">
+          {/* Sezione 1: Dati Anagrafici e Informazioni Personali */}
+          <Card>
               <CardHeader>
-                <CardTitle>{t('onboarding.personal_info')}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <HomeIcon className="h-5 w-5" />
+                Sezione 1: Dati Anagrafici e Informazioni Personali
+              </CardTitle>
                 <CardDescription>
-                  {t('client_edit.personal_info_desc')}
+                Informazioni di base su di te e i tuoi recapiti
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="birthDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Data di nascita</FormLabel>
+                    <FormControl>
+                      <Input type="date" {...field} />
+                    </FormControl>
+                    <FormDescription>
+                      Inserisci la tua data di nascita completa
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
                 <FormField
                   control={form.control}
                   name="address"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.address')}</FormLabel>
+                    <FormLabel>Indirizzo di residenza</FormLabel>
                       <FormControl>
-                        <Input placeholder={t('client.address')} {...field} />
+                      <Input placeholder="Via Roma, 123" {...field} />
                       </FormControl>
+                    <FormDescription>
+                      L'indirizzo completo dove risiedi attualmente
+                    </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -412,13 +499,30 @@ export default function OnboardingForm() {
                 
                 <FormField
                   control={form.control}
-                  name="phone"
+                name="maritalStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.phone')}</FormLabel>
+                    <FormLabel>Stato civile</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
-                        <Input placeholder={t('client.phone')} {...field} />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona il tuo stato civile" />
+                        </SelectTrigger>
                       </FormControl>
+                      <SelectContent>
+                        <SelectItem value="single">Celibe/Nubile</SelectItem>
+                        <SelectItem value="married">Sposato/a</SelectItem>
+                        <SelectItem value="divorced">Divorziato/a</SelectItem>
+                        <SelectItem value="widowed">Vedovo/a</SelectItem>
+                        <SelectItem value="civil_union">Unione civile</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Il tuo attuale stato civile a fini fiscali e di pianificazione
+                    </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -426,15 +530,15 @@ export default function OnboardingForm() {
                 
                 <FormField
                   control={form.control}
-                  name="taxCode"
+                name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.tax_code')}</FormLabel>
+                    <FormLabel>Recapito telefonico</FormLabel>
                       <FormControl>
-                        <Input placeholder={t('client.tax_code')} {...field} />
+                      <Input placeholder="+39 123 456 7890" {...field} />
                       </FormControl>
                       <FormDescription>
-                        {t('client_edit.tax_code')}
+                      Un numero di telefono dove poterti contattare
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -446,22 +550,87 @@ export default function OnboardingForm() {
                   name="employmentStatus"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t('client.employment')}</FormLabel>
+                    <FormLabel>Professione</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
-                        <Input placeholder={t('client.employment')} {...field} />
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona la tua professione" />
+                        </SelectTrigger>
                       </FormControl>
+                      <SelectContent>
+                        <SelectItem value="employed">Dipendente</SelectItem>
+                        <SelectItem value="self-employed">Libero professionista</SelectItem>
+                        <SelectItem value="business_owner">Imprenditore</SelectItem>
+                        <SelectItem value="retired">Pensionato</SelectItem>
+                        <SelectItem value="unemployed">Disoccupato</SelectItem>
+                        <SelectItem value="student">Studente</SelectItem>
+                        <SelectItem value="other">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      La tua attuale professione o stato occupazionale
+                    </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 
-                <div className="grid grid-cols-1 gap-6">
+              <FormField
+                control={form.control}
+                name="educationLevel"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Livello di istruzione</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona il tuo livello di istruzione" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="primary">Licenza elementare</SelectItem>
+                        <SelectItem value="middle">Licenza media</SelectItem>
+                        <SelectItem value="high_school">Diploma di scuola superiore</SelectItem>
+                        <SelectItem value="bachelor">Laurea triennale</SelectItem>
+                        <SelectItem value="master">Laurea magistrale</SelectItem>
+                        <SelectItem value="phd">Dottorato di ricerca</SelectItem>
+                        <SelectItem value="other">Altro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Il tuo titolo di studio più elevato
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Sezione 2: Situazione Finanziaria Attuale */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5" />
+                Sezione 2: Situazione Finanziaria Attuale
+              </CardTitle>
+              <CardDescription>
+                Informazioni sulla tua situazione economica e patrimoniale attuale
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
                   <FormField
                     control={form.control}
                     name="annualIncome"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('onboarding.income')}</FormLabel>
+                    <FormLabel>Reddito annuo netto</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -470,6 +639,9 @@ export default function OnboardingForm() {
                             onChange={e => field.onChange(e.target.valueAsNumber)}
                           />
                         </FormControl>
+                    <FormDescription>
+                      Indicare l'ammontare medio netto percepito annualmente, considerando tutte le fonti di reddito
+                    </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -480,7 +652,7 @@ export default function OnboardingForm() {
                     name="monthlyExpenses"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('client.monthly_expenses')}</FormLabel>
+                    <FormLabel>Spese mensili</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -489,6 +661,9 @@ export default function OnboardingForm() {
                             onChange={e => field.onChange(e.target.valueAsNumber)}
                           />
                         </FormControl>
+                    <FormDescription>
+                      La somma delle tue spese ricorrenti mensili, inclusi affitto/mutuo, utenze, trasporti, alimentari, ecc.
+                    </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -496,18 +671,21 @@ export default function OnboardingForm() {
                   
                   <FormField
                     control={form.control}
-                    name="netWorth"
+                name="debts"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('client.net_worth')}</FormLabel>
+                    <FormLabel>Debiti e obblighi finanziari</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
-                            placeholder="250000"
+                        placeholder="50000"
                             {...field}
                             onChange={e => field.onChange(e.target.valueAsNumber)}
                           />
                         </FormControl>
+                    <FormDescription>
+                      L'importo totale di eventuali mutui, prestiti personali, fidi bancari o altre forme di debito in essere
+                    </FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -518,7 +696,7 @@ export default function OnboardingForm() {
                     name="dependents"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{t('client.dependents')}</FormLabel>
+                    <FormLabel>Persone a carico</FormLabel>
                         <FormControl>
                           <Input 
                             type="number" 
@@ -527,309 +705,663 @@ export default function OnboardingForm() {
                             onChange={e => field.onChange(e.target.valueAsNumber)}
                           />
                         </FormControl>
+                    <FormDescription>
+                      Numero di persone a tuo carico, inclusi figli o altri familiari
+                    </FormDescription>
                         <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Assets section summary - semplificata */}
+              <div className="pt-4">
+                <h3 className="text-md font-semibold mb-2">I tuoi asset principali</h3>
+                <FormDescription className="mb-4">
+                  Indica il valore approssimativo dei tuoi principali asset (immobiliari, mobiliari, liquidi)
+                </FormDescription>
+                
+                {/* Mostra solo le categorie principali e "altri asset" */}
+                {["real_estate", "equity", "bonds", "cash", "private_equity", "venture_capital", "cryptocurrencies", "other"].map((category, index) => (
+                  <div key={category} className="flex gap-2 mb-2">
+                    <FormField
+                      control={form.control}
+                      name={`assets.${categoryOptions.indexOf(category)}.category`}
+                      render={({ field }) => (
+                        <FormItem className="flex-[2]">
+                          <Select
+                            onValueChange={field.onChange}
+                            defaultValue={category}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Categoria" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value={category}>
+                                {t(`asset_categories.${category}`)}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name={`assets.${categoryOptions.indexOf(category)}.value`}
+                      render={({ field }) => (
+                        <FormItem className="flex-[2]">
+                          <FormControl>
+                            <Input
+                              type="number"
+                              placeholder="0"
+                              {...field}
+                              onChange={e => field.onChange(e.target.valueAsNumber)}
+                            />
+                          </FormControl>
                       </FormItem>
                     )}
                   />
+                  </div>
+                ))}
+                
+                <div className="mt-4 p-4 bg-muted rounded-md">
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">Patrimonio netto stimato:</span>
+                    <span className="font-bold">€{calculateNetWorth().toLocaleString()}</span>
+                  </div>
+                  <FormDescription className="mt-2">
+                    Calcolato come differenza tra il valore totale degli asset e i debiti
+                  </FormDescription>
+                </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Card 2: Profilo finanziario (3/5) */}
-            <Card className="w-full md:w-[60%]">
+          {/* Sezione 3: Obiettivi d'Investimento */}
+          <Card>
               <CardHeader>
-                <CardTitle>{t('onboarding.financial_profile')}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="h-5 w-5" />
+                Sezione 3: Obiettivi d'Investimento
+              </CardTitle>
                 <CardDescription>
-                  {t('client_edit.investment_profile_desc')}
+                Informazioni sui tuoi obiettivi finanziari e priorità
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="riskProfile"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.risk_profile')}</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('client_edit.select_risk_profile')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {riskProfileOptions.map(profile => (
-                          <SelectItem key={profile} value={profile}>
-                            <span className="capitalize">{t(`risk_profiles.${profile}`)}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t('onboarding.risk_profile')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="investmentExperience"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('client.investment_experience')}</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={t('client_edit.select_experience_level')} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {experienceLevelOptions.map(level => (
-                          <SelectItem key={level} value={level}>
-                            <span className="capitalize">{t(`experience_levels.${level}`)}</span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      {t('onboarding.experience_level')}
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
                 name="investmentHorizon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('client.investment_horizon')}</FormLabel>
+                    <FormLabel>Orizzonte temporale</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={t('client_edit.select_investment_horizon')} />
+                          <SelectValue placeholder="Seleziona l'orizzonte temporale" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {investmentHorizonOptions.map(horizon => (
                           <SelectItem key={horizon} value={horizon}>
-                            <span className="capitalize">{t(`investment_horizons.${horizon}`)}</span>
+                            {t(`investment_horizons.${horizon}`)}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      {t('onboarding.investment_horizon')}
+                      Periodo durante il quale prevedi di mantenere gli investimenti
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <div className="mb-4">
-                <h3 className="text-lg font-medium mb-2">{t('client.investment_goals')}</h3>
-                <FormDescription className="mb-4">
-                  Valuta il tuo interesse per i seguenti obiettivi di investimento su una scala da 1 a 5:
-                  (1 = non mi interessa per niente, 5 = mi interessa molto)
-                </FormDescription>
-                
-                <div className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="retirementInterest"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between mb-2">
-                          <FormLabel>{t('investment_goals.retirement')}</FormLabel>
-                          <span className="text-sm font-medium">{field.value}/5</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            className="w-full accent-black"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Non mi interessa</span>
-                          <span>Mi interessa molto</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="wealthGrowthInterest"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between mb-2">
-                          <FormLabel>{t('investment_goals.wealth_growth')}</FormLabel>
-                          <span className="text-sm font-medium">{field.value}/5</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            className="w-full accent-black"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Non mi interessa</span>
-                          <span>Mi interessa molto</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="incomeGenerationInterest"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between mb-2">
-                          <FormLabel>{t('investment_goals.income_generation')}</FormLabel>
-                          <span className="text-sm font-medium">{field.value}/5</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            className="w-full accent-black"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Non mi interessa</span>
-                          <span>Mi interessa molto</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="capitalPreservationInterest"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between mb-2">
-                          <FormLabel>{t('investment_goals.capital_preservation')}</FormLabel>
-                          <span className="text-sm font-medium">{field.value}/5</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            className="w-full accent-black"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Non mi interessa</span>
-                          <span>Mi interessa molto</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={form.control}
-                    name="estatePlanningInterest"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between mb-2">
-                          <FormLabel>{t('investment_goals.estate_planning')}</FormLabel>
-                          <span className="text-sm font-medium">{field.value}/5</span>
-                        </div>
-                        <FormControl>
-                          <input
-                            type="range"
-                            min="1"
-                            max="5"
-                            step="1"
-                            className="w-full accent-black"
-                            {...field}
-                            onChange={(e) => field.onChange(parseInt(e.target.value))}
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Non mi interessa</span>
-                          <span>Mi interessa molto</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+              <h3 className="text-md font-semibold pt-4">Priorità degli obiettivi d'investimento</h3>
+              <FormDescription className="mb-4">
+                Ordina gli obiettivi per importanza (1 = più importante, 5 = meno importante). 
+                <span className="text-red-500 font-semibold"> Ogni numero deve essere assegnato a un solo obiettivo.</span>
+              </FormDescription>
+              
+              {hasDuplicatePriorities() && (
+                <div className="mb-4 p-3 border border-red-400 bg-red-50 rounded-md text-red-700">
+                  <p className="text-sm font-medium">
+                    Attenzione: hai assegnato lo stesso numero di priorità a più obiettivi. Per procedere, assicurati che ogni obiettivo abbia un valore di priorità unico.
+                  </p>
                 </div>
+              )}
+
+              <div className="space-y-6">
+                {[
+                  { 
+                    name: "retirementInterest", 
+                    label: "Pianificazione della pensione",
+                    description: "Costruire un capitale sufficiente per mantenere il tuo tenore di vita dopo il pensionamento"
+                  },
+                  { 
+                    name: "wealthGrowthInterest", 
+                    label: "Crescita del capitale",
+                    description: "Aumentare il valore complessivo del tuo patrimonio nel medio-lungo periodo"
+                  },
+                  { 
+                    name: "incomeGenerationInterest", 
+                    label: "Generazione di reddito",
+                    description: "Ottenere flussi di cassa periodici dagli investimenti per integrare le entrate correnti"
+                  },
+                  { 
+                    name: "capitalPreservationInterest", 
+                    label: "Protezione del capitale",
+                    description: "Difendere il valore del tuo patrimonio dall'inflazione e da perdite potenziali"
+                  },
+                  { 
+                    name: "estatePlanningInterest", 
+                    label: "Pianificazione ereditaria",
+                    description: "Organizzare il trasferimento efficiente del patrimonio ai tuoi eredi o enti benefici"
+                  }
+                ].map(({ name, label, description }) => (
+              <FormField
+                    key={name}
+                control={form.control}
+                    name={name as any}
+                render={({ field }) => (
+                  <FormItem>
+                        <div className="flex justify-between items-center">
+                          <FormLabel>{label}</FormLabel>
+                          <div className="flex items-center space-x-2">
+                            {[1, 2, 3, 4, 5].map((value) => {
+                              // Controlla se questo valore è già usato da un altro campo
+                              const isUsedElsewhere = [
+                                "retirementInterest",
+                                "wealthGrowthInterest",
+                                "incomeGenerationInterest",
+                                "capitalPreservationInterest",
+                                "estatePlanningInterest"
+                              ]
+                                .filter(n => n !== name)
+                                .some(otherName => form.getValues(otherName as any) === value);
+                              
+                              // Ora permettiamo la selezione anche se il valore è duplicato
+                              const isDuplicate = isUsedElsewhere && field.value === value;
+                              
+                              return (
+                                <div 
+                                  key={value}
+                                  className={`w-8 h-8 flex items-center justify-center rounded cursor-pointer ${
+                                    field.value === value 
+                                      ? isUsedElsewhere 
+                                        ? 'bg-red-500 text-white' // Selezione duplicata
+                                        : 'bg-primary text-primary-foreground' // Selezione normale
+                                      : 'bg-muted hover:bg-muted/80' // Non selezionato
+                                  }`}
+                                  onClick={() => field.onChange(value)}
+                                >
+                                  {value}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                    <FormDescription>
+                          {description}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+                ))}
               </div>
             </CardContent>
           </Card>
-          
 
-          
+          {/* Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari */}
           <Card>
-            <CardHeader className="space-y-1">
-              <CardTitle>{t('onboarding.assets')}</CardTitle>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari
+              </CardTitle>
               <CardDescription>
-                {t('client_edit.assets_desc')}
+                Valutazione della tua competenza ed esperienza in ambito finanziario
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="mb-4">
-                <h3 className="text-lg font-medium mb-2">Inserisci il valore dei tuoi asset per categoria</h3>
-                <FormDescription className="mb-4">
-                  Indica il valore approssimativo per ciascuna categoria di asset che possiedi.
-                  Lascia a 0 le categorie che non possiedi.
+              <FormField
+                control={form.control}
+                name="investmentExperience"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Livello di conoscenza dei mercati finanziari</FormLabel>
+                    <Select 
+                      onValueChange={field.onChange} 
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona il tuo livello di esperienza" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="none">Nessuna conoscenza</SelectItem>
+                        <SelectItem value="beginner">Base</SelectItem>
+                        <SelectItem value="intermediate">Intermedio</SelectItem>
+                        <SelectItem value="advanced">Avanzato</SelectItem>
+                        <SelectItem value="expert">Esperto</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Quanto ti senti preparato sul funzionamento dei mercati finanziari
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+                  <FormField
+                    control={form.control}
+                name="pastInvestmentExperience"
+                    render={({ field }) => (
+                      <FormItem>
+                    <FormLabel>Esperienze pregresse</FormLabel>
+                    <FormDescription className="mb-3">
+                      Seleziona gli strumenti finanziari in cui hai già investito in passato
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {[
+                        { id: "stocks", label: "Azioni" },
+                        { id: "bonds", label: "Obbligazioni" },
+                        { id: "funds", label: "Fondi comuni" },
+                        { id: "etf", label: "ETF" },
+                        { id: "real_estate", label: "Immobili come investimento" },
+                        { id: "forex", label: "Forex" },
+                        { id: "derivatives", label: "Derivati (Opzioni, Futures)" },
+                        { id: "crypto", label: "Criptovalute" },
+                        { id: "gold", label: "Oro e metalli preziosi" },
+                        { id: "structured_products", label: "Prodotti strutturati" },
+                        { id: "startup", label: "Startup/Private equity" },
+                        { id: "none", label: "Nessuna esperienza" }
+                      ].map(item => (
+                        <FormItem key={item.id} className="flex items-center space-x-2">
+                        <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(item.id)}
+                              onCheckedChange={(checked) => {
+                                const currentValues = field.value || [];
+                                if (checked) {
+                                  field.onChange([...currentValues, item.id]);
+                                } else {
+                                  field.onChange(currentValues.filter(v => v !== item.id));
+                                }
+                              }}
+                          />
+                        </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">
+                            {item.label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                name="financialEducation"
+                    render={({ field }) => (
+                      <FormItem>
+                    <FormLabel>Formazione ricevuta</FormLabel>
+                    <FormDescription className="mb-3">
+                      Seleziona i tipi di formazione finanziaria che hai ricevuto
+                    </FormDescription>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {[
+                        { id: "university", label: "Studi universitari in economia/finanza" },
+                        { id: "certification", label: "Certificazioni professionali in ambito finanziario" },
+                        { id: "courses", label: "Corsi di formazione in ambito finanziario" },
+                        { id: "books", label: "Libri e pubblicazioni specializzate" },
+                        { id: "seminars", label: "Seminari e workshop" },
+                        { id: "online", label: "Corsi online e webinar" },
+                        { id: "advisor", label: "Consulenza diretta da professionisti" },
+                        { id: "none", label: "Nessuna formazione specifica" }
+                      ].map(item => (
+                        <FormItem key={item.id} className="flex items-center space-x-2">
+                        <FormControl>
+                            <Checkbox
+                              checked={field.value?.includes(item.id)}
+                              onCheckedChange={(checked) => {
+                                const currentValues = field.value || [];
+                                if (checked) {
+                                  field.onChange([...currentValues, item.id]);
+                                } else {
+                                  field.onChange(currentValues.filter(v => v !== item.id));
+                                }
+                              }}
+                          />
+                        </FormControl>
+                          <FormLabel className="font-normal cursor-pointer">
+                            {item.label}
+                          </FormLabel>
+                        </FormItem>
+                      ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+            </CardContent>
+          </Card>
+
+          {/* Sezione 5: Tolleranza al Rischio */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ShieldAlert className="h-5 w-5" />
+                Sezione 5: Tolleranza al Rischio
+              </CardTitle>
+              <CardDescription>
+                Valutazione della tua propensione al rischio negli investimenti
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                  <FormField
+                    control={form.control}
+                name="riskProfile"
+                    render={({ field }) => (
+                      <FormItem>
+                    <FormLabel>Profilo di rischio personale</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                        <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleziona il tuo profilo di rischio" />
+                        </SelectTrigger>
+                        </FormControl>
+                      <SelectContent>
+                        <SelectItem value="conservative">Conservativo</SelectItem>
+                        <SelectItem value="balanced">Bilanciato</SelectItem>
+                        <SelectItem value="aggressive">Aggressivo</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      Quanto sei disposto ad accettare rischi negli investimenti per potenziali rendimenti più elevati
+                    </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                name="portfolioDropReaction"
+                    render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Reazione a una flessione del portafoglio</FormLabel>
+                    <FormDescription>
+                      Come reagiresti in caso di una perdita del 10% o superiore?
+                    </FormDescription>
+                        <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="sell_all" />
+                        </FormControl>
+                          <FormLabel className="font-normal">
+                            Venderei tutto per evitare ulteriori perdite
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="sell_part" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Venderei una parte degli investimenti per ridurre il rischio
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="hold" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Manterrei la posizione attuale senza modifiche
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="buy_more" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Acquisterei di più approfittando dei prezzi ribassati
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={form.control}
+                name="volatilityTolerance"
+                    render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Disponibilità a tollerare la volatilità</FormLabel>
+                    <FormDescription>
+                      Quanto sei disposto a sopportare oscillazioni di breve termine per raggiungere obiettivi a lungo termine?
+                    </FormDescription>
+                        <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="very_low" />
+                        </FormControl>
+                          <FormLabel className="font-normal">
+                            Preferisco rendimenti modesti ma stabili, evitando qualsiasi oscillazione
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="low" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Accetto leggere oscillazioni, ma mi preoccupo se vedo perdite ripetute
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="medium" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Accetto oscillazioni moderate se necessarie per raggiungere i miei obiettivi
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="high" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Accetto forti oscillazioni se la prospettiva di rendimento a lungo termine è alta
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="very_high" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Non mi preoccupano le oscillazioni, anche significative, guardo solo al lungo periodo
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+            </CardContent>
+          </Card>
+          
+          {/* Sezione 6: Esperienza e Comportamento d'Investimento */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Settings className="h-5 w-5" />
+                Sezione 6: Esperienza e Comportamento d'Investimento
+              </CardTitle>
+              <CardDescription>
+                Informazioni sulle tue abitudini di investimento e monitoraggio
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="yearsOfExperience"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Anni di esperienza negli investimenti</FormLabel>
+                    <FormDescription>
+                      Da quanti anni operi nei mercati finanziari?
                 </FormDescription>
-              </div>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="none" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Nessuna esperienza
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="less_than_1" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Meno di 1 anno
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="1_to_3" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Da 1 a 3 anni
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="3_to_5" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Da 3 a 5 anni
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="5_to_10" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Da 5 a 10 anni
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="more_than_10" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Più di 10 anni
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               
-              <div className="grid grid-cols-1 gap-6">
-                {categoryOptions.map((category, index) => (
-                  <div key={category} className="p-4 rounded-md border border-border">
-                    <h4 className="font-medium mb-3">{t(`asset_categories.${category}`)}</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <FormField
                         control={form.control}
-                        name={`assets.${index}.value`}
+                name="investmentFrequency"
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t('client_edit.asset_value')}</FormLabel>
+                  <FormItem className="space-y-3">
+                    <FormLabel>Frequenza degli investimenti</FormLabel>
+                    <FormDescription>
+                      Con quale frequenza effettui operazioni di investimento?
+                    </FormDescription>
                             <FormControl>
-                              <Input 
-                                type="number" 
-                                placeholder="0" 
-                                {...field} 
-                                onChange={e => field.onChange(e.target.valueAsNumber)}
-                              />
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="daily" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Giornaliera
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="weekly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Settimanale
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="monthly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Mensile
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="quarterly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Trimestrale
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="yearly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Annuale
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="occasional" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Occasionale
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -838,101 +1370,166 @@ export default function OnboardingForm() {
                       
                       <FormField
                         control={form.control}
-                        name={`assets.${index}.description`}
+                name="advisorUsage"
                         render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>{t('client_edit.description')}</FormLabel>
+                  <FormItem className="space-y-3">
+                    <FormLabel>Utilizzo di consulenza finanziaria</FormLabel>
+                    <FormDescription>
+                      Ti affidi a consulenti per le decisioni d'investimento o operi in autonomia?
+                    </FormDescription>
                             <FormControl>
-                              <Input 
-                                type="text" 
-                                placeholder={t('pdf.description')} 
-                                {...field} 
-                              />
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="full_autonomy" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Opero completamente in autonomia
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="mostly_autonomy" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Opero principalmente in autonomia, con occasionale consulenza
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="balanced" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Equilibrio tra decisioni autonome e consulenza
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="mostly_advisor" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Mi affido principalmente a consulenti, con alcune decisioni autonome
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="full_advisor" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Mi affido completamente ai consulenti
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-                      <input 
-                        type="hidden" 
-                        value={category}
-                        {...form.register(`assets.${index}.category`)}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
               
-              {form.formState.errors.assets?.root && (
-                <Alert variant="destructive">
-                  <AlertDescription>
-                    {form.formState.errors.assets.root.message}
-                  </AlertDescription>
-                </Alert>
-              )}
+              <FormField
+                control={form.control}
+                name="monitoringTime"
+                render={({ field }) => (
+                  <FormItem className="space-y-3">
+                    <FormLabel>Tempo dedicato al monitoraggio degli investimenti</FormLabel>
+                    <FormDescription>
+                      Quanto tempo dedichi alla gestione e all'analisi del portafoglio?
+                    </FormDescription>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex flex-col space-y-1"
+                      >
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="daily_hours" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Più ore al giorno
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="daily_minutes" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Alcuni minuti ogni giorno
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="weekly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Qualche ora a settimana
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="monthly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Qualche ora al mese
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="quarterly" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Solo trimestralmente
+                          </FormLabel>
+                        </FormItem>
+                        <FormItem className="flex items-center space-x-3 space-y-0">
+                          <FormControl>
+                            <RadioGroupItem value="rarely" />
+                          </FormControl>
+                          <FormLabel className="font-normal">
+                            Raramente o mai
+                          </FormLabel>
+                        </FormItem>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </CardContent>
           </Card>
           
+          {/* Sezione 7: Domande Specifiche */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('onboarding.personal_interests_title')}</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Sezione 7: Domande Specifiche
+              </CardTitle>
               <CardDescription>
-                {t('onboarding.personal_interests_desc')}
+                Hai domande specifiche o considerazioni particolari da condividere?
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="personalInterests"
+                name="specificQuestions"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t('onboarding.your_interests')}</FormLabel>
+                    <FormLabel>Domande e considerazioni</FormLabel>
                     <FormDescription>
-                      {t('onboarding.interests_selection_desc')}
+                      Se hai domande specifiche o considerazioni particolari che vorresti condividere, scrivile qui. Questo campo è opzionale.
                     </FormDescription>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
-                      {personalInterestOptions.map(interest => (
-                        <div key={interest} className="flex items-center space-x-2">
-                          <Checkbox
-                            checked={field.value?.includes(interest)}
-                            onCheckedChange={(checked) => {
-                              const updatedInterests = checked
-                                ? [...(field.value || []), interest]
-                                : (field.value || []).filter((value) => value !== interest);
-                              field.onChange(updatedInterests);
-                            }}
-                            id={`interest-${interest}`}
-                          />
-                          <label 
-                            htmlFor={`interest-${interest}`}
-                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            {t(`personal_interests.${interest}`)}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="personalInterestsNotes"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('onboarding.interests_notes')}</FormLabel>
                     <FormControl>
                       <Textarea 
-                        placeholder={t('onboarding.interests_notes_placeholder')}
-                        className="resize-none"
+                        placeholder="Scrivi qui le tue domande o considerazioni..."
+                        className="min-h-[100px]"
                         {...field} 
                       />
                     </FormControl>
-                    <FormDescription>
-                      {t('onboarding.optional_field')}
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -940,18 +1537,29 @@ export default function OnboardingForm() {
             </CardContent>
           </Card>
           
-          <Card>
-            <CardContent className="pt-6">
+          <div className="flex justify-end">
               <Button 
                 type="submit" 
-                className="w-full accent-black"
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending ? t('common.saving') : t('onboarding.submit')}
-                <ArrowRight className="ml-2 h-4 w-4" />
+              className="bg-primary hover:bg-primary/90 w-full sm:w-auto"
+              disabled={mutation.isPending || hasDuplicatePriorities()}
+            >
+              {mutation.isPending ? (
+                <span className="flex items-center">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Elaborazione...
+                </span>
+              ) : hasDuplicatePriorities() ? (
+                <span className="flex items-center">
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Correggi le priorità duplicate
+                </span>
+              ) : (
+                <span className="flex items-center">
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Completa onboarding
+                </span>
+              )}
               </Button>
-            </CardContent>
-          </Card>
           </div>
         </form>
       </Form>

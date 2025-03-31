@@ -242,7 +242,11 @@
     "link_generated_success": "Link di onboarding generato con successo in italiano.",
     "link_generation_failed": "Impossibile generare il link di onboarding. Riprova.",
     "onboarding_required": "Onboarding Cliente Richiesto",
-    "onboarding_required_desc": "Questo cliente deve completare il processo di onboarding per accedere a tutte le funzionalità.",
+    "onboarding_required_description": "Questo cliente deve completare il processo di onboarding per accedere a tutte le funzionalità.",
+    "onboard_first": "Il cliente deve completare il processo di onboarding prima di poter accedere alle funzionalità.",
+    "onboarding_link": "Link di Onboarding",
+    "onboarding_link_description": "Condividi questo link con il tuo cliente per completare il processo di onboarding.",
+    "generate_onboarding_link": "Genera Link di Onboarding",
     "link_copied": "Link copiato",
     "link_copied_desc": "Link di onboarding copiato negli appunti.",
     "copy_link": "Copia Link",
@@ -251,7 +255,8 @@
     "share_link_desc": "Condividi questo link con il tuo cliente per completare il processo di onboarding.",
     "sending": "Invio in corso...",
     "generate_email": "Genera Email di Onboarding",
-    "personal_information": "Informazioni Personali",
+    "personal_info": "Informazioni Personali",
+    "debts": "Passività",
     "ai_analysis_center": "Centro Analisi Intelligente",
     "ai_analysis_description": "Analisi intelligente del profilo cliente basata sui dati raccolti",
     "ai_profile_description": "Analisi intelligente del profilo cliente per approfondimenti personalizzati",
@@ -314,7 +319,12 @@
     "email_content": "Contenuto Email",
     "email_placeholder": "Inserisci qui il tuo messaggio personalizzato...",
     "email_personalization_tip": "Personalizza il messaggio includendo dettagli specifici. Il link di onboarding verrà automaticamente incluso nell'email.",
-    "send_email": "Invia Email"
+    "send_email": "Invia Email",
+    "birth_date": "Data di Nascita",
+    "marital_status": "Stato Civile",
+    "employment_status": "Stato Occupazionale",
+    "education_level": "Livello di Istruzione",
+    "current_financial_situation": "Situazione Finanziaria"
   },
   "client_edit": {
     "email": "Indirizzo Email",
@@ -401,9 +411,11 @@
     "save_changes": "Salva Modifiche",
     "pro_version": "Gervis PRO",
     "coming_soon": "PROSSIMAMENTE",
+    "copied": "Copiato",
+    "link_copied": "Link copiato negli appunti",
     "error": {
       "unauthorized": "Accesso non autorizzato",
-      "admin_access_required": "Questa pagina richiede privilegi da amministratore",
+      "admin_access_required": "Questa pagina richiede privilegi di amministratore",
       "loading_data": "Errore nel caricamento dei dati. Riprova."
     }
   },
@@ -858,5 +870,26 @@
     "emailDefaultSubject": "Benvenuto nel nostro servizio di consulenza",
     "send": "Invia",
     "preview": "Anteprima"
+  },
+  "marital_status": {
+    "single": "Celibe/Nubile",
+    "married": "Sposato/a",
+    "divorced": "Divorziato/a",
+    "widowed": "Vedovo/a",
+    "separated": "Separato/a"
+  },
+  "employment_status": {
+    "employed": "Occupato",
+    "unemployed": "Disoccupato",
+    "self_employed": "Autonomo",
+    "retired": "Pensionato",
+    "student": "Studente"
+  },
+  "education_levels": {
+    "high_school": "Diploma di Scuola Superiore",
+    "bachelor": "Laurea Triennale",
+    "master": "Laurea Magistrale",
+    "phd": "Dottorato",
+    "other": "Altro"
   }
 } 

@@ -10,15 +10,27 @@ import { useQuery } from "@tanstack/react-query";
 export default function OnboardingSuccess() {
   const [, setLocation] = useLocation();
   const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  
+  useEffect(() => {
+    // Ottieni il token dalla query string
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenParam = urlParams.get('token');
+    if (tokenParam) {
+      setToken(tokenParam);
+    }
+  }, []);
   
   // Verifica lo stato di completamento dell'onboarding
   const { isLoading, isError } = useQuery({
-    queryKey: ['/api/onboarding/success'],
+    queryKey: ['/api/onboarding/success', token],
     queryFn: async () => {
+      if (!token) {
+        throw new Error("No token provided");
+      }
       try {
-        return await apiRequest('/api/onboarding/success');
+        return await apiRequest(`/api/onboarding/success?token=${token}`);
       } catch (error) {
-        // Se c'è un errore 404, significa che l'utente non ha completato l'onboarding
         if (error instanceof Error) {
           setError(error.message);
         } else {
@@ -27,6 +39,7 @@ export default function OnboardingSuccess() {
         throw error;
       }
     },
+    enabled: !!token,
     retry: false
   });
   
@@ -44,6 +57,40 @@ export default function OnboardingSuccess() {
       if (timer) clearTimeout(timer);
     };
   }, [isError, setLocation]);
+  
+  if (!token) {
+    return (
+      <div className="container max-w-3xl mx-auto py-20 px-4 sm:px-6">
+        <Card>
+          <CardHeader className="space-y-1">
+            <CardTitle className="text-2xl font-bold">Invalid Session</CardTitle>
+            <CardDescription>
+              No valid token found. Please use the onboarding link provided by your financial advisor.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>
+                <p className="mt-2">
+                  You will be redirected to the home page in a few seconds.
+                </p>
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+          <CardFooter>
+            <Button 
+              className="w-full"
+              onClick={() => setLocation("/")}
+            >
+              Return to Home
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
   
   if (isLoading) {
     return (

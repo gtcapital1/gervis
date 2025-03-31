@@ -976,20 +976,22 @@ export default function Dashboard() {
 
   // Prepara i dati del portfolio filtrando solo i clienti attivi
   const calculateActiveClientAUM = () => {
-    // Se non ci sono dati sugli asset o sui clienti, usa i dati dall'API
-    if (!assets || !assets.length || !clients || !clients.length) {
+    // Se non ci sono dati sui clienti, usa i dati dall'API
+    if (!clients || !clients.length) {
       return portfolioStats.totalAUM;
     }
     
-    // Ottieni gli ID dei clienti attivi
-    const activeClientIds = clients
-      .filter(client => client.active && !client.isArchived)
-      .map(client => client.id);
+    // Ottieni solo i clienti attivi e non archiviati
+    const activeClientsList = clients.filter(client => client.active && !client.isArchived);
     
-    // Somma solo gli asset dei clienti attivi
-    const totalActiveAUM = assets
-      .filter(asset => activeClientIds.includes(asset.clientId))
-      .reduce((sum, asset) => sum + asset.value, 0);
+    // Somma direttamente il campo totalAssets dai clienti attivi
+    const totalActiveAUM = activeClientsList.reduce((sum, client) => {
+      // Utilizza totalAssets se disponibile, altrimenti 0
+      const clientAssets = client.totalAssets || 0;
+      return sum + clientAssets;
+    }, 0);
+    
+    console.log(`AUM calcolato da totalAssets: ${totalActiveAUM}`);
     
     return totalActiveAUM || portfolioStats.totalAUM; // Fallback ai dati dell'API se la somma è zero
   };
@@ -1575,7 +1577,7 @@ export default function Dashboard() {
                         <div className="text-muted-foreground">
                           <p>Distribuzione degli asset per segmento</p>
                           <p className="mt-1">Mostra come sono distribuiti gli asset tra i diversi segmenti di clientela.</p>
-              </div>
+                </div>
                       </HoverCardContent>
                     </HoverCard>
                   </h3>
@@ -1583,53 +1585,83 @@ export default function Dashboard() {
                     <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                       <Pie
                         data={(() => {
-                          // Definire le fasce di asset
-                          const segments = [
-                            { name: 'mass_market', label: 'Mass Market', max: 100000, value: 0, fill: '#86efac' },
-                            { name: 'affluent', label: 'Affluent', max: 500000, value: 0, fill: '#4ade80' },
-                            { name: 'hnw', label: 'HNW', max: 2000000, value: 0, fill: '#22c55e' },
-                            { name: 'vhnw', label: 'VHNW', max: 10000000, value: 0, fill: '#16a34a' },
-                            { name: 'uhnw', label: 'UHNW', max: Infinity, value: 0, fill: '#15803d' }
-                          ];
+                          console.log('Esecuzione funzione grafico distribuzione asset per segmento');
                           
-                          // Calcolare il totale degli asset per cliente e assegnare al segmento corretto
+                          // Oggetto per accumulare i valori totali per segmento
+                          const segmentTotals: {[key: string]: number} = {
+                            'mass_market': 0,
+                            'affluent': 0,
+                            'hnw': 0,
+                            'vhnw': 0,
+                            'uhnw': 0
+                          };
+                          
+                          console.log('Totale clienti attivi:', activeClients.length);
+                          
+                          // Assegna ogni cliente al segmento corretto usando direttamente total_assets
                           activeClients.forEach(client => {
-                            const clientId = client.id;
-                            const clientAssets = assets.filter(asset => asset.clientId === clientId);
-                            const clientTotal = clientAssets.reduce((sum, asset) => sum + asset.value, 0);
+                            // Usa direttamente il campo total_assets dal cliente
+                            const totalAsset = client.totalAssets || 0;
                             
-                            // Assegnare al segmento corretto - verifica prima se il cliente ha già un segmento assegnato
+                            console.log(`Cliente ${client.name}, ID ${client.id}, totale asset: ${totalAsset}`);
+                            
+                            // Se il cliente ha già un segmento assegnato, usalo
                             if (client.clientSegment && CLIENT_SEGMENTS.includes(client.clientSegment as any)) {
-                              const segmentName = client.clientSegment;
-                              const segment = segments.find(s => s.name === segmentName);
-                              if (segment) {
-                                segment.value += clientTotal;
+                              segmentTotals[client.clientSegment] += totalAsset;
+                              console.log(`  Segmento da DB: ${client.clientSegment}`);
+                            } 
+                            // Altrimenti calcola il segmento in base agli asset
+                            else {
+                              // Assegna al segmento in base agli asset totali
+                              let segmentName = 'mass_market'; // Default
+                              
+                              if (totalAsset <= 100000) {
+                                segmentName = 'mass_market';
+                              } else if (totalAsset <= 500000) {
+                                segmentName = 'affluent';
+                              } else if (totalAsset <= 2000000) {
+                                segmentName = 'hnw';
+                              } else if (totalAsset <= 10000000) {
+                                segmentName = 'vhnw';
+                              } else {
+                                segmentName = 'uhnw';
                               }
-                            } else {
-                              // Altrimenti assegna in base al totale degli asset
-                              for (let i = 0; i < segments.length; i++) {
-                                const segment = segments[i];
-                                const prevMax = i > 0 ? segments[i - 1].max : 0;
-                                
-                                if (clientTotal > prevMax && clientTotal <= segment.max) {
-                                  segment.value += clientTotal;
-                                  break;
-                                }
-                              }
+                              
+                              segmentTotals[segmentName] += totalAsset;
+                              console.log(`  Segmento calcolato: ${segmentName}`);
                             }
                           });
                           
-                          // Assicuriamoci che ci sia sempre almeno un valore per ogni segmento per la visualizzazione
-                          // Valori minimi per evitare torte vuote
-                          const minValueForVisualization = 1;
-                          segments.forEach(segment => {
-                            if (segment.value === 0) segment.value = minValueForVisualization;
-                          });
+                          console.log('Totali per segmento:', segmentTotals);
                           
-                          return segments.map(segment => ({
-                            ...segment,
-                            displayName: segment.label
-                          }));
+                          // Crea l'array finale per il grafico
+                          const segmentLabels: {[key: string]: string} = {
+                            'mass_market': 'Mass Market',
+                            'affluent': 'Affluent',
+                            'hnw': 'HNW',
+                            'vhnw': 'VHNW',
+                            'uhnw': 'UHNW'
+                          };
+                          
+                          const segmentColors: {[key: string]: string} = {
+                            'mass_market': '#86efac',
+                            'affluent': '#4ade80',
+                            'hnw': '#22c55e',
+                            'vhnw': '#16a34a',
+                            'uhnw': '#15803d'
+                          };
+                          
+                          const result = Object.entries(segmentTotals)
+                            .filter(([_, value]) => value > 0)
+                            .map(([key, value]) => ({
+                              name: key,
+                              displayName: segmentLabels[key],
+                              value: value,
+                              fill: segmentColors[key]
+                            }));
+                          
+                          console.log('Dati grafico finali:', result);
+                          return result;
                         })()}
                         cx="50%"
                         cy="50%"
