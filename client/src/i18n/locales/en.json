@@ -243,7 +243,9 @@
     "last_name": "Last Name",
     "phone_number": "Phone Number",
     "address": "Address",
-    "tax_code": "Tax Code / Identification Number"
+    "tax_code": "Tax Code / Identification Number",
+    "active": "Active Client",
+    "active_desc": "Indicates if the client is currently active"
   },
   "auth": {
     "login": "Login",
@@ -278,6 +280,7 @@
   "common": {
     "edit": "Edit",
     "saving": "Saving...",
+    "save": "Save and exit",
     "save_changes": "Save Changes",
     "pro_version": "Gervis PRO",
     "coming_soon": "COMING SOON",
@@ -470,6 +473,7 @@
     "personal_info": "Personal Information",
     "address": "Address",
     "phone": "Phone",
+    "total_assets": "Total Assets",
     "birth_date": "Birth Date",
     "marital_status": "Marital Status",
     "employment_status": "Employment Status",
@@ -477,6 +481,8 @@
     "email_placeholder": "Enter your personalized message here...",
     "email_personalization_tip": "Customize the message by including specific details. The onboarding link will be automatically included in the email.",
     "send_email": "Send Email",
+    "logs": "Client interactions log",
+    "generate_pdf": "Generate Mifid PDF",
     "onboarding_required": "Onboarding Required",
     "onboarding_required_description": "This client needs to complete the onboarding process to access all features.",
     "onboard_first": "The client must complete the onboarding process before accessing features.",
@@ -515,7 +521,15 @@
     "dependents": "Dependents",
     "investment_horizon": "Investment Horizon",
     "risk_profile": "Risk Profile",
-    "current_financial_situation": "Current Financial Situation"
+    "current_financial_situation": "Current Financial Situation",
+    "active_client": "Active Client",
+    "inactive_client": "Inactive Client",
+    "active_client_description": "Indicates if the client is currently active",
+    "activate": "Activate Client",
+    "deactivate": "Deactivate Client",
+    "activated_success": "Client activated successfully",
+    "deactivated_success": "Client deactivated successfully",
+    "status_update_error": "Error updating client status"
   },
   "marital_status": {
     "single": "Single",

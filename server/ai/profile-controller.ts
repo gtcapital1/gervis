@@ -117,8 +117,26 @@ export async function getClientProfile(req: Request, res: Response) {
     let profileData;
     
     if (needsNewGeneration) {
+      // Recupera i dati MIFID del cliente
+      const mifid = await storage.getMifidByClient(clientId);
+      
+      // Debug log per verificare i dati MIFID
+      console.log("[DEBUG_CONTROLLER] MIFID data for client ID:", clientId);
+      console.log("[DEBUG_CONTROLLER] MIFID found:", mifid ? "Yes" : "No");
+      console.log("[DEBUG_CONTROLLER] MIFID properties:");
+      if (mifid) {
+        console.log("  - riskProfile:", mifid.riskProfile);
+        console.log("  - investmentExperience:", mifid.investmentExperience);
+        console.log("  - investmentHorizon:", mifid.investmentHorizon);
+        console.log("  - wealthGrowthInterest:", mifid.wealthGrowthInterest);
+        console.log("  - incomeGenerationInterest:", mifid.incomeGenerationInterest);
+        console.log("  - capitalPreservationInterest:", mifid.capitalPreservationInterest);
+        console.log("  - estatePlanningInterest:", mifid.estatePlanningInterest);
+        console.log("  - retirementInterest:", mifid.retirementInterest);
+      }
+      
       // Genera un nuovo profilo arricchito utilizzando l'AI
-      profileData = await generateClientProfile(client, clientLogs);
+      profileData = await generateClientProfile(client, mifid || null, clientLogs);
       
       // Salva il profilo generato nella cache
       if (cachedProfile) {
@@ -183,5 +201,50 @@ export async function getClientProfile(req: Request, res: Response) {
       success: false,
       error: "Failed to generate client profile: " + (error.message || "Unknown error")
     });
+  }
+}
+
+export async function generateEnrichedProfile(clientId: number): Promise<AiClientProfile> {
+  try {
+    // Get client data
+    const client = await getClientById(clientId);
+    if (!client) {
+      throw new Error(`Client with ID ${clientId} not found`);
+    }
+
+    // Get MIFID data
+    const mifid = await getMifidByClient(clientId);
+    console.log("[PROFILE DEBUG] MIFID data for client ID:", clientId);
+    console.log("[PROFILE DEBUG] MIFID data:", JSON.stringify(mifid, null, 2));
+    console.log("[PROFILE DEBUG] riskProfile:", mifid?.riskProfile);
+    console.log("[PROFILE DEBUG] investmentExperience:", mifid?.investmentExperience);
+    console.log("[PROFILE DEBUG] investmentHorizon:", mifid?.investmentHorizon);
+
+    // Get client logs
+    const clientLogs = await getClientLogsByClientId(clientId);
+    
+    // Generate profile
+    const profileData = await generateClientProfile(client, mifid || null, clientLogs);
+
+    // Save profile to storage
+    await storage.createAiProfile({
+      clientId,
+      profileData,
+      createdBy: req.user.id
+    });
+
+    return profileData;
+  } catch (error: any) {
+    console.error("Error generating enriched profile:", error);
+    
+    // Gestione degli errori specifici
+    if (error.message && (
+      error.message.includes("OpenAI API key not configured") ||
+      error.message.includes("Credito OpenAI esaurito")
+    )) {
+      throw new Error(error.message);
+    }
+    
+    throw new Error("Failed to generate enriched profile: " + (error.message || "Unknown error"));
   }
 }

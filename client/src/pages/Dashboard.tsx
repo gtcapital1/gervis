@@ -414,11 +414,50 @@ export default function Dashboard() {
     return client !== undefined;
   });
   
-  const assetsPerProspect = prospectsInPeriod.length > 0 ? 
-    parseFloat((prospectAssets.reduce((sum, asset) => sum + asset.value, 0) / prospectsInPeriod.length).toFixed(1)) : 0;
+  // Calcola la media degli asset dai dati MIFID invece che dalla tabella assets
+  const { data: mifidData, isLoading: isLoadingMifid } = useQuery<{mifids: Array<any>}>({
+    queryKey: ['/api/mifid'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
+  });
   
+  const mifids = mifidData?.mifids || [];
+  
+  // Funzione di supporto per estrarre il valore totale degli asset da un record MIFID
+  const getMifidAssetTotal = (clientId: number) => {
+    const clientMifid = mifids.find(m => m.clientId === clientId);
+    if (!clientMifid) return 0;
+    
+    try {
+      // Se assets è un numero diretto
+      if (clientMifid.assets && typeof clientMifid.assets === 'number') {
+        return clientMifid.assets;
+      }
+      // Se assets è un oggetto JSON, estrai il campo total
+      else if (clientMifid.assets && typeof clientMifid.assets === 'object') {
+        return clientMifid.assets.total || 0;
+      }
+      // Se assets è una stringa JSON, parsala
+      else if (typeof clientMifid.assets === 'string') {
+        const parsed = JSON.parse(clientMifid.assets);
+        if (typeof parsed === 'number') return parsed;
+        return parsed.total || 0;
+      }
+    } catch (e) {
+      console.error(`Error parsing MIFID assets for client ${clientId}:`, e);
+    }
+    
+    return 0;
+  };
+  
+  // Calcola la media degli asset per i prospect usando MIFID
+  const assetsPerProspect = prospectsInPeriod.length > 0 ? 
+    parseFloat((prospectsInPeriod.reduce((sum, client) => sum + getMifidAssetTotal(client.id), 0) / prospectsInPeriod.length).toFixed(1)) : 0;
+  
+  // Calcola la media degli asset per i clienti attivi usando MIFID
   const assetsPerActiveClient = activeClientsInPeriod.length > 0 ? 
-    parseFloat((activeClientAssets.reduce((sum, asset) => sum + asset.value, 0) / activeClientsInPeriod.length).toFixed(1)) : 0;
+    parseFloat((activeClientsInPeriod.reduce((sum, client) => sum + getMifidAssetTotal(client.id), 0) / activeClientsInPeriod.length).toFixed(1)) : 0;
 
   // Prepare portfolio data
   const portfolioStats = portfolioData || {
@@ -999,6 +1038,16 @@ export default function Dashboard() {
   // Usa il valore calcolato invece di quello dell'API
   const activeClientAUM = calculateActiveClientAUM();
 
+  // Funzione per formattare il valore in formato compatto (k, m)
+  const formatCompactValue = (value: number): string => {
+    if (value >= 1000000) {
+      return `${(value / 1000000).toFixed(1)}m`;
+    } else if (value >= 1000) {
+      return `${(value / 1000).toFixed(0)}k`;
+    }
+    return value.toFixed(0);
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader 
@@ -1266,11 +1315,11 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">{t('dashboard.per_prospect')}</span>
-                        <span className="text-sm font-medium">{assetsPerProspect.toFixed(1)}</span>
+                        <span className="text-sm font-medium">{formatCompactValue(assetsPerProspect)}</span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-muted-foreground">{t('dashboard.per_active_client')}</span>
-                        <span className="text-sm font-medium">{assetsPerActiveClient.toFixed(1)}</span>
+                        <span className="text-sm font-medium">{formatCompactValue(assetsPerActiveClient)}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 italic text-right">
                         {timeframe === '1w' ? t('dashboard.last_week') : 
@@ -1714,7 +1763,10 @@ export default function Dashboard() {
                         cx="50%"
                         cy="50%"
                         labelLine={true}
-                        label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(0)}%`}
+                        label={({ category, percent, value }) => {
+                          // Non mostrare etichette per asset con valore 0
+                          return value > 0 ? `${t(`asset_categories.${category}`)}: ${(percent * 100).toFixed(0)}%` : null;
+                        }}
                         outerRadius={55}
                         innerRadius={0}
                         fill="#8884d8"
@@ -1733,64 +1785,15 @@ export default function Dashboard() {
                           ))
                         }
                       </Pie>
-                      <RechartsTooltip formatter={(value: number) => formatCurrency(value)} />
+                      <RechartsTooltip 
+                        formatter={(value: number) => formatCurrency(value)} 
+                        labelFormatter={(label) => t(`asset_categories.${label}`)}
+                      />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
               </div>
 
-              {/* Risk Distribution */}
-              <div>
-                <h3 className="text-sm font-medium mb-2">{t('dashboard.risk_distribution')}</h3>
-                {/* Usiamo i 5 profili di rischio reali */}
-                {(() => {
-                  const riskProfiles = {
-                    conservative: { color: 'bg-green-500', count: 0, percentage: 0 },
-                    moderate: { color: 'bg-emerald-500', count: 0, percentage: 0 },
-                    balanced: { color: 'bg-yellow-500', count: 0, percentage: 0 },
-                    growth: { color: 'bg-orange-500', count: 0, percentage: 0 },
-                    aggressive: { color: 'bg-red-500', count: 0, percentage: 0 }
-                  };
-                  
-                  // Conta i clienti per profilo di rischio
-                  activeClients.forEach(client => {
-                    const profile = client.riskProfile || 'unknown';
-                    if (profile !== 'unknown' && profile in riskProfiles) {
-                      riskProfiles[profile as keyof typeof riskProfiles].count++;
-                    }
-                  });
-                  
-                  // Calcola le percentuali
-                  const totalClients = activeClients.length;
-                  Object.values(riskProfiles).forEach(profile => {
-                    profile.percentage = totalClients > 0 ? (profile.count / totalClients) * 100 : 0;
-                  });
-                  
-                  // Visualizzazione
-                  return (
-                    <>
-              <div className="h-[20px] w-full rounded-md overflow-hidden flex">
-                      {Object.entries(riskProfiles).map(([name, profile]) => (
-                        <div 
-                          key={name} 
-                          className={profile.color} 
-                          style={{ width: `${profile.percentage}%` }}
-                          title={`${name}: ${profile.count} ${t('dashboard.clients')} (${profile.percentage.toFixed(1)}%)`}
-                        ></div>
-                      ))}
-                </div>
-              <div className="flex justify-between mt-2 text-xs">
-                      {Object.entries(riskProfiles).map(([name, profile]) => (
-                        <div key={name} className="flex items-center">
-                          <div className={`w-3 h-3 rounded-full ${profile.color} mr-1`}></div>
-                          <span>{name}</span>
-                </div>
-                      ))}
-              </div>
-                    </>
-                  );
-                })()}
-            </div>
             </>
           )}
             </CardContent>

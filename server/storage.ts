@@ -11,7 +11,7 @@ import {
   mifid, type Mifid
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt, sql, desc, gte, lte } from 'drizzle-orm';
+import { eq, and, gt, sql, desc, gte, lte, inArray } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
@@ -93,6 +93,8 @@ export interface IStorage {
 
   // MIFID Methods
   getMifidByClient(clientId: number): Promise<Mifid | undefined>;
+  getAllMifidByClients(clientIds: number[]): Promise<Mifid[]>;
+  updateMifid(clientId: number, mifidData: Partial<Mifid>): Promise<Mifid>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1361,6 +1363,42 @@ export class PostgresStorage implements IStorage {
   async getMifidByClient(clientId: number): Promise<Mifid | undefined> {
     const result = await db.select().from(mifid).where(eq(mifid.clientId, clientId));
     return result[0];
+  }
+
+  async getAllMifidByClients(clientIds: number[]): Promise<Mifid[]> {
+    if (!clientIds.length) return [];
+    const result = await db.select().from(mifid).where(inArray(mifid.clientId, clientIds));
+    return result;
+  }
+
+  async updateMifid(clientId: number, mifidData: Partial<Mifid>): Promise<Mifid> {
+    // Check if MIFID record exists for the client
+    const existingMifid = await this.getMifidByClient(clientId);
+    
+    if (existingMifid) {
+      // Update existing record
+      const [updatedMifid] = await db.update(mifid)
+        .set({
+          ...mifidData,
+          updatedAt: new Date()
+        })
+        .where(eq(mifid.clientId, clientId))
+        .returning();
+      
+      return updatedMifid;
+    } else {
+      // Create new record
+      const [newMifid] = await db.insert(mifid)
+        .values({
+          clientId,
+          ...mifidData as any,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      return newMifid;
+    }
   }
 }
 

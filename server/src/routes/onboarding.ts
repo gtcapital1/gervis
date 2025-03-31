@@ -91,10 +91,36 @@ async function saveOnboardingData(clientId: number, data: any) {
     // Aggiorna lo stato di onboarding del cliente
     await db
       .update(clients)
-      .set({ isOnboarded: true })
+      .set({ 
+        isOnboarded: true,
+        onboarded_at: new Date(),
+        active: false // Set default to inactive
+      })
       .where(eq(clients.id, clientId));
     
     console.log("Client onboarding status updated");
+
+    // Calculate net worth and update client segment
+    const totalAssets = data.assets.reduce((sum: number, asset: any) => sum + (parseInt(asset.value) || 0), 0);
+    const debts = parseInt(data.debts) || 0;
+    const netWorth = totalAssets - debts;
+
+    // Determine client segment based on net worth
+    let clientSegment = 'mass_market';
+    if (netWorth >= 1000000) clientSegment = 'uhnw';
+    else if (netWorth >= 500000) clientSegment = 'vhnw';
+    else if (netWorth >= 250000) clientSegment = 'hnw';
+    else if (netWorth >= 100000) clientSegment = 'affluent';
+
+    // Update client with net worth and segment
+    await db
+      .update(clients)
+      .set({ 
+        totalAssets,
+        netWorth,
+        clientSegment
+      })
+      .where(eq(clients.id, clientId));
 
     return { success: true };
   } catch (error: any) {

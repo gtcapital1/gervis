@@ -249,7 +249,7 @@ export default function MarketUpdate() {
   
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("indices");
+  const [activeTab, setActiveTab] = useState("stocks");
   const [newTickerSymbol, setNewTickerSymbol] = useState("");
   const [userTickers, setUserTickers] = useState<string[]>(DEFAULT_US_STOCKS);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -556,17 +556,17 @@ export default function MarketUpdate() {
         </CommandList>
       </CommandDialog>
       
-      <Tabs defaultValue="indices" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="stocks" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid grid-cols-3 mb-4">
-          <TabsTrigger value="indices" className="flex items-center">
-            <BarChart3 className="h-4 w-4 mr-2" />
-            <span className="hidden sm:inline">{t('market.indices') || "Indici"}</span>
-            <span className="sm:hidden">Indici</span>
-          </TabsTrigger>
           <TabsTrigger value="stocks" className="flex items-center">
             <LineChart className="h-4 w-4 mr-2" />
             <span className="hidden sm:inline">{t('market.stocks') || "Azioni"}</span>
             <span className="sm:hidden">Azioni</span>
+          </TabsTrigger>
+          <TabsTrigger value="indices" className="flex items-center">
+            <BarChart3 className="h-4 w-4 mr-2" />
+            <span className="hidden sm:inline">{t('market.indices') || "Indici"}</span>
+            <span className="sm:hidden">Indici</span>
           </TabsTrigger>
           <TabsTrigger value="news" className="flex items-center">
             <Newspaper className="h-4 w-4 mr-2" />
@@ -574,6 +574,126 @@ export default function MarketUpdate() {
             <span className="sm:hidden">News</span>
           </TabsTrigger>
         </TabsList>
+
+        {/* Scheda dei ticker personalizzati */}
+        <TabsContent value="stocks">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+            <h2 className="text-2xl font-semibold text-black">{t('market.your_tickers') || "I Tuoi Ticker"}</h2>
+            
+            <div className="flex w-full md:w-auto gap-2">
+              <div className="relative">
+                <div className="flex">
+                  <Input
+                    placeholder={t('market.add_ticker_placeholder') || "Aggiungi ticker (es. AAPL)"}
+                    value={newTickerSymbol}
+                    onChange={handleTickerInputChange}
+                    onKeyPress={handleAddTickerKeyPress}
+                    className="max-w-xs rounded-r-none"
+                    disabled={addTickerMutation.isPending}
+                  />
+                  <Button 
+                    variant="outline" 
+                    className="rounded-l-none border-l-0"
+                    onClick={() => setShowCommandDialog(true)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                {/* Lista di suggerimenti */}
+                {showSuggestions && tickerSuggestions.length > 0 && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border p-2 max-h-60 overflow-y-auto">
+                    {tickerSuggestions.map((suggestion) => (
+                      <div 
+                        key={suggestion.symbol} 
+                        className="flex justify-between items-center p-2 hover:bg-gray-100 rounded cursor-pointer"
+                        onClick={() => {
+                          setNewTickerSymbol(suggestion.symbol);
+                          setShowSuggestions(false);
+                          handleAddTicker();
+                        }}
+                      >
+                        <div>
+                          <div className="font-medium">{suggestion.symbol}</div>
+                          <div className="text-xs text-muted-foreground truncate">{suggestion.name}</div>
+                        </div>
+                        <Badge variant="outline">{suggestion.symbol}</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              
+              <Button 
+                variant="default" 
+                className="flex items-center" 
+                onClick={handleAddTicker}
+                disabled={!newTickerSymbol || addTickerMutation.isPending}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                {t('market.add') || "Aggiungi"}
+              </Button>
+            </div>
+          </div>
+          
+          {tickersLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Card key={i} className="overflow-hidden">
+                  <CardHeader className="pb-2">
+                    <div className="h-5 bg-muted rounded animate-pulse w-1/3 mb-2"></div>
+                    <div className="h-4 bg-muted rounded animate-pulse w-1/4"></div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex justify-between items-center">
+                      <div className="h-7 bg-muted rounded animate-pulse w-1/4"></div>
+                      <div className="h-5 bg-muted rounded animate-pulse w-1/6"></div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : tickersError ? (
+            <Alert variant="destructive">
+              <AlertTitle>Errore</AlertTitle>
+              <AlertDescription>
+                Si è verificato un errore durante il caricamento dei dati dei ticker. Riprova più tardi.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <div>
+              {tickersData && tickersData.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {tickersData.map((ticker) => (
+                    <StockTickerCard 
+                      key={ticker.symbol} 
+                      ticker={ticker} 
+                      onRemove={handleRemoveTicker}
+                      onClick={(symbol) => {
+                        setSelectedStock(symbol);
+                        if (activeTab !== "stocks") {
+                          setActiveTab("stocks");
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <Card className="mb-6">
+                  <CardContent className="flex flex-col items-center justify-center p-10">
+                    <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
+                    <p className="text-xl font-semibold text-center mb-2 text-black">
+                      {t('market.no_ticker_data') || "Nessun dato disponibile"}
+                    </p>
+                    <p className="text-muted-foreground text-center mb-4">
+                      {t('market.no_ticker_data_message') || "Non è stato possibile recuperare i dati per i ticker selezionati. Riprova più tardi."}
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          )}
+        </TabsContent>
 
         {/* Scheda degli indici principali */}
         <TabsContent value="indices">
@@ -631,135 +751,6 @@ export default function MarketUpdate() {
                     </CardContent>
                   </Card>
                 </div>
-              )}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Scheda dei ticker personalizzati */}
-        <TabsContent value="stocks">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
-            <h2 className="text-2xl font-semibold text-black">{t('market.your_tickers') || "I Tuoi Ticker"}</h2>
-            
-            <div className="flex w-full md:w-auto gap-2">
-              <div className="relative">
-                <div className="flex">
-                  <Input
-                    placeholder={t('market.add_ticker_placeholder') || "Aggiungi ticker (es. AAPL)"}
-                    value={newTickerSymbol}
-                    onChange={handleTickerInputChange}
-                    onKeyPress={handleAddTickerKeyPress}
-                    className="max-w-xs rounded-r-none"
-                    disabled={addTickerMutation.isPending}
-                  />
-                  <Button 
-                    variant="outline" 
-                    className="rounded-l-none border-l-0"
-                    onClick={() => setShowCommandDialog(true)}
-                  >
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                {/* Lista di suggerimenti */}
-                {showSuggestions && tickerSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-background rounded-md shadow-lg border">
-                    <ul className="max-h-60 overflow-auto rounded-md py-1 text-base">
-                      {tickerSuggestions.map((suggestion) => (
-                        <li
-                          key={suggestion.symbol}
-                          className="cursor-pointer px-4 py-2 hover:bg-muted flex justify-between items-center"
-                          onClick={() => handleSelectSuggestion(suggestion)}
-                        >
-                          <span className="font-medium">{suggestion.symbol}</span>
-                          <span className="text-sm text-muted-foreground">{suggestion.name}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-              <Button 
-                onClick={handleAddTicker} 
-                disabled={!newTickerSymbol || addTickerMutation.isPending}
-                className="whitespace-nowrap"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                {t('market.add') || "Aggiungi"}
-              </Button>
-            </div>
-          </div>
-
-          {/* Rimossi i grafici che causavano problemi */}
-          
-          {userTickers.length === 0 ? (
-            <Card className="mb-6">
-              <CardContent className="flex flex-col items-center justify-center p-10">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-xl font-semibold text-center mb-2 text-black">
-                  {t('market.no_tickers') || "Nessun ticker aggiunto"}
-                </p>
-                <p className="text-muted-foreground text-center mb-4">
-                  {t('market.add_tickers_message') || "Aggiungi i ticker delle azioni che desideri monitorare"}
-                </p>
-              </CardContent>
-            </Card>
-          ) : tickersLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <Card key={i} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-center">
-                      <div className="h-5 bg-muted rounded animate-pulse w-1/3"></div>
-                      <div className="h-4 w-4 bg-muted rounded-full animate-pulse"></div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center">
-                      <div className="h-7 bg-muted rounded animate-pulse w-1/4"></div>
-                      <div className="h-5 bg-muted rounded animate-pulse w-1/6"></div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : tickersError ? (
-            <Alert variant="destructive">
-              <AlertTitle>Errore</AlertTitle>
-              <AlertDescription>
-                Si è verificato un errore durante il caricamento dei dati dei ticker. Riprova più tardi.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div>
-              {tickersData && tickersData.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {tickersData.map((ticker) => (
-                    <StockTickerCard 
-                      key={ticker.symbol} 
-                      ticker={ticker} 
-                      onRemove={handleRemoveTicker}
-                      onClick={(symbol) => {
-                        setSelectedStock(symbol);
-                        if (activeTab !== "stocks") {
-                          setActiveTab("stocks");
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <Card className="mb-6">
-                  <CardContent className="flex flex-col items-center justify-center p-10">
-                    <LineChart className="h-12 w-12 text-muted-foreground mb-4" />
-                    <p className="text-xl font-semibold text-center mb-2 text-black">
-                      {t('market.no_ticker_data') || "Nessun dato disponibile"}
-                    </p>
-                    <p className="text-muted-foreground text-center mb-4">
-                      {t('market.no_ticker_data_message') || "Non è stato possibile recuperare i dati per i ticker selezionati. Riprova più tardi."}
-                    </p>
-                  </CardContent>
-                </Card>
               )}
             </div>
           )}

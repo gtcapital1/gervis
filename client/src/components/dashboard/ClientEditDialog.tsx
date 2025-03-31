@@ -54,51 +54,32 @@ const assetSchema = z.object({
 
 // Define the complete client edit form schema
 const clientEditFormSchema = z.object({
-  // Basic Information
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Invalid email address"),
-  active: z.boolean().default(true), // Whether the client is active
-  
-  // Personal Information
-  address: z.string().min(5, "Address must be at least 5 characters"),
-  phone: z.string().min(5, "Phone number must be at least 5 characters"),
-  taxCode: z.string().min(3, "Tax code must be at least 3 characters"),
-  employmentStatus: z.string().min(1, "Employment status is required"),
-  annualIncome: z.coerce.number().min(0, "Annual income must be 0 or greater"),
-  monthlyExpenses: z.coerce.number().min(0, "Monthly expenses must be 0 or greater"),
-  netWorth: z.coerce.number().min(0, "Net worth must be 0 or greater"),
-  dependents: z.coerce.number().min(0, "Number of dependents must be 0 or greater"),
-  
-  // Investment Profile
-  riskProfile: z.string().refine(val => RISK_PROFILES.includes(val as any), {
-    message: "Please select a valid risk profile"
-  }),
-  investmentExperience: z.string().refine(val => EXPERIENCE_LEVELS.includes(val as any), {
-    message: "Please select a valid experience level"
-  }),
-  investmentGoals: z.array(z.string()).refine(
-    val => val.length > 0 && val.every(goal => INVESTMENT_GOALS.includes(goal as any)), {
-    message: "Please select at least one valid investment goal"
-  }),
-  investmentHorizon: z.string().refine(val => INVESTMENT_HORIZONS.includes(val as any), {
-    message: "Please select a valid investment horizon"
-  }),
-  
-  // Investment interest ratings (1-5 scale)
-  retirementInterest: z.number().min(1).max(5),
-  wealthGrowthInterest: z.number().min(1).max(5),
-  incomeGenerationInterest: z.number().min(1).max(5),
-  capitalPreservationInterest: z.number().min(1).max(5),
-  estatePlanningInterest: z.number().min(1).max(5),
-
-  // Assets
-  assets: z.array(assetSchema).min(1, "Please add at least one asset"),
-
-  // New fields
-  clientSegment: z.string().refine(val => CLIENT_SEGMENTS.includes(val as any), {
-    message: "Please select a valid client segment"
-  }),
+  phone: z.string().optional(),
+  taxCode: z.string().optional(),
+  address: z.string().optional(),
+  employmentStatus: z.string().optional(),
+  annualIncome: z.number().min(0).optional(),
+  monthlyExpenses: z.number().min(0).optional(),
+  dependents: z.number().min(0).optional(),
+  riskProfile: z.string().optional(),
+  investmentExperience: z.string().optional(),
+  investmentGoals: z.array(z.string()).optional(),
+  investmentHorizon: z.string().optional(),
+  retirementInterest: z.number().min(1).max(5).optional(),
+  wealthGrowthInterest: z.number().min(1).max(5).optional(),
+  incomeGenerationInterest: z.number().min(1).max(5).optional(),
+  capitalPreservationInterest: z.number().min(1).max(5).optional(),
+  estatePlanningInterest: z.number().min(1).max(5).optional(),
+  assets: z.array(z.object({
+    id: z.number().optional(),
+    category: z.string(),
+    value: z.number().min(0),
+    description: z.string().optional()
+  })).optional(),
+  clientSegment: z.string().optional()
 });
 
 type ClientEditFormValues = z.infer<typeof clientEditFormSchema>;
@@ -131,20 +112,17 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
       firstName: client.firstName || "",
       lastName: client.lastName || "",
       email: client.email,
-      active: client.active !== undefined ? client.active : true,
-      address: client.address || "",
       phone: client.phone || "",
       taxCode: client.taxCode || "",
+      address: client.address || "",
       employmentStatus: client.employmentStatus || "",
       annualIncome: client.annualIncome || 0,
       monthlyExpenses: client.monthlyExpenses || 0,
-      netWorth: client.netWorth || 0,
       dependents: client.dependents || 0,
       riskProfile: client.riskProfile || "",
       investmentExperience: client.investmentExperience || "",
       investmentGoals: client.investmentGoals || [],
       investmentHorizon: client.investmentHorizon || "",
-      // Investment interest ratings (default to 3 if not set)
       retirementInterest: client.retirementInterest || 3,
       wealthGrowthInterest: client.wealthGrowthInterest || 3,
       incomeGenerationInterest: client.incomeGenerationInterest || 3,
@@ -167,20 +145,17 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
         firstName: client.firstName || "",
         lastName: client.lastName || "",
         email: client.email,
-        active: client.active !== undefined ? client.active : true,
-        address: client.address || "",
         phone: client.phone || "",
         taxCode: client.taxCode || "",
+        address: client.address || "",
         employmentStatus: client.employmentStatus || "",
         annualIncome: client.annualIncome || 0,
         monthlyExpenses: client.monthlyExpenses || 0,
-        netWorth: client.netWorth || 0,
         dependents: client.dependents || 0,
         riskProfile: client.riskProfile || "",
         investmentExperience: client.investmentExperience || "",
         investmentGoals: client.investmentGoals || [],
         investmentHorizon: client.investmentHorizon || "",
-        // Utilizziamo i valori effettivi dal client senza default
         retirementInterest: client.retirementInterest ?? 1,
         wealthGrowthInterest: client.wealthGrowthInterest ?? 1,
         incomeGenerationInterest: client.incomeGenerationInterest ?? 1,
@@ -212,12 +187,58 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
     form.setValue("assets", currentAssets.filter((_, i) => i !== index));
   }
 
+  // Function to calculate net worth based on assets and debts
+  const calculateNetWorth = (assets: Array<{value: number}>, debts: number): number => {
+    const totalAssets = assets.reduce((sum, asset) => sum + asset.value, 0);
+    return totalAssets - debts;
+  };
+
+  // Function to determine client segment based on net worth
+  const determineClientSegment = (netWorth: number): string => {
+    if (netWorth < 100000) return "mass_market";
+    if (netWorth < 500000) return "affluent";
+    if (netWorth < 2000000) return "hnw";
+    if (netWorth < 10000000) return "vhnw";
+    return "uhnw";
+  };
+
+  // Watch for changes in assets and debts to update net worth and client segment
+  useEffect(() => {
+    const subscription = form.watch((value, { name }) => {
+      if (name?.startsWith('assets.') || name === 'debts') {
+        const assets = form.getValues('assets');
+        const debts = form.getValues('debts') || 0;
+        const netWorth = calculateNetWorth(assets, debts);
+        form.setValue('netWorth', netWorth);
+        form.setValue('clientSegment', determineClientSegment(netWorth));
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
   // Update client mutation
   const updateClientMutation = useMutation({
     mutationFn: (data: ClientEditFormValues) => {
+      // Calculate total assets before sending
+      const totalAssets = data.assets.reduce((sum, asset) => sum + asset.value, 0);
+      
+      // Calculate net worth
+      const netWorth = calculateNetWorth(data.assets, data.debts || 0);
+      
+      // Determine client segment
+      const clientSegment = determineClientSegment(netWorth);
+      
+      // Add calculated values to the data
+      const updatedData = {
+        ...data,
+        totalAssets,
+        netWorth,
+        clientSegment
+      };
+      
       return apiRequest(`/api/clients/${clientId}`, {
         method: 'PATCH',
-        body: JSON.stringify(data),
+        body: JSON.stringify(updatedData),
       });
     },
     onSuccess: () => {
@@ -337,27 +358,6 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                         <Input {...field} type="email" />
                       </FormControl>
                       <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="active"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                      <FormControl>
-                        <Checkbox
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>Cliente attivo</FormLabel>
-                        <FormDescription>
-                          Indica se il cliente è attualmente attivo
-                        </FormDescription>
-                      </div>
                     </FormItem>
                   )}
                 />

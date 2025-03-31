@@ -2,7 +2,23 @@ import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertClientSchema, insertAssetSchema, insertRecommendationSchema, mifid } from "@shared/schema";
+import {
+  clients,
+  users,
+  assets,
+  recommendations,
+  mifid,
+  aiProfiles,
+  clientLogs,
+  meetings,
+  completedTasks,
+  RISK_PROFILES,
+  insertClientSchema,
+  ClientSegment,
+  LOG_TYPES,
+  insertAssetSchema,
+  insertRecommendationSchema
+} from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
@@ -1088,11 +1104,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...clientData
       } = req.body;
       
+      // Calcola il client_segment basato sul total_assets
+      let clientSegment = undefined;
+      let netWorth = 0;
+      
+      // Calcola il netWorth dai dati degli asset
+      if (assets && Array.isArray(assets)) {
+        const totalAssets = assets.reduce((sum, asset) => sum + asset.value, 0);
+        const totalDebts = req.body.debts || 0;
+        netWorth = totalAssets - totalDebts;
+        
+        // Determina il segmento cliente basato sul patrimonio netto
+        if (netWorth < 100000) {
+          clientSegment = 'mass_market' as ClientSegment;
+        } else if (netWorth >= 100000 && netWorth < 500000) {
+          clientSegment = 'affluent' as ClientSegment;
+        } else if (netWorth >= 500000 && netWorth < 2000000) {
+          clientSegment = 'hnw' as ClientSegment;
+        } else if (netWorth >= 2000000 && netWorth < 10000000) {
+          clientSegment = 'vhnw' as ClientSegment;
+        } else if (netWorth >= 10000000) {
+          clientSegment = 'uhnw' as ClientSegment;
+        }
+      }
+      
+      // Imposta la data corrente per onboarded_at e activated_at
+      const currentDate = new Date();
+      
       // Update client with onboarding data
       const updatedClient = await storage.updateClient(client.id, {
-        ...clientData,
-        isOnboarded: true
+        isOnboarded: true,
+        onboardedAt: currentDate,
+        activatedAt: currentDate,
+        active: true,
+        clientSegment,
+        netWorth
       });
+      
+      console.log("[DEBUG] Onboarding - Updated client:", updatedClient);
       
       // Add assets if provided
       if (assets && Array.isArray(assets)) {
@@ -1181,12 +1230,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
+      // Calcola il client_segment basato sul total_assets
+      let clientSegment = undefined;
+      let netWorth = 0;
+      
+      // Calcola il netWorth dai dati degli asset
+      if (assets && Array.isArray(assets)) {
+        const totalAssets = assets.reduce((sum, asset) => sum + asset.value, 0);
+        const totalDebts = mifidData.debts || 0;
+        netWorth = totalAssets - totalDebts;
+        
+        // Determina il segmento cliente basato sul patrimonio netto
+        if (netWorth < 100000) {
+          clientSegment = 'mass_market' as ClientSegment;
+        } else if (netWorth >= 100000 && netWorth < 500000) {
+          clientSegment = 'affluent' as ClientSegment;
+        } else if (netWorth >= 500000 && netWorth < 2000000) {
+          clientSegment = 'hnw' as ClientSegment;
+        } else if (netWorth >= 2000000 && netWorth < 10000000) {
+          clientSegment = 'vhnw' as ClientSegment;
+        } else if (netWorth >= 10000000) {
+          clientSegment = 'uhnw' as ClientSegment;
+        }
+      }
+      
+      // Imposta la data corrente per onboarded_at e activated_at
+      const currentDate = new Date();
+      
       // Update client with onboarding data
       const updatedClient = await storage.updateClient(client.id, {
-        isOnboarded: true
+        isOnboarded: true,
+        onboardedAt: currentDate,
+        activatedAt: currentDate,
+        active: true,
+        clientSegment,
+        netWorth
       });
-      
-      console.log("[DEBUG] Onboarding - Updated client:", updatedClient);
       
       // Add assets if provided
       if (assets && Array.isArray(assets)) {
@@ -2446,6 +2525,160 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error fetching activity data:', error);
       res.status(500).json({ error: 'Failed to fetch activity data' });
+    }
+  });
+
+  // Update MIFID data for a client
+  app.patch('/api/clients/:id/mifid', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
+      }
+      
+      // Get the current MIFID data, or create a new record if it doesn't exist
+      let currentMifid = await storage.getMifidByClient(clientId);
+      
+      // Update or create MIFID data
+      const updatedMifid = await storage.updateMifid(clientId, req.body);
+      
+      res.json({ 
+        success: true, 
+        mifid: updatedMifid
+      });
+    } catch (error) {
+      console.error('Error updating MIFID data:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ success: false, message: 'Invalid MIFID data', errors: error.errors });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to update MIFID data', error: String(error) });
+      }
+    }
+  });
+
+  // Get all MIFID data
+  app.get('/api/mifid', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      // Ottieni tutti i clienti dell'advisor corrente
+      const clients = await storage.getClientsByAdvisor(req.user.id);
+      const clientIds = clients.map(client => client.id);
+      
+      // Ottieni tutti i record MIFID per questi clienti
+      const mifids = await storage.getAllMifidByClients(clientIds);
+      
+      res.json({ 
+        success: true, 
+        mifids
+      });
+    } catch (error) {
+      console.error('Error fetching MIFID data:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch MIFID data', error: String(error) });
+    }
+  });
+
+  // Update assets for a client
+  app.put('/api/clients/:id/assets', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
+      }
+      
+      // Extract assets from request body
+      const { assets } = req.body;
+      
+      if (!assets || !Array.isArray(assets)) {
+        return res.status(400).json({ success: false, message: 'Assets must be an array' });
+      }
+      
+      // Get existing assets
+      const existingAssets = await storage.getAssetsByClient(clientId);
+      
+      // Delete assets that are no longer present
+      const updatedAssetIds = assets.filter(a => a.id).map(a => a.id);
+      const assetsToDelete = existingAssets.filter(a => !updatedAssetIds.includes(a.id));
+      
+      for (const asset of assetsToDelete) {
+        await storage.deleteAsset(asset.id);
+      }
+      
+      // Update or create assets
+      const updatedAssets = [];
+      for (const asset of assets) {
+        if (asset.id) {
+          // Update existing asset
+          const updatedAsset = await storage.updateAsset(asset.id, {
+            category: asset.category,
+            value: asset.value,
+            description: asset.description
+          });
+          updatedAssets.push(updatedAsset);
+        } else {
+          // Create new asset
+          const newAsset = await storage.createAsset({
+            clientId,
+            category: asset.category,
+            value: asset.value,
+            description: asset.description
+          });
+          updatedAssets.push(newAsset);
+        }
+      }
+      
+      // Calculate total assets
+      const totalValue = updatedAssets.reduce((sum, asset) => sum + asset.value, 0);
+      
+      // Update client's totalAssets field
+      await storage.updateClient(clientId, { totalAssets: totalValue });
+      
+      res.json({ 
+        success: true, 
+        assets: updatedAssets,
+        totalAssets: totalValue
+      });
+    } catch (error) {
+      console.error('Error updating client assets:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ success: false, message: 'Invalid asset data', errors: error.errors });
+      } else {
+        res.status(500).json({ success: false, message: 'Failed to update client assets', error: String(error) });
+      }
     }
   });
 

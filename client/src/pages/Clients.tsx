@@ -481,7 +481,10 @@ export default function Clients() {
                         onClick={() => handleViewClient(client.id)}
                       >
                         <TableCell className="font-medium whitespace-nowrap">
-                          {client.lastName}, {client.firstName}
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${client.active ? 'bg-green-500' : 'bg-red-500'}`} />
+                            <span>{client.lastName}, {client.firstName}</span>
+                          </div>
                         </TableCell>
                         <TableCell className="max-w-[140px] truncate">{client.email}</TableCell>
                         <TableCell className="whitespace-nowrap hidden md:table-cell">{client.phone || "—"}</TableCell>

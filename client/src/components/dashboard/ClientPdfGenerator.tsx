@@ -1,890 +1,278 @@
-// This file defines the ClientPdfGenerator component.
-// It generates a PDF document for a client, including personal information, investment profile, and assets.
-// The component also allows customization of the cover letter and sending the PDF via email.
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
+import { saveAs } from "file-saver";
+import { Button } from "@/components/ui/button";
+import { Loader2, Download, ExternalLink } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
-import React, { useState, useEffect } from 'react';
-import { jsPDF } from 'jspdf';
-import { useTranslation } from 'react-i18next';
-import autoTable from 'jspdf-autotable';
-import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
-import { formatCurrency } from '@/lib/utils';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, FileText, ArrowRight, ArrowLeft, Mail, Globe } from 'lucide-react';
-import { httpRequest } from '@/lib/queryClient';
-import z from 'zod';
+// Estendi l'interfaccia jsPDF per includere il metodo autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+    lastAutoTable: {
+      finalY: number;
+    };
+  }
+}
 
+// Definizione dell'interfaccia per gli asset
+interface Asset {
+  id?: number;
+  clientId?: number;
+  category: string;
+  value: number;
+  description?: string;
+  createdAt?: string;
+}
+
+// Definizione dell'interfaccia per il client
 interface ClientSchema {
   id: number;
   firstName: string;
   lastName: string;
   name: string;
   email: string;
-  phone: string | null;
-  address: string | null;
-  taxCode: string | null;
-  isOnboarded: boolean | null;
-  riskProfile: string | null;
-  investmentGoals: string[] | null;
-  investmentHorizon: string | null;
-  investmentExperience: string | null;
-  birthDate: string | null;
-  employmentStatus: string | null;
-  annualIncome: number | null;
-  monthlyExpenses: number | null;
-  dependents: number | null;
-  advisorId: number | null;
+  phone?: string | null;
+  address?: string | null;
+  birthDate?: string | null;
+  maritalStatus?: string | null;
+  employmentStatus?: string | null;
+  educationLevel?: string | null;
+  annualIncome?: number | null;
+  monthlyExpenses?: number | null;
+  debts?: number | null;
+  dependents?: number | null;
+  riskProfile?: string | null;
+  investmentHorizon?: string | null;
+  investmentExperience?: string | null;
+  retirementInterest?: number | null;
+  wealthGrowthInterest?: number | null;
+  incomeGenerationInterest?: number | null;
+  capitalPreservationInterest?: number | null;
+  estatePlanningInterest?: number | null;
+  pastInvestmentExperience?: string[] | null;
+  financialEducation?: string[] | null;
+  portfolioDropReaction?: string | null;
+  volatilityTolerance?: string | null;
+  yearsOfExperience?: string | null;
+  investmentFrequency?: string | null;
+  advisorUsage?: string | null;
+  monitoringTime?: string | null;
+  specificQuestions?: string | null;
 }
 
-interface Asset {
-  id: number;
-  clientId: number;
-  category: string;
-  value: number;
-  description: string;
-  createdAt: string;
-}
-
+// Definizione dell'interfaccia per le props
 interface ClientPdfGeneratorProps {
   client: ClientSchema;
   assets: Asset[];
   advisorSignature?: string | null;
   companyLogo?: string | null;
   companyInfo?: string | null;
+  onGenerated?: () => void;
 }
 
-interface LetterFields {
-  fullContent: string;
-}
+// Rileva se siamo in ambiente di sviluppo
+const IS_DEV = import.meta.env.DEV;
 
-export function ClientPdfGenerator({ client, assets, advisorSignature, companyLogo, companyInfo }: ClientPdfGeneratorProps) {
-  const { t, i18n } = useTranslation();
+export function ClientPdfGenerator({
+  client,
+  assets,
+  advisorSignature,
+  companyLogo,
+  companyInfo,
+  onGenerated
+}: ClientPdfGeneratorProps) {
+  const { t } = useTranslation();
   const { toast } = useToast();
   
-  // Usa la lingua attualmente impostata nella pagina
-  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language === 'en' ? 'english' : 'italian');
-  
-  // Aggiorna il currentLanguage quando cambia i18n.language
-  useEffect(() => {
-    setCurrentLanguage(i18n.language === 'en' ? 'english' : 'italian');
-    console.log("Lingua ereditata dalla pagina:", i18n.language);
-  }, [i18n.language]);
-  
-  const [showSendEmailDialog, setShowSendEmailDialog] = useState(false);
+  // Stati minimi
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pdfGenerated, setPdfGenerated] = useState(false);
-  const [isSending, setIsSending] = useState(false);
-  const [emailSubject, setEmailSubject] = useState('');
-  const [emailCustomMessage, setEmailCustomMessage] = useState('');
   
-  // Stato per l'anteprima PDF
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  
-  // Stato per controllare quale vista mostrare (personalizzazione o anteprima)
-  const [activeView, setActiveView] = useState<'customize' | 'preview'>('customize');
-  
-  const [letterFields, setLetterFields] = useState<LetterFields>({
-    fullContent: ''
-  });
-  
-  // Imposta i campi della lettera in base alla lingua corrente
-  useEffect(() => {
-    setLetterFieldsByLanguage(currentLanguage);
-  }, [currentLanguage]);
-  
-  // Funzione per impostare i campi della lettera in base alla lingua
-  const setLetterFieldsByLanguage = (lang: string) => {
-    // Crea un contenuto completo basato sulle traduzioni con il nome del cliente
-    const greeting = t('pdf.coverLetter.greeting', { firstName: client.firstName, lastName: client.lastName });
-    const introduction = t('pdf.coverLetter.introduction', { firstName: client.firstName, lastName: client.lastName });
-    const collaboration = t('pdf.coverLetter.collaboration');
-    const servicePoint1 = t('pdf.coverLetter.servicePoint1');
-    const servicePoint2 = t('pdf.coverLetter.servicePoint2');
-    const servicePoint3 = t('pdf.coverLetter.servicePoint3');
-    const servicePoint4 = t('pdf.coverLetter.servicePoint4');
-    const process = t('pdf.coverLetter.process');
-    const contactInfo = t('pdf.coverLetter.contactInfo');
-    const closing = t('pdf.coverLetter.closing');
-    
-    // Estrai informazioni per la firma
-    const advisorInfo = advisorSignature ? advisorSignature.split('\n') : [];
-    const advisorName = advisorInfo[0] || "Consulente Finanziario";
-    const advisorCompany = advisorInfo[1] || "";
-    const advisorEmail = advisorInfo[2] || "";
-    const advisorPhone = advisorInfo[3] || "";
-    
-    // Crea il testo completo formattato con spazio per la firma incluso nel corpo
-    const fullContent = `${greeting}
-
-${introduction}
-
-${collaboration}
-1. ${servicePoint1}
-2. ${servicePoint2}
-3. ${servicePoint3}
-4. ${servicePoint4}
-
-${process}
-
-${contactInfo}
-
-${closing}
-
-${advisorName}
-${advisorCompany}
-${advisorEmail}
-${advisorPhone}`;
-    
-    setLetterFields({ fullContent });
+  // Formatta numeri come valuta
+  const formatCurrency = (value: number): string => {
+    return value.toLocaleString('it-IT');
   };
 
-  // Funzione per generare il contenuto del PDF senza salvarlo
-  const generatePdfContent = () => {
-    // Create new PDF document
-    const doc = new jsPDF({
-      orientation: "portrait",
-      unit: "mm",
-      format: "a4",
+  // Funzione che genera il contenuto del PDF
+  const generatePdfContent = (doc: jsPDF): void => {
+    doc.setFontSize(22);
+    doc.setTextColor(0, 51, 102);
+    doc.text("QUESTIONARIO DI PROFILAZIONE MiFID", 105, 30, { align: "center" });
+    
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Cliente: ${client.firstName} ${client.lastName}`, 105, 40, { align: "center" });
+    doc.text(`Data: ${new Date().toLocaleDateString()}`, 105, 46, { align: "center" });
+    
+    // Sezione dati personali
+    let yPosition = 60;
+    doc.setFontSize(16);
+    doc.setTextColor(0, 51, 102);
+    doc.text("Dati Personali", 20, yPosition);
+    
+    yPosition += 10;
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Campo', 'Valore']],
+      body: [
+        ['Nome', client.firstName || 'N/A'],
+        ['Cognome', client.lastName || 'N/A'],
+        ['Email', client.email || 'N/A'],
+        ['Telefono', client.phone || 'N/A'],
+        ['Indirizzo', client.address || 'N/A']
+      ],
+      theme: 'striped',
+      styles: { fontSize: 10 }
     });
     
-    // Set PDF document properties
-    doc.setProperties({
-      title: `${t('pdf.title')} - ${client.firstName} ${client.lastName}`,
-      subject: t('pdf.subject'),
-      creator: 'Financial Advisor Platform',
-      author: 'Financial Advisor'
+    // Aggiungi semplici info finanziarie
+    yPosition = doc.lastAutoTable.finalY + 20;
+    doc.setFontSize(16);
+    doc.setTextColor(0, 51, 102);
+    doc.text("Informazioni Finanziarie", 20, yPosition);
+    
+    yPosition += 10;
+    doc.autoTable({
+      startY: yPosition,
+      head: [['Campo', 'Valore']],
+      body: [
+        ['Reddito Annuo', client.annualIncome ? `€${formatCurrency(client.annualIncome)}` : 'N/A'],
+        ['Patrimonio Netto', 'Vedi dettaglio asset']
+      ],
+      theme: 'striped',
+      styles: { fontSize: 10 }
     });
     
-    // Aggiungi intestazione con logo e informazioni aziendali
-    let headerHeight = 0;
-    
-    // Function to add header to all pages - returns header height
-    const addHeaderToPage = (pageNum: number) => {
-      doc.setPage(pageNum);
-      
-      // Variables to track the height needed for the header
-      let headerHeight = 0;
-      // Altezza fissa del logo in mm (definita qui per essere visibile in tutto il metodo)
-      const LOGO_HEIGHT = 15;
-      let companyInfoHeight = 0;
-      
-      // Add company info in gray text in the top-left corner
-      if (companyInfo) {
-        doc.setFontSize(8);
-        doc.setTextColor(128, 128, 128); // Gray color
-        doc.setFont('helvetica', 'normal'); // Assicuriamo che il testo non sia in grassetto
-        
-        // Manteniamo i ritorni a capo originali delle settings
-        const trimmedCompanyInfo = companyInfo.trim();
-        
-        // Sostituiamo i newline con specifici caratteri per l'allineamento a sinistra
-        // preservando i ritorni a capo originali
-        const companyInfoLines = trimmedCompanyInfo.split('\n').map(line => line.trim());
-        
-        // Calcoliamo l'altezza in base al numero di righe
-        companyInfoHeight = companyInfoLines.length * 3.5;
-        
-        // Aggiunge il testo giustificato a sinistra, riga per riga
-        companyInfoLines.forEach((line, index) => {
-          doc.text(line, 15, 15 + (index * 3.5), { align: "left" });
-        });
-        
-        // Reset text color for the rest of the content
-        doc.setTextColor(0, 0, 0); // Back to black
-      }
-      
-      // Add the logo in the top-right corner with correct proportions
-      if (companyLogo) {
-        try {
-          // Posizione in alto come richiesto, coordinata x=150 specificata
-          const x = 150; // Coordinata X come specificato
-          const y = 5;   // Coordinata Y (alto del foglio)
-          
-          // Altezza fissa del logo = 25mm come richiesto
-          const targetHeight = LOGO_HEIGHT; // 25mm
-          
-          // Calcoliamo le dimensioni effettive del logo e le proporzioni
-          // Uso di una promessa per assicurarsi che l'immagine venga caricata
-          const calculateImageAspectRatio = (imageUrl: string): Promise<number> => {
-            return new Promise((resolve) => {
-              const img = new Image();
-              img.onload = function() {
-                const actualRatio = img.width / img.height;
-                console.log("Logo actual dimensions:", { 
-                  width: img.width, 
-                  height: img.height, 
-                  ratio: actualRatio 
-                });
-                resolve(actualRatio);
-              };
-              img.onerror = function() {
-                // Fallback ratio di 2:1 se l'immagine non può essere caricata
-                console.error("Error loading image for ratio calculation");
-                resolve(2.0);
-              };
-              img.src = imageUrl;
-            });
-          };
-          
-          // Creiamo un'istanza temporanea di Image per ottenere le dimensioni
-          const img = new Image();
-          img.src = companyLogo;
-          
-          // Per ora, usiamo un rapporto di default di 2:1
-          let logoWidth = targetHeight * 2;
-          
-          // Calcoliamo il logo usando un rapporto di aspetto che conservi le proporzioni
-          // Puliamo l'area prima di disegnare
-          doc.setFillColor(255, 255, 255);
-          doc.rect(x - 1, y - 1, logoWidth + 2, targetHeight + 2, 'F');
-          
-          // Aggiungiamo l'immagine con il rapporto di aspetto corretto
-          if (img.complete && img.naturalWidth !== 0) {
-            // Se l'immagine è già caricata, usiamo il suo aspect ratio effettivo
-            const actualRatio = img.naturalWidth / img.naturalHeight;
-            logoWidth = targetHeight * actualRatio;
-            
-            doc.addImage(
-              companyLogo,
-              'JPEG', // formato automatico
-              x,
-              y,
-              logoWidth,
-              targetHeight,
-              undefined, // alias
-              'FAST' // compression 
-            );
-          } else {
-            // Altrimenti usiamo un placeholder temporaneo
-            doc.addImage(
-              companyLogo,
-              'JPEG',
-              x,
-              y,
-              logoWidth,
-              targetHeight,
-              undefined,
-              'FAST'
-            );
-          }
-        } catch (err) {
-          console.error("Errore nel caricamento del logo:", err);
-          
-          // In caso di errore, usiamo dimensioni standard di fallback
-          try {
-            doc.addImage(
-              companyLogo, 
-              'JPEG',
-              150,    // Posizione X specificata
-              5,      
-              LOGO_HEIGHT * 2,   // larghezza standard (rapporto 2:1)
-              LOGO_HEIGHT        // altezza standard (25mm come richiesto)
-            );
-          } catch (e) {
-            console.error("Impossibile caricare il logo anche con dimensioni standard:", e);
-          }
-        }
-      }
-      
-      // Determina l'altezza necessaria per l'intestazione
-      headerHeight = Math.max(LOGO_HEIGHT + 10, companyInfoHeight + 15);
-      
-      // Aggiungi linea di separazione sotto il logo e le informazioni societarie
-      doc.setDrawColor(220, 220, 220); // Grigio chiaro per la linea
-      doc.setLineWidth(0.5);
-      doc.line(15, headerHeight, 195, headerHeight); // Linea orizzontale da sinistra a destra
-      
-      return headerHeight;
-    };
-    
-    // Apply header to first page and get its height
-    headerHeight = addHeaderToPage(1);
-    
-    // ======== PAGINA 1 - LETTERA DI ACCOMPAGNAMENTO ========
-    
-    // Estrai informazioni del consulente
-    const advisorInfo = client.advisorId ? (advisorSignature?.split('\n') || []) : [];
-    const advisorName = advisorInfo[0] || "Financial Advisor";
-    const advisorCompany = advisorInfo[1] || "";
-    const advisorEmail = advisorInfo[2] || "";
-    const advisorPhone = advisorInfo[3] || "";
-    
-    // Usa Calibri (sans-serif) per la lettera
-    doc.setFont('helvetica', 'normal'); // JSPDF non ha Calibri, helvetica è il più simile
+    // Fine documento
+    doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+    doc.text(`Documento generato il ${new Date().toLocaleDateString()}`, 105, 280, { align: "center" });
+  };
 
-    // Creo un margine destro per allineare correttamente
-    const rightMargin = 190;
-    
-    // Mittente a sinistra (nome, cognome, società, mail, telefono) - posizionato dopo l'intestazione
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    const fromLabel = currentLanguage === "english" ? "From:" : "Da:";
-    doc.text(fromLabel, 20, headerHeight + 15);
-    doc.text(advisorName, 35, headerHeight + 15);
-    if (advisorCompany) {
-      doc.text(advisorCompany, 35, headerHeight + 20);
-    }
-    if (advisorEmail) {
-      doc.text(advisorEmail, 35, headerHeight + 25);
-    }
-    if (advisorPhone) {
-      doc.text(advisorPhone, 35, headerHeight + 30);
-    }
-    
-    // Data a destra
-    const now = new Date();
-    const dateStr = now.toLocaleDateString(currentLanguage === "english" ? "en-US" : "it-IT", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-    doc.text(dateStr, rightMargin, headerHeight + 15, { align: "right" });
-    
-    // Destinatario a destra (allineato correttamente)
-    const toClientText = `${t('pdf.coverLetter.toClient')}:`;
-    doc.text(toClientText, rightMargin, headerHeight + 35, { align: "right" });
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text(`${client.firstName} ${client.lastName}`, rightMargin, headerHeight + 40, { align: "right" });
-    doc.setFont('helvetica', 'normal');
-    if (client.email) {
-      doc.text(client.email, rightMargin, headerHeight + 45, { align: "right" });
-    }
-    
-    // Oggetto - adatta in base alla lingua
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    const subjectLabel = currentLanguage === "english" ? "Subject:" : "Oggetto:";
-    doc.text(subjectLabel, 20, headerHeight + 60);
-    doc.setFont('helvetica', 'normal');
-    const subjectText = currentLanguage === "english" ? "Consulting services offer" : "Offerta servizi di consulenza";
-    doc.text(subjectText, 45, headerHeight + 60);
-    
-    // Corpo della lettera completo - usando il contenuto pieno personalizzato
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'normal');
-    
-    // Dividiamo il testo completo in righe separate per il rendering
-    const contentLines = letterFields.fullContent.split('\n');
-    
-    // Posizione Y iniziale per il testo dopo l'intestazione
-    let yPosition = headerHeight + 70;
-    
-    // Renderizza ciascuna riga del contenuto
-    contentLines.forEach(line => {
-      // Se la linea è vuota (newline), incrementa lo spazio
-      if (line.trim() === '') {
-        yPosition += 6;
+  // Funzione che genera e scarica il PDF
+  const generatePdf = () => {
+    try {
+      setIsGenerating(true);
+      
+      // In ambiente di sviluppo, non generiamo realmente il PDF per evitare l'errore URI malformed
+      if (IS_DEV) {
+        // Simula un ritardo
+        setTimeout(() => {
+          // Notifica all'utente
+      toast({
+            title: "Modalità di sviluppo",
+            description: "In modalità di sviluppo, il PDF non viene generato per evitare errori URI malformed con Vite."
+          });
+          
+          if (onGenerated) {
+            onGenerated();
+          }
+          
+          setIsGenerating(false);
+        }, 1000);
+        
         return;
       }
       
-      // Formatta il testo in modo che si adatti correttamente alla pagina
-      const formattedLines = doc.splitTextToSize(line, 170);
+      // Solo in produzione generiamo e scarichiamo realmente il PDF
+      const doc = new jsPDF();
+      generatePdfContent(doc);
       
-      // Applica il testo al documento
-      doc.text(formattedLines, 20, yPosition);
+      // Usa file-saver per scaricare il PDF
+      const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' });
+      saveAs(pdfBlob, `MiFID_${client.lastName}_${client.firstName}.pdf`);
       
-      // Incrementa la posizione Y per la prossima riga
-      yPosition += formattedLines.length * 6;
-    });
-    
-    // Non aggiungiamo più la firma qui, poiché la includiamo direttamente nel testo della lettera
-    
-    // ======== PAGINA 2 - INFORMAZIONI PERSONALI E PROFILO INVESTIMENTO ========
-    doc.addPage();
-    
-    // Aggiungi intestazione alla pagina 2
-    addHeaderToPage(2);
-    
-    // Titolo documento - posizionato più in basso su richiesta dell'utente
-    doc.setFontSize(18);
-    doc.setFont('helvetica', 'bold');
-    doc.text(t('pdf.clientSummaryReport'), 105, 50, { align: "center" });
-    
-    // SECTION 1: Personal Information
-    doc.setFontSize(14);
-    doc.text(t('pdf.personalInformation'), 15, 60);
-    doc.setDrawColor(41, 98, 255);
-    doc.line(15, 63, 195, 63);
-    
-    // Client personal details
-    doc.setFontSize(11);
-    
-    // Gather all available personal information from client
-    const personalInfo = [
-      [`${t('pdf.name')}:`, `${client.firstName} ${client.lastName}`],
-      [`${t('pdf.email')}:`, client.email],
-      [`${t('pdf.phone')}:`, client.phone || t('pdf.notProvided')],
-      [`${t('pdf.address')}:`, client.address || t('pdf.notProvided')],
-      [`${t('onboarding.dependent_count')}:`, client.dependents?.toString() || t('pdf.notProvided')],
-      [`${t('onboarding.income')}:`, client.annualIncome ? `${formatCurrency(client.annualIncome)} €` : t('pdf.notProvided')],
-      [`${t('onboarding.expenses')}:`, client.monthlyExpenses ? `${formatCurrency(client.monthlyExpenses)} €` : t('pdf.notProvided')],
-      [`${t('pdf.employmentStatus')}:`, client.employmentStatus || t('pdf.notProvided')],
-      [`${t('pdf.taxCode')}:`, client.taxCode || t('pdf.notProvided')],
-    ];
-    
-    autoTable(doc, {
-      startY: 70,
-      head: [],
-      body: personalInfo,
-      theme: 'plain',
-      columnStyles: {
-        0: { cellWidth: 80, fontStyle: 'bold' },
-        1: { cellWidth: 100 }
-      },
-      styles: {
-        fontSize: 11,
-        cellPadding: 3,
-      },
-    });
-    
-    // SECTION 2: Investment Profile
-    const section2Y = (doc as any).lastAutoTable.finalY + 20;
-    
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(t('pdf.investmentProfile'), 15, section2Y);
-    doc.setDrawColor(41, 98, 255);
-    doc.line(15, section2Y + 3, 195, section2Y + 3);
-    
-    // Investment profile details
-    const investmentProfile = [
-      [`${t('pdf.riskProfile')}:`, client.riskProfile ? t(`risk_profiles.${client.riskProfile}`) : t('pdf.notProvided')],
-      [`${t('pdf.investmentGoal')}:`, client.investmentGoals?.length ? client.investmentGoals.map(goal => t(`investment_goals.${goal}`)).join(', ') : t('pdf.notProvided')],
-      [`${t('pdf.investmentHorizon')}:`, client.investmentHorizon ? t(`investment_horizons.${client.investmentHorizon}`) : t('pdf.notProvided')],
-      [`${t('pdf.experienceLevel')}:`, client.investmentExperience ? t(`experience_levels.${client.investmentExperience}`) : t('pdf.notProvided')],
-    ];
-    
-    autoTable(doc, {
-      startY: section2Y + 10,
-      head: [],
-      body: investmentProfile,
-      theme: 'plain',
-      columnStyles: {
-        0: { cellWidth: 80, fontStyle: 'bold' },
-        1: { cellWidth: 100 }
-      },
-      styles: {
-        fontSize: 11,
-        cellPadding: 3,
-      },
-    });
-    
-    // ======== PAGINA 3 - ASSET ALLOCATION E DICHIARAZIONE ========
-    doc.addPage();
-    
-    // Aggiungi intestazione alla pagina 3
-    addHeaderToPage(3);
-    
-    // Nella pagina 3 (asset allocation) non riproponiamo il titolo del modulo
-    // per evitare ripetizioni
-    
-    // Asset allocation section
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(t('pdf.assetAllocation'), 15, 60);
-    doc.setDrawColor(41, 98, 255);
-    doc.line(15, 63, 195, 63);
-    
-    // Assets table
-    if (assets && assets.length > 0) {
-      // Calcola il valore totale per le percentuali
-      const totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);
-      
-      // Crea la tabella degli asset con la percentuale
-      autoTable(doc, {
-        startY: 70,
-        head: [[
-          t('pdf.category'),
-          t('pdf.value'),
-          '%'
-        ]],
-        body: [
-          ...assets.map(asset => [
-            t(`asset_categories.${asset.category}`),
-            `${formatCurrency(asset.value)} €`,
-            `${Math.round((asset.value / totalValue) * 100)}%`
-          ]),
-          // Aggiungi il totale come ultima riga della tabella
-          [
-            `${t('pdf.totalAssetsValue')}`,
-            `${formatCurrency(totalValue)} €`,
-            '100%'
-          ]
-        ],
-        theme: 'grid',
-        headStyles: {
-          fillColor: [41, 98, 255],
-          textColor: [255, 255, 255],
-          fontStyle: 'bold',
-        },
-        alternateRowStyles: {
-          fillColor: [240, 240, 240],
-        },
-        // Applica stile in grassetto all'ultima riga (totale)
-        bodyStyles: {
-          fontSize: 10
-        },
-        // Stile specifico per la riga del totale
-        didDrawCell: (data) => {
-          if (data.row.index === assets.length && data.section === 'body') {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.fillColor = [220, 220, 220];
-          }
-        },
+      // Notifica all'utente
+      toast({
+        title: "PDF Generato",
+        description: "Il PDF è stato generato e scaricato con successo."
       });
-    } else {
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'normal');
-      doc.text(t('pdf.noAssetsFound'), 15, 75);
-    }
-    
-    // Add client declaration
-    const declarationY = (doc as any).lastAutoTable ? (doc as any).lastAutoTable.finalY + 20 : 120;
-    
-    doc.setFontSize(12);
-    doc.setFont('helvetica', 'normal');
-    doc.text(t('pdf.clientDeclaration'), 15, declarationY);
-    doc.setFontSize(10);
-    
-    const declaration = t('pdf.clientDeclarationText');
-    const splitDeclaration = doc.splitTextToSize(declaration, 180);
-    doc.text(splitDeclaration, 15, declarationY + 10);
-    
-    // Add signature areas
-    const signatureY = declarationY + 10 + splitDeclaration.length * 4.5 + 15;
-    
-    doc.setFontSize(11);
-    doc.text(t('pdf.clientSignature'), 15, signatureY);
-    
-    // Aggiungi campo data accanto alla firma del cliente
-    doc.text(t('pdf.date') + ': ___/___/_____', 15, signatureY + 35);
-    
-    doc.line(15, signatureY + 25, 85, signatureY + 25);
-    
-    // Aggiungi numeri di pagina solo alle pagine del modulo (non alla lettera)
-    const pageCount = doc.getNumberOfPages();
-    
-    // Non mettiamo numeri di pagina sulla prima pagina (la lettera)
-    // La numerazione inizia da 1 per la seconda pagina fisica (che è la prima del modulo)
-    for (let i = 2; i <= pageCount; i++) {
-      doc.setPage(i);
       
-      // Page numbers - partendo da pag 1 per il modulo
-      doc.setFontSize(9);
-      doc.setTextColor(100, 100, 100);
-      doc.text(
-        `${t('pdf.page')} ${i-1} ${t('pdf.of')} ${pageCount-1}`,
-        doc.internal.pageSize.getWidth() - 20,
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'right' }
-      );
-    }
-    
-    return doc;
-  };
-
-  // Funzione per generare l'anteprima del PDF
-  const generatePreview = () => {
-    try {
-      // Utilizza la funzione condivisa per generare il PDF
-      const doc = generatePdfContent();
+      // Callback di completamento
+      if (onGenerated) {
+        onGenerated();
+      }
       
-      // Genera l'URL per l'anteprima
-      const previewDataUrl = doc.output('datauristring');
-      setPreviewUrl(previewDataUrl);
-      setActiveView('preview');
-      
-      // Set state to indicate PDF generation completed successfully
-      setPdfGenerated(true);
+      setIsGenerating(false);
     } catch (error) {
-      console.error("Error generating PDF preview:", error);
+      console.error("Errore nella generazione del PDF:", error);
       toast({
-        title: currentLanguage === "english" ? "Error" : "Errore",
-        description: currentLanguage === "english" ? "Failed to generate PDF preview" : "Impossibile generare l'anteprima del PDF",
-        variant: "destructive",
+        title: "Errore",
+        description: "Si è verificato un errore durante la generazione del PDF."
       });
-    }
-  };
-  
-  // Generate PDF document
-  const generatePdf = () => {
-    setIsGenerating(true);
-    
-    try {
-      // Utilizza la funzione condivisa per generare il PDF
-      const doc = generatePdfContent();
-      
-      // Salva il PDF con nome appropriato
-      const fileName = `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`;
-      doc.save(fileName);
-      
-      // Set state to indicate PDF generation completed successfully
-      setPdfGenerated(true);
-      toast({
-        title: currentLanguage === "english" ? "Success" : "Successo",
-        description: currentLanguage === "english" ? "PDF generated successfully" : "PDF generato con successo",
-        variant: "default",
-      });
-    } catch (error) {
-      console.error("Error generating PDF:", error);
-      toast({
-        title: currentLanguage === "english" ? "Error" : "Errore",
-        description: currentLanguage === "english" ? "Failed to generate PDF" : "Impossibile generare il PDF",
-        variant: "destructive",
-      });
-    } finally {
       setIsGenerating(false);
     }
   };
 
-  // Function to send email with PDF attachment
-  const sendEmail = async () => {
-    setIsSending(true);
-    
-    try {      
-      // Generate PDF content
-      const doc = generatePdfContent();
-      
-      // Convert PDF to base64
-      const pdfBase64 = doc.output('datauristring').split(',')[1];
-      
-      // Construct email data with translated subject and message
-      const defaultSubject = t('pdf.emailDefaultSubject') || (currentLanguage === "english" ? 
-        "Welcome to our consultancy service" : 
-        "Benvenuto nel nostro servizio di consulenza");
-      
-      // Usa il contenuto della lettera come corpo dell'email
-      const emailMessage = letterFields.fullContent;
-      
-      // Formato dati che corrisponde a quello atteso dal server
-      const emailData = {
-        subject: emailSubject || defaultSubject,
-        message: emailMessage,
-        language: currentLanguage,
-        attachment: {
-          filename: `${client.firstName}_${client.lastName}_Onboarding_Form.pdf`,
-          content: pdfBase64,
-          encoding: 'base64',
-          contentType: 'application/pdf'
-        }
-      };
-      
-      // Send email
-      const response = await fetch(`/api/clients/${client.id}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(emailData),
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Si è verificato un errore durante l'invio dell'email");
-      }
-      
-      toast({
-        title: currentLanguage === "english" ? "Success" : "Successo",
-        description: currentLanguage === "english" ? "Email sent successfully" : "Email inviata con successo",
-        variant: "default",
-      });
-      
-      setShowSendEmailDialog(false);
-      
-    } catch (error) {
-      console.error("Error sending email:", error);
-      let errorMessage = currentLanguage === "english" 
-        ? "Failed to send email" 
-        : "Impossibile inviare l'email";
-      
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-      
-      toast({
-        title: currentLanguage === "english" ? "Error" : "Errore",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  // Function to update single letter field (full content)
-  const handleLetterFieldChange = (field: keyof LetterFields, value: string) => {
-    setLetterFields({
-      ...letterFields,
-      [field]: value
-    });
-  };
-
-  // Non abbiamo più bisogno della funzione handleLanguageChange
-  // poiché la lingua viene ereditata direttamente dalla pagina
-
-  const [showCustomizeDialog, setShowCustomizeDialog] = useState(false);
-
-  return (
-    <div className="space-y-4">
-      {/* Main button to open the customize dialog */}
+  // In sviluppo, mostriamo un avviso speciale
+  if (IS_DEV) {
+    return (
+      <div className="p-6 text-center space-y-6">
+        <h2 className="text-xl font-semibold mb-4">Generazione PDF Profilo Cliente</h2>
+        
+        <Alert className="text-left bg-amber-50 border-amber-300">
+          <AlertTitle className="flex items-center text-amber-800">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Modalità di sviluppo
+          </AlertTitle>
+          <AlertDescription className="text-amber-700">
+            In modalità di sviluppo, la generazione PDF è simulata per evitare errori URI malformed con Vite.
+            <br />
+            La funzionalità completa sarà disponibile in produzione.
+          </AlertDescription>
+        </Alert>
+        
       <Button 
-        onClick={() => setShowCustomizeDialog(true)} 
-        className="w-full"
-        variant="default"
+          onClick={generatePdf}
+          disabled={isGenerating}
         size="lg"
-      >
-        <FileText className="mr-2 h-5 w-5" />
-        {t('pdf.generatePdf')}
-      </Button>
-
-      {/* Customize dialog */}
-      <Dialog open={showCustomizeDialog} onOpenChange={setShowCustomizeDialog}>
-        <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('pdf.customizeLetterContent')}</DialogTitle>
-            <DialogDescription>
-              {t('pdf.emailDialogDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {/* Rimosso il pulsante di cambio lingua perché ora la lingua viene ereditata dalla pagina */}
-          
-          {/* Vista di personalizzazione */}
-          {activeView === 'customize' && (
-            <div className="grid grid-cols-1 gap-4 py-2">
-              <div>
-                <Textarea 
-                  id="fullContent" 
-                  rows={20}
-                  className="font-mono text-sm bg-white text-black"
-                  value={letterFields.fullContent}
-                  onChange={(e) => handleLetterFieldChange('fullContent', e.target.value)}
-                />
-              </div>
-            </div>
+          className="mx-auto"
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Simulazione generazione...
+            </>
+          ) : (
+            <>
+              <Download className="h-4 w-4 mr-2" />
+              Simula generazione PDF
+            </>
           )}
-          
-          {/* Vista di anteprima */}
-          {activeView === 'preview' && previewUrl && (
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-lg font-medium">{t('pdf.pdfPreview')}</h4>
-                <Button 
-                  size="sm" 
-                  variant="outline" 
-                  onClick={() => setActiveView('customize')}
-                >
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  {t('pdf.backToEdit')}
                 </Button>
               </div>
-              <div className="border rounded-lg overflow-hidden">
-                <iframe 
-                  src={previewUrl} 
-                  className="w-full h-[600px]" 
-                  title="PDF Preview"
-                />
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter className="mt-4 flex justify-between sm:justify-between">
-            <div className="flex space-x-2">
-              <Button 
-                onClick={generatePreview}
-                variant="outline"
-                className="w-auto"
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                {t('pdf.preview')}
-              </Button>
+    );
+  }
+
+  // Versione standard per produzione
+  return (
+    <div className="p-6 text-center">
+      <h2 className="text-xl font-semibold mb-4">Generazione PDF Profilo Cliente</h2>
+      <p className="mb-6 text-muted-foreground">
+        Clicca sul pulsante per generare e scaricare il PDF con i dati del cliente.
+      </p>
               
               <Button 
                 onClick={generatePdf} 
                 disabled={isGenerating}
-                variant="outline"
-                className="w-auto"
-              >
-                {isGenerating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                <FileText className="mr-2 h-4 w-4" />
-                {t('pdf.generatePdf')}
-              </Button>
-              
-              <Button 
-                onClick={() => setShowSendEmailDialog(true)} 
-                disabled={!pdfGenerated || !client.email}
-                variant="outline"
-                className="w-auto"
-              >
-                <Mail className="mr-2 h-4 w-4" />
-                {t('pdf.sendByEmail')}
-              </Button>
-            </div>
-            
-            <Button variant="secondary" onClick={() => setShowCustomizeDialog(false)}>
-              {t('dashboard.cancel')}
+        size="lg"
+        className="mx-auto"
+      >
+        {isGenerating ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Generazione in corso...
+          </>
+        ) : (
+          <>
+            <Download className="h-4 w-4 mr-2" />
+            Genera e Scarica PDF
+          </>
+        )}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Email Dialog */}
-      <Dialog open={showSendEmailDialog} onOpenChange={setShowSendEmailDialog}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>{t('pdf.sendByEmail')}</DialogTitle>
-            <DialogDescription>
-              {t('pdf.emailDialogDescription')}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="emailSubject" className="text-right">
-                {t('pdf.emailSubject')}
-              </Label>
-              <Input
-                id="emailSubject"
-                className="col-span-3"
-                placeholder={t('pdf.emailDefaultSubject')}
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center">
-              <div className="col-span-4 text-sm text-muted-foreground">
-                {t('pdf.emailBodyInfoMessage')}
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              type="submit" 
-              onClick={sendEmail}
-              disabled={isSending}
-            >
-              {isSending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <ArrowRight className="mr-2 h-4 w-4" />
-              {t('pdf.send')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

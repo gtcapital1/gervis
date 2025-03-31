@@ -86,45 +86,36 @@ export type AssetCategory = typeof ASSET_CATEGORIES[number];
 // Client Schema
 export const clients = pgTable("clients", {
   id: serial("id").primaryKey(),
+  advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
   name: text("name").notNull(), // Keep for backward compatibility
   email: text("email").notNull(),
-  phone: text("phone"),
-  address: text("address"),
   taxCode: text("tax_code"),
+  
+  // Informazioni finanziarie
+  totalAssets: integer("total_assets").default(0),
+  netWorth: integer("net_worth"),
+
+  // Gestione accesso e autenticazione
   password: text("password"), // Client portal password
-  lastLogin: timestamp("last_login"),
   hasPortalAccess: boolean("has_portal_access").default(false),
+  lastLogin: timestamp("last_login"),
+  
+  // Stato del cliente
+  active: boolean("active").default(true),
   isOnboarded: boolean("is_onboarded").default(false),
   isArchived: boolean("is_archived").default(false),
-  active: boolean("active").default(true), // Whether the client is active (manually managed)
-  onboardedAt: timestamp("onboarded_at"), // Timestamp when client was onboarded
-  activatedAt: timestamp("activated_at"), // Timestamp when client became active
-  clientSegment: text("client_segment").$type<ClientSegment>(), // Segmento cliente (mass_market, affluent, hnw, vhnw, uhnw)
-  riskProfile: text("risk_profile"),
-  investmentExperience: text("investment_experience"),
-  investmentGoals: text("investment_goals").array(),
-  investmentHorizon: text("investment_horizon"),
-  annualIncome: integer("annual_income"),
-  netWorth: integer("net_worth"),
-  monthlyExpenses: integer("monthly_expenses"),
-  dependents: integer("dependents"),
-  employmentStatus: text("employment_status"),
-  // Nuovi campi per interessi personali e valutazione degli obiettivi di investimento
-  personalInterests: text("personal_interests").array(),
-  personalInterestsNotes: text("personal_interests_notes"),
-  // Scala da 1 a 5 per ogni obiettivo di investimento (1 = non interessa, 5 = interessa molto)
-  retirementInterest: integer("retirement_interest"),
-  wealthGrowthInterest: integer("wealth_growth_interest"),
-  incomeGenerationInterest: integer("income_generation_interest"),
-  capitalPreservationInterest: integer("capital_preservation_interest"),
-  estatePlanningInterest: integer("estate_planning_interest"),
+  clientSegment: text("client_segment").$type<ClientSegment>(),
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+  onboardedAt: timestamp("onboarded_at"),
+  activatedAt: timestamp("activated_at"),
+  
+  // Gestione onboarding
   onboardingToken: text("onboarding_token"),
   tokenExpiry: timestamp("token_expiry"),
-  createdAt: timestamp("created_at").defaultNow(),
-  advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }),
-  totalAssets: integer("total_assets").default(0), // Nuova colonna per memorizzare la somma totale degli asset
 });
 
 export const insertClientSchema = createInsertSchema(clients).pick({
@@ -132,32 +123,18 @@ export const insertClientSchema = createInsertSchema(clients).pick({
   lastName: true,
   name: true,
   email: true,
-  phone: true,
-  address: true,
   taxCode: true,
+  advisorId: true,
+  totalAssets: true,
+  netWorth: true,
   isOnboarded: true,
   isArchived: true,
   active: true,
   onboardedAt: true,
   activatedAt: true,
   clientSegment: true,
-  riskProfile: true,
-  investmentExperience: true,
-  investmentGoals: true,
-  investmentHorizon: true,
-  annualIncome: true,
-  netWorth: true,
-  monthlyExpenses: true,
-  dependents: true,
-  employmentStatus: true,
-  personalInterests: true,
-  personalInterestsNotes: true,
-  retirementInterest: true,
-  wealthGrowthInterest: true,
-  incomeGenerationInterest: true,
-  capitalPreservationInterest: true,
-  estatePlanningInterest: true,
-  advisorId: true,
+  onboardingToken: true,
+  tokenExpiry: true,
 });
 
 export type InsertClient = z.infer<typeof insertClientSchema>;
@@ -329,16 +306,15 @@ export const mifid = pgTable("mifid", {
   riskProfile: text("risk_profile").notNull(),
   portfolioDropReaction: text("portfolio_drop_reaction").notNull(),
   volatilityTolerance: text("volatility_tolerance").notNull(),
-
-  // Sezione 6: Esperienza e Comportamento d'Investimento
   yearsOfExperience: text("years_of_experience").notNull(),
   investmentFrequency: text("investment_frequency").notNull(),
   advisorUsage: text("advisor_usage").notNull(),
   monitoringTime: text("monitoring_time").notNull(),
-
-  // Sezione 7: Domande Specifiche (opzionale)
   specificQuestions: text("specific_questions"),
 });
+
+// Define the MIFID type
+export type MifidType = typeof mifid.$inferSelect;
 
 // Relazione con la tabella clients
 export const mifidRelations = relations(mifid, ({ one }) => ({

@@ -430,7 +430,7 @@ export default function EditMifidForm() {
         description: t('client.mifid_updated_success'),
       });
       setTimeout(() => {
-        setLocation(`/app/clients/${clientId}`);
+        setLocation(`/clients/${clientId}`);
       }, 1500);
     },
     onError: (error: unknown) => {
@@ -498,7 +498,7 @@ export default function EditMifidForm() {
           <CardFooter>
             <Button 
               className="w-full"
-              onClick={() => setLocation(`/app/clients/${clientId}`)}
+              onClick={() => setLocation(`/clients/${clientId}`)}
             >
               Return to Client Details
             </Button>

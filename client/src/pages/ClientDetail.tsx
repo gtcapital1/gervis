@@ -35,12 +35,13 @@ import {
   PiggyBank, // Per crypto
   Landmark, // Per commodities
   BriefcaseIcon, // Per alternative
-  Banknote // Per other
+  Banknote, // Per other
+  Power
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/dashboard/ClientEditDialog";
 import { ClientSettings } from "@/components/settings/ClientSettings";
-import { ClientPdfGenerator } from "@/components/dashboard/ClientPdfGenerator";
+import { ClientPdfDialog } from "@/components/dashboard/ClientPdfDialog";
 import { AiClientProfile } from "@/components/dashboard/AiClientProfile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -206,6 +207,58 @@ type ClientQueryResponse = {
   mifid: MifidType | null;
 };
 
+// Funzione per calcolare il patrimonio netto
+const calculateNetWorth = (mifid: MifidType | null): number => {
+  if (!mifid) return 0;
+  
+  // Calcola il totale degli asset
+  const totalAssets = mifid.assets.reduce((sum, asset) => sum + asset.value, 0);
+  
+  // Calcola il patrimonio netto come differenza tra asset e debiti
+  return totalAssets - mifid.debts;
+};
+
+const InvestmentGoals = ({ mifid }: { mifid: MifidType | null }) => {
+  const { t } = useTranslation();
+  
+  if (!mifid) return null;
+
+  // Crea un array di obiettivi con i loro valori
+  const goals = [
+    { key: 'retirement_interest', value: mifid.retirementInterest, label: t('investment_goals.retirement_interest') },
+    { key: 'wealth_growth_interest', value: mifid.wealthGrowthInterest, label: t('investment_goals.wealth_growth_interest') },
+    { key: 'income_generation_interest', value: mifid.incomeGenerationInterest, label: t('investment_goals.income_generation_interest') },
+    { key: 'capital_preservation_interest', value: mifid.capitalPreservationInterest, label: t('investment_goals.capital_preservation_interest') },
+    { key: 'estate_planning_interest', value: mifid.estatePlanningInterest, label: t('investment_goals.estate_planning_interest') }
+  ];
+
+  // Ordina gli obiettivi per valore crescente
+  const sortedGoals = [...goals].sort((a, b) => a.value - b.value);
+
+  // Funzione per ottenere il colore della medaglia in base alla posizione
+  const getMedalColor = (index: number) => {
+    switch (index) {
+      case 0: return "bg-yellow-500"; // Oro
+      case 1: return "bg-gray-400";   // Argento
+      case 2: return "bg-amber-700";  // Bronzo
+      default: return "bg-gray-200";  // Altri
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {sortedGoals.map((goal, index) => (
+        <div key={goal.key} className="flex items-center space-x-2">
+          <span className={`text-sm font-medium min-w-[2rem] h-6 w-6 rounded-full flex items-center justify-center text-white ${getMedalColor(index)}`}>
+            {index + 1}
+          </span>
+          <span className="text-sm text-gray-600">{goal.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 export default function ClientDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
@@ -216,6 +269,7 @@ export default function ClientDetail() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
+  const [showPdfDialog, setShowPdfDialog] = useState(false);
   
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -489,14 +543,6 @@ Grazie per la tua fiducia e collaborazione.`
     },
   });
   
-  function onSubmit(data: ClientFormValues) {
-    updateClientMutation.mutate(data);
-  }
-
-  function onSubmitMifid(data: MifidFormValues) {
-    updateMifidMutation.mutate(data);
-  }
-  
   // Mutation per gestire l'onboarding
   const sendOnboardingMutation = useMutation({
     mutationFn: (params: OnboardingParams) => {
@@ -551,6 +597,14 @@ Grazie per la tua fiducia e collaborazione.`
     },
   });
 
+  function onSubmit(data: ClientFormValues) {
+    updateClientMutation.mutate(data);
+  }
+
+  function onSubmitMifid(data: MifidFormValues) {
+    updateMifidMutation.mutate(data);
+  }
+  
   function handleGenerateOnboardingLink() {
     // Genera direttamente il link di onboarding senza aprire il dialog e senza inviare l'email
     console.log("[DEBUG] Generazione link onboarding...");
@@ -766,9 +820,7 @@ Grazie per la tua fiducia e collaborazione.`
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <h1 className="text-2xl font-bold">{client?.name}</h1>
-          </div>
-          <div className="flex items-center space-x-2">
-            {client?.isOnboarded ? (
+            {client?.isOnboarded && (
               <Button
                 variant="outline"
                 size="sm"
@@ -777,6 +829,30 @@ Grazie per la tua fiducia e collaborazione.`
                 <Edit className="h-4 w-4 mr-2" />
                 {t('common.edit')}
               </Button>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {client?.isOnboarded ? (
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setLocation(`/clients/${clientId}/logs`)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  {t('client.logs')}
+                </Button>
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowPdfDialog(true)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {t('client.generate_pdf')}
+                </Button>
+              </>
             ) : (
               <Button 
                 onClick={handleGenerateOnboardingLink}
@@ -845,28 +921,64 @@ Grazie per la tua fiducia e collaborazione.`
                 <CardTitle className="text-xl">{t('client.current_financial_situation')}</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-4">
-                  {mifid && (
-                    <>
-                      <div>
-                        <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
-                        <span className="text-lg font-medium">€{mifid.annualIncome.toLocaleString()}</span>
+                {mifid && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Left column - Income & Expenses */}
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
+                          <span className="text-lg font-medium">€{mifid.annualIncome.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
+                          <span className="text-lg font-medium">€{mifid.monthlyExpenses.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.dependents')}:</span>
+                          <span className="text-lg font-medium">{mifid.dependents}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
-                        <span className="text-lg font-medium">€{mifid.monthlyExpenses.toLocaleString()}</span>
+
+                      {/* Right column - Assets & Net Worth */}
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.total_assets')}:</span>
+                          <span className="text-lg font-medium">€{client.totalAssets?.toLocaleString() || '0'}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.debts')}:</span>
+                          <span className="text-lg font-medium">€{mifid.debts.toLocaleString()}</span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground block">{t('client.net_worth')}:</span>
+                          <span className="text-lg font-medium">€{client.netWorth?.toLocaleString() || '0'}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="text-sm text-muted-foreground block">{t('client.debts')}:</span>
-                        <span className="text-lg font-medium">€{mifid.debts.toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-sm text-muted-foreground block">{t('client.dependents')}:</span>
-                        <span className="text-lg font-medium">{mifid.dependents}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
+                    </div>
+
+                    {/* Client Segment - Centered below */}
+                    <div className="flex flex-col items-center pt-4 border-t">
+                      <span className="text-sm text-muted-foreground mb-2">{t('client.segment')}:</span>
+                      <Badge 
+                        variant="outline" 
+                        className="capitalize px-4 py-1.5 text-base"
+                        style={{
+                          backgroundColor: 
+                            client.clientSegment === "mass_market" ? "#93c5fd" : // Light blue
+                            client.clientSegment === "affluent" ? "#60a5fa" : // Medium light blue
+                            client.clientSegment === "hnw" ? "#3b82f6" : // Medium blue
+                            client.clientSegment === "vhnw" ? "#2563eb" : // Medium dark blue
+                            client.clientSegment === "uhnw" ? "#1e40af" : // Dark blue
+                            "#6b7280", // Gray default
+                          color: "#ffffff"
+                        }}
+                      >
+                        {client.clientSegment ? t(`client.segments.${client.clientSegment}`) : t('client.not_specified')}
+                      </Badge>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -924,28 +1036,7 @@ Grazie per la tua fiducia e collaborazione.`
                 {/* Right column: Investment Goals */}
                 <div className="space-y-4">
                   <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">#1</span>
-                      <span className="text-sm">{t('investment_goals.retirement')}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">#2</span>
-                      <span className="text-sm">{t('investment_goals.wealth_growth')}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">#3</span>
-                      <span className="text-sm">{t('investment_goals.income_generation')}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">#4</span>
-                      <span className="text-sm">{t('investment_goals.capital_preservation')}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-medium text-gray-500">#5</span>
-                      <span className="text-sm">{t('investment_goals.estate_planning')}</span>
-                    </div>
-                  </div>
+                  <InvestmentGoals mifid={mifid} />
                 </div>
               </div>
             </CardContent>
@@ -1380,58 +1471,7 @@ Grazie per la tua fiducia e collaborazione.`
             {/* Investment Goals */}
             <div className="space-y-4">
               <h3 className="text-lg font-medium">{t('client.investment_goals')}</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="retirementInterest">{t('investment_goals.retirement')}</Label>
-                  <Input
-                    id="retirementInterest"
-                    type="number"
-                    min="0"
-                    max="100"
-                    {...mifidForm.register("retirementInterest", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="wealthGrowthInterest">{t('investment_goals.wealth_growth')}</Label>
-                  <Input
-                    id="wealthGrowthInterest"
-                    type="number"
-                    min="0"
-                    max="100"
-                    {...mifidForm.register("wealthGrowthInterest", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="incomeGenerationInterest">{t('investment_goals.income_generation')}</Label>
-                  <Input
-                    id="incomeGenerationInterest"
-                    type="number"
-                    min="0"
-                    max="100"
-                    {...mifidForm.register("incomeGenerationInterest", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="capitalPreservationInterest">{t('investment_goals.capital_preservation')}</Label>
-                  <Input
-                    id="capitalPreservationInterest"
-                    type="number"
-                    min="0"
-                    max="100"
-                    {...mifidForm.register("capitalPreservationInterest", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="estatePlanningInterest">{t('investment_goals.estate_planning')}</Label>
-                  <Input
-                    id="estatePlanningInterest"
-                    type="number"
-                    min="0"
-                    max="100"
-                    {...mifidForm.register("estatePlanningInterest", { valueAsNumber: true })}
-                  />
-                </div>
-              </div>
+              <InvestmentGoals mifid={mifid} />
             </div>
 
             {/* Investment Experience */}
@@ -1632,6 +1672,15 @@ Grazie per la tua fiducia e collaborazione.`
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* PDF Dialog */}
+      {showPdfDialog && (
+        <ClientPdfDialog
+          clientId={clientId}
+          open={showPdfDialog}
+          onOpenChange={setShowPdfDialog}
+        />
+      )}
     </div>
   );
 }

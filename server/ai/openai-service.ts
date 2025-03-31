@@ -5,7 +5,7 @@
  * Utilizzato per generare il profilo arricchito del cliente basato su dati esistenti.
  */
 
-import { Client, ClientLog } from '@shared/schema';
+import { Client, ClientLog, MifidType } from '@shared/schema';
 import OpenAI from 'openai';
 import fetch from 'node-fetch';
 
@@ -29,11 +29,13 @@ interface AiClientProfile {
 /**
  * Genera un profilo client arricchito utilizzando OpenAI
  * @param client Il cliente per cui generare il profilo
+ * @param mifid Il profilo di rischio del cliente
  * @param logs I log delle interazioni con il cliente
  * @returns Profilo arricchito con approfondimenti e suggerimenti
  */
 export async function generateClientProfile(
   client: Client, 
+  mifid: MifidType | null,
   logs: ClientLog[]
 ): Promise<AiClientProfile> {
   // Verifica se la chiave API OpenAI è impostata
@@ -42,9 +44,26 @@ export async function generateClientProfile(
     throw new Error("OpenAI API key not configured");
   }
 
+  // Debug: stampa i valori importanti di mifid
+  console.log("[DEBUG] VALORI MIFID IMPORTANTI:");
+  if (mifid) {
+    console.log({
+      riskProfile: mifid.riskProfile,
+      investmentExperience: mifid.investmentExperience,
+      investmentHorizon: mifid.investmentHorizon,
+      wealthGrowthInterest: mifid.wealthGrowthInterest,
+      incomeGenerationInterest: mifid.incomeGenerationInterest,
+      capitalPreservationInterest: mifid.capitalPreservationInterest,
+      estatePlanningInterest: mifid.estatePlanningInterest,
+      retirementInterest: mifid.retirementInterest
+    });
+  } else {
+    console.log("MIFID è null");
+  }
+
   try {
     // Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
-    const prompt = createClientProfilePrompt(client, logs);
+    const prompt = createClientProfilePrompt(client, mifid, logs);
     
     // Crea un'istanza OpenAI
     const openai = new OpenAI({
@@ -259,30 +278,42 @@ Esempio di formato di risposta:
 /**
  * Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
  */
-function createClientProfilePrompt(client: Client, logs: ClientLog[]): string {
+function createClientProfilePrompt(client: Client, mifid: MifidType | null, logs: ClientLog[]): string {
+  // Funzione helper per controllare e formattare i valori
+  const formatValue = (value: any, type = 'string') => {
+    if (value === null || value === undefined || value === '') {
+      return "Non specificato";
+    }
+    
+    if (type === 'money' && typeof value === 'number') {
+      return `€${value.toLocaleString()}`;
+    }
+    
+    return value;
+  };
+
   // Formatta i dati del cliente in un prompt strutturato
   let prompt = `
 # Profilo Cliente
-- Nome: ${client.name || "Non specificato"}
-- Email: ${client.email || "Non specificata"}
-- Profilo di rischio: ${client.riskProfile || "Non specificato"}
-- Esperienza di investimento: ${client.investmentExperience || "Non specificata"}
-- Orizzonte di investimento: ${client.investmentHorizon || "Non specificato"}
-- Obiettivi di investimento: ${Array.isArray(client.investmentGoals) ? client.investmentGoals.join(", ") : "Non specificati"}
-${client.annualIncome ? `- Reddito annuale: €${client.annualIncome}` : ''}
-${client.netWorth ? `- Patrimonio netto: €${client.netWorth}` : ''}
-${client.monthlyExpenses ? `- Spese mensili: €${client.monthlyExpenses}` : ''}
-${client.dependents ? `- Dipendenti: ${client.dependents}` : ''}
-${client.employmentStatus ? `- Stato occupazione: ${client.employmentStatus}` : ''}
-${client.personalInterests ? `- Interessi personali: ${client.personalInterests.join(", ")}` : ''}
-${client.personalInterestsNotes ? `- Note sugli interessi: ${client.personalInterestsNotes}` : ''}
+- Nome: ${formatValue(client.name)}
+- Email: ${formatValue(client.email)}
+${mifid ? `
+- Profilo di rischio: ${formatValue(mifid.riskProfile)}
+- Esperienza di investimento: ${formatValue(mifid.investmentExperience)}
+- Orizzonte di investimento: ${formatValue(mifid.investmentHorizon)}
+- Reddito annuale: ${formatValue(mifid.annualIncome, 'money')}
+- Spese mensili: ${formatValue(mifid.monthlyExpenses, 'money')}
+- Debiti: ${formatValue(mifid.debts, 'money')}
+- Dipendenti: ${formatValue(mifid.dependents)}
+- Stato occupazione: ${formatValue(mifid.employmentStatus)}
 
-## Interessi Specifici (da 1 a 5 dove 5 è massimo interesse)
-${client.retirementInterest ? `- Pensionamento: ${client.retirementInterest}` : ''}
-${client.wealthGrowthInterest ? `- Crescita patrimoniale: ${client.wealthGrowthInterest}` : ''}
-${client.incomeGenerationInterest ? `- Generazione di reddito: ${client.incomeGenerationInterest}` : ''}
-${client.capitalPreservationInterest ? `- Conservazione del capitale: ${client.capitalPreservationInterest}` : ''}
-${client.estatePlanningInterest ? `- Pianificazione patrimoniale: ${client.estatePlanningInterest}` : ''}
+## Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
+- Crescita patrimoniale: ${formatValue(mifid.wealthGrowthInterest)}
+- Generazione di reddito: ${formatValue(mifid.incomeGenerationInterest)}
+- Conservazione del capitale: ${formatValue(mifid.capitalPreservationInterest)}
+- Pianificazione patrimoniale: ${formatValue(mifid.estatePlanningInterest)}
+- Pensionamento: ${formatValue(mifid.retirementInterest)}
+` : ''}
 `;
 
   // Aggiungi la cronologia delle interazioni se disponibile
@@ -329,6 +360,12 @@ Esempio di formato:
   ]
 }
 `;
+
+  // Debug: stampa il prompt completo
+  console.log("[DEBUG] PROMPT COMPLETO PER OPENAI:");
+  console.log("---------------------------------------");
+  console.log(prompt);
+  console.log("---------------------------------------");
 
   return prompt;
 }
