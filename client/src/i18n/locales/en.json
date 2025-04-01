@@ -563,7 +563,8 @@
     "unemployed": "Unemployed",
     "self_employed": "Self-employed",
     "retired": "Retired",
-    "student": "Student"
+    "student": "Student",
+    "business_owner": "Business Owner"
   },
   "education_levels": {
     "high_school": "High School Diploma",

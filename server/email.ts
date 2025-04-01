@@ -230,10 +230,23 @@ export async function sendCustomEmail(
     const { transporter, config } = await getTransporter(userId);
     
     const content = language === 'english' ? englishContent : italianContent;
-    const signature = advisorSignature || content.team;
     
     // Verifica se il messaggio già contiene la firma dell'advisor
-    const containsSignature = advisorSignature && message.includes(advisorSignature.split('\n')[0]);
+    const hasCordiali = message.includes("Cordiali saluti,");
+    const containsSignature = advisorSignature && message.includes(advisorSignature);
+    
+    // Se il messaggio termina con "Cordiali saluti," e non ha già la firma, aggiungila
+    let completeMessage = message;
+    if (hasCordiali && !containsSignature && advisorSignature) {
+      // Trova l'indice di "Cordiali saluti,"
+      const salutationIndex = completeMessage.indexOf("Cordiali saluti,");
+      if (salutationIndex !== -1) {
+        // Inserisci la firma dopo "Cordiali saluti,"
+        completeMessage = completeMessage.substring(0, salutationIndex + "Cordiali saluti,".length) + 
+                         "\n" + advisorSignature + 
+                         completeMessage.substring(salutationIndex + "Cordiali saluti,".length);
+      }
+    }
     
     const emailHtml = `
     <!DOCTYPE html>
@@ -247,7 +260,7 @@ export async function sendCustomEmail(
     </head>
     <body>
       <div class="container">
-        <div style="white-space: pre-line;">${message}</div>
+        <div style="white-space: pre-line;">${completeMessage}</div>
       </div>
     </body>
     </html>
@@ -263,6 +276,9 @@ export async function sendCustomEmail(
     };
     
     console.log("DEBUG - Invio email custom in corso...");
+    console.log("DEBUG - Firma advisor:", advisorSignature);
+    console.log("DEBUG - Messaggio completo:", completeMessage);
+    
     const info = await transporter.sendMail(mailOptions);
     console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
     
@@ -273,7 +289,7 @@ export async function sendCustomEmail(
           clientId: clientId,
           type: "email",
           title: `Email: ${subject}`,
-          content: message,
+          content: completeMessage,
           emailSubject: subject,
           emailRecipients: clientEmail,
           logDate: new Date(),

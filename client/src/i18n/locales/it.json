@@ -964,7 +964,8 @@
     "unemployed": "Disoccupato",
     "self_employed": "Autonomo",
     "retired": "Pensionato",
-    "student": "Studente"
+    "student": "Studente",
+    "business_owner": "Imprenditore"
   },
   "education_levels": {
     "high_school": "Diploma di Scuola Superiore",

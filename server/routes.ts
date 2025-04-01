@@ -28,6 +28,9 @@ import nodemailer from 'nodemailer';
 import { db, sql as pgClient } from './db'; // Importa pgClient correttamente
 import crypto from 'crypto';
 import { eq } from "drizzle-orm";
+import express from 'express';
+import fileUpload from 'express-fileupload';
+import { UploadedFile } from 'express-fileupload';
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -132,6 +135,17 @@ async function addDurationColumnIfNeeded() {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Aggiungi il middleware per gestire i file multipart
+  app.use(fileUpload({
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
+    useTempFiles: false,
+    createParentPath: true,
+    abortOnLimit: true,
+    responseOnLimit: "Il file è troppo grande (limite: 50MB)",
+    debug: true,
+    parseNested: true
+  }));
+  
   // Esegui la migrazione per aggiungere la colonna duration
   await addDurationColumnIfNeeded();
   
@@ -3093,6 +3107,187 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Errore nel salvataggio delle impostazioni email:", error);
       res.status(500).json({ error: "Errore nel salvataggio delle impostazioni email" });
+    }
+  });
+
+  // ===== PDF Generation and Email Routes =====
+  
+  // Send PDF by email
+  app.post('/api/clients/send-pdf', isAuthenticated, async (req, res) => {
+    try {
+      // Log dettagliato della richiesta
+      console.log('DEBUG - Ricevuta richiesta send-pdf');
+      console.log('DEBUG - Content-Type:', req.headers['content-type']);
+      
+      // Verifica presenza dei file nella richiesta
+      if (!req.files) {
+        console.log('DEBUG - Nessun file trovato nella richiesta');
+        return res.status(400).json({
+          success: false,
+          message: 'Nessun file trovato nella richiesta'
+        });
+      }
+      
+      // Log dei file ricevuti
+      console.log('DEBUG - Files ricevuti:', {
+        hasFiles: true,
+        filesKeys: Object.keys(req.files),
+        fileCount: Object.keys(req.files).length
+      });
+      
+      // Verifica che il file PDF sia presente e valido
+      if (!req.files.pdf) {
+        console.log('DEBUG - Campo PDF non trovato tra i file:', Object.keys(req.files));
+        return res.status(400).json({
+          success: false,
+          message: 'File PDF mancante nella richiesta'
+        });
+      }
+      
+      const pdfFile = req.files.pdf as UploadedFile;
+      
+      // Log del file PDF
+      console.log('DEBUG - PDF ricevuto:', {
+        name: pdfFile.name,
+        size: pdfFile.size,
+        mimetype: pdfFile.mimetype,
+        md5: pdfFile.md5,
+        hasTempFilePath: !!pdfFile.tempFilePath
+      });
+      
+      // Verifica dimensione del PDF
+      if (pdfFile.size === 0) {
+        console.log('DEBUG - File PDF vuoto');
+        return res.status(400).json({
+          success: false,
+          message: 'Il file PDF è vuoto'
+        });
+      }
+      
+      // Log dei parametri del body
+      console.log('DEBUG - Body parametri:', {
+        hasClientId: !!req.body.clientId,
+        clientId: req.body.clientId,
+        hasEmailSubject: !!req.body.emailSubject,
+        emailSubject: req.body.emailSubject,
+        hasEmailBody: !!req.body.emailBody,
+        emailBodyLength: req.body.emailBody?.length,
+        allBodyKeys: Object.keys(req.body)
+      });
+      
+      // Verifica che tutti i campi richiesti siano presenti
+      const missingFields = [];
+      if (!req.body.clientId) missingFields.push('clientId');
+      if (!req.body.emailSubject) missingFields.push('emailSubject');
+      if (!req.body.emailBody) missingFields.push('emailBody');
+
+      if (missingFields.length > 0) {
+        console.log('DEBUG - Campi mancanti:', {
+          missingFields,
+          bodyKeys: Object.keys(req.body)
+        });
+        return res.status(400).json({
+          success: false,
+          message: `Mancano i seguenti parametri: ${missingFields.join(', ')}`,
+          debug: {
+            missingFields,
+            bodyKeys: Object.keys(req.body)
+          }
+        });
+      }
+      
+      const clientId = parseInt(req.body.clientId);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
+      }
+      
+      // Get client data
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Get advisor/user data to get the signature
+      const userId = req.user?.id;
+      let advisorSignature = 'Il tuo consulente finanziario';
+      
+      if (userId) {
+        try {
+          // Get user settings
+          const user = await storage.getUser(userId);
+          if (user && user.signature) {
+            advisorSignature = user.signature;
+            console.log('DEBUG - Firma trovata nelle impostazioni utente:', advisorSignature);
+          } else {
+            console.log('DEBUG - Firma non trovata nelle impostazioni utente, uso default');
+          }
+        } catch (error) {
+          console.error('Errore nel recupero delle impostazioni utente:', error);
+          // Continuiamo con la firma di default
+        }
+      }
+      
+      // Prepare email parameters
+      const emailSubject = req.body.emailSubject;
+      let emailBody = req.body.emailBody;
+      
+      // Verifica se l'email termina con "Cordiali saluti," e aggiungila se necessario
+      if (!emailBody.trim().endsWith("Cordiali saluti,")) {
+        if (!emailBody.includes("Cordiali saluti,")) {
+          emailBody += "\n\nCordiali saluti,";
+        }
+      }
+      
+      console.log('DEBUG - Email body finale:', emailBody);
+      console.log('DEBUG - Firma consulente:', advisorSignature);
+      
+      // Prepare attachments
+      const attachments = [
+        {
+          filename: pdfFile.name || 'Questionario_MiFID.pdf',
+          content: pdfFile.data
+        }
+      ];
+      
+      // Send email
+      await sendCustomEmail(
+        client.email,
+        emailSubject,
+        emailBody,
+        'italian',
+        attachments,
+        advisorSignature, // advisor signature from user settings
+        req.user?.email,
+        clientId,
+        req.user?.id,
+        true // log email
+      );
+      
+      // Log the email sending in client logs
+      await storage.createClientLog({
+        clientId,
+        type: 'email',
+        title: 'Invio Questionario MiFID',
+        content: emailBody,
+        emailSubject,
+        emailRecipients: client.email,
+        logDate: new Date(),
+        createdBy: req.user?.id
+      });
+      
+      res.json({
+        success: true,
+        message: 'Email inviata con successo',
+        clientEmail: client.email
+      });
+      
+    } catch (error: any) {
+      console.error('Errore durante l\'invio del PDF via email:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Si è verificato un errore durante l\'invio dell\'email',
+        error: error.message
+      });
     }
   });
 

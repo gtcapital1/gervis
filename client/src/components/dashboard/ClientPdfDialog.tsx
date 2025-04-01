@@ -1,19 +1,63 @@
 import React, { useState, useEffect } from "react";
 import { Dialog } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-// Stub per il componente di caricamento
-const Loading = () => <div>Caricamento...</div>;
-// Stub per le funzioni API
-const getClient = (clientId: string) => Promise.resolve({} as any);
-const getAssets = (clientId: string) => Promise.resolve([] as any[]);
-// Stub per i tipi
+import { Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+
+// Componente di caricamento con animazione
+const Loading = () => (
+  <div className="flex flex-col items-center justify-center space-y-4">
+    <Loader2 className="h-10 w-10 animate-spin text-primary" />
+    <p className="text-muted-foreground">Caricamento dati in corso...</p>
+  </div>
+);
+
+// Definizione delle interfacce
 interface Asset {
-  id?: number;
-  clientId?: number;
+  id: number;
+  clientId: number;
   category: string;
   value: number;
-  description?: string;
-  createdAt?: string;
+  description: string;
+  createdAt: string;
+}
+
+// Definizione dell'interfaccia per i dati MiFID
+interface MifidType {
+  id: string;
+  clientId: number;
+  createdAt: string;
+  updatedAt: string;
+  address: string;
+  phone: string;
+  birthDate: string;
+  maritalStatus: string;
+  employmentStatus: string;
+  educationLevel: string;
+  annualIncome: number;
+  monthlyExpenses: number;
+  debts: number;
+  dependents: number;
+  assets: Asset[];
+  investmentHorizon: string;
+  retirementInterest: number;
+  wealthGrowthInterest: number;
+  incomeGenerationInterest: number;
+  capitalPreservationInterest: number;
+  estatePlanningInterest: number;
+  investmentExperience: string;
+  pastInvestmentExperience: string[];
+  financialEducation: string[];
+  riskProfile: string;
+  portfolioDropReaction: string;
+  volatilityTolerance: string;
+  yearsOfExperience: string;
+  investmentFrequency: string;
+  advisorUsage: string;
+  monitoringTime: string;
+  specificQuestions: string[] | null;
+  assetCategories: string[];
+  [key: string]: any; // Per consentire l'accesso a proprietà dinamiche
 }
 
 interface ClientSchema {
@@ -48,41 +92,61 @@ interface ClientSchema {
   investmentFrequency?: string | null;
   advisorUsage?: string | null;
   monitoringTime?: string | null;
-  specificQuestions?: string | null;
+  specificQuestions?: string[] | null;
+  mifid?: MifidType | null;
 }
-// Fine degli stub
 
-import { ClientPdfGenerator } from "./ClientPdfGenerator";
+// Risposta API del client
+interface ClientApiResponse {
+  success: boolean;
+  client: ClientSchema;
+  assets: Asset[];
+  mifid: MifidType | null;
+}
+
+// Importa il nuovo componente HtmlPdfGenerator invece di ClientPdfGenerator
+import { HtmlPdfGenerator } from "./HtmlPdfGenerator";
 
 interface ClientPdfDialogProps {
   open: boolean;
-  onClose: () => void;
-  clientId: string;
+  onOpenChange: (open: boolean) => void;
+  clientId: string | number;
 }
 
-export function ClientPdfDialog({ open, onClose, clientId }: ClientPdfDialogProps) {
-  const [client, setClient] = useState<ClientSchema | null>(null);
-  const [assets, setAssets] = useState<Asset[]>([]);
+export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
-
+  const [clientData, setClientData] = useState<ClientSchema | null>(null);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  
   // Carica i dati del cliente quando il modale è aperto
   useEffect(() => {
     if (open && clientId) {
       setIsLoading(true);
+      setError(null);
       
-      // Carica i dati del cliente
-      getClient(clientId)
-        .then((data) => {
-          setClient(data);
-          // Carica gli asset del cliente
-          return getAssets(clientId);
-        })
-        .then((assetData) => {
-          setAssets(assetData);
+      // Carica i dati del cliente usando l'API reale
+      apiRequest(`/api/clients/${clientId}`)
+        .then((response: ClientApiResponse) => {
+          console.log("Dati cliente ricevuti:", response);
+          
+          if (response.success && response.client) {
+            // Se abbiamo dati MIFID separati, li associamo al client
+            const clientWithMifid = {
+              ...response.client,
+              mifid: response.mifid || null
+            };
+            
+            setClientData(clientWithMifid);
+            setAssets(response.assets || []);
+          } else {
+            setError("Dati cliente non disponibili o formato non valido");
+          }
           setIsLoading(false);
         })
-        .catch((error) => {
-          console.error("Errore nel caricamento dei dati:", error);
+        .catch((err) => {
+          console.error("Errore nel caricamento dei dati cliente:", err);
+          setError("Errore nel caricamento dei dati. Riprova più tardi.");
           setIsLoading(false);
         });
     }
@@ -93,11 +157,11 @@ export function ClientPdfDialog({ open, onClose, clientId }: ClientPdfDialogProp
     queryKey: ["advisor-signature"],
     queryFn: async () => {
       try {
-      const response = await fetch("/api/user/signature", {
+        const response = await fetch("/api/user/signature", {
           credentials: "include"
-      });
+        });
         if (!response.ok) return null;
-      return response.text();
+        return response.text();
       } catch (error) {
         console.error("Errore nel recupero della firma:", error);
         return null;
@@ -111,11 +175,11 @@ export function ClientPdfDialog({ open, onClose, clientId }: ClientPdfDialogProp
     queryKey: ["company-logo"],
     queryFn: async () => {
       try {
-      const response = await fetch("/api/company/logo", {
+        const response = await fetch("/api/company/logo", {
           credentials: "include"
-      });
+        });
         if (!response.ok) return null;
-      return response.text();
+        return response.text();
       } catch (error) {
         console.error("Errore nel recupero del logo:", error);
         return null;
@@ -129,11 +193,11 @@ export function ClientPdfDialog({ open, onClose, clientId }: ClientPdfDialogProp
     queryKey: ["company-info"],
     queryFn: async () => {
       try {
-      const response = await fetch("/api/company/info", {
+        const response = await fetch("/api/company/info", {
           credentials: "include"
-      });
+        });
         if (!response.ok) return null;
-      return response.text();
+        return response.text();
       } catch (error) {
         console.error("Errore nel recupero delle info aziendali:", error);
         return null;
@@ -143,38 +207,33 @@ export function ClientPdfDialog({ open, onClose, clientId }: ClientPdfDialogProp
   });
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <div className="fixed inset-0 bg-background/80 backdrop-blur-sm p-4 flex items-center justify-center z-50">
-        <div className="bg-card rounded-lg shadow-lg w-full max-w-4xl max-h-[90vh] overflow-auto p-6">
-          <h2 className="text-2xl font-bold mb-4">Generazione PDF</h2>
-          
+        <div className="bg-card rounded-lg shadow-lg w-full max-w-screen-xl max-h-[90vh] overflow-hidden">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
               <Loading />
             </div>
-          ) : client ? (
-            <ClientPdfGenerator 
-              client={client} 
+          ) : error ? (
+            <div className="text-center text-destructive p-6">
+              <p className="mb-2 font-medium">{error}</p>
+              <p className="text-sm text-muted-foreground">Controlla la connessione e riprova</p>
+            </div>
+          ) : clientData ? (
+            <HtmlPdfGenerator 
+              client={clientData} 
               assets={assets}
               advisorSignature={advisorSignature || undefined}
               companyLogo={companyLogo || undefined}
               companyInfo={companyInfo || undefined}
-              onGenerated={onClose}
+              onGenerated={() => onOpenChange(false)}
             />
           ) : (
-            <div className="text-center text-destructive">
-              Errore nel caricamento dei dati del cliente
+            <div className="text-center text-destructive p-6">
+              <p className="mb-2 font-medium">Dati cliente non disponibili</p>
+              <p className="text-sm text-muted-foreground">Verifica che il cliente abbia completato il processo di onboarding</p>
             </div>
           )}
-          
-          <div className="mt-6 flex justify-end">
-            <button 
-              onClick={onClose}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80"
-            >
-              Chiudi
-            </button>
-          </div>
         </div>
       </div>
     </Dialog>
