@@ -335,6 +335,7 @@
     "confirm_activation": "Attiva Cliente",
     "confirm_activate": "Attiva",
     "activation_description": "Attivando questo cliente, lo considererai come un cliente pagante e questo influirà sulle statistiche.",
+    "link_generated_no_copy": "Link generato con successo",
     "address": "Indirizzo",
     "phone": "Telefono",
     "total_assets": "Asset Totali",

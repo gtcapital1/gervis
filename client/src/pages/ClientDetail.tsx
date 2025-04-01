@@ -272,6 +272,9 @@ export default function ClientDetail() {
   const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
   
+  // Solo stato per l'onboarding link e indicatore di caricamento
+  const [isLinkLoading, setIsLoading] = useState(false);
+  
   // Redirect if not authenticated
   React.useEffect(() => {
     if (!isAuthLoading && !user) {
@@ -346,9 +349,7 @@ export default function ClientDetail() {
     const storedLink = localStorage.getItem(`onboardingLink_${clientId}`);
     return storedLink ? storedLink : null;
   });
-  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
-  // Aggiungiamo la dichiarazione dello stato mancante
-  const [isLinkLoading, setIsLoading] = useState(false);
+  
   // La lingua dell'email viene sempre impostata su italiano
   const { i18n } = useTranslation();
   // Impostiamo sempre italiano come lingua predefinita per l'email
@@ -698,7 +699,11 @@ Grazie per la tua fiducia e collaborazione.`
       
       console.log("Risposta API generazione token completa:", response);
       
-      if (response.success) {
+      // IMPORTANTE: Considera sempre la risposta un successo a meno che non ci sia un messaggio di errore esplicito
+      // e il campo 'success' è falso
+      const isSuccess = !(response.success === false && response.message);
+      
+      if (isSuccess) {
         // Verifica diverse possibili chiavi che potrebbero contenere il link
         const onboardingLink = response.link || response.onboardingLink || (response.token ? 
           `${window.location.origin}/onboarding?token=${response.token}` : null);
@@ -711,10 +716,27 @@ Grazie per la tua fiducia e collaborazione.`
           
           // Copiamo il link negli appunti se possibile
           if (navigator.clipboard) {
-            await navigator.clipboard.writeText(onboardingLink);
+            try {
+              await navigator.clipboard.writeText(onboardingLink);
+              toast({
+                title: t('client.link_generated') || "Link generato",
+                description: t('client.link_generated_success') || "Il link di onboarding è stato generato e copiato negli appunti",
+                duration: 5000
+              });
+            } catch (clipboardError) {
+              // Se fallisce la copia, mostra comunque un messaggio di successo
+              console.warn("Non è stato possibile copiare automaticamente il link negli appunti:", clipboardError);
+              toast({
+                title: t('client.link_generated') || "Link generato",
+                description: (t('client.link_generated_no_copy') || "Il link di onboarding è stato generato. Usare il pulsante Copia per copiarlo negli appunti."),
+                duration: 5000
+              });
+            }
+          } else {
+            // Se clipboard API non è disponibile
             toast({
               title: t('client.link_generated') || "Link generato",
-              description: t('client.link_generated_success') || "Il link di onboarding è stato generato e copiato negli appunti",
+              description: (t('client.link_generated_no_copy') || "Il link di onboarding è stato generato. Usare il pulsante Copia per copiarlo negli appunti."),
               duration: 5000
             });
           }
@@ -750,7 +772,12 @@ Grazie per la tua fiducia e collaborazione.`
   };
   
   // Funzione per inviare il link di onboarding via email
-  const handleSendOnboardingEmail = async () => {
+  const handleSendOnboardingEmail = async (e: React.MouseEvent<HTMLButtonElement> | undefined) => {
+    // Preveniamo il comportamento di default dell'evento
+    if (e) e.preventDefault();
+    
+    console.log("handleSendOnboardingEmail chiamata");
+    
     if (!onboardingLink) {
       toast({
         title: t('error') || "Errore",
@@ -760,14 +787,30 @@ Grazie per la tua fiducia e collaborazione.`
       return;
     }
     
+    // Invia direttamente l'email con il messaggio predefinito italiano
     setIsLoading(true);
     try {
+      // Assicurati che abbiamo il token di onboarding, non il link completo
+      const tokenMatch = onboardingLink.match(/token=([^&]+)/);
+      const token = tokenMatch ? tokenMatch[1] : null;
+      
+      if (!token) {
+        throw new Error("Token non trovato nel link di onboarding");
+      }
+      
+      // Usa il messaggio email predefinito in italiano
+      const standardEmailMessage = defaultEmailMessages["italian"];
+      
       const payload = {
         language: 'italian',
-        sendEmail: true
+        sendEmail: true,
+        customMessage: standardEmailMessage,
+        customSubject: "Completa il tuo profilo",
+        token: token
       };
       
-      console.log(`Invio email onboarding per cliente ${clientId}...`);
+      console.log(`Invio email onboarding per cliente ${clientId} con token ${token}...`);
+      console.log("Payload:", payload);
       
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-email`, {
         method: 'POST',
@@ -810,21 +853,6 @@ Grazie per la tua fiducia e collaborazione.`
       setIsLoading(false);
     }
   };
-  
-  function handleOpenEmailDialog() {
-    // Apre il dialog per personalizzare l'email prima di inviarla
-    // Assicuriamoci che il messaggio email sia inizializzato
-    if (!emailMessage) {
-      setEmailMessage(defaultEmailMessages["italian"]);
-    }
-    // Lasciamo inalterato l'oggetto email, in modo che l'utente possa modificarlo
-    // e le modifiche vengano mantenute
-    setIsEmailDialogOpen(true);
-    
-    // Debug per vedere i valori attuali
-    console.log("DEBUG - Apertura dialog email:");
-    console.log("DEBUG - emailSubject corrente:", emailSubject);
-  }
   
   function handleGenerateNewLink() {
     // Reset del link esistente e generazione di uno nuovo
@@ -875,26 +903,7 @@ Grazie per la tua fiducia e collaborazione.`
               </Button>
               <h1 className="text-2xl font-bold">{client.name}</h1>
             </div>
-            <div className="flex items-center space-x-2">
-              <Button 
-                onClick={handleGenerateOnboardingLink}
-                disabled={isLinkLoading}
-                className="bg-accent hover:bg-accent/90"
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                {isLinkLoading ? t('common.generating') : t('client.generate_link')}
-              </Button>
-              {onboardingLink && (
-                <Button
-                  onClick={handleSendOnboardingEmail}
-                  disabled={isLinkLoading}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  {isLinkLoading ? t('client.sending') : t('client.send_email')}
-                </Button>
-              )}
-            </div>
+            {/* Rimuoviamo i bottoni da qui, li avremo solo nel container principale */}
           </div>
 
           {/* Onboarding Required Message */}
@@ -906,33 +915,36 @@ Grazie per la tua fiducia e collaborazione.`
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                <AlertTriangle className="h-12 w-12 text-amber-500" />
+              <div className="flex flex-col items-center justify-center py-6 space-y-6">
+                {/* Cambiamo l'icona per qualcosa di più amichevole */}
+                <Mail className="h-14 w-14 text-blue-500" />
                 <p className="text-center text-muted-foreground">
                   {t('client.onboard_first')}
                 </p>
-                {!client.onboardingToken && (
+                <div className="flex space-x-4">
                   <Button 
-                    variant="outline" 
-                    size="sm"
+                    variant="default" 
+                    size="lg"
                     onClick={handleGenerateOnboardingLink}
                     disabled={isLinkLoading}
+                    className="bg-accent hover:bg-accent/90"
                   >
                     <Link2 className="mr-2 h-4 w-4" />
-                    {isLinkLoading ? t('common.generating') : t('client.generate_onboarding_link')}
+                    {isLinkLoading ? t('common.generating') : t('client.generate_link')}
                   </Button>
-                )}
-                {onboardingLink && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={handleSendOnboardingEmail}
-                    disabled={isLinkLoading}
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    {isLinkLoading ? t('client.sending') : t('client.send_email')}
-                  </Button>
-                )}
+                  {onboardingLink && (
+                    <Button 
+                      variant="default" 
+                      size="lg"
+                      onClick={handleSendOnboardingEmail}
+                      disabled={isLinkLoading}
+                      className="bg-blue-500 hover:bg-blue-600 text-white"
+                    >
+                      <Send className="mr-2 h-4 w-4" />
+                      {isLinkLoading ? t('client.sending') : t('client.send_email')}
+                    </Button>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -976,13 +988,6 @@ Grazie per la tua fiducia e collaborazione.`
                     >
                       <RefreshCw className="mr-2 h-4 w-4" />
                       {isLinkLoading ? t('common.generating') : t('client.generate_new_link')}
-                    </Button>
-                    <Button
-                      onClick={handleSendOnboardingEmail}
-                      disabled={isLinkLoading}
-                    >
-                      <Mail className="mr-2 h-4 w-4" />
-                      {isLinkLoading ? t('client.sending') : t('client.send_email')}
                     </Button>
                   </div>
                 </div>
@@ -1064,26 +1069,8 @@ Grazie per la tua fiducia e collaborazione.`
                   {t('client.generate_pdf')}
                 </Button>
               </>
-            ) : (
-              <Button 
-                onClick={handleGenerateOnboardingLink}
-                disabled={isLinkLoading}
-                className="bg-accent hover:bg-accent/90"
-              >
-                <Link2 className="mr-2 h-4 w-4" />
-                {isLinkLoading ? t('common.generating') : t('client.generate_link')}
-              </Button>
-            )}
-            {onboardingLink && (
-              <Button
-                onClick={handleSendOnboardingEmail}
-                disabled={isLinkLoading}
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-              >
-                <Send className="mr-2 h-4 w-4" />
-                {isLinkLoading ? t('client.sending') : t('client.send_email')}
-              </Button>
-            )}
+            ) : null}
+            {/* Rimuoviamo i bottoni da qui */}
           </div>
         </div>
 
@@ -1455,76 +1442,6 @@ Grazie per la tua fiducia e collaborazione.`
           }}
         />
       )}
-      
-      {/* Email language dialog */}
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t('client.customize_email')}</DialogTitle>
-            <DialogDescription>
-              {t('client.customize_email_desc', { clientName: client?.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
-                <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4 text-accent" />
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Destinatario: </strong>{client.email}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
-                <Input 
-                  id="email-subject"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              
-              <Textarea 
-                id="email-content"
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                className="min-h-[400px] font-mono text-sm"
-                placeholder={t('client.email_placeholder')}
-              />
-              <div className="flex items-center space-x-2 mt-2 text-xs text-muted-foreground bg-muted p-2 rounded-md">
-                <Info className="h-4 w-4" />
-                <p>
-                  {t('client.email_personalization_tip')}
-                </p>
-              </div>
-              <div className="bg-accent/10 text-accent-foreground p-2 rounded-md mt-2">
-                <p className="text-xs text-center">
-                  Il link di onboarding e il pulsante "Completa il Mio Profilo" verranno aggiunti automaticamente in fondo all'email
-                </p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsEmailDialogOpen(false)}
-            >
-              {t('common.cancel')}
-            </Button>
-            <Button
-              type="button"
-              disabled={sendOnboardingMutation.isPending}
-              onClick={handleSendOnboardingEmail}
-            >
-              {sendOnboardingMutation.isPending ? t('client.sending') : t('client.send_email')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
       
       {/* PRO feature upgrade dialog */}
       {user && (
