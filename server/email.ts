@@ -3,58 +3,35 @@ import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { storage } from './storage';
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
-function getEmailConfig() {
-  // Verifico tutte le variabili di ambiente email disponibili
-  console.log("DEBUG - Email config - Verifica variabili d'ambiente:");
-  console.log("SMTP_HOST:", process.env.SMTP_HOST ? "definito" : "non definito");
-  console.log("SMTP_PORT:", process.env.SMTP_PORT ? "definito" : "non definito");
-  console.log("SMTP_USER:", process.env.SMTP_USER ? "definito" : "non definito");
-  console.log("SMTP_PASS:", process.env.SMTP_PASS ? "definito" : "non definito");
-  console.log("SMTP_FROM:", process.env.SMTP_FROM ? "definito" : "non definito");
-  console.log("EMAIL_HOST:", process.env.EMAIL_HOST ? "definito" : "non definito");
-  console.log("EMAIL_PORT:", process.env.EMAIL_PORT ? "definito" : "non definito");
-  console.log("EMAIL_USER:", process.env.EMAIL_USER ? "definito" : "non definito");
-  console.log("EMAIL_PASSWORD:", process.env.EMAIL_PASSWORD ? "definito" : "non definito");
-  console.log("EMAIL_FROM:", process.env.EMAIL_FROM ? "definito" : "non definito");
+function getEmailConfig(userConfig: any = null) {
+  // Se sono state fornite configurazioni utente, utilizzale
+  if (userConfig && userConfig.customEmailEnabled) {
+    console.log("DEBUG - Email config - Utilizzo configurazione utente");
   
-  // Utilizziamo le credenziali SMTP dalle variabili di ambiente con fallback
-  const host = process.env.SMTP_HOST || process.env.EMAIL_HOST || 'smtps.aruba.it';
-  const port = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || '465', 10);
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER || 'registration@gervis.it';
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD || '';
-  const from = process.env.SMTP_FROM || process.env.EMAIL_FROM || user;
+    return {
+      host: userConfig.smtpHost,
+      port: userConfig.smtpPort,
+      secure: userConfig.smtpPort === 465, // Secure per porta 465
+      user: userConfig.smtpUser,
+      pass: userConfig.smtpPass,
+      from: userConfig.smtpUser, // Usa sempre l'username SMTP come mittente
+    };
+  }
   
-  console.log("DEBUG - Email config - Configurazione risultante:");
-  console.log("Host:", host);
-  console.log("Port:", port);
-  console.log("User:", user);
-  console.log("From:", from);
-  console.log("Password length:", pass ? pass.length : 0);
-  
-  return {
-    host,
-    port,
-    secure: true, // Per Aruba, la porta 465 è sempre secure
-    user,
-    pass,
-    from
-  };
+  // Se arriviamo qui, significa che non abbiamo configurazioni valide
+  throw new Error("Configurazione email mancante o non valida");
 }
 
-// Supporta sia il formato EMAIL_ che SMTP_ delle variabili ambiente
-console.log("DEBUG - Inizializzazione configurazione email");
-const emailConfig = getEmailConfig();
-
-// Configurazione SMTP per Aruba con opzioni specifiche per compatibilità
-// Configurazione basata sulle variabili d'ambiente
-console.log("DEBUG - Utilizzo configurazione SMTP dalle variabili d'ambiente");
+// Crea un transporter SMTP con configurazioni date
+function createTransporter(config: any) {
+  // Configurazione SMTP con opzioni specifiche per compatibilità
 const options: SMTPTransport.Options = {
-  host: emailConfig.host,
-  port: emailConfig.port,
-  secure: true, // usa TLS
+    host: config.host,
+    port: config.port,
+    secure: config.secure, // usa TLS
   auth: {
-    user: emailConfig.user,
-    pass: emailConfig.pass
+      user: config.user,
+      pass: config.pass
   },
   tls: {
     // Non verifica il certificato del server
@@ -64,44 +41,44 @@ const options: SMTPTransport.Options = {
   logger: true // mostra log dettagliati
 };
 
-// Commento: La proprietà pool è stata rimossa perché non è presente nel tipo Options di SMTPTransport
-// Ma è comunque importante notare che vogliamo evitare il pooling per evitare problemi con alcuni server
-
-console.log("DEBUG - Creazione transporter nodemailer");
-// Aggiungi debug logger per nodemailer
-const transporter = nodemailer.createTransport(options);
-
-// Abilita modalità di debug estesa
-if (process.env.NODE_ENV !== 'production') {
-  transporter.set('debug', true);
+  return nodemailer.createTransport(options);
 }
 
-// Log aggiuntivo per verificare che le credenziali siano state impostate correttamente
-console.log("DEBUG - Verifica configurazione transporter:");
-console.log("Auth user impostato:", !!emailConfig.user);
-console.log("Auth password impostata:", !!emailConfig.pass);
-
-// Verifica la connessione al server SMTP
-console.log("DEBUG - Verifica connessione SMTP...");
-console.log(`DEBUG - Tentativo connessione a ${emailConfig.host}:${emailConfig.port} con utente ${emailConfig.user}`);
-transporter.verify()
-  .then(() => {
-    console.log("DEBUG - Connessione SMTP verificata con successo!");
-  })
-  .catch(err => {
-    console.error("ERRORE CRITICO - Verifica connessione SMTP fallita:");
-    console.error("Dettagli host:", emailConfig.host);
-    console.error("Dettagli porta:", emailConfig.port);
-    console.error("Dettagli utente:", emailConfig.user);
-    console.error("Messaggio di errore:", err.message);
-    console.error("Stack trace completo:", err.stack);
-    if (err.code) console.error("Codice errore:", err.code);
-    if (err.errno) console.error("Errno:", err.errno);
-    if (err.syscall) console.error("Syscall:", err.syscall);
-    if (err.hostname) console.error("Hostname:", err.hostname);
-    if (err.command) console.error("Comando SMTP fallito:", err.command);
-    if (err.response) console.error("Risposta server:", err.response);
-  });
+// Ottiene il transporter appropriato per un utente dato
+async function getTransporter(userId = null) {
+  if (!userId) {
+    throw new Error("Impossibile inviare email: ID utente non specificato");
+  }
+  
+  try {
+    // Ottieni le impostazioni email dell'utente
+    const user = await storage.getUser(userId);
+    
+    // Se l'utente ha configurazioni email personalizzate e le ha abilitate
+    if (user && user.custom_email_enabled && user.smtp_host && user.smtp_user) {
+      const userConfig = {
+        smtpHost: user.smtp_host,
+        smtpPort: user.smtp_port || 465,
+        smtpUser: user.smtp_user,
+        smtpPass: user.smtp_pass,
+        customEmailEnabled: user.custom_email_enabled
+      };
+      
+      const emailConfig = getEmailConfig(userConfig);
+      const transporter = createTransporter(emailConfig);
+      
+      console.log(`DEBUG - Utilizzo configurazione email personalizzata per utente ${userId}`);
+      return { transporter, config: emailConfig };
+    } else {
+      // Nessuna configurazione email valida
+      throw new Error("Configurazione email non impostata. Per favore configura le impostazioni SMTP nelle impostazioni utente.");
+    }
+  } catch (error) {
+    console.error(`Errore nel recupero delle configurazioni email dell'utente ${userId}:`, error);
+    // Rilancia l'errore per informare il chiamante del problema
+    throw error;
+  }
+}
 
 // English content
 const englishContent = {
@@ -249,6 +226,9 @@ export async function sendCustomEmail(
   logEmail: boolean = true
 ) {
   try {
+    // Ottieni il transporter appropriato in base all'ID utente
+    const { transporter, config } = await getTransporter(userId);
+    
     const content = language === 'english' ? englishContent : italianContent;
     const signature = advisorSignature || content.team;
     
@@ -274,7 +254,7 @@ export async function sendCustomEmail(
     `;
     
     const mailOptions = {
-      from: `"Gervis" <${emailConfig.from}>`,
+      from: `"Gervis" <${config.from}>`,
       to: clientEmail,
       cc: advisorEmail,
       subject: subject,
@@ -282,6 +262,7 @@ export async function sendCustomEmail(
       attachments: attachments || []
     };
     
+    console.log("DEBUG - Invio email custom in corso...");
     const info = await transporter.sendMail(mailOptions);
     console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
     
@@ -328,6 +309,9 @@ export async function sendOnboardingEmail(
 ) {
   console.log(`DEBUG - Inizio sendOnboardingEmail per ${clientEmail}`);
   try {
+    // Ottieni il transporter appropriato in base all'ID utente
+    const { transporter, config } = await getTransporter(userId);
+    
     // Select content based on language
     const content = language === 'english' ? englishContent : italianContent;
     console.log(`DEBUG - Lingua selezionata: ${language}`);
@@ -407,7 +391,7 @@ export async function sendOnboardingEmail(
       html: string;
       cc?: string;
     } = {
-      from: `"Gervis" <${emailConfig.from}>`,
+      from: `"Gervis" <${config.from}>`,
       to: clientEmail,
       subject: emailSubject,
       html: html
@@ -420,7 +404,7 @@ export async function sendOnboardingEmail(
     }
     
     console.log("DEBUG - Mail options complete:", JSON.stringify(mailOptions, null, 2));
-    console.log(`DEBUG - Tentativo invio email a ${clientEmail} tramite ${emailConfig.host}:${emailConfig.port}`);
+    console.log(`DEBUG - Tentativo invio email a ${clientEmail} tramite ${config.host}:${config.port}`);
     
     // Invio effettivo dell'email
     console.log("DEBUG - Chiamata transporter.sendMail iniziata");
@@ -461,7 +445,7 @@ export async function sendOnboardingEmail(
   } catch (error: any) {
     console.error('ERROR - Errore critico invio onboarding email:');
     console.error(`ERROR - Destinatario: ${clientEmail}`);
-    console.error(`ERROR - Host SMTP: ${emailConfig.host}:${emailConfig.port}`);
+    console.error(`ERROR - Host SMTP: ${config.host}:${config.port}`);
     console.error(`ERROR - Messaggio errore: ${error.message}`);
     console.error(`ERROR - Stack trace: ${error.stack}`);
     
@@ -830,5 +814,52 @@ export async function sendMeetingUpdateEmail(
   } catch (error) {
     console.error("[Email Service] Error sending meeting update:", error);
     return false;
+  }
+}
+
+// Esporta la funzione di test connessione SMTP
+export async function testSMTPConnection(smtpConfig) {
+  try {
+    console.log("DEBUG - testSMTPConnection chiamata con:", JSON.stringify(smtpConfig, null, 2));
+    
+    const config = {
+      host: smtpConfig.host,
+      port: parseInt(smtpConfig.port, 10),
+      secure: parseInt(smtpConfig.port, 10) === 465,
+      user: smtpConfig.user,
+      pass: smtpConfig.password,
+      from: smtpConfig.from || smtpConfig.user
+    };
+    
+    console.log("DEBUG - Configurazione SMTP costruita:", JSON.stringify({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      user: config.user,
+      from: config.from
+    }, null, 2));
+    
+    const testTransporter = createTransporter(config);
+    console.log("DEBUG - Transporter creato, verifico la connessione...");
+    
+    try {
+      await testTransporter.verify();
+      console.log("DEBUG - Verifica connessione SMTP completata con successo");
+      return { success: true, message: 'Connessione SMTP verificata con successo' };
+    } catch (verifyError) {
+      console.error("DEBUG - Errore verifica SMTP:", verifyError);
+      return { 
+        success: false, 
+        message: `Errore connessione SMTP: ${verifyError.message}`,
+        error: verifyError.message
+      };
+    }
+  } catch (error) {
+    console.error("Errore nella verifica della connessione SMTP:", error);
+    return { 
+      success: false, 
+      message: `Errore connessione SMTP: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
+      error: error instanceof Error ? error.message : 'Errore sconosciuto'
+    };
   }
 }

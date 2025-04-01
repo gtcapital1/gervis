@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { UpgradeDialog } from "@/components/pro/UpgradeDialog";
 import { useTheme } from "@/hooks/use-theme";
 import { PageHeader } from "@/components/ui/page-header";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Password form schema with validation
 const passwordFormSchema = z
@@ -70,10 +71,20 @@ const companyInfoFormSchema = z.object({
   }),
 });
 
+// Schema per le impostazioni email
+const emailSettingsFormSchema = z.object({
+  smtpHost: z.string().min(1, { message: "L'host SMTP è obbligatorio" }),
+  smtpPort: z.coerce.number().int().min(1, { message: "La porta SMTP è obbligatoria" }).max(65535),
+  smtpUser: z.string().min(1, { message: "L'username SMTP è obbligatorio" }),
+  smtpPass: z.string().min(1, { message: "La password SMTP è obbligatoria" }),
+  customEmailEnabled: z.boolean().default(false)
+});
+
 type PasswordFormValues = z.infer<typeof passwordFormSchema>;
 type SignatureFormValues = z.infer<typeof signatureFormSchema>;
 type CompanyLogoFormValues = z.infer<typeof companyLogoFormSchema>;
 type CompanyInfoFormValues = z.infer<typeof companyInfoFormSchema>;
+type EmailSettingsFormValues = z.infer<typeof emailSettingsFormSchema>;
 
 export default function Settings() {
   const { t } = useTranslation();
@@ -116,6 +127,18 @@ export default function Settings() {
     },
   });
   
+  // Email settings form setup
+  const emailSettingsForm = useForm<EmailSettingsFormValues>({
+    resolver: zodResolver(emailSettingsFormSchema),
+    defaultValues: {
+      smtpHost: '',
+      smtpPort: 465,
+      smtpUser: '',
+      smtpPass: '',
+      customEmailEnabled: false
+    }
+  });
+  
   // Update signature form when user data changes
   useEffect(() => {
     if (user) {
@@ -133,6 +156,107 @@ export default function Settings() {
       }
     }
   }, [user, signatureForm, companyInfoForm]);
+
+  // Fetch email settings when component mounts
+  useEffect(() => {
+    if (user?.id) {
+      const fetchEmailSettings = async () => {
+        try {
+          const response = await apiRequest(`/api/users/${user.id}/email-settings`);
+          if (response.success && response.emailSettings) {
+            emailSettingsForm.reset({
+              smtpHost: response.emailSettings.smtpHost,
+              smtpPort: response.emailSettings.smtpPort,
+              smtpUser: response.emailSettings.smtpUser,
+              smtpPass: '', // Non mostriamo mai la password per sicurezza
+              customEmailEnabled: response.emailSettings.customEmailEnabled
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching email settings:', error);
+        }
+      };
+      fetchEmailSettings();
+    }
+  }, [user?.id]);
+
+  // Test SMTP connection
+  const [testingConnection, setTestingConnection] = useState(false);
+  
+  const testSmtpConnection = async (data: EmailSettingsFormValues) => {
+    setTestingConnection(true);
+    console.log("DEBUG - Dati da inviare per test SMTP:", {
+      host: data.smtpHost,
+      port: data.smtpPort.toString(),
+      user: data.smtpUser,
+      password: data.smtpPass?.substring(0, 3) + "..." // Mascherata per sicurezza
+    });
+    
+    try {
+      const response = await apiRequest(`/api/users/${user?.id}/smtp-test`, {
+        method: 'POST',
+        body: JSON.stringify({
+          host: data.smtpHost,
+          port: data.smtpPort.toString(),
+          user: data.smtpUser,
+          password: data.smtpPass,
+          from: data.smtpUser // Aggiungo il campo from usando lo stesso indirizzo email dell'utente
+        })
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Connessione SMTP riuscita",
+          description: "Le impostazioni SMTP sono corrette e funzionanti.",
+        });
+      } else {
+        console.error("DEBUG - Errore risposta test SMTP:", response);
+        toast({
+          title: "Errore connessione SMTP",
+          description: response.message || "Impossibile connettersi al server SMTP",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("DEBUG - Eccezione test SMTP:", error);
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante il test della connessione SMTP",
+        variant: "destructive",
+      });
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+  
+  // Email settings update mutation
+  const emailSettingsMutation = useMutation({
+    mutationFn: (data: EmailSettingsFormValues) => {
+      return apiRequest(`/api/users/${user?.id}/email-settings`, {
+        method: "POST",
+        body: JSON.stringify(data)
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Impostazioni email aggiornate",
+        description: "Le impostazioni email sono state aggiornate con successo",
+      });
+      // Clear cache and refresh user data
+      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Errore",
+        description: error.message || "Impossibile aggiornare le impostazioni email",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  function onEmailSettingsSubmit(data: EmailSettingsFormValues) {
+    emailSettingsMutation.mutate(data);
+  }
 
   // Downgrade to Base plan mutation
   const downgradeMutation = useMutation({
@@ -351,10 +475,10 @@ export default function Settings() {
         <Tabs defaultValue="account" className="space-y-4">
           <TabsList>
             <TabsTrigger value="account">{t('settings.account', 'Account')}</TabsTrigger>
-            <TabsTrigger value="appearance">{t('settings.appearance', 'Appearance')}</TabsTrigger>
             <TabsTrigger value="notifications">{t('settings.notifications', 'Notifications')}</TabsTrigger>
             <TabsTrigger value="company">{t('settings.company', 'Company')}</TabsTrigger>
             <TabsTrigger value="subscription">{t('settings.subscription', 'Subscription')}</TabsTrigger>
+            <TabsTrigger value="email">{t('settings.email', 'Email')}</TabsTrigger>
           </TabsList>
           
           {/* Account tab - existing content */}
@@ -479,23 +603,6 @@ export default function Settings() {
             </Card>
           </TabsContent>
           
-          {/* Appearance Tab - New Content */}
-          <TabsContent value="appearance" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('settings.appearance')}</CardTitle>
-                <CardDescription>
-                  {t('settings.choose_theme', 'Choose your preferred theme.')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-4">
-                  <ThemeSelector />
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
           {/* Company Logo Section */}
           <TabsContent value="company">
             <Card>
@@ -606,6 +713,143 @@ export default function Settings() {
                     >
                       {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
                     </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          {/* Email Settings Tab */}
+          <TabsContent value="email" className="space-y-6">
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Impostazioni Email</CardTitle>
+                <CardDescription>
+                  Configura il tuo server SMTP per l'invio di email personalizzate ai clienti.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
+                  <h3 className="text-amber-800 font-medium mb-2">Configurazione richiesta</h3>
+                  <p className="text-amber-700 text-sm">
+                    È necessario configurare un server SMTP per poter inviare email ai clienti. 
+                    Il sistema non utilizza più un server predefinito. Se non configuri queste impostazioni, 
+                    non sarà possibile inviare email ai clienti.
+                  </p>
+                </div>
+                
+                <Form {...emailSettingsForm}>
+                  <form onSubmit={emailSettingsForm.handleSubmit(onEmailSettingsSubmit)} className="space-y-5">
+                    <FormField
+                      control={emailSettingsForm.control}
+                      name="customEmailEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Abilita server email personalizzato</FormLabel>
+                            <FormDescription>
+                              Attiva questa opzione per utilizzare il tuo server SMTP. <span className="font-semibold">Questa impostazione deve essere attivata per inviare email.</span>
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={emailSettingsForm.control}
+                        name="smtpHost"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Host SMTP</FormLabel>
+                            <FormControl>
+                              <Input placeholder="es. smtp.example.com" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              L'indirizzo del server SMTP (es. smtp.gmail.com)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={emailSettingsForm.control}
+                        name="smtpPort"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Porta SMTP</FormLabel>
+                            <FormControl>
+                              <Input type="number" placeholder="465" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              La porta del server SMTP (es. 465, 587, 25)
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <FormField
+                        control={emailSettingsForm.control}
+                        name="smtpUser"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Username SMTP</FormLabel>
+                            <FormControl>
+                              <Input placeholder="es. info@example.com" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              L'username/email per accedere al server SMTP
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={emailSettingsForm.control}
+                        name="smtpPass"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Password SMTP</FormLabel>
+                            <FormControl>
+                              <Input type="password" placeholder="Password" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              La password per accedere al server SMTP
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        disabled={testingConnection || emailSettingsMutation.isPending}
+                        onClick={() => testSmtpConnection(emailSettingsForm.getValues())}
+                      >
+                        {testingConnection ? "Test in corso..." : "Testa connessione"}
+                      </Button>
+                      
+                      <Button 
+                        type="submit"
+                        disabled={testingConnection || emailSettingsMutation.isPending}
+                      >
+                        {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
+                      </Button>
+                    </div>
                   </form>
                 </Form>
               </CardContent>
@@ -750,39 +994,22 @@ export default function Settings() {
   );
 }
 
-function ThemeSelector() {
-  const { theme, setTheme } = useTheme();
+function AppSettings() {
   const { t } = useTranslation();
   
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h4 className="text-sm font-medium leading-none">{t('settings.theme', 'Theme')}</h4>
-          <p className="text-sm text-muted-foreground">
-            {t('settings.theme_description', 'Set your preferred theme for the app interface.')}
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium">{t('settings.app_settings')}</h3>
+        <p className="text-sm text-muted-foreground">{t('settings.app_settings_description')}</p>
       </div>
-      <div className="grid grid-cols-3 gap-4">
-        <div
-          className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-white p-4 hover:border-accent cursor-pointer ${
-            theme === "light" ? "border-primary" : "border-muted"
-          }`}
-          onClick={() => setTheme("light")}
-        >
-          <div className="mb-2 mt-4 h-5 w-5 rounded-full bg-primary" />
-          <span className="text-xs font-medium">{t('settings.light_mode')}</span>
-        </div>
-        <div
-          className={`flex flex-col items-center justify-between rounded-md border-2 bg-gray-950 p-4 hover:border-accent cursor-pointer ${
-            theme === "dark" ? "border-primary" : "border-muted"
-          }`}
-          onClick={() => setTheme("dark")}
-        >
-          <div className="mb-2 mt-4 h-5 w-5 rounded-full bg-primary" />
-          <span className="text-xs font-medium text-white">{t('settings.dark_mode')}</span>
-        </div>
+      {/* Rimuovo il selettore del tema */}
+      <div>
+        <h4 className="text-sm font-medium leading-none">{t('settings.language')}</h4>
+        <p className="text-sm text-muted-foreground mt-2">
+          {t('settings.language_description')}
+        </p>
+        <LanguageSelector />
       </div>
     </div>
   );

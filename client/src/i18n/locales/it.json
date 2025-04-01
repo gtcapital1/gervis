@@ -3,6 +3,7 @@
   "dashboard": {
     "dashboard": "Dashboard",
     "title": "Dashboard",
+    "send_email": "Invia Email",
     "subtitle": "Panoramica della tua attività e clienti",
     "total_aum": "AuM Totali",
     "from_previous_period": "rispetto al periodo precedente",
@@ -58,9 +59,9 @@
     "timeframe_1y": "1A",
     "engagement": "Engagement",
     "client_engagement": "Coinvolgimento Clienti",
-    "avg_emails": "Email per cliente",
-    "avg_calls": "Chiamate per cliente",
-    "avg_meetings": "Meeting per cliente",
+    "avg_emails": "Email per cliente / settimana",
+    "avg_calls": "Chiamate per cliente / settimana",
+    "avg_meetings": "Meeting per cliente / settimana",
     "avg_emails_trend": "Trend Email Medie per Cliente",
     "avg_calls_trend": "Trend Chiamate Medie per Cliente",
     "avg_meetings_trend": "Trend Meeting Medi per Cliente",
@@ -225,7 +226,10 @@
     "client_segment_distribution": "Distribuzione Clienti per Segmento",
     "asset_by_segment": "Asset per Segmento",
     "asset_by_type": "Asset per Tipologia",
-    "segment": "Segmento"
+    "segment": "Segmento",
+    "aum_concentration": "Concentrazione AUM",
+    "aum_concentration_desc": "Mostra come gli Asset Under Management sono distribuiti tra i gruppi di clienti",
+    "top_clients_label": "Primi {n} clienti"
   },
   "client": {
     "active_client": "Cliente Attivo",
@@ -287,6 +291,7 @@
     "monthly_expenses": "Spese Mensili",
     "net_worth": "Patrimonio Netto",
     "investment_profile": "Profilo di Investimento",
+    "investment_experience": "Esperienza di investimento",
     "risk_profile": "Profilo di Rischio",
     "investment_experience": "Esperienza di Investimento",
     "investment_horizon": "Orizzonte di Investimento",
@@ -387,7 +392,12 @@
       "hnw": "High Net Worth",
       "vhnw": "Very High Net Worth",
       "uhnw": "Ultra High Net Worth"
-    }
+    },
+    "onboarding_email_sent": "Email inviata",
+    "onboarding_email_sent_desc": "L'email di onboarding è stata inviata con successo",
+    "onboarding_email_error": "Impossibile inviare l'email di onboarding",
+    "email_config_error": "Configurazione email mancante",
+    "email_config_error_desc": "È necessario configurare un server SMTP nelle impostazioni utente per inviare email"
   },
   "client_edit": {
     "email": "Indirizzo Email",

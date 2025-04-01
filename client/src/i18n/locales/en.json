@@ -2,6 +2,7 @@
   "app_name": "Gervis",
   "dashboard": {
     "dashboard": "Dashboard",
+    "send_email": "Send Email",
     "title": "Dashboard",
     "subtitle": "Overview of your business and clients",
     "total_aum": "Total AuM",
@@ -25,6 +26,7 @@
     "prospect_to_active": "Prospect to Active",
     "daily_acquisition": "Daily Acquisition",
     "new_leads_per_day": "New Leads/Day",
+    "new_prospects_per_day": "New prospects/Day",
     "new_active_clients_per_day": "New Active Clients/Day",
     "average_assets": "Average Assets",
     "per_prospect": "Per Prospect",
@@ -58,9 +60,9 @@
     "timeframe_1y": "1Y",
     "engagement": "Engagement",
     "client_engagement": "Client engagement",
-    "avg_emails": "  Emails per client",
-    "avg_calls": "  Calls per client",
-    "avg_meetings": "  Meetings per client",
+    "avg_emails": "Emails per client / week",
+    "avg_calls": "Calls per client / week",
+    "avg_meetings": "Meetings per client / week",
     "avg_emails_trend": "Average Emails Trend",
     "avg_calls_trend": "Average Calls Trend",
     "avg_meetings_trend": "Average Meetings Trend",
@@ -222,7 +224,10 @@
     "select_client": "Select a client",
     "client_insights": "Active Client Insights",
     "active_clients_overview": "Active clients overview",
-    "client_segment_distribution": "Client Distribution by Segment",
+    "client_segment_distribution": "Client Segment Distribution",
+    "aum_concentration": "AUM Concentration",
+    "aum_concentration_desc": "Shows how Assets Under Management are distributed among client groups",
+    "top_clients_label": "Top {n} clients",
     "asset_by_segment": "Assets by Segment",
     "asset_by_type": "Assets by Type"
   },
@@ -473,6 +478,8 @@
     "personal_info": "Personal Information",
     "address": "Address",
     "phone": "Phone",
+    "segment": "Client Segment",
+    "investment_goals": "Investment Goals",
     "total_assets": "Total Assets",
     "birth_date": "Birth Date",
     "marital_status": "Marital Status",
@@ -506,6 +513,7 @@
     "edit": "Edit",
     "edit_mifid_data": "Edit client data",
     "investment_profile": "Investment Profile",
+    "investment_experience": "Investment Experience",
     "asset_allocation": "Asset Allocation",
     "portfolio_snapshot": "Current portfolio allocation",
     "portfolio_overview": "Portfolio Overview",
@@ -529,7 +537,14 @@
     "deactivate": "Deactivate Client",
     "activated_success": "Client activated successfully",
     "deactivated_success": "Client deactivated successfully",
-    "status_update_error": "Error updating client status"
+    "status_update_error": "Error updating client status",
+    "net_worth": "Net Worth (€)",
+    "segments": {
+      "mass_market": "Mass Market",
+      "affluent": "Affluent",
+      "hnw": "High Net Worth",
+      "vhnw": "Very High Net Worth",
+      "uhnw": "Ultra High Net Worth" }
   },
   "marital_status": {
     "single": "Single",
@@ -557,6 +572,16 @@
     "medium_term": "Medium Term",
     "long_term": "Long Term"
   },
+  "asset_categories": {
+    "real_estate": "Real Estate",
+    "equity": "Equity",
+    "bonds": "Bonds",
+    "cash": "Cash",
+    "private_equity": "Private Equity",
+    "venture_capital": "Venture Capital",
+    "cryptocurrencies": "Cryptocurrencies",
+    "other": "Altri Asset"
+  },
   "risk_profiles": {
     "conservative": "Conservative",
     "moderate": "Moderate",
@@ -564,20 +589,18 @@
     "growth": "Growth",
     "aggressive": "Aggressive"
   },
-  "investment_goals": {
-    "retirement": "Retirement Planning",
-    "wealth_growth": "Wealth Growth",
-    "income_generation": "Income Generation",
-    "capital_preservation": "Capital Preservation",
-    "estate_planning": "Estate Planning"
+  "experience_levels": {
+    "none": "Nessuna Esperienza",
+    "beginner": "Principiante",
+    "intermediate": "Intermedio",
+    "advanced": "Avanzato",
+    "expert": "Esperto"
   },
-  "asset_categories": {
-    "cash": "Cash",
-    "bonds": "Bonds",
-    "stocks": "Stocks",
-    "real_estate": "Real Estate",
-    "commodities": "Commodities",
-    "crypto": "Cryptocurrencies",
-    "other": "Other"
+  "investment_goals": {
+    "retirement_interest": "Retirement Planning",
+    "wealth_growth_interest": "Wealth Growth",
+    "income_generation_interest": "Income Generation",
+    "capital_preservation_interest": "Capital Preservation",
+    "estate_planning_interest": "Estate Planning"
   }
 } 

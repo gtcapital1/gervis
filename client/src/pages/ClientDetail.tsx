@@ -267,6 +267,7 @@ export default function ClientDetail() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const { t } = useTranslation();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isConfirmActiveDialogOpen, setIsConfirmActiveDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
@@ -597,6 +598,75 @@ Grazie per la tua fiducia e collaborazione.`
     },
   });
 
+  // Funzione per aggiornare lo stato active del cliente
+  const updateClientActiveMutation = useMutation({
+    mutationFn: async () => {
+      console.log(`Invio richiesta per toggle-active del cliente ${clientId}. Stato corrente: ${client?.active}`);
+      try {
+        // Aggiungi un timestamp per evitare la cache
+        const timestamp = new Date().getTime();
+        const response = await apiRequest(`/api/clients/${clientId}/toggle-active?t=${timestamp}`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json' 
+          },
+          body: JSON.stringify({ active: !client?.active }),
+        });
+        
+        // Controlla se la risposta è HTML invece di JSON (errore comune)
+        if (typeof response === 'string' && response.includes('<!doctype html>')) {
+          console.error('Ricevuta risposta HTML invece di JSON:', response.substring(0, 100));
+          throw new Error('Risposta del server non valida: ricevuto HTML invece di JSON');
+        }
+        
+        console.log('Risposta ricevuta:', response);
+        
+        // In caso di risposta non valida, forzare un refresh della pagina dopo 1 secondo 
+        // per aggirare il problema
+        if (!response || !response.success) {
+          setTimeout(() => {
+            console.log('Forzatura refresh pagina per aggirare errore risposta');
+            window.location.reload();
+          }, 1000);
+          
+          throw new Error(response?.message || 'Errore sconosciuto');
+        }
+        
+        return response;
+      } catch (error) {
+        console.error('Errore catturato nella chiamata API:', error);
+        // In caso di errore, forzare un refresh della pagina dopo 1 secondo
+        setTimeout(() => {
+          console.log('Forzatura refresh pagina dopo errore');
+          window.location.reload();
+        }, 1000);
+        throw error;
+      }
+    },
+    onSuccess: (response) => {
+      console.log('Mutation completata con successo:', response);
+      toast({ 
+        title: client?.active 
+          ? t('client.deactivation_successful') 
+          : t('client.activation_successful'),
+        description: client?.active 
+          ? t('client.client_deactivated') 
+          : t('client.client_activated'),
+      });
+      // Ricarica i dati del cliente
+      queryClient.invalidateQueries({ queryKey: ['client', clientId] });
+    },
+    onError: (error: any) => {
+      console.error('Errore dettagliato:', error);
+      toast({
+        title: t('common.error'),
+        description: error.message || t('client.status_update_error'),
+        variant: 'destructive',
+      });
+    },
+  });
+
   function onSubmit(data: ClientFormValues) {
     updateClientMutation.mutate(data);
   }
@@ -605,29 +675,82 @@ Grazie per la tua fiducia e collaborazione.`
     updateMifidMutation.mutate(data);
   }
   
-  function handleGenerateOnboardingLink() {
-    // Genera direttamente il link di onboarding senza aprire il dialog e senza inviare l'email
-    console.log("[DEBUG] Generazione link onboarding...");
-    
-    // Imposta il messaggio standard in italiano, ma solo se l'email non è già stata personalizzata
-    // In questo modo non sovrascriviamo il messaggio personalizzato dall'utente
-    if (!emailMessage) {
-      setEmailMessage(defaultEmailMessages["italian"]);
+  // Funzione per generare link di onboarding (cerca questa funzione esistente)
+  const handleGenerateOnboardingLink = async (customMessage?: string, subject?: string) => {
+    setIsLoading(true);
+    try {
+      const payload = {
+        message: customMessage,
+        subject: subject,
+        language: 'italian' // Hardcoded per ora, ma puoi rendere parametrizzabile
+      };
+      
+      const response = await apiRequest(`/api/clients/${clientId}/onboarding-email`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.success) {
+        // Copiamo il link negli appunti se possibile
+        if (response.onboardingLink && navigator.clipboard) {
+          await navigator.clipboard.writeText(response.onboardingLink);
+          toast({
+            title: t('client.onboarding_link_copied') || "Link copiato",
+            description: t('client.onboarding_link_copied_desc') || "Il link di onboarding è stato copiato negli appunti",
+            duration: 5000
+          });
+        }
+        
+        // Aggiorniamo i dati del cliente
+        queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
+        
+        // Segnaliamo il successo
+        toast({
+          title: t('client.onboarding_email_sent') || "Email inviata",
+          description: t('client.onboarding_email_sent_desc') || "L'email di onboarding è stata inviata con successo",
+          duration: 5000
+        });
+        
+        // Chiudi il form se necessario
+        if (isEmailDialogOpen) {
+          setIsEmailDialogOpen(false);
+        }
+      } else {
+        // Verifica se è un errore di configurazione email
+        if (response.configurationRequired) {
+          toast({
+            title: t('client.email_config_error') || "Configurazione email mancante",
+            description: t('client.email_config_error_desc') || "È necessario configurare un server SMTP nelle impostazioni utente per inviare email",
+            variant: "destructive",
+            action: (
+              <ToastAction 
+                altText="Vai alle impostazioni"
+                onClick={() => navigate('/settings')}
+              >
+                Configura
+              </ToastAction>
+            ),
+            duration: 10000
+          });
+        } else {
+          toast({
+            title: t('error') || "Errore",
+            description: response.message || (t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding"),
+            variant: "destructive"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error generating onboarding link:', error);
+      toast({
+        title: t('error') || "Errore",
+        description: t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
-    
-    // Debug per vedere i valori prima dell'invio
-    console.log("DEBUG - Prima di generare il link:");
-    console.log("DEBUG - emailSubject corrente:", emailSubject);
-    console.log("DEBUG - emailMessage lunghezza:", emailMessage?.length || 0);
-    
-    // Invochiamo direttamente la mutazione per generare il link, senza inviare l'email
-    sendOnboardingMutation.mutate({
-      language: emailLanguage,
-      customMessage: emailMessage,
-      customSubject: emailSubject,
-      sendEmail: false  // Non inviare l'email durante la generazione del link
-    });
-  }
+  };
   
   function handleOpenEmailDialog() {
     // Apre il dialog per personalizzare l'email prima di inviarla
@@ -821,14 +944,37 @@ Grazie per la tua fiducia e collaborazione.`
             </Button>
             <h1 className="text-2xl font-bold">{client?.name}</h1>
             {client?.isOnboarded && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                {t('common.edit')}
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  {t('common.edit')}
+                </Button>
+                <div className="flex items-center ml-2">
+                  <Badge 
+                    variant={client?.active ? "default" : "destructive"}
+                    className="flex items-center pl-2 pr-1 py-0.5 h-8"
+                  >
+                    <span className="mr-2">
+                      {client?.active ? 
+                        <span className="text-white">Attivo</span> : 
+                        <span className="text-white">Prospect</span>
+                      }
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 hover:bg-white/20"
+                      onClick={() => setIsConfirmActiveDialogOpen(true)}
+                    >
+                      <Edit className="h-3 w-3 text-white" />
+                    </Button>
+                  </Badge>
+                </div>
+              </>
             )}
           </div>
           <div className="flex items-center space-x-2">
@@ -1010,6 +1156,25 @@ Grazie per la tua fiducia e collaborazione.`
                           }}
                         >
                           {t(`risk_profiles.${mifid.riskProfile}`)}
+                        </Badge>
+                      </div>
+                      
+                      <div>
+                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
+                        <Badge 
+                          className="capitalize"
+                          style={{
+                            backgroundColor: 
+                              mifid.investmentExperience === "none" ? "#93c5fd" : // Light blue
+                              mifid.investmentExperience === "beginner" ? "#60a5fa" : // Medium light blue
+                              mifid.investmentExperience === "intermediate" ? "#3b82f6" : // Medium blue
+                              mifid.investmentExperience === "advanced" ? "#2563eb" : // Medium dark blue
+                              mifid.investmentExperience === "expert" ? "#1e40af" : // Dark blue
+                              "#6b7280", // Gray default
+                            color: "#ffffff"
+                          }}
+                        >
+                          {t(`experience_levels.${mifid.investmentExperience}`)}
                         </Badge>
                       </div>
                       
@@ -1681,6 +1846,44 @@ Grazie per la tua fiducia e collaborazione.`
           onOpenChange={setShowPdfDialog}
         />
       )}
+
+      {/* Dialog di conferma per cambiare lo stato active */}
+      <Dialog open={isConfirmActiveDialogOpen} onOpenChange={setIsConfirmActiveDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>
+              {client?.active ? t('client.confirm_deactivation') : t('client.confirm_activation')}
+            </DialogTitle>
+            <DialogDescription>
+              {client?.active 
+                ? t('client.deactivation_description') 
+                : t('client.activation_description')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsConfirmActiveDialogOpen(false)}
+            >
+              {t('common.cancel')}
+            </Button>
+            <Button 
+              variant={client?.active ? "destructive" : "default"}
+              onClick={() => {
+                updateClientActiveMutation.mutate();
+                setIsConfirmActiveDialogOpen(false);
+              }}
+              disabled={updateClientActiveMutation.isPending}
+            >
+              {updateClientActiveMutation.isPending 
+                ? t('common.processing') 
+                : client?.active 
+                  ? t('client.confirm_deactivate') 
+                  : t('client.confirm_activate')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,62 +1,61 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "light" | "dark";
+// Modificato il tipo per supportare solo la modalità chiara
+type Theme = "light";
 
-type ThemeProviderProps = {
+interface ThemeProviderProps {
   children: React.ReactNode;
   defaultTheme?: Theme;
-  storageKey?: string;
-};
+}
 
-type ThemeProviderState = {
+interface ThemeContextType {
   theme: Theme;
   setTheme: (theme: Theme) => void;
-};
+}
 
-const initialState: ThemeProviderState = {
-  theme: "dark",
+const initialState: ThemeContextType = {
+  theme: "light",
   setTheme: () => null,
 };
 
-const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
+const ThemeContext = createContext<ThemeContextType>(initialState);
 
 export function ThemeProvider({
   children,
-  defaultTheme = "dark",
-  storageKey = "theme",
-  ...props
+  defaultTheme = "light",
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme
-  );
+  const [theme, setTheme] = useState<Theme>(defaultTheme);
+
+  // ignora qualsiasi tentativo di cambiare tema e mantiene sempre light
+  const setThemeFixed = (newTheme: Theme) => {
+    // Forza sempre il tema chiaro
+    setTheme("light");
+  };
 
   useEffect(() => {
     const root = window.document.documentElement;
     
-    // Remove the old theme class
-    root.classList.remove("light", "dark");
+    // Rimuovi classe dark se presente
+    root.classList.remove("dark");
     
-    // Add the new theme class
-    root.classList.add(theme);
-    
-    // Save theme to localStorage
-    localStorage.setItem(storageKey, theme);
-  }, [theme, storageKey]);
-
-  const value = {
-    theme,
-    setTheme: (theme: Theme) => setTheme(theme),
-  };
+    // Aggiungi sempre la classe light
+    root.classList.add("light");
+  }, []);
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeContext.Provider
+      value={{
+        theme: "light",
+        setTheme: setThemeFixed,
+      }}
+    >
       {children}
-    </ThemeProviderContext.Provider>
+    </ThemeContext.Provider>
   );
 }
 
 export const useTheme = () => {
-  const context = useContext(ThemeProviderContext);
+  const context = useContext(ThemeContext);
 
   if (context === undefined)
     throw new Error("useTheme must be used within a ThemeProvider");

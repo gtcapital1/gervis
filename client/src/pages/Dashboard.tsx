@@ -35,7 +35,9 @@ import {
   Circle,
   CalendarRange,
   UsersRound,
-  BarChart
+  BarChart,
+  Users2,
+  CircleDollarSign
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -475,7 +477,8 @@ export default function Dashboard() {
   
   // Prepare risk profile distribution
   const riskProfiles = activeClients.reduce((acc, client) => {
-    const profile = client.riskProfile || 'unknown';
+    // Usa client.mifidRiskProfile o un valore dal MIFID se disponibile, altrimenti usa 'unknown'
+    const profile = (client as any).riskProfile || (client as any).mifidRiskProfile || 'unknown';
     acc[profile] = (acc[profile] || 0) + 1;
     return acc as Record<string, number>;
   }, {} as Record<string, number>);
@@ -709,12 +712,25 @@ export default function Dashboard() {
     const callCount = filteredLogs.filter(log => log.type === 'call').length;
     const meetingCount = filteredLogs.filter(log => log.type === 'meeting').length;
     
-    // Calcola la media per cliente
+    // Calcola il numero di settimane nel periodo selezionato
+    const now = new Date();
+    const weeksInPeriod = Math.max(1, Math.ceil((now.getTime() - startDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+    
+    // Contiamo solo i clienti attivi per calcolare la media
+    const activeClientsCount = clients.filter(client => client.active).length || 1; // evita divisione per zero
+    
+    // Calcola la media per cliente attivo per settimana, arrotondando a un decimale
+    const emailsPerClientPerWeek = (emailCount / activeClientsCount) / weeksInPeriod;
+    const callsPerClientPerWeek = (callCount / activeClientsCount) / weeksInPeriod;
+    const meetingsPerClientPerWeek = (meetingCount / activeClientsCount) / weeksInPeriod;
+    const totalPerClientPerWeek = ((emailCount + callCount + meetingCount) / activeClientsCount) / weeksInPeriod;
+    
+    // Arrotonda a 1 decimale con Math.round per avere arrotondamento più preciso
     return {
-      emails: parseFloat((emailCount / clients.length).toFixed(1)),
-      calls: parseFloat((callCount / clients.length).toFixed(1)),
-      meetings: parseFloat((meetingCount / clients.length).toFixed(1)),
-      total: parseFloat(((emailCount + callCount + meetingCount) / clients.length).toFixed(1))
+      emails: Math.round(emailsPerClientPerWeek * 10) / 10,
+      calls: Math.round(callsPerClientPerWeek * 10) / 10,
+      meetings: Math.round(meetingsPerClientPerWeek * 10) / 10,
+      total: Math.round(totalPerClientPerWeek * 10) / 10
     };
   };
 
@@ -1365,7 +1381,10 @@ export default function Dashboard() {
                             <Button
                               variant="ghost"
                 className="w-full"
-                onClick={() => setShowTrendDialog(true)}
+                onClick={() => {
+                  console.log('Click su view trends (client pipeline)');
+                  setShowTrendDialog(true);
+                }}
               >
                 {t('dashboard.view_trends')}
                             </Button>
@@ -1419,15 +1438,15 @@ export default function Dashboard() {
               <div className="grid grid-cols-3 gap-2 mb-2 py-1 px-2 bg-muted/10">
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">{t('dashboard.avg_emails')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.emails}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.emails.toFixed(1)}</div>
                       </div>
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">{t('dashboard.avg_calls')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.calls}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.calls.toFixed(1)}</div>
             </div>
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">{t('dashboard.avg_meetings')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.meetings}</div>
+                  <div className="text-lg font-semibold">{averageInteractions.meetings.toFixed(1)}</div>
                     </div>
                   </div>
 
@@ -1497,7 +1516,10 @@ export default function Dashboard() {
               <Button 
                 variant="outline" 
                 className="w-full mt-4" 
-                onClick={() => setShowCommunicationTrendDialog(true)}
+                onClick={() => {
+                  console.log('Click su view trends (comunicazione)');
+                  setShowCommunicationTrendDialog(true);
+                }}
               >
                 {t('dashboard.view_trends')}
               </Button>
@@ -1791,6 +1813,114 @@ export default function Dashboard() {
                       />
                     </PieChart>
                   </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Nuovo grafico: Concentrazione AUM per gruppi di clienti */}
+              <div className="border rounded-lg p-3">
+                <h3 className="text-sm font-medium mb-2 flex items-center">
+                  {t('dashboard.aum_concentration')}
+                  <HoverCard>
+                    <HoverCardTrigger asChild>
+                      <div className="ml-1 cursor-help">
+                        <Info className="h-3.5 w-3.5 text-muted-foreground" />
+                      </div>
+                    </HoverCardTrigger>
+                    <HoverCardContent className="w-80 text-xs p-3 shadow-lg">
+                      <div className="text-muted-foreground">
+                        <p>{t('dashboard.aum_concentration_desc')}</p>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                </h3>
+                
+                {/* Barra orizzontale con segmenti colorati */}
+                <div className="pt-4 pb-8">
+                  {(() => {
+                    // Filtra solo i clienti attivi
+                    const activeOnlyClients = clients.filter(client => 
+                      client.active && !client.isArchived
+                    );
+                    
+                    // Crea un array di clienti con i loro asset totali
+                    const clientsWithAssets = activeOnlyClients.map(client => ({
+                      id: client.id,
+                      name: client.name,
+                      totalAssets: client.totalAssets || 0
+                    }));
+                    
+                    // Ordina i clienti per asset totali in ordine decrescente
+                    clientsWithAssets.sort((a, b) => b.totalAssets - a.totalAssets);
+                    
+                    // Calcola l'AUM totale
+                    const totalAUM = clientsWithAssets.reduce((sum, client) => sum + client.totalAssets, 0);
+                    
+                    // Calcola i valori per i tre segmenti
+                    const top3Assets = clientsWithAssets.slice(0, 3).reduce((sum, client) => sum + client.totalAssets, 0);
+                    const next7Assets = clientsWithAssets.slice(3, 10).reduce((sum, client) => sum + client.totalAssets, 0);
+                    const next10Assets = clientsWithAssets.slice(10, 20).reduce((sum, client) => sum + client.totalAssets, 0);
+                    
+                    // Calcola le percentuali
+                    const top3Percent = totalAUM > 0 ? (top3Assets / totalAUM * 100) : 0;
+                    const next7Percent = totalAUM > 0 ? (next7Assets / totalAUM * 100) : 0;
+                    const next10Percent = totalAUM > 0 ? (next10Assets / totalAUM * 100) : 0;
+                    
+                    const segments = [
+                      { 
+                        label: `${t('dashboard.top_clients_label').replace('{n}', '3')}`, 
+                        value: top3Assets,
+                        percent: top3Percent,
+                        color: '#3b82f6' // Blu
+                      },
+                      { 
+                        label: `${t('dashboard.top_clients_label').replace('{n}', '4-10')}`, 
+                        value: next7Assets,
+                        percent: next7Percent,
+                        color: '#22c55e' // Verde
+                      },
+                      { 
+                        label: `${t('dashboard.top_clients_label').replace('{n}', '11-20')}`, 
+                        value: next10Assets,
+                        percent: next10Percent,
+                        color: '#eab308' // Giallo
+                      }
+                    ];
+                    
+                    return (
+                      <div className="space-y-4">
+                        {/* Barra segmentata */}
+                        <div className="relative h-7 w-full bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                          {segments.map((segment, index) => (
+                            <div
+                              key={index}
+                              className="absolute top-0 h-full"
+                              style={{
+                                left: segments.slice(0, index).reduce((sum, s) => sum + s.percent, 0) + '%',
+                                width: segment.percent + '%',
+                                backgroundColor: segment.color
+                              }}
+                              title={`${segment.label}: ${formatCurrency(segment.value)} (${segment.percent.toFixed(1)}%)`}
+                            ></div>
+                          ))}
+                        </div>
+                        
+                        {/* Legenda */}
+                        <div className="flex flex-wrap items-center gap-4 justify-center pt-2">
+                          {segments.map((segment, index) => (
+                            <div key={index} className="flex items-center">
+                              <div 
+                                className="w-3 h-3 rounded-sm mr-1.5" 
+                                style={{ backgroundColor: segment.color }}
+                              ></div>
+                              <span className="text-sm">
+                                {segment.label}: {formatCurrency(segment.value)} ({segment.percent.toFixed(1)}%)
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

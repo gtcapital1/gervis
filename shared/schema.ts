@@ -36,6 +36,14 @@ export const users = pgTable("users", {
   verificationPin: text("verification_pin"), // PIN a 4 cifre per la verifica
   registrationCompleted: boolean("registration_completed").default(false), // Flag che indica se la registrazione è stata completata
   createdAt: timestamp("created_at").defaultNow(), // Data di creazione dell'utente
+  
+  // Impostazioni email SMTP personalizzate
+  smtp_host: text("smtp_host"),
+  smtp_port: integer("smtp_port"),
+  smtp_user: text("smtp_user"),
+  smtp_pass: text("smtp_pass"),
+  smtp_from: text("smtp_from"),
+  custom_email_enabled: boolean("custom_email_enabled").default(false),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({
@@ -103,7 +111,7 @@ export const clients = pgTable("clients", {
   lastLogin: timestamp("last_login"),
   
   // Stato del cliente
-  active: boolean("active").default(true),
+  active: boolean("active").default(false),
   isOnboarded: boolean("is_onboarded").default(false),
   isArchived: boolean("is_archived").default(false),
   clientSegment: text("client_segment").$type<ClientSegment>(),

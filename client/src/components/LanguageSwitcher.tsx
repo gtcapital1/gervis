@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Languages } from 'lucide-react';
 
-export function LanguageSwitcher() {
+export function LanguageSwitcher({ inSidebar = false }: { inSidebar?: boolean }) {
   const { i18n, t } = useTranslation();
   const [currentLanguage, setCurrentLanguage] = useState(i18n.language || 'en');
 
@@ -27,8 +27,12 @@ export function LanguageSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center gap-2">
-          <Languages className="h-4 w-4" />
+        <Button 
+          variant={inSidebar ? "ghost" : "outline"} 
+          size="sm" 
+          className={`flex items-center gap-2 ${inSidebar ? "text-gray-300 hover:text-white hover:bg-gray-800" : ""}`}
+        >
+          <Languages className={`h-4 w-4 ${inSidebar ? "text-green-500" : ""}`} />
           <span className="hidden sm:inline-block">{t(`language.${currentLanguage}`)}</span>
         </Button>
       </DropdownMenuTrigger>

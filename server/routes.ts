@@ -26,6 +26,8 @@ import { getClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
 import nodemailer from 'nodemailer';
 import { db, sql as pgClient } from './db'; // Importa pgClient correttamente
+import crypto from 'crypto';
+import { eq } from "drizzle-orm";
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -1135,8 +1137,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedClient = await storage.updateClient(client.id, {
         isOnboarded: true,
         onboardedAt: currentDate,
-        activatedAt: currentDate,
-        active: true,
+        activatedAt: null, // Rimuovere la data di attivazione
+        active: false, // Cambiato da true a false
         clientSegment,
         netWorth
       });
@@ -1261,8 +1263,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updatedClient = await storage.updateClient(client.id, {
         isOnboarded: true,
         onboardedAt: currentDate,
-        activatedAt: currentDate,
-        active: true,
+        activatedAt: null, // Rimuovere la data di attivazione
+        active: false, // Cambiato da true a false
         clientSegment,
         netWorth
       });
@@ -2679,6 +2681,418 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         res.status(500).json({ success: false, message: 'Failed to update client assets', error: String(error) });
       }
+    }
+  });
+
+  // Toggle client active status
+  app.patch('/api/clients/:id/toggle-active', isAuthenticated, async (req, res) => {
+    try {
+      console.log("DEBUG - Inizio elaborazione richiesta toggle-active");
+      
+      if (!req.user || !req.user.id) {
+        console.log("DEBUG - Utente non autenticato o dati utente non validi");
+        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      console.log("DEBUG - ID cliente ricevuto:", clientId);
+      
+      if (isNaN(clientId)) {
+        console.log("DEBUG - ID cliente non valido");
+        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+      }
+      
+      // Get client from database
+      console.log("DEBUG - Richiesta client dal database, ID:", clientId);
+      const client = await storage.getClient(clientId);
+      console.log("DEBUG - Client trovato:", client ? `ID: ${client.id}, Advisor: ${client.advisorId}` : "Nessun client trovato");
+      
+      if (!client) {
+        console.log("DEBUG - Cliente non trovato");
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      console.log("DEBUG - Confronto advisor:", { clientAdvisor: client.advisorId, currentUser: req.user.id });
+      if (client.advisorId !== req.user.id) {
+        console.log("DEBUG - Non autorizzato: l'advisor del cliente non corrisponde all'utente corrente");
+        return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
+      }
+      
+      // Se il valore viene passato nella request, usa quello, altrimenti inverte lo stato corrente
+      const newActiveStatus = req.body.active !== undefined ? req.body.active : !client.active;
+      console.log("DEBUG - Nuovo stato active:", newActiveStatus, "Stato corrente:", client.active);
+      
+      // Aggiorna lo stato active del cliente
+      console.log("DEBUG - Aggiornamento stato cliente in corso...");
+      const result = await storage.updateClientActiveStatus(clientId, newActiveStatus);
+      console.log("DEBUG - Risultato aggiornamento:", result);
+      
+      if (!result.success) {
+        console.log("DEBUG - Errore nell'aggiornamento:", result.error);
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Failed to update client active status', 
+          error: result.error 
+        });
+      }
+      
+      // Ottieni il cliente aggiornato
+      console.log("DEBUG - Richiesta client aggiornato");
+      const updatedClient = await storage.getClient(clientId);
+      console.log("DEBUG - Client aggiornato stato active:", updatedClient?.active);
+      
+      console.log("DEBUG - Invio risposta di successo");
+      return res.json({ 
+        success: true, 
+        client: updatedClient
+      });
+    } catch (error) {
+      console.error('Errore dettagliato aggiornamento stato cliente:', error);
+      if (error instanceof Error) {
+        console.error('Stack trace:', error.stack);
+      }
+      res.status(500).json({ 
+        success: false, 
+        message: 'Failed to update client active status', 
+        error: String(error) 
+      });
+    }
+  });
+
+  // Aggiungiamo le rotte per le impostazioni email dopo le altre rotte utente
+
+    // Test SMTP connection
+    app.post('/api/users/:userId/smtp-test', isAuthenticated, async (req, res) => {
+      try {
+        console.log("DEBUG - Test SMTP request received:", req.params.userId);
+        console.log("DEBUG - Test SMTP request body:", JSON.stringify(req.body, null, 2));
+        
+        const userId = parseInt(req.params.userId);
+        
+        // Ensure the user is only testing their own SMTP settings
+        if (userId !== req.user?.id) {
+          console.log(`DEBUG - Auth mismatch: ${userId} vs ${req.user?.id}`);
+          return res.status(403).json({ success: false, message: 'Not authorized to test SMTP settings for this user' });
+        }
+        
+        // SMTP test schema
+        const smtpTestSchema = z.object({
+          host: z.string().min(1, "SMTP host is required"),
+          port: z.string().min(1, "SMTP port is required"),
+          user: z.string().min(1, "SMTP username is required"),
+          password: z.string().min(1, "SMTP password is required"),
+          from: z.string().email("From email must be valid").optional()
+        });
+        
+        try {
+          console.log("DEBUG - Validating SMTP test data");
+          const validatedData = smtpTestSchema.parse(req.body);
+          console.log("DEBUG - SMTP data validated successfully");
+          
+          // Import test function
+          const { testSMTPConnection } = require('./email');
+          console.log("DEBUG - Calling testSMTPConnection with:", {
+            host: validatedData.host,
+            port: validatedData.port,
+            user: validatedData.user
+          });
+          const result = await testSMTPConnection(validatedData);
+          
+          console.log("DEBUG - SMTP test result:", JSON.stringify(result, null, 2));
+          res.json(result);
+        } catch (validationError) {
+          if (validationError instanceof z.ZodError) {
+            console.error("DEBUG - Validation errors:", JSON.stringify(validationError.errors, null, 2));
+            return res.status(400).json({ success: false, errors: validationError.errors });
+          } else {
+            throw validationError;
+          }
+        }
+      } catch (error) {
+        console.error('Error testing SMTP connection:', error);
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to test SMTP connection',
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    });
+    
+    // Update email settings
+    app.post('/api/users/:userId/email-settings', isAuthenticated, async (req, res) => {
+      try {
+        const userId = parseInt(req.params.userId);
+        
+        // Ensure the user is only updating their own settings
+        if (userId !== req.user?.id) {
+          return res.status(403).json({ message: 'Not authorized to update email settings for this user' });
+        }
+        
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Email settings schema
+        const emailSettingsSchema = z.object({
+          smtpHost: z.string().min(1, "SMTP host is required"),
+          smtpPort: z.number().int().min(1, "SMTP port is required"),
+          smtpUser: z.string().min(1, "SMTP username is required"),
+          smtpPass: z.string().min(1, "SMTP password is required"),
+          customEmailEnabled: z.boolean().default(false)
+        });
+        
+        const validatedData = emailSettingsSchema.parse(req.body);
+        
+        // Update the user's email settings
+        await storage.updateUser(userId, {
+          smtp_host: validatedData.smtpHost,
+          smtp_port: validatedData.smtpPort,
+          smtp_user: validatedData.smtpUser,
+          smtp_pass: validatedData.smtpPass,
+          custom_email_enabled: validatedData.customEmailEnabled
+        });
+        
+        res.json({ 
+          success: true,
+          message: 'Email settings updated successfully'
+        });
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          res.status(400).json({ success: false, errors: error.errors });
+        } else {
+          console.error('Error updating email settings:', error);
+          res.status(500).json({ 
+            success: false,
+            message: 'Failed to update email settings',
+            error: error.message
+          });
+        }
+      }
+    });
+    
+    // Get email settings
+    app.get('/api/users/:userId/email-settings', isAuthenticated, async (req, res) => {
+      try {
+        const userId = parseInt(req.params.userId);
+        
+        // Ensure the user is only getting their own settings
+        if (userId !== req.user?.id) {
+          return res.status(403).json({ message: 'Not authorized to get email settings for this user' });
+        }
+        
+        const user = await storage.getUser(userId);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Return only email settings-related fields
+        res.json({
+          success: true,
+          emailSettings: {
+            smtpHost: user.smtp_host || '',
+            smtpPort: user.smtp_port || 465,
+            smtpUser: user.smtp_user || '',
+            smtpPass: user.smtp_pass ? '********' : '', // Don't send the actual password
+            customEmailEnabled: user.custom_email_enabled || false
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching email settings:', error);
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to fetch email settings',
+          error: error.message
+        });
+      }
+    });
+
+  // Rotta per inviare email di onboarding al cliente
+  app.post('/api/clients/:clientId/onboarding-email', isAuthenticated, async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'User not authenticated' });
+      }
+      
+      // Schema per la validazione dei dati della richiesta
+      const emailSchema = z.object({
+        message: z.string().optional(),
+        subject: z.string().optional(),
+        language: z.enum(['english', 'italian']).default('italian')
+      });
+      
+      const validatedData = emailSchema.parse(req.body);
+      
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Client not found' });
+      }
+      
+      // Verifica se il client appartiene all'advisor corrente
+      if (client.advisorId !== req.user.id) {
+        return res.status(403).json({ success: false, message: 'Not authorized to send email to this client' });
+      }
+      
+      // Verifica se il token è valido
+      if (!client.onboardingToken) {
+        // Se il token non esiste, ne generiamo uno nuovo
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = new Date();
+        tokenExpiry.setDate(tokenExpiry.getDate() + 7); // 7 giorni di validità
+        
+        await storage.updateClient(clientId, {
+          onboardingToken: token,
+          tokenExpiry
+        });
+        
+        client.onboardingToken = token;
+        client.tokenExpiry = tokenExpiry;
+      } else if (client.tokenExpiry && new Date(client.tokenExpiry) < new Date()) {
+        // Se il token è scaduto, ne generiamo uno nuovo
+        const token = crypto.randomBytes(32).toString('hex');
+        const tokenExpiry = new Date();
+        tokenExpiry.setDate(tokenExpiry.getDate() + 7); // 7 giorni di validità
+        
+        await storage.updateClient(clientId, {
+          onboardingToken: token,
+          tokenExpiry
+        });
+        
+        client.onboardingToken = token;
+        client.tokenExpiry = tokenExpiry;
+      }
+      
+      // Costruisci il link di onboarding
+      const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+      const onboardingLink = `${baseUrl}/onboarding/${client.onboardingToken}`;
+      
+      // Ottieni le informazioni dell'advisor
+      const advisor = await storage.getUser(req.user.id);
+      
+      try {
+        // Invia email di onboarding al cliente
+        await sendOnboardingEmail(
+          client.email,
+          client.firstName,
+          client.lastName,
+          onboardingLink,
+          validatedData.language,
+          validatedData.message,
+          advisor?.signature,
+          advisor?.email,
+          validatedData.subject,
+          clientId,
+          req.user.id
+        );
+        
+        res.json({
+          success: true,
+          message: 'Onboarding email sent successfully',
+          onboardingLink
+        });
+      } catch (emailError) {
+        // Cattura errori specifici dell'invio email
+        console.error('Error sending onboarding email:', emailError);
+        
+        let errorMessage = 'Failed to send onboarding email';
+        
+        // Verifica se è un errore di configurazione SMTP
+        if (emailError.message && (
+          emailError.message.includes('Configurazione email non impostata') ||
+          emailError.message.includes('Configurazione email mancante')
+        )) {
+          errorMessage = 'Configurazione email non impostata. È necessario configurare un server SMTP nelle impostazioni utente.';
+        }
+        
+        res.status(500).json({
+          success: false,
+          message: errorMessage,
+          error: emailError.message,
+          configurationRequired: true
+        });
+      }
+    } catch (error) {
+      console.error('Error in onboarding email process:', error);
+      res.status(500).json({ success: false, message: 'Error in onboarding email process', error: String(error) });
+    }
+  });
+
+  // Rotte per le impostazioni email
+  app.get("/api/settings/email", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      
+      // Recupera le impostazioni email dell'utente
+      const user = await db.query.users.findFirst({
+        where: eq(users.id, userId),
+        columns: {
+          smtp_host: true,
+          smtp_port: true,
+          smtp_user: true,
+          smtp_pass: true,
+          custom_email_enabled: true
+        }
+      });
+      
+      if (!user) {
+        return res.status(404).json({ error: "Utente non trovato" });
+      }
+      
+      // Converti da snake_case a camelCase per il client
+      res.json({
+        smtpHost: user.smtp_host,
+        smtpPort: user.smtp_port,
+        smtpUser: user.smtp_user,
+        smtpPass: user.smtp_pass,
+        smtpSecure: false, // Impostazione predefinita
+        customEmailEnabled: user.custom_email_enabled
+      });
+    } catch (error) {
+      console.error("Errore nel recupero delle impostazioni email:", error);
+      res.status(500).json({ error: "Errore nel recupero delle impostazioni email" });
+    }
+  });
+
+  app.post("/api/settings/email", isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user!.id;
+      const { smtpHost, smtpPort, smtpUser, smtpPass, smtpSecure } = req.body;
+      
+      // Validazione dei dati
+      if (!smtpHost || !smtpPort || !smtpUser) {
+        return res.status(400).json({ error: "Tutti i campi obbligatori devono essere compilati" });
+      }
+      
+      // Validazione della porta
+      const portNumber = parseInt(smtpPort);
+      if (isNaN(portNumber) || portNumber <= 0 || portNumber > 65535) {
+        return res.status(400).json({ error: "La porta SMTP deve essere un numero valido tra 1 e 65535" });
+      }
+      
+      // Se la password non è definita, mantieni quella esistente
+      let updateData: any = {
+        smtp_host: smtpHost,
+        smtp_port: portNumber,
+        smtp_user: smtpUser,
+        custom_email_enabled: true // Attiva automaticamente l'uso del server email personalizzato
+      };
+      
+      // Aggiorna la password solo se fornita
+      if (smtpPass) {
+        updateData.smtp_pass = smtpPass;
+      }
+      
+      // Converti da camelCase a snake_case per il database
+      await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, userId));
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Errore nel salvataggio delle impostazioni email:", error);
+      res.status(500).json({ error: "Errore nel salvataggio delle impostazioni email" });
     }
   });
 

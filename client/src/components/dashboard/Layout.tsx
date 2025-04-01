@@ -10,8 +10,6 @@ import {
   LogOut,
   Menu,
   X,
-  User,
-  ArrowLeft,
   Globe,
   ShieldAlert,
   BarChart3,
@@ -26,9 +24,18 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslation } from "react-i18next";
-import { ApprovalPendingOverlay } from "@/components/ApprovalPendingOverlay";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
-import { useTheme } from "@/hooks/use-theme";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+
+// Utility function to get initials from name
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map(part => part[0])
+    .join('')
+    .toUpperCase();
+}
 
 interface LayoutProps {
   children: ReactNode;
@@ -39,7 +46,6 @@ export function Layout({ children }: LayoutProps) {
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
   const { t, i18n } = useTranslation();
-  const { theme } = useTheme();
   
   // Keep track of current language - update when i18n.language changes
   const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
@@ -149,46 +155,27 @@ export function Layout({ children }: LayoutProps) {
           );
         })}
       </div>
-      <div className="pt-6 mt-6 border-t border-gray-800 dark:border-gray-800">
-        <div className="px-4 py-2 mb-4">
+      <div className="mt-auto p-4 border-t border-muted">
+        <div className="flex flex-col space-y-4">
           <div className="flex items-center">
-            <div className="h-8 w-8 rounded-full bg-gray-700 dark:bg-gray-700 flex items-center justify-center">
-              <User className="h-4 w-4 text-gray-300 dark:text-gray-300" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-white dark:text-white">{user?.name || "Advisor"}</p>
-              <p className="text-xs text-gray-400 dark:text-gray-400">{user?.email || user?.username}</p>
+            <Avatar className="h-8 w-8 mr-2">
+              <AvatarImage src={user?.avatar ?? undefined} alt={user?.name ?? "User"} />
+              <AvatarFallback>{getInitials(user?.name ?? "User")}</AvatarFallback>
+            </Avatar>
+            <div>
+              <p className="text-sm font-medium">{user?.name}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-        </div>
-        {/* Theme toggle button */}
-        <div 
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer mb-2"
-        >
-          <ThemeToggle />
-          <span className="ml-3">{theme === "light" ? t('settings.dark_mode') : t('settings.light_mode')}</span>
-        </div>
-        {/* Language toggle button */}
-        <div 
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer mb-2"
-          onClick={toggleLanguage}
-        >
-          <Globe className="mr-3 h-5 w-5 text-green-500" />
-          {t(`language.${currentLanguage === "en" ? "it" : "en"}`)}
-        </div>
-        <div 
-          className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer"
-          onClick={handleLogout}
-        >
-          <LogOut className="mr-3 h-5 w-5" />
-          {t('dashboard.logout')}
-        </div>
-        <Link href="/">
-          <div className="flex items-center px-4 py-2 text-sm font-medium text-gray-300 dark:text-gray-300 hover:bg-gray-800 hover:text-white dark:hover:bg-gray-800 dark:hover:text-white rounded-md cursor-pointer">
-            <ArrowLeft className="mr-3 h-5 w-5" />
-            {t('dashboard.return_to_home')}
+          
+          <div className="flex justify-between items-center">
+            <LanguageSwitcher inSidebar={true} />
+            
+            <Button variant="ghost" size="icon" onClick={handleLogout}>
+              <LogOut className="h-5 w-5" />
+            </Button>
           </div>
-        </Link>
+        </div>
       </div>
     </>
   );

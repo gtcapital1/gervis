@@ -63,7 +63,8 @@ export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
       // Add the full name field required by the server
       const payload = {
         ...data,
-        name: `${data.firstName} ${data.lastName}` // This is needed for backward compatibility
+        name: `${data.firstName} ${data.lastName}`, // This is needed for backward compatibility
+        active: false // Imposta esplicitamente active a false
       };
       
       return apiRequest('/api/clients', {

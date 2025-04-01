@@ -12,6 +12,7 @@ import { autorunCreateClientLogs } from "./migrations/autorun-create-client-logs
 import { autorunCreateAiProfiles } from "./migrations/autorun-create-ai-profiles";
 import { autorunCreateMeetingsTable } from "./migrations/autorun-create-meetings-table";
 import { autorunAddActiveAndOnboardedAt } from "./migrations/autorun-add-active-onboardedat";
+import { addEmailSettingsColumns } from "./migrations/autorun-add-email-settings";
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -182,6 +183,15 @@ app.use((req, res, next) => {
     console.log("DEBUG - Verifica colonne active e onboarded_at completata");
   } catch (error) {
     console.error("ERRORE - Impossibile verificare/aggiungere le colonne active e onboarded_at:", error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Esegui automaticamente l'aggiunta delle colonne per le impostazioni email
+  try {
+    await addEmailSettingsColumns();
+    console.log("DEBUG - Verifica colonne per impostazioni email completata");
+  } catch (error) {
+    console.error("ERRORE - Impossibile verificare/aggiungere le colonne per impostazioni email:", error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

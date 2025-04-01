@@ -17,7 +17,9 @@ import {
   Zap,
   CalendarClock,
   Users,
-  Calendar
+  Calendar,
+  ArrowUp,
+  ArrowDown
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -70,6 +72,8 @@ import {
 } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function Clients() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
@@ -86,10 +90,19 @@ export default function Clients() {
   const [meetingTime, setMeetingTime] = useState("10:00");
   const [meetingSubject, setMeetingSubject] = useState("");
   const [meetingNotes, setMeetingNotes] = useState("");
+  const [meetingLocation, setMeetingLocation] = useState("office");
+  const [meetingDuration, setMeetingDuration] = useState(60);
+  const [sendMeetingEmail, setSendMeetingEmail] = useState(false);
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const { t } = useTranslation();
+  const [clientToEmail, setClientToEmail] = useState<Client | null>(null);
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [sortColumn, setSortColumn] = useState<string>("lastName");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   // Fetch clients
   const { data, isLoading, isError } = useQuery<{clients: Client[]} | null>({
@@ -302,17 +315,81 @@ export default function Clients() {
   // Filter clients based on search query and archived status
   const filteredClients = clients.filter(client => {
     const matchesSearch = client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          client.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (client.phone && client.phone.includes(searchQuery));
+                          client.email.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesArchiveFilter = showArchived ? client.isArchived : !client.isArchived;
     
     return matchesSearch && matchesArchiveFilter;
   });
+  
+  // Sort clients based on the selected column and direction
+  const sortedClients = [...filteredClients].sort((a, b) => {
+    let valueA, valueB;
+    
+    switch (sortColumn) {
+      case "name":
+        valueA = `${a.lastName}, ${a.firstName}`.toLowerCase();
+        valueB = `${b.lastName}, ${b.firstName}`.toLowerCase();
+        break;
+      case "email":
+        valueA = a.email.toLowerCase();
+        valueB = b.email.toLowerCase();
+        break;
+      case "totalAssets":
+        valueA = a.totalAssets || 0;
+        valueB = b.totalAssets || 0;
+        break;
+      case "clientSegment":
+        valueA = a.clientSegment || "";
+        valueB = b.clientSegment || "";
+        break;
+      case "isOnboarded":
+        valueA = a.isOnboarded ? 1 : 0;
+        valueB = b.isOnboarded ? 1 : 0;
+        break;
+      case "createdAt":
+        valueA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        valueB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        break;
+      default:
+        valueA = `${a.lastName}, ${a.firstName}`.toLowerCase();
+        valueB = `${b.lastName}, ${b.firstName}`.toLowerCase();
+    }
+    
+    const compareResult = typeof valueA === "string" 
+      ? valueA.localeCompare(valueB as string)
+      : (valueA as number) - (valueB as number);
+    
+    return sortDirection === "asc" ? compareResult : -compareResult;
+  });
 
   function formatDate(date: Date | string | null) {
     if (!date) return "N/A";
     return new Date(date).toLocaleDateString();
+  }
+
+  function formatCurrency(amount: number | null) {
+    if (amount === null) return "€0";
+    return `€${amount.toLocaleString()}`;
+  }
+
+  function handleSortChange(column: string) {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column);
+      setSortDirection("asc");
+    }
+  }
+
+  function getSortIcon(column: string) {
+    if (sortColumn !== column) return null;
+    
+    return sortDirection === "asc" 
+      ? <ArrowUp className="h-4 w-4 inline ml-1" /> 
+      : <ArrowDown className="h-4 w-4 inline ml-1" />;
   }
 
   function handleViewClient(id: number) {
@@ -343,6 +420,13 @@ export default function Clients() {
 
   function handleScheduleMeeting(client: Client) {
     setClientToMeeting(client);
+    setMeetingSubject("");
+    setMeetingDate(new Date());
+    setMeetingTime("10:00");
+    setMeetingNotes("");
+    setMeetingLocation("office");
+    setMeetingDuration(60);
+    setSendMeetingEmail(false);
     setIsMeetingDialogOpen(true);
   }
   
@@ -353,11 +437,46 @@ export default function Clients() {
       const dateTime = new Date(meetingDate);
       dateTime.setHours(hours, minutes, 0, 0);
       
-      scheduleMeetingMutation.mutate({
-        clientId: clientToMeeting.id,
-        subject: meetingSubject,
-        dateTime: dateTime.toISOString(),
-        notes: meetingNotes
+      // URL with sendEmail parameter
+      const url = sendMeetingEmail ? '/api/meetings?sendEmail=true' : '/api/meetings';
+      
+      // Create meeting via API request
+      apiRequest(url, {
+        method: 'POST',
+        body: JSON.stringify({
+          clientId: clientToMeeting.id,
+          subject: meetingSubject,
+          dateTime: dateTime.toISOString(),
+          duration: meetingDuration,
+          location: meetingLocation,
+          notes: meetingNotes
+        })
+      })
+      .then(() => {
+        setIsMeetingDialogOpen(false);
+        toast({
+          title: t('dashboard.meeting_scheduled'),
+          description: t('dashboard.meeting_scheduled_success'),
+        });
+        
+        // Reset form
+        setMeetingSubject("");
+        setMeetingDate(new Date());
+        setMeetingTime("10:00");
+        setMeetingNotes("");
+        setMeetingLocation("office");
+        setMeetingDuration(60);
+        setSendMeetingEmail(false);
+        
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+      })
+      .catch(() => {
+        toast({
+          title: "Error",
+          description: "Failed to schedule meeting. Please try again.",
+          variant: "destructive",
+        });
       });
     }
   }
@@ -367,33 +486,81 @@ export default function Clients() {
     if (!segment) return null;
     
     const segmentColors = {
-      mass_market: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-      affluent: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-      hnw: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
-      vhnw: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
-      uhnw: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-    };
-    
-    const segmentEmojis = {
-      mass_market: "🧊",
-      affluent: "🔵",
-      hnw: "🟣",
-      vhnw: "🟡",
-      uhnw: "🔴"
+      mass_market: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", // Blu più chiaro
+      affluent: "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200",    // Blu chiaro
+      hnw: "bg-blue-300 text-blue-800 dark:bg-blue-700 dark:text-blue-200",         // Blu medio
+      vhnw: "bg-blue-500 text-white dark:bg-blue-600 dark:text-white",              // Blu scuro
+      uhnw: "bg-blue-700 text-white dark:bg-blue-500 dark:text-white"               // Blu più scuro
     };
     
     const color = segmentColors[segment as keyof typeof segmentColors] || "bg-gray-100 text-gray-800";
-    const emoji = segmentEmojis[segment as keyof typeof segmentEmojis] || "";
     
     return (
       <Badge variant="outline" className={`${color} font-semibold`}>
-        {emoji} {segment === 'mass_market' ? 'Mass Market' : 
+        {segment === 'mass_market' ? 'Mass Market' : 
           segment === 'hnw' ? 'HNW' : 
           segment === 'vhnw' ? 'VHNW' : 
           segment === 'uhnw' ? 'UHNW' : 
           segment.charAt(0).toUpperCase() + segment.slice(1)}
       </Badge>
     );
+  }
+
+  // Function to handle opening the email dialog
+  function handleSendEmail(client: Client) {
+    setClientToEmail(client);
+    setEmailSubject("");
+    setEmailMessage("");
+    setIsEmailDialogOpen(true);
+  }
+
+  // Function to send email
+  function sendEmail() {
+    if (!clientToEmail) return;
+    
+    // Show loading toast
+    const loadingToast = toast({
+      title: "Invio email in corso...",
+      description: "Attendere prego",
+    });
+    
+    // Send the email via API
+    apiRequest(`/api/clients/${clientToEmail.id}/send-email`, {
+      method: 'POST',
+      body: JSON.stringify({
+        subject: emailSubject,
+        message: emailMessage,
+        language: 'italian' // o 'english' in base alle preferenze
+      })
+    })
+    .then(response => {
+      // Dismiss loading toast
+      loadingToast.dismiss();
+      
+      if (response.success) {
+        toast({
+          title: "Email inviata",
+          description: "L'email è stata inviata con successo",
+        });
+        setIsEmailDialogOpen(false);
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Impossibile inviare l'email",
+          variant: "destructive",
+        });
+      }
+    })
+    .catch(error => {
+      // Dismiss loading toast
+      loadingToast.dismiss();
+      
+      toast({
+        title: "Errore",
+        description: error.message || "Si è verificato un errore durante l'invio dell'email",
+        variant: "destructive",
+      });
+    });
   }
 
   return (
@@ -464,17 +631,47 @@ export default function Clients() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>{t('dashboard.name')}</TableHead>
-                      <TableHead>{t('dashboard.email')}</TableHead>
-                      <TableHead>{t('dashboard.phone')}</TableHead>
-                      <TableHead>{t('dashboard.segment')}</TableHead>
-                      <TableHead>{t('dashboard.status')}</TableHead>
-                      <TableHead>{t('dashboard.created')}</TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSortChange("name")}
+                      >
+                        {t('dashboard.name')} {getSortIcon("name")}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSortChange("email")}
+                      >
+                        {t('dashboard.email')} {getSortIcon("email")}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hidden md:table-cell"
+                        onClick={() => handleSortChange("totalAssets")}
+                      >
+                        AuM {getSortIcon("totalAssets")}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSortChange("clientSegment")}
+                      >
+                        {t('dashboard.segment')} {getSortIcon("clientSegment")}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer"
+                        onClick={() => handleSortChange("isOnboarded")}
+                      >
+                        {t('dashboard.status')} {getSortIcon("isOnboarded")}
+                      </TableHead>
+                      <TableHead 
+                        className="cursor-pointer hidden md:table-cell"
+                        onClick={() => handleSortChange("createdAt")}
+                      >
+                        {t('dashboard.created')} {getSortIcon("createdAt")}
+                      </TableHead>
                       <TableHead className="text-right">{t('dashboard.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredClients.map((client: Client) => (
+                    {sortedClients.map((client: Client) => (
                       <TableRow 
                         key={client.id} 
                         className="cursor-pointer hover:bg-muted/50"
@@ -487,7 +684,7 @@ export default function Clients() {
                           </div>
                         </TableCell>
                         <TableCell className="max-w-[140px] truncate">{client.email}</TableCell>
-                        <TableCell className="whitespace-nowrap hidden md:table-cell">{client.phone || "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap hidden md:table-cell">{formatCurrency(client.totalAssets)}</TableCell>
                         <TableCell>
                           {renderClientSegmentBadge(client.clientSegment)}
                         </TableCell>
@@ -520,6 +717,16 @@ export default function Clients() {
                                 >
                                   <ChevronRight className="mr-2 h-4 w-4" />
                                   {t('dashboard.view_details')}
+                                </DropdownMenuItem>
+                                
+                                <DropdownMenuItem 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSendEmail(client);
+                                  }}
+                                >
+                                  <Mail className="mr-2 h-4 w-4" />
+                                  {t('dashboard.send_email')}
                                 </DropdownMenuItem>
                                 
                                 <DropdownMenuItem 
@@ -711,6 +918,42 @@ export default function Clients() {
                 </select>
               </div>
             </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label htmlFor="meeting-location" className="text-sm font-medium">
+                  {t('dashboard.location')}
+                </label>
+                <select
+                  id="meeting-location"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={meetingLocation}
+                  onChange={(e) => setMeetingLocation(e.target.value)}
+                >
+                  <option value="zoom">Zoom</option>
+                  <option value="office">Ufficio</option>
+                  <option value="phone">Telefono</option>
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="meeting-duration" className="text-sm font-medium">
+                  {t('dashboard.duration')}
+                </label>
+                <select
+                  id="meeting-duration"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={meetingDuration}
+                  onChange={(e) => setMeetingDuration(parseInt(e.target.value))}
+                >
+                  <option value="15">15 minuti</option>
+                  <option value="30">30 minuti</option>
+                  <option value="45">45 minuti</option>
+                  <option value="60">1 ora</option>
+                  <option value="90">1 ora e 30 minuti</option>
+                  <option value="120">2 ore</option>
+                  <option value="180">3 ore</option>
+                </select>
+              </div>
+            </div>
             <div className="grid gap-2">
               <label htmlFor="meeting-notes" className="text-sm font-medium">
                 {t('dashboard.notes_optional')}
@@ -723,6 +966,19 @@ export default function Clients() {
                 className="min-h-[80px]"
               />
             </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <Checkbox 
+                id="send-email" 
+                checked={sendMeetingEmail}
+                onCheckedChange={(checked) => setSendMeetingEmail(checked === true)}
+              />
+              <label
+                htmlFor="send-email"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Invia email di invito al cliente
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsMeetingDialogOpen(false)}>
@@ -731,6 +987,61 @@ export default function Clients() {
             <Button onClick={scheduleMeeting}>
               <Calendar className="mr-2 h-4 w-4" />
               {t('dashboard.schedule_meeting')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Email Dialog */}
+      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+        <DialogContent className="sm:max-w-[600px]">
+          <DialogHeader>
+            <DialogTitle>{t('dashboard.send_email')}</DialogTitle>
+            <DialogDescription>
+              {clientToEmail && `Invia un'email a ${clientToEmail.firstName} ${clientToEmail.lastName}`}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-6">
+            <div className="space-y-2">
+              <div className="flex justify-between items-center">
+                <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-accent" />
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Destinatario: </strong>{clientToEmail?.email}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mb-4">
+                <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
+                <Input 
+                  id="email-subject"
+                  value={emailSubject}
+                  onChange={(e) => setEmailSubject(e.target.value)}
+                  className="text-sm"
+                />
+              </div>
+              
+              <Textarea 
+                id="email-content"
+                value={emailMessage}
+                onChange={(e) => setEmailMessage(e.target.value)}
+                className="min-h-[300px] font-mono text-sm"
+                placeholder="Scrivi il contenuto dell'email qui..."
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+              {t('dashboard.cancel')}
+            </Button>
+            <Button 
+              onClick={sendEmail}
+              disabled={!emailSubject.trim() || !emailMessage.trim()}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {t('dashboard.send_email')}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -925,11 +925,11 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                           </SelectItem>
                           {CLIENT_SEGMENTS.map(segment => (
                             <SelectItem key={segment} value={segment}>
-                              {segment === 'mass_market' ? '🧊 Mass Market (< €100.000)' : 
-                               segment === 'affluent' ? '🔵 Affluent (€100.000 - €500.000)' : 
-                               segment === 'hnw' ? '🟣 HNW (€500.000 - €2.000.000)' : 
-                               segment === 'vhnw' ? '🟡 VHNW (€2.000.000 - €10.000.000)' : 
-                               segment === 'uhnw' ? '🔴 UHNW (> €10.000.000)' : 
+                              {segment === 'mass_market' ? 'Mass Market (< €100.000)' : 
+                               segment === 'affluent' ? 'Affluent (€100.000 - €500.000)' : 
+                               segment === 'hnw' ? 'HNW (€500.000 - €2.000.000)' : 
+                               segment === 'vhnw' ? 'VHNW (€2.000.000 - €10.000.000)' : 
+                               segment === 'uhnw' ? 'UHNW (> €10.000.000)' : 
                                segment}
                             </SelectItem>
                           ))}
