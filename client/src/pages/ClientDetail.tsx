@@ -347,6 +347,8 @@ export default function ClientDetail() {
     return storedLink ? storedLink : null;
   });
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  // Aggiungiamo la dichiarazione dello stato mancante
+  const [isLinkLoading, setIsLoading] = useState(false);
   // La lingua dell'email viene sempre impostata su italiano
   const { i18n } = useTranslation();
   // Impostiamo sempre italiano come lingua predefinita per l'email
@@ -676,45 +678,110 @@ Grazie per la tua fiducia e collaborazione.`
   }
   
   // Funzione per generare link di onboarding (cerca questa funzione esistente)
-  const handleGenerateOnboardingLink = async (customMessage?: string, subject?: string) => {
+  const handleGenerateOnboardingLink = async (e?: React.MouseEvent) => {
+    // Se è un evento, previeni il comportamento default
+    if (e && e.preventDefault) e.preventDefault();
+    
     setIsLoading(true);
     try {
       const payload = {
-        message: customMessage,
-        subject: subject,
         language: 'italian' // Hardcoded per ora, ma puoi rendere parametrizzabile
       };
+      
+      console.log(`Generazione link onboarding per cliente ${clientId}...`);
+      
+      // Modifica l'endpoint per usare onboarding-token invece di onboarding-email
+      const response = await apiRequest(`/api/clients/${clientId}/onboarding-token`, {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      console.log("Risposta API generazione token completa:", response);
+      
+      if (response.success) {
+        // Verifica diverse possibili chiavi che potrebbero contenere il link
+        const onboardingLink = response.link || response.onboardingLink || (response.token ? 
+          `${window.location.origin}/onboarding?token=${response.token}` : null);
+        
+        console.log("Link estratto:", onboardingLink);
+        
+        if (onboardingLink) {
+          localStorage.setItem(`onboardingLink_${clientId}`, onboardingLink);
+          setOnboardingLink(onboardingLink);
+          
+          // Copiamo il link negli appunti se possibile
+          if (navigator.clipboard) {
+            await navigator.clipboard.writeText(onboardingLink);
+            toast({
+              title: t('client.link_generated') || "Link generato",
+              description: t('client.link_generated_success') || "Il link di onboarding è stato generato e copiato negli appunti",
+              duration: 5000
+            });
+          }
+          
+          // Aggiorniamo i dati del cliente
+          queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
+        } else {
+          console.error("Link non trovato nella risposta. Proprietà disponibili:", Object.keys(response));
+          toast({
+            title: t('client.link_generated') || "Link generato",
+            description: t('client.link_generated_success') || "Il link di onboarding è stato generato",
+            duration: 5000
+          });
+        }
+      } else {
+        console.error("Errore durante la generazione del link:", response.message || "Nessun messaggio di errore");
+        toast({
+          title: t('error') || "Errore",
+          description: response.message || (t('client.link_generation_failed') || "Impossibile generare il link di onboarding"),
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Error generating onboarding link:', error);
+      toast({
+        title: t('error') || "Errore",
+        description: t('client.link_generation_failed') || "Impossibile generare il link di onboarding",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Funzione per inviare il link di onboarding via email
+  const handleSendOnboardingEmail = async () => {
+    if (!onboardingLink) {
+      toast({
+        title: t('error') || "Errore",
+        description: t('client.generate_link_first') || "Genera prima un link di onboarding",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      const payload = {
+        language: 'italian',
+        sendEmail: true
+      };
+      
+      console.log(`Invio email onboarding per cliente ${clientId}...`);
       
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-email`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
       
+      console.log("Risposta API invio email:", response);
+      
       if (response.success) {
-        // Copiamo il link negli appunti se possibile
-        if (response.onboardingLink && navigator.clipboard) {
-          await navigator.clipboard.writeText(response.onboardingLink);
-          toast({
-            title: t('client.onboarding_link_copied') || "Link copiato",
-            description: t('client.onboarding_link_copied_desc') || "Il link di onboarding è stato copiato negli appunti",
-            duration: 5000
-          });
-        }
-        
-        // Aggiorniamo i dati del cliente
-        queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
-        
-        // Segnaliamo il successo
         toast({
-          title: t('client.onboarding_email_sent') || "Email inviata",
-          description: t('client.onboarding_email_sent_desc') || "L'email di onboarding è stata inviata con successo",
+          title: t('client.email_sent') || "Email inviata",
+          description: t('client.email_sent_success') || "L'email di onboarding è stata inviata con successo",
           duration: 5000
         });
-        
-        // Chiudi il form se necessario
-        if (isEmailDialogOpen) {
-          setIsEmailDialogOpen(false);
-        }
       } else {
         // Verifica se è un errore di configurazione email
         if (response.configurationRequired) {
@@ -722,14 +789,6 @@ Grazie per la tua fiducia e collaborazione.`
             title: t('client.email_config_error') || "Configurazione email mancante",
             description: t('client.email_config_error_desc') || "È necessario configurare un server SMTP nelle impostazioni utente per inviare email",
             variant: "destructive",
-            action: (
-              <ToastAction 
-                altText="Vai alle impostazioni"
-                onClick={() => navigate('/settings')}
-              >
-                Configura
-              </ToastAction>
-            ),
             duration: 10000
           });
         } else {
@@ -741,7 +800,7 @@ Grazie per la tua fiducia e collaborazione.`
         }
       }
     } catch (error) {
-      console.error('Error generating onboarding link:', error);
+      console.error('Error sending onboarding email:', error);
       toast({
         title: t('error') || "Errore",
         description: t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding",
@@ -772,24 +831,6 @@ Grazie per la tua fiducia e collaborazione.`
     localStorage.removeItem(`onboardingLink_${clientId}`);
     setOnboardingLink(null);
     handleGenerateOnboardingLink();
-  }
-  
-  // Funzione che invia l'email con il link di onboarding
-  function handleSendEmail() {
-    // Stampa di debug per vedere il valore dell'oggetto email
-    console.log("DEBUG - Invio email client-side:");
-    console.log("DEBUG - emailSubject:", emailSubject);
-    
-    // Invia l'email con il link di onboarding
-    sendOnboardingMutation.mutate({
-      language: emailLanguage,
-      customMessage: emailMessage,
-      customSubject: emailSubject,
-      sendEmail: true  // Qui vogliamo esplicitamente inviare l'email
-    });
-    
-    // Chiudi immediatamente il dialog dopo l'invio
-    setIsEmailDialogOpen(false);
   }
   
   function formatDate(date: Date | string | null) {
@@ -837,12 +878,22 @@ Grazie per la tua fiducia e collaborazione.`
             <div className="flex items-center space-x-2">
               <Button 
                 onClick={handleGenerateOnboardingLink}
-                disabled={sendOnboardingMutation.isPending}
+                disabled={isLinkLoading}
                 className="bg-accent hover:bg-accent/90"
               >
-                <Send className="mr-2 h-4 w-4" />
-                {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
+                <Link2 className="mr-2 h-4 w-4" />
+                {isLinkLoading ? t('common.generating') : t('client.generate_link')}
               </Button>
+              {onboardingLink && (
+                <Button
+                  onClick={handleSendOnboardingEmail}
+                  disabled={isLinkLoading}
+                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isLinkLoading ? t('client.sending') : t('client.send_email')}
+                </Button>
+              )}
             </div>
           </div>
 
@@ -865,9 +916,21 @@ Grazie per la tua fiducia e collaborazione.`
                     variant="outline" 
                     size="sm"
                     onClick={handleGenerateOnboardingLink}
+                    disabled={isLinkLoading}
                   >
                     <Link2 className="mr-2 h-4 w-4" />
-                    {t('client.generate_onboarding_link')}
+                    {isLinkLoading ? t('common.generating') : t('client.generate_onboarding_link')}
+                  </Button>
+                )}
+                {onboardingLink && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleSendOnboardingEmail}
+                    disabled={isLinkLoading}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {isLinkLoading ? t('client.sending') : t('client.send_email')}
                   </Button>
                 )}
               </div>
@@ -909,15 +972,17 @@ Grazie per la tua fiducia e collaborazione.`
                     <Button
                       variant="outline"
                       onClick={handleGenerateNewLink}
+                      disabled={isLinkLoading}
                     >
                       <RefreshCw className="mr-2 h-4 w-4" />
-                      {t('client.generate_new_link')}
+                      {isLinkLoading ? t('common.generating') : t('client.generate_new_link')}
                     </Button>
                     <Button
-                      onClick={handleOpenEmailDialog}
+                      onClick={handleSendOnboardingEmail}
+                      disabled={isLinkLoading}
                     >
                       <Mail className="mr-2 h-4 w-4" />
-                      {t('client.send_email')}
+                      {isLinkLoading ? t('client.sending') : t('client.send_email')}
                     </Button>
                   </div>
                 </div>
@@ -1002,11 +1067,21 @@ Grazie per la tua fiducia e collaborazione.`
             ) : (
               <Button 
                 onClick={handleGenerateOnboardingLink}
-                disabled={sendOnboardingMutation.isPending}
+                disabled={isLinkLoading}
                 className="bg-accent hover:bg-accent/90"
               >
+                <Link2 className="mr-2 h-4 w-4" />
+                {isLinkLoading ? t('common.generating') : t('client.generate_link')}
+              </Button>
+            )}
+            {onboardingLink && (
+              <Button
+                onClick={handleSendOnboardingEmail}
+                disabled={isLinkLoading}
+                className="bg-blue-500 hover:bg-blue-600 text-white"
+              >
                 <Send className="mr-2 h-4 w-4" />
-                {sendOnboardingMutation.isPending ? t('client.sending') : t('client.generate_link')}
+                {isLinkLoading ? t('client.sending') : t('client.send_email')}
               </Button>
             )}
           </div>
@@ -1333,9 +1408,10 @@ Grazie per la tua fiducia e collaborazione.`
                             variant="outline" 
                             size="sm"
                             onClick={handleGenerateOnboardingLink}
+                            disabled={isLinkLoading}
                           >
                             <Link2 className="mr-2 h-4 w-4" />
-                            {t('client.generate_onboarding_link')}
+                            {isLinkLoading ? t('common.generating') : t('client.generate_onboarding_link')}
                           </Button>
                         )}
                       </div>
@@ -1442,7 +1518,7 @@ Grazie per la tua fiducia e collaborazione.`
             <Button
               type="button"
               disabled={sendOnboardingMutation.isPending}
-              onClick={handleSendEmail}
+              onClick={handleSendOnboardingEmail}
             >
               {sendOnboardingMutation.isPending ? t('client.sending') : t('client.send_email')}
             </Button>

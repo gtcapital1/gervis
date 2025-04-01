@@ -285,6 +285,7 @@
   "common": {
     "edit": "Edit",
     "saving": "Saving...",
+    "cancel": "Cancel",
     "save": "Save and exit",
     "save_changes": "Save Changes",
     "pro_version": "Gervis PRO",
@@ -476,6 +477,9 @@
   },
   "client": {
     "personal_info": "Personal Information",
+    "confirm_activation": "Confirm Activation",
+    "confirm_activate": "Confirm",
+    "activation_description": "By activating this client, you will mark him as a paying client and that will matter for statistics.",
     "address": "Address",
     "phone": "Phone",
     "segment": "Client Segment",
