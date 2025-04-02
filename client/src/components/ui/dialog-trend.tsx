@@ -27,6 +27,9 @@ interface DialogTrendProps {
   series1Label: string;
   series2Label?: string;
   showValue2?: boolean;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  trigger?: React.ReactNode;
 }
 
 export function DialogTrend({
@@ -35,9 +38,17 @@ export function DialogTrend({
   valueFormat,
   series1Label,
   series2Label = "Value 2",
-  showValue2 = false
+  showValue2 = false,
+  open: externalOpen,
+  onOpenChange: externalOnOpenChange,
+  trigger
 }: DialogTrendProps) {
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Determine if we're using external or internal state
+  const isControlled = externalOpen !== undefined;
+  const open = isControlled ? externalOpen : internalOpen;
+  const onOpenChange = isControlled ? externalOnOpenChange : setInternalOpen;
 
   // Format the period labels for display
   const formatPeriod = (period: string) => {
@@ -52,7 +63,8 @@ export function DialogTrend({
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : 
       <DialogTrigger asChild>
         <Button 
           variant="link" 
@@ -61,7 +73,7 @@ export function DialogTrend({
           <TrendingUp className="h-3 w-3 mr-1" />
           View trend
         </Button>
-      </DialogTrigger>
+      </DialogTrigger>}
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
           <DialogTitle>{title} Trend</DialogTitle>

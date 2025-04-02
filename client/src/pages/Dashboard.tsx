@@ -1378,16 +1378,15 @@ export default function Dashboard() {
               </div>
             </CardContent>
             <CardFooter className="border-t px-6 py-4">
-                            <Button
-                              variant="ghost"
-                className="w-full"
-                onClick={() => {
-                  
-                  setShowTrendDialog(true);
-                }}
-              >
-                {t('dashboard.view_trends')}
-                            </Button>
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => {
+                    setLocation('/trends');
+                  }}
+                >
+                  {t('dashboard.view_trends')}
+                </Button>
             </CardFooter>
           </Card>
                 </div>
@@ -1517,8 +1516,7 @@ export default function Dashboard() {
                 variant="outline" 
                 className="w-full mt-4" 
                 onClick={() => {
-                  
-                  setShowCommunicationTrendDialog(true);
+                  setLocation('/trends');
                 }}
               >
                 {t('dashboard.view_trends')}

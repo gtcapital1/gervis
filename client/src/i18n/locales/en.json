@@ -229,7 +229,38 @@
     "aum_concentration_desc": "Shows how Assets Under Management are distributed among client groups",
     "top_clients_label": "Top {n} clients",
     "asset_by_segment": "Assets by Segment",
-    "asset_by_type": "Assets by Type"
+    "asset_by_type": "Assets by Type",
+    "trends": "Trends",
+    "trends_description": "Analysis of client and interaction trends",
+    "client_onboarding_trends": "Client Onboarding Trends",
+    "client_interaction_trends": "Client Interaction Trends",
+    "timeframe_1w": "1 Week",
+    "timeframe_1m": "1 Month",
+    "timeframe_3m": "3 Months",
+    "timeframe_6m": "6 Months",
+    "timeframe_1y": "1 Year",
+    "conversion_rates": "Conversion Rates",
+    "conversion_rates_description": "Percentage of leads converting to prospects and prospects to active clients",
+    "lead_to_prospect": "Lead to Prospect",
+    "prospect_to_active": "Prospect to Active",
+    "new_prospects_trend": "New Prospects",
+    "new_prospects_per_day": "New prospects per day",
+    "prospects_per_day_description": "Daily average of new prospects acquired",
+    "lead_time_trend": "Lead Time",
+    "average_days_as_lead": "Average days spent as lead before becoming prospect",
+    "avg_lead_time": "Average Lead Time",
+    "prospect_time_trend": "Prospect Time",
+    "average_days_as_prospect": "Average days spent as prospect before becoming active client",
+    "avg_prospect_time": "Average Prospect Time",
+    "communication_trends": "Communication Trends",
+    "monthly_interactions_per_client": "Monthly interactions per client",
+    "emails": "Emails",
+    "calls": "Calls",
+    "meetings": "Meetings",
+    "loading": "Loading",
+    "days": "days",
+    "months": "months",
+    "calendar": "Calendar"
   },
   "client_edit": {
     "email": "Email Address",
@@ -413,6 +444,36 @@
     "about": "About Us",
     "contact": "Contact",
     "launch": "Launch App"
+  },
+  "benefits": {
+    "title": "Why Choose Gervis?",
+    "subtitle": "Tangible benefits for your financial consulting business",
+    "items": {
+      "save_time": {
+        "title": "Save Time",
+        "description": "Reduce time spent on administrative tasks and focus on delivering valuable advice to your clients."
+      },
+      "reduce_errors": {
+        "title": "Reduce Errors",
+        "description": "Minimize manual errors with digitized and automated processes for client documentation."
+      },
+      "grow_aum": {
+        "title": "Increase Assets Under Management",
+        "description": "Attract and retain more clients through a professional and technologically advanced experience."
+      },
+      "improve_satisfaction": {
+        "title": "Improve Satisfaction",
+        "description": "Offer a more responsive and personalized service to increase client satisfaction and retention."
+      },
+      "compliance": {
+        "title": "Regulatory Compliance",
+        "description": "Easily maintain compliance with Italian and European financial regulations with always up-to-date documentation."
+      },
+      "insights": {
+        "title": "In-depth Insights",
+        "description": "Gain detailed analysis of client portfolios to provide more informed and strategic advice."
+      }
+    }
   },
   "hero": {
     "title_1": "The Ultimate Assistant for",
@@ -608,5 +669,183 @@
     "income_generation_interest": "Income Generation",
     "capital_preservation_interest": "Capital Preservation",
     "estate_planning_interest": "Estate Planning"
+  },
+  "onboarding": {
+    "title": "Financial Profile Questionnaire",
+    "welcome": "Welcome",
+    "instructions": "Please complete the following information to help us understand your financial profile and goals.",
+    "personal_info": "Personal Information",
+    "first_name": "First Name",
+    "last_name": "Last Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "dob": "Date of Birth",
+    "financial_profile": "Financial Profile",
+    "investment_profile": "Investment Profile",
+    "income": "Annual Income (€)",
+    "expenses": "Annual Expenses (€)",
+    "savings": "Monthly Savings (€)",
+    "dependent_count": "Number of Dependents",
+    "risk_profile": "Risk Profile",
+    "investment_goals": "Investment Goals",
+    "investment_horizon": "Investment Horizon",
+    "experience_level": "Investment Experience",
+    "assets": "Assets",
+    "asset_category": "Asset Category",
+    "asset_name": "Asset Name",
+    "asset_value": "Asset Value (€)",
+    "add_asset": "Add Asset",
+    "remove": "Remove",
+    "submit": "Submit Profile",
+    "error": "Error submitting profile",
+    "success": "Profile submitted successfully!",
+    "success_message": "Thank you for completing your financial profile. Your financial advisor will review your information and contact you soon.",
+    "personal_interests_title": "Personal Interests",
+    "personal_interests_desc": "Share your personal interests to help us provide you with a unique and personalized financial advisory experience",
+    "your_interests": "Your interests",
+    "interests_selection_desc": "Select topics that interest you to help us better understand your passions",
+    "interests_notes": "Additional notes about your interests",
+    "interests_notes_placeholder": "Tell us more about your interests or other passions not listed...",
+    "optional_field": "This field is optional"
+  },
+  "contact": {
+    "title": "Contact Us",
+    "subtitle": "Have questions? We'd love to hear from you.",
+    "error": "There was an error sending your message. Please try again.",
+    "form": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "company": "Company",
+      "message": "Message",
+      "privacy": "I consent to the processing of my data to receive a response to my request.",
+      "submit": "Send Message",
+      "submitting": "Sending...",
+      "success": "Message Sent Successfully!",
+      "success_message": "Thank you for contacting us. We will respond to you soon.",
+      "placeholders": {
+        "firstName": "Enter your first name",
+        "lastName": "Enter your last name",
+        "email": "Enter your email",
+        "company": "Enter your company name",
+        "message": "How can we help you?"
+      }
+    },
+    "validation": {
+      "firstName": "First name is required",
+      "lastName": "Last name is required",
+      "email": "Please enter a valid email address",
+      "message": "Please enter your message",
+      "privacy": "You must accept the privacy terms"
+    }
+  },
+  "about": {
+    "title": "About Us",
+    "description1": "Gervis is a product developed and managed by GT AI Solutions. GT AI Solutions' mission is to integrate artificial intelligence solutions in all businesses to free up valuable time and allow companies to focus on their core business.",
+    "description2": "We firmly believe that artificial intelligence is the key to transforming business processes, eliminating repetitive and low-value activities, enabling people to dedicate themselves to what really matters: relationships, creativity, and innovation.",
+    "description3": "Gervis represents the application of this philosophy in the financial advisory sector, offering advisors advanced tools to automate document management, optimize onboarding processes, and provide a superior client experience."
+  },
+  "approval": {
+    "title": "Account Pending Approval",
+    "description": "Your account is pending verification by the Gervis management team",
+    "status": "Account Status: Pending",
+    "status_message": "Your account has been created but requires approval before you can use all features. This process usually takes 1-2 business days.",
+    "email_confirmation": "Verification Completed",
+    "email_sent_to": "Email successfully verified for",
+    "next_steps": "You will receive an email notification when your account is approved. In the meantime, you can return to the main page.",
+    "return_home": "Return to Homepage"
+  },
+  "verification": {
+    "title": "Verify your email address",
+    "description": "We have sent a 4-digit PIN code to {email}. Enter the code to complete verification.",
+    "pin_code": "PIN Code",
+    "pin_placeholder": "Enter 4-digit PIN",
+    "verifying": "Verifying...",
+    "verify": "Verify PIN",
+    "sending": "Sending...",
+    "resend": "Send new PIN",
+    "failed": "Verification failed",
+    "invalid_pin": "Invalid PIN. Check your email and try again.",
+    "error": "An error occurred while verifying the PIN."
+  },
+  "languages": {
+    "english": "English",
+    "italian": "Italian"
+  },
+  "pdf": {
+    "title": "Client Onboarding Form",
+    "subject": "Client Financial Profile",
+    "clientSummaryReport": "Client Onboarding Form",
+    "personalInformation": "Personal Information",
+    "investmentProfile": "Investment Profile",
+    "assetAllocation": "Current Asset Allocation",
+    "coverLetter": {
+      "heading": "FINANCIAL ADVISORY SERVICES",
+      "date": "Date",
+      "toClient": "To",
+      "fromAdvisor": "From",
+      "subject": "Subject",
+      "title": "Welcome – Beginning of Our Collaboration",
+      "greeting": "Dear {{firstName}} {{lastName}},",
+      "introduction": "It is a pleasure to welcome you and begin this collaboration. My goal is to offer you a highly personalized advisory service, designed to help you manage your assets strategically and efficiently, with a cost-conscious approach and in full compliance with current regulations.",
+      "collaboration": "Through in-depth analysis and advanced tools, we will work together to:",
+      "servicePoint1": "Optimize your portfolio composition based on your objectives and risk profile.",
+      "servicePoint2": "Identify tailored solutions for more effective and sustainable asset management over time.",
+      "servicePoint3": "Ensure transparent advice in line with industry best practices.",
+      "servicePoint4": "Provide regular updates and adjustments based on market changes and the evolution of your needs.",
+      "fields": {
+        "greeting": "Greeting",
+        "introduction": "Introduction",
+        "collaboration": "Collaboration",
+        "servicePoints": "Service Points",
+        "process": "Process",
+        "contactInfo": "Contact Information",
+        "closing": "Closing",
+        "fullContent": "Letter Content"
+      },
+      "points": [
+        "Optimize your portfolio composition based on your objectives and risk profile.",
+        "Identify tailored solutions for more effective and sustainable asset management over time.",
+        "Ensure transparent advice in line with industry best practices."
+      ],
+      "process": "As discussed, to complete the onboarding process, I invite you to verify and return the attached signed documents. This step is necessary to formalize our collaboration and proceed with the planned activities.",
+      "contactInfo": "I remain available for any clarification or need. Thank you for your trust, I am confident that this will be the beginning of a valuable journey.",
+      "closing": "Best regards,"
+    },
+    "name": "Full Name",
+    "email": "Email",
+    "phone": "Phone",
+    "address": "Address",
+    "employmentStatus": "Employment Status",
+    "taxCode": "Tax Code",
+    "riskProfile": "Risk Profile",
+    "investmentGoal": "Investment Goal",
+    "investmentHorizon": "Investment Horizon",
+    "experienceLevel": "Experience Level",
+    "notProvided": "Not provided",
+    "category": "Category",
+    "description": "Description",
+    "value": "Value",
+    "totalAssetsValue": "Total Assets Value",
+    "noAssetsFound": "No assets found for this client.",
+    "clientSignature": "Signature",
+    "signatureHere": "Sign here",
+    "clientDeclaration": "Client Declaration",
+    "clientDeclarationText": "I declare that the information provided is true, complete, and accurate. This document represents my current financial situation and personal information as reported to my financial advisor.",
+    "date": "Date",
+    "page": "Page",
+    "of": "of",
+    "selectLanguage": "Select Language",
+    "generatePdf": "Generate PDF Report",
+    "generate": "Generate PDF",
+    "customizeLetterContent": "Customize Letter Content",
+    "sendByEmail": "Send by Email",
+    "emailDialogDescription": "Send this report via email to the client",
+    "emailSubject": "Subject",
+    "emailMessage": "Message",
+    "emailBodyInfoMessage": "The letter content will be used as the email body",
+    "emailDefaultSubject": "Welcome to our advisory service",
+    "send": "Send",
+    "preview": "Preview"
   }
 } 

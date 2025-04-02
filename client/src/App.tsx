@@ -15,6 +15,7 @@ import Settings from "@/pages/Settings";
 import AdminPanel from "@/pages/AdminPanel";
 import MarketUpdate from "@/pages/MarketUpdate";
 import Spark from "@/pages/Spark";
+import Trends from "@/pages/Trends";
 import { Layout } from "@/components/dashboard/Layout";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ProtectedRoute } from "@/lib/protected-route";
@@ -96,6 +97,14 @@ function Router() {
         component={() => (
           <Layout>
             <Spark />
+          </Layout>
+        )} 
+      />
+      <ProtectedRoute 
+        path="/trends" 
+        component={() => (
+          <Layout>
+            <Trends />
           </Layout>
         )} 
       />

@@ -39,7 +39,7 @@ export default function Hero() {
                     });
                   }
                 }}
-                className="border-gray-700 text-white hover:bg-gray-800 px-8 py-6"
+                className="border-gray-700 text-black hover:bg-gray-800 hover:text-white px-8 py-6"
                 size="lg"
               >
                 {t('hero.learn_more')}

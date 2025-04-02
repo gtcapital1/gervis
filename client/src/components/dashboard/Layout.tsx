@@ -14,6 +14,8 @@ import {
   ShieldAlert,
   BarChart3,
   Zap,
+  Calendar,
+  TrendingUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -88,6 +90,20 @@ export function Layout({ children }: LayoutProps) {
       current: location === "/clients" || location.startsWith("/clients/"),
     },
     {
+      name: "Calendar",
+      href: "/calendar",
+      icon: Calendar,
+      current: location === "/calendar",
+      disabled: false,
+    },
+    {
+      name: "Trends",
+      href: "/trends",
+      icon: TrendingUp,
+      current: location === "/trends",
+      disabled: false,
+    },
+    {
       name: "Market",
       href: "/market",
       icon: BarChart3,
@@ -160,7 +176,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="flex flex-col space-y-4">
           <div className="flex items-center">
             <Avatar className="h-8 w-8 mr-2">
-              <AvatarImage src={user?.avatar ?? undefined} alt={user?.name ?? "User"} />
+              <AvatarImage src={undefined} alt={user?.name ?? "User"} />
               <AvatarFallback>{getInitials(user?.name ?? "User")}</AvatarFallback>
             </Avatar>
             <div>

@@ -30,9 +30,9 @@ export function LanguageSwitcher({ inSidebar = false }: { inSidebar?: boolean })
         <Button 
           variant={inSidebar ? "ghost" : "outline"} 
           size="sm" 
-          className={`flex items-center gap-2 ${inSidebar ? "text-gray-300 hover:text-white hover:bg-gray-800" : ""}`}
+          className={`flex items-center gap-2 ${inSidebar ? "text-gray-300 hover:text-white hover:bg-gray-800" : "text-black"}`}
         >
-          <Languages className={`h-4 w-4 ${inSidebar ? "text-green-500" : ""}`} />
+          <Languages className={`h-4 w-4 ${inSidebar ? "text-green-500" : "text-black"}`} />
           <span className="hidden sm:inline-block">{t(`language.${currentLanguage}`)}</span>
         </Button>
       </DropdownMenuTrigger>

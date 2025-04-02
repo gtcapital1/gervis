@@ -302,7 +302,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     createParentPath: true,
     abortOnLimit: true,
     responseOnLimit: "Il file è troppo grande (limite: 50MB)",
-    debug: true,
+    debug: false,
     parseNested: true
   }));
   
