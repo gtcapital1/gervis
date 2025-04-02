@@ -12,6 +12,8 @@ import {
   Mail,
   Phone,
   TrendingUp,
+  Calendar,
+  MessageSquare,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { 
@@ -62,6 +64,13 @@ interface ClientLog {
   createdAt: string;
   createdBy?: number;
 }
+
+// Colori standard per i grafici
+const COLORS = {
+  primary: "#2563eb",    // Blu primario
+  secondary: "#38bdf8",  // Azzurro secondario
+  tertiary: "#22c55e"    // Verde terziario
+};
 
 export default function Trends() {
   const { t } = useTranslation();
@@ -273,8 +282,8 @@ export default function Trends() {
     return results;
   };
   
-  // Genera dati per il trend di comunicazione
-  const generateCommunicationTrendData = (): TrendData[] => {
+  // Genera dati per email settimanali per cliente
+  const generateEmailTrendData = (): TrendData[] => {
     const results: TrendData[] = [];
     
     // Se non ci sono log, restituisci solo zeri
@@ -282,9 +291,7 @@ export default function Trends() {
       const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
       return periods.map(period => ({
         period,
-        value1: 0,
-        value2: 0,
-        value3: 0
+        value1: 0
       }));
     }
     
@@ -297,23 +304,110 @@ export default function Trends() {
       // Filtra i log in base al periodo
       const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
       
-      // Conta i vari tipi di log
+      // Conta le email nel periodo
       const emailsInPeriod = logsInPeriod.filter(log => log.type === 'email').length;
+      
+      // Calcola il numero di clienti attivi nel periodo
+      const activeClientsCount = clients.filter(client => client.active).length || 1;
+      
+      // Calcola il numero di settimane nel periodo
+      const weeksInPeriod = Math.max(1, Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+      
+      // Calcola la media settimanale per cliente
+      const weeksPerClient = emailsInPeriod / (activeClientsCount * weeksInPeriod);
+      
+      // Aggiungi all'array risultati
+      results.push({
+        period,
+        value1: parseFloat(weeksPerClient.toFixed(2)) // Email settimanali per cliente
+      });
+    });
+    
+    return results;
+  };
+  
+  // Genera dati per chiamate settimanali per cliente
+  const generateCallTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Se non ci sono log, restituisci solo zeri
+    if (!clientLogs.length) {
+      const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+      return periods.map(period => ({
+        period,
+        value1: 0
+      }));
+    }
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      const tempStartDate = getStartDateFromTimeframe(period);
+      
+      // Filtra i log in base al periodo
+      const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
+      
+      // Conta le chiamate nel periodo
       const callsInPeriod = logsInPeriod.filter(log => log.type === 'call').length;
+      
+      // Calcola il numero di clienti attivi nel periodo
+      const activeClientsCount = clients.filter(client => client.active).length || 1;
+      
+      // Calcola il numero di settimane nel periodo
+      const weeksInPeriod = Math.max(1, Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+      
+      // Calcola la media settimanale per cliente
+      const weeksPerClient = callsInPeriod / (activeClientsCount * weeksInPeriod);
+      
+      // Aggiungi all'array risultati
+      results.push({
+        period,
+        value1: parseFloat(weeksPerClient.toFixed(2)) // Chiamate settimanali per cliente
+      });
+    });
+    
+    return results;
+  };
+  
+  // Genera dati per incontri settimanali per cliente
+  const generateMeetingTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Se non ci sono log, restituisci solo zeri
+    if (!clientLogs.length) {
+      const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+      return periods.map(period => ({
+        period,
+        value1: 0
+      }));
+    }
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      const tempStartDate = getStartDateFromTimeframe(period);
+      
+      // Filtra i log in base al periodo
+      const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
+      
+      // Conta gli incontri nel periodo
       const meetingsInPeriod = logsInPeriod.filter(log => log.type === 'meeting').length;
       
       // Calcola il numero di clienti attivi nel periodo
       const activeClientsCount = clients.filter(client => client.active).length || 1;
       
-      // Calcola la media mensile di interazioni per cliente
-      const monthsInPeriod = Math.max(1, Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (30 * 24 * 60 * 60 * 1000)));
+      // Calcola il numero di settimane nel periodo
+      const weeksInPeriod = Math.max(1, Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (7 * 24 * 60 * 60 * 1000)));
+      
+      // Calcola la media settimanale per cliente
+      const weeksPerClient = meetingsInPeriod / (activeClientsCount * weeksInPeriod);
       
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: emailsInPeriod / (activeClientsCount * monthsInPeriod), // Email medie mensili per cliente
-        value2: callsInPeriod / (activeClientsCount * monthsInPeriod),   // Chiamate medie mensili per cliente
-        value3: meetingsInPeriod / (activeClientsCount * monthsInPeriod) // Incontri medi mensili per cliente
+        value1: parseFloat(weeksPerClient.toFixed(2)) // Incontri settimanali per cliente
       });
     });
     
@@ -326,38 +420,6 @@ export default function Trends() {
         title={t('dashboard.trends')}
         subtitle={t('dashboard.trends_description')}
       >
-        <div className="flex border rounded-md overflow-hidden">
-          <button 
-            onClick={() => setTimeframe('1w')} 
-            className={`px-2 py-1 text-sm ${timeframe === '1w' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          >
-            {t('dashboard.timeframe_1w')}
-          </button>
-          <button 
-            onClick={() => setTimeframe('1m')} 
-            className={`px-2 py-1 text-sm ${timeframe === '1m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          >
-            {t('dashboard.timeframe_1m')}
-          </button>
-          <button 
-            onClick={() => setTimeframe('3m')} 
-            className={`px-2 py-1 text-sm ${timeframe === '3m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          >
-            {t('dashboard.timeframe_3m')}
-          </button>
-          <button 
-            onClick={() => setTimeframe('6m')} 
-            className={`px-2 py-1 text-sm ${timeframe === '6m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          >
-            {t('dashboard.timeframe_6m')}
-          </button>
-          <button 
-            onClick={() => setTimeframe('1y')} 
-            className={`px-2 py-1 text-sm ${timeframe === '1y' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-          >
-            {t('dashboard.timeframe_1y')}
-          </button>
-        </div>
       </PageHeader>
       
       <Tabs defaultValue="onboarding" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -391,8 +453,8 @@ export default function Trends() {
                         <YAxis tickFormatter={(value) => `${value}%`} />
                         <RechartsTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.lead_to_prospect')} stroke="#8884d8" strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.prospect_to_active')} stroke="#82ca9d" strokeWidth={2} />
+                        <Line type="monotone" dataKey="value1" name={t('dashboard.lead_to_prospect')} stroke={COLORS.primary} strokeWidth={2} />
+                        <Line type="monotone" dataKey="value2" name={t('dashboard.prospect_to_active')} stroke={COLORS.secondary} strokeWidth={2} />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -411,15 +473,15 @@ export default function Trends() {
                 <CardContent>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RechartsBarChart data={generateAcquisitionTrendData()}>
+                      <RechartsLineChart data={generateAcquisitionTrendData()}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
                         <RechartsTooltip formatter={(value: number) => value.toFixed(1)} />
                         <Legend />
-                        <Bar dataKey="value1" name={t('dashboard.new_leads_per_day')} fill="#ff7300" />
-                        <Bar dataKey="value2" name={t('dashboard.new_prospects_per_day')} fill="#8884d8" />
-                      </RechartsBarChart>
+                        <Line type="monotone" dataKey="value1" name={t('dashboard.new_leads_per_day')} stroke={COLORS.primary} strokeWidth={2} />
+                        <Line type="monotone" dataKey="value2" name={t('dashboard.new_prospects_per_day')} stroke={COLORS.secondary} strokeWidth={2} />
+                      </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
@@ -443,8 +505,8 @@ export default function Trends() {
                         <YAxis />
                         <RechartsTooltip formatter={(value: number) => `${value.toFixed(1)} ${t('dashboard.days')}`} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.as_lead')} stroke="#ff7300" strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.as_prospect')} stroke="#8884d8" strokeWidth={2} />
+                        <Line type="monotone" dataKey="value1" name={t('dashboard.as_lead')} stroke={COLORS.primary} strokeWidth={2} />
+                        <Line type="monotone" dataKey="value2" name={t('dashboard.as_prospect')} stroke={COLORS.secondary} strokeWidth={2} />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -461,34 +523,98 @@ export default function Trends() {
             </div>
           ) : (
             <>
-              {/* Communication Trends Chart */}
+              {/* Email Interactions Chart */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5 text-muted-foreground" />
-                    {t('dashboard.communication_trends')}
+                    <Mail className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.email_interactions')}
                   </CardTitle>
-                  <CardDescription>{t('dashboard.monthly_interactions_per_client')}</CardDescription>
+                  <CardDescription>{t('dashboard.emails_per_client')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="h-80">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RechartsLineChart data={generateCommunicationTrendData()}>
+                      <RechartsLineChart data={generateEmailTrendData()}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip />
+                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.emails')} stroke="#8884d8" strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.calls')} stroke="#82ca9d" strokeWidth={2} />
-                        <Line type="monotone" dataKey="value3" name={t('dashboard.meetings')} stroke="#ffc658" strokeWidth={2} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.emails_per_client')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2} 
+                        />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
               
-              {/* Altre card specifiche per le interazioni possono essere aggiunte qui */}
+              {/* Call Interactions Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Phone className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.call_interactions')}
+                  </CardTitle>
+                  <CardDescription>{t('dashboard.calls_per_client')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={generateCallTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.calls_per_client')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2} 
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Meeting Interactions Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Calendar className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.meeting_interactions')}
+                  </CardTitle>
+                  <CardDescription>{t('dashboard.meetings_per_client')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={generateMeetingTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.meetings_per_client')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2} 
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
             </>
           )}
         </TabsContent>
