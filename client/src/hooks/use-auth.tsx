@@ -22,22 +22,22 @@ type LoginData = Pick<InsertUser, "email" | "password">;
 export const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
-  console.log('[Debug Auth] Inizializzazione AuthProvider');
+  
   
   // Verifica sessione ogni 20 secondi per debugging (rimuovere in produzione)
   useEffect(() => {
     const checkInterval = setInterval(() => {
-      console.log('[Debug Auth] Verifica periodica sessione...');
+      
       fetch('/api/user')
         .then(res => {
-          console.log('[Debug Auth] Stato sessione:', res.status, res.statusText);
+          
           return res.json().catch(() => ({ success: false }));
         })
         .then(data => {
-          console.log('[Debug Auth] Risposta /api/user:', data.success ? 'autenticato' : 'non autenticato');
+          
         })
         .catch(err => {
-          console.error('[Debug Auth] Errore verifica sessione:', err);
+          
         });
     }, 20000); // Ogni 20 secondi
     
@@ -73,16 +73,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: (userData: InsertUser) => {
-      console.log('[Debug Auth] Tentativo registrazione utente:', userData.email);
+      
       return httpRequest("POST", "/api/register", userData);
     },
     onSuccess: (data: { success: boolean; user: SelectUser; message?: string; needsPinVerification?: boolean }) => {
-      console.log('[Debug Auth] Registrazione completata con successo:', data);
+      
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
     onError: (error: Error) => {
-      console.error('[Debug Auth] Errore registrazione:', error);
+      
       toast({
         title: "Registration failed",
         description: error.message,

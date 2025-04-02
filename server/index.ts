@@ -2,7 +2,7 @@
 import 'dotenv/config';
 
 // In ESM, non possiamo ottenere direttamente il risultato di config(), quindi lo logghiamo in altro modo
-console.log("INFO - File .env caricato, variabili d'ambiente disponibili");
+
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
@@ -13,23 +13,12 @@ import { autorunCreateAiProfiles } from "./migrations/autorun-create-ai-profiles
 import { autorunCreateMeetingsTable } from "./migrations/autorun-create-meetings-table";
 import { autorunAddActiveAndOnboardedAt } from "./migrations/autorun-add-active-onboardedat";
 import { addEmailSettingsColumns } from "./migrations/autorun-add-email-settings";
+import { autorunAddMeetingDuration } from "./migrations/autorun-add-meeting-duration";
 
 // Extend Express Request to include user property
 import session from "express-session";
 
-// Debug info per l'ambiente
-console.log("DEBUG INFO - Process Environment:");
-console.log("NODE_ENV:", process.env.NODE_ENV);
-console.log("HOST:", process.env.HOST);
-console.log("PORT:", process.env.PORT);
-console.log("DATABASE_URL exists:", !!process.env.DATABASE_URL);
-console.log("BASE_URL:", process.env.BASE_URL);
-console.log("SMTP/EMAIL variables exist:", 
-  !!process.env.SMTP_USER || !!process.env.EMAIL_USER,
-  !!process.env.SMTP_PASS || !!process.env.EMAIL_PASSWORD);
-console.log("REPLIT specific:", 
-  "REPL_ID:", process.env.REPL_ID,
-  "REPL_OWNER:", process.env.REPL_OWNER);
+// Debug info per l'ambiente - rimossi i console.log
 
 // Estendi SessionData con le nostre proprietà
 declare module "express-session" {
@@ -40,7 +29,7 @@ declare module "express-session" {
 
 // La dichiarazione di Request.user è già definita in auth.ts
 
-console.log("DEBUG - Inizializzazione Express");
+
 const app = express();
 // Aumenta il limite per il payload JSON a 10MB per supportare upload di file più grandi
 app.use(express.json({ limit: '10mb' }));
@@ -56,8 +45,8 @@ app.use((req, res, next) => {
   
   // Log all'inizio della richiesta per l'eliminazione dei client
   if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-    console.log(`[DEBUG REQ ${reqId}] Inizio richiesta DELETE client: ${path}`);
-    console.log(`[DEBUG REQ ${reqId}] Headers: ${JSON.stringify(req.headers)}`);
+    
+    
   }
 
   // Override del metodo json originale
@@ -67,10 +56,10 @@ app.use((req, res, next) => {
     
     // Log specifico per l'operazione di eliminazione client
     if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-      console.log(`[DEBUG RES ${reqId}] Invio risposta JSON a richiesta DELETE client: ${path}`);
-      console.log(`[DEBUG RES ${reqId}] Stato: ${res.statusCode}`);
-      console.log(`[DEBUG RES ${reqId}] Risposta: ${JSON.stringify(bodyJson)}`);
-      console.log(`[DEBUG RES ${reqId}] Content-Type: ${res.getHeader('content-type')}`);
+      
+      
+      
+      
     }
     
     return originalResJson.apply(res, [bodyJson, ...args]);
@@ -81,15 +70,15 @@ app.use((req, res, next) => {
   res.send = function(body) {
     // Log specifico per l'operazione di eliminazione client
     if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-      console.log(`[DEBUG RES ${reqId}] Invio risposta SEND a richiesta DELETE client: ${path}`);
-      console.log(`[DEBUG RES ${reqId}] Stato: ${res.statusCode}`);
-      console.log(`[DEBUG RES ${reqId}] Content-Type: ${res.getHeader('content-type')}`);
+      
+      
+      
       
       if (body) {
         const bodyPreview = typeof body === 'string' ? body.substring(0, 100) : 
                            (typeof body === 'object' ? JSON.stringify(body).substring(0, 100) : 
                            String(body).substring(0, 100));
-        console.log(`[DEBUG RES ${reqId}] Preview risposta: ${bodyPreview}...`);
+        
       }
     }
     
@@ -112,26 +101,26 @@ app.use((req, res, next) => {
       
       // Log di completamento per l'eliminazione client
       if (path.startsWith("/api/clients") && path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-        console.log(`[DEBUG FIN ${reqId}] Completata richiesta DELETE client: ${path} con stato ${res.statusCode} in ${duration}ms`);
+        
       }
       
       // Debug autenticazione
       if (path === "/api/user") {
-        console.log(`[DEBUG AUTH] Richiesta GET /api/user completata con stato ${res.statusCode} in ${duration}ms`);
+        
         if (req.session) {
-          console.log(`[DEBUG AUTH] Session ID: ${req.session.id}, Cookie: ${JSON.stringify(req.session.cookie)}`);
-          console.log(`[DEBUG AUTH] Autenticato: ${req.isAuthenticated?.() || false}`);
+          
+          
           if (req.isAuthenticated?.()) {
-            console.log(`[DEBUG AUTH] Utente in sessione: ${req.user ? `ID ${req.user.id}` : 'Nessun utente'}`);
+            
           }
         } else {
-          console.log(`[DEBUG AUTH] Nessuna sessione trovata per richiesta /api/user`);
+          
         }
       }
       
       // Debug sessione per altre richieste API
       if (path.startsWith("/api/") && Math.random() < 0.1) { // Campione 10% delle richieste
-        console.log(`[DEBUG SESSION] Per richiesta ${req.method} ${path}: sessione ${req.session ? 'trovata' : 'assente'}, autenticato: ${req.isAuthenticated?.() || false}`);
+        
       }
     }
   });
@@ -144,54 +133,63 @@ app.use((req, res, next) => {
   // Modalità silenziosa per non intasare i log in prod
   try {
     await autorunCascadeFix(true);
-    console.log("DEBUG - Fix vincoli CASCADE eseguito con successo");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile eseguire il fix vincoli CASCADE:", error);
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
   // Esegui automaticamente la creazione della tabella client_logs
   try {
     await autorunCreateClientLogs(true);
-    console.log("DEBUG - Verifica tabella client_logs completata");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile verificare/creare la tabella client_logs:", error);
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
   // Esegui automaticamente la creazione della tabella ai_profiles
   try {
     await autorunCreateAiProfiles(true);
-    console.log("DEBUG - Verifica tabella ai_profiles completata");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile verificare/creare la tabella ai_profiles:", error);
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
   // Esegui automaticamente la creazione della tabella meetings
   try {
     await autorunCreateMeetingsTable(true);
-    console.log("DEBUG - Verifica tabella meetings completata");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile verificare/creare la tabella meetings:", error);
+    
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Esegui automaticamente l'aggiunta della colonna duration a meetings
+  try {
+    await autorunAddMeetingDuration(true);
+    
+  } catch (error) {
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
   // Esegui automaticamente l'aggiunta delle colonne active e onboarded_at
   try {
     await autorunAddActiveAndOnboardedAt();
-    console.log("DEBUG - Verifica colonne active e onboarded_at completata");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile verificare/aggiungere le colonne active e onboarded_at:", error);
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
   // Esegui automaticamente l'aggiunta delle colonne per le impostazioni email
   try {
     await addEmailSettingsColumns();
-    console.log("DEBUG - Verifica colonne per impostazioni email completata");
+    
   } catch (error) {
-    console.error("ERRORE - Impossibile verificare/aggiungere le colonne per impostazioni email:", error);
+    
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
@@ -205,24 +203,24 @@ app.use((req, res, next) => {
     const errorId = `err-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     
     // Log dettagliato per tutti gli errori
-    console.error(`[ERROR ${errorId}] Errore in ${req.method} ${req.path}:`);
-    console.error(`[ERROR ${errorId}] Messaggio: ${message}`);
-    console.error(`[ERROR ${errorId}] Stato: ${status}`);
+    
+    
+    
     
     // Log stack trace quando disponibile
     if (err.stack) {
-      console.error(`[ERROR ${errorId}] Stack trace:\n${err.stack}`);
+      
     }
     
     // Log extra dettagliato per gli errori in operazioni di eliminazione client
     if (req.path.startsWith("/api/clients") && req.path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-      console.error(`[ERROR ${errorId}] Errore critico in operazione DELETE client: ${req.path}`);
-      console.error(`[ERROR ${errorId}] Headers: ${JSON.stringify(req.headers)}`);
-      console.error(`[ERROR ${errorId}] Query params: ${JSON.stringify(req.query)}`);
+      
+      
+      
       if (req.user) {
-        console.error(`[ERROR ${errorId}] User ID: ${req.user.id}`);
+        
       } else {
-        console.error(`[ERROR ${errorId}] User non autenticato`);
+        
       }
     }
     
@@ -245,10 +243,10 @@ app.use((req, res, next) => {
   // Controlla se siamo in un ambiente Replit (che dovrebbe sempre usare vite in dev)
   // oppure se esplicitamente impostato come development
   if (process.env.REPL_ID || process.env.NODE_ENV !== 'production') {
-    console.log("DEBUG - Utilizzando configurazione di sviluppo con Vite");
+    
     await setupVite(app, server);
   } else {
-    console.log("DEBUG - Utilizzando configurazione di produzione con servizio statico");
+    
     serveStatic(app);
   }
 

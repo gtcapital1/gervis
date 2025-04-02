@@ -141,22 +141,22 @@ export default function EditMifidForm() {
   // Definizione delle opzioni per le categorie di asset
   const categoryOptions = ASSET_CATEGORIES;
 
-  console.log("[DEBUG] EditMifidForm - Client ID:", clientId);
-  console.log("[DEBUG] EditMifidForm - User:", user);
-  console.log("[DEBUG] EditMifidForm - Is Auth Loading:", isAuthLoading);
+  
+  
+  
 
   // Redirect if not authenticated
   React.useEffect(() => {
-    console.log("[DEBUG] EditMifidForm - Auth check effect");
+    
     if (!isAuthLoading && !user) {
-      console.log("[DEBUG] EditMifidForm - User not authenticated, redirecting to /login");
+      
       setLocation("/login");
     }
   }, [user, isAuthLoading, setLocation]);
 
   // Show loading while checking auth
   if (isAuthLoading) {
-    console.log("[DEBUG] EditMifidForm - Showing loading state");
+    
     return (
       <div className="flex justify-center items-center h-full">
         <p>{t('common.loading')}</p>
@@ -166,7 +166,7 @@ export default function EditMifidForm() {
 
   // Show error if not authenticated
   if (!user) {
-    console.log("[DEBUG] EditMifidForm - No user, returning null (will redirect)");
+    
     return null; // Will redirect in useEffect
   }
 
@@ -179,10 +179,10 @@ export default function EditMifidForm() {
   } = useQuery<ClientQueryResponse>({
     queryKey: ['client', clientId],
     queryFn: async () => {
-      console.log("[DEBUG] EditMifidForm - Fetching client data for ID:", clientId);
+      
       const response = await apiRequest(`/api/clients/${clientId}`);
-      console.log("[DEBUG] EditMifidForm - Full API Response:", JSON.stringify(response, null, 2));
-      console.log("[DEBUG] EditMifidForm - Assets from response:", JSON.stringify(response.assets, null, 2));
+      
+      
       return response;
     },
     enabled: !isNaN(clientId) && clientId > 0 && !!user
@@ -272,7 +272,7 @@ export default function EditMifidForm() {
   // Update form values when MIFID data is loaded
   useEffect(() => {
     if (mifidData) {
-      console.log("[DEBUG] EditMifidForm - Loading MIFID data into form:", JSON.stringify(mifidData, null, 2));
+      
       
       const formData = {
         // Sezione 1: Dati Anagrafici e Informazioni Personali
@@ -313,25 +313,25 @@ export default function EditMifidForm() {
         monitoringTime: mifidData.monitoringTime,
       };
 
-      console.log("[DEBUG] EditMifidForm - Form data to be set:", JSON.stringify(formData, null, 2));
+      
       form.reset(formData);
       
       // Verifica i valori dopo il reset
       const formValues = form.getValues();
-      console.log("[DEBUG] EditMifidForm - Form values after reset:", JSON.stringify(formValues, null, 2));
+      
     }
   }, [mifidData, clientData, form]);
 
   // Handle form submission
   const mutation = useMutation({
     mutationFn: async (data: MifidFormValues) => {
-      console.log("[DEBUG] Mutation started");
-      console.log("[DEBUG] Input data:", JSON.stringify(data, null, 2));
+      
+      
       
       // Estrai gli asset dai dati del form
       const { assets, ...mifidData } = data;
-      console.log("[DEBUG] Extracted assets:", JSON.stringify(assets, null, 2));
-      console.log("[DEBUG] Extracted MIFID data:", JSON.stringify(mifidData, null, 2));
+      
+      
       
       // Assicurati che i dati numerici siano numeri
       const processedMifidData = {
@@ -346,20 +346,20 @@ export default function EditMifidForm() {
         capitalPreservationInterest: Number(mifidData.capitalPreservationInterest),
         estatePlanningInterest: Number(mifidData.estatePlanningInterest),
       };
-      console.log("[DEBUG] Processed MIFID data:", JSON.stringify(processedMifidData, null, 2));
+      
 
       // Assicurati che gli asset abbiano i valori numerici
       const processedAssets = assets.map(asset => ({
         ...asset,
         value: Number(asset.value),
       }));
-      console.log("[DEBUG] Processed assets:", JSON.stringify(processedAssets, null, 2));
+      
       
       try {
         // Salva i dati MIFID
-        console.log("[DEBUG] Sending MIFID data to server");
-        console.log("[DEBUG] MIFID request URL:", `/api/clients/${clientId}/mifid`);
-        console.log("[DEBUG] MIFID request method:", "PATCH");
+        
+        
+        
         
         // Assicuriamoci che tutti i campi siano nel formato corretto
         const mifidPayload = {
@@ -376,7 +376,7 @@ export default function EditMifidForm() {
           estatePlanningInterest: Number(processedMifidData.estatePlanningInterest) || 0,
         };
         
-        console.log("[DEBUG] MIFID request body:", JSON.stringify(mifidPayload, null, 2));
+        
         
         const mifidResponse = await apiRequest(`/api/clients/${clientId}/mifid`, {
           method: "PATCH",
@@ -385,12 +385,12 @@ export default function EditMifidForm() {
             'Content-Type': 'application/json',
           },
         });
-        console.log("[DEBUG] MIFID save response:", JSON.stringify(mifidResponse, null, 2));
+        
 
         // Salva gli asset
-        console.log("[DEBUG] Sending assets to server");
-        console.log("[DEBUG] Assets request URL:", `/api/clients/${clientId}/assets`);
-        console.log("[DEBUG] Assets request method:", "PUT");
+        
+        
+        
         
         // Assicuriamoci che gli asset siano nel formato corretto
         const assetsPayload = {
@@ -400,7 +400,7 @@ export default function EditMifidForm() {
           }))
         };
         
-        console.log("[DEBUG] Assets request body:", JSON.stringify(assetsPayload, null, 2));
+        
         
         const assetsResponse = await apiRequest(`/api/clients/${clientId}/assets`, {
           method: "PUT",
@@ -409,21 +409,21 @@ export default function EditMifidForm() {
             'Content-Type': 'application/json',
           },
         });
-        console.log("[DEBUG] Assets save response:", JSON.stringify(assetsResponse, null, 2));
+        
 
         return { success: true };
       } catch (error: unknown) {
-        console.error("[DEBUG] Error during save:", error);
+        
         if (error instanceof Error) {
-          console.error("[DEBUG] Error stack:", error.stack);
-          console.error("[DEBUG] Error name:", error.name);
-          console.error("[DEBUG] Error message:", error.message);
+          
+          
+          
         }
         throw error;
       }
     },
     onSuccess: (response) => {
-      console.log("[DEBUG] Mutation succeeded:", JSON.stringify(response, null, 2));
+      
       setFormSuccess(true);
       toast({
         title: t('client.mifid_updated'),
@@ -434,27 +434,27 @@ export default function EditMifidForm() {
       }, 1500);
     },
     onError: (error: unknown) => {
-      console.error("[DEBUG] Mutation failed:", error);
+      
       if (error instanceof Error) {
-        console.error("[DEBUG] Error details:", JSON.stringify(error, null, 2));
+        
       }
       setFormError(error instanceof Error ? error.message : "Si è verificato un errore durante il salvataggio");
     }
   });
 
   function onSubmit(data: MifidFormValues) {
-    console.log("[DEBUG] Form submission started");
-    console.log("[DEBUG] Raw form data:", JSON.stringify(data, null, 2));
+    
+    
     
     // Verifica la validazione
     const validationResult = mifidFormSchema.safeParse(data);
     if (!validationResult.success) {
-      console.error("[DEBUG] Validation failed:", validationResult.error);
+      
       setFormError("Errore di validazione: " + validationResult.error.message);
       return;
     }
     
-    console.log("[DEBUG] Validation passed, proceeding with mutation");
+    
     mutation.mutate(data);
   }
 

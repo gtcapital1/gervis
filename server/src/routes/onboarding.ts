@@ -9,8 +9,8 @@ const router = Router();
 // Funzione per salvare i dati dell'onboarding
 async function saveOnboardingData(clientId: number, data: any) {
   try {
-    console.log("Starting saveOnboardingData with clientId:", clientId);
-    console.log("Raw data received:", JSON.stringify(data, null, 2));
+    
+    
 
     // Verifica che il cliente esista
     const client = await db.query.clients.findFirst({
@@ -18,7 +18,7 @@ async function saveOnboardingData(clientId: number, data: any) {
     });
 
     if (!client) {
-      console.error("Client not found with ID:", clientId);
+      
       throw new Error("Client not found");
     }
 
@@ -32,7 +32,7 @@ async function saveOnboardingData(clientId: number, data: any) {
 
     const missingFields = requiredFields.filter(field => !data[field]);
     if (missingFields.length > 0) {
-      console.error("Missing required fields:", missingFields);
+      
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
 
@@ -82,11 +82,11 @@ async function saveOnboardingData(clientId: number, data: any) {
       specificQuestions: data.specificQuestions || null,
     };
 
-    console.log("Transformed mifidData:", JSON.stringify(mifidData, null, 2));
+    
 
     // Inserisci i dati nella tabella mifid
     const result = await db.insert(mifid).values(mifidData);
-    console.log("Database insertion result:", result);
+    
 
     // Aggiorna lo stato di onboarding del cliente
     await db
@@ -98,7 +98,7 @@ async function saveOnboardingData(clientId: number, data: any) {
       })
       .where(eq(clients.id, clientId));
     
-    console.log("Client onboarding status updated");
+    
 
     // Calculate net worth and update client segment
     const totalAssets = data.assets.reduce((sum: number, asset: any) => sum + (parseInt(asset.value) || 0), 0);
@@ -124,8 +124,8 @@ async function saveOnboardingData(clientId: number, data: any) {
 
     return { success: true };
   } catch (error: any) {
-    console.error("Error in saveOnboardingData:", error);
-    console.error("Error stack:", error.stack);
+    
+    
     throw error;
   }
 }
@@ -134,7 +134,7 @@ async function saveOnboardingData(clientId: number, data: any) {
 router.post("/", async (req, res) => {
   try {
     const { token } = req.query;
-    console.log("Received token:", token);
+    
     
     if (!token) {
       return res.status(400).json({ error: "Token is required" });
@@ -145,21 +145,21 @@ router.post("/", async (req, res) => {
       where: eq(clients.onboardingToken, token as string),
     });
 
-    console.log("Found client:", client);
+    
 
     if (!client) {
       return res.status(404).json({ error: "Invalid or expired token" });
     }
 
-    console.log("Received data:", JSON.stringify(req.body, null, 2));
+    
 
     // Salva i dati dell'onboarding
     await saveOnboardingData(client.id, req.body);
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error in onboarding endpoint:", error);
-    console.error("Error stack:", error.stack);
+    
+    
     res.status(500).json({ 
       error: error.message || "Failed to save onboarding data",
       details: error.message // Includiamo il messaggio di errore specifico
@@ -192,8 +192,8 @@ router.get("/success", async (req, res) => {
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error in onboarding success endpoint:", error);
-    console.error("Error stack:", error.stack);
+    
+    
     res.status(500).json({ 
       error: error.message || "Failed to verify onboarding completion",
       details: error.message

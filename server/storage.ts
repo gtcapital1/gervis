@@ -101,7 +101,7 @@ export class PostgresStorage implements IStorage {
   public sessionStore: session.Store;
   
   constructor() {
-    console.log("DEBUG - Inizializzazione PostgresStorage");
+    
     
     // Initialize with memory store as default
     const MemoryStore = createMemoryStore(session);
@@ -111,13 +111,13 @@ export class PostgresStorage implements IStorage {
     
     // Try to initialize PostgreSQL session store
     this.initializePgSession().catch(err => {
-      console.error("ERRORE - Inizializzazione PgSession fallita:", err);
-      console.log("DEBUG - Continuo con MemoryStore");
+      
+      
     });
   }
   
   private async initializePgSession() {
-    console.log("DEBUG - Inizializzazione PgSession");
+    
     try {
       const dbUrl = process.env.DATABASE_URL;
       if (!dbUrl) {
@@ -133,7 +133,7 @@ export class PostgresStorage implements IStorage {
       const client = await pool.connect();
       try {
         await client.query('SELECT NOW()');
-        console.log("DEBUG - Connessione PostgreSQL testata con successo");
+        
       } finally {
         client.release();
       }
@@ -145,9 +145,9 @@ export class PostgresStorage implements IStorage {
         tableName: 'session'
       });
       
-      console.log('DEBUG - PostgreSQL session store inizializzato con successo');
+      
     } catch (error) {
-      console.error('ERRORE CRITICO - Failed to setup PG session store:', error);
+      
       // Don't throw, just log the error and continue with memory store
     }
   }
@@ -340,14 +340,14 @@ export class PostgresStorage implements IStorage {
   }
   
   async deleteClient(id: number): Promise<boolean> {
-    console.log(`[INFO] Avvio eliminazione del cliente ID: ${id}`);
+    
     
     try {
       // Verifichiamo se il cliente esiste prima dell'eliminazione
       const clientExists = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
       
       if (clientExists.length === 0) {
-        console.log(`[INFO] Cliente ID: ${id} non trovato`);
+        
         return false;
       }
       
@@ -355,37 +355,37 @@ export class PostgresStorage implements IStorage {
       // con tutti gli ambienti, sia con CASCADE che senza
       
       // 1. Eliminiamo prima le entità dipendenti in modo esplicito
-      console.log(`[INFO] Eliminazione delle entità dipendenti per il cliente ID: ${id}`);
+      
       
       // Eliminiamo gli asset
       const deletedAssets = await db.delete(assets)
         .where(eq(assets.clientId, id))
         .returning({ id: assets.id });
-      console.log(`[INFO] Eliminati ${deletedAssets.length} asset del cliente`);
+      
       
       // Eliminiamo le raccomandazioni
       const deletedRecommendations = await db.delete(recommendations)
         .where(eq(recommendations.clientId, id))
         .returning({ id: recommendations.id });
-      console.log(`[INFO] Eliminate ${deletedRecommendations.length} raccomandazioni del cliente`);
+      
       
       // Eliminiamo i profili AI
       const deletedProfiles = await db.delete(aiProfiles)
         .where(eq(aiProfiles.clientId, id))
         .returning({ id: aiProfiles.id });
-      console.log(`[INFO] Eliminati ${deletedProfiles.length} profili AI del cliente`);
+      
       
       // Eliminiamo i client logs
       const deletedLogs = await db.delete(clientLogs)
         .where(eq(clientLogs.clientId, id))
         .returning({ id: clientLogs.id });
-      console.log(`[INFO] Eliminati ${deletedLogs.length} logs del cliente`);
+      
       
       // Eliminiamo i dati MIFID
       const deletedMifid = await db.delete(mifid)
         .where(eq(mifid.clientId, id))
         .returning({ id: mifid.id });
-      console.log(`[INFO] Eliminati ${deletedMifid.length} dati MIFID del cliente`);
+      
       
       // 2. Ora che tutte le dipendenze sono state rimosse, possiamo eliminare il cliente
       const result = await db.delete(clients)
@@ -395,10 +395,10 @@ export class PostgresStorage implements IStorage {
       const success = result.length > 0;
       
       if (success) {
-        console.log(`[INFO] Cliente ID: ${id} eliminato con successo`);
+        
       } else {
         // Questo non dovrebbe mai accadere dato il controllo iniziale
-        console.log(`[WARN] Impossibile eliminare il cliente ID: ${id}, nessuna riga rimossa`);
+        
       }
       
       // Verifica finale - conferma che il cliente è stato realmente eliminato
@@ -406,18 +406,18 @@ export class PostgresStorage implements IStorage {
       
       if (verifyDeleted.length > 0) {
         // Errore: il cliente esiste ancora dopo l'eliminazione
-        console.error(`[ERROR] Anomalia: il cliente ID: ${id} esiste ancora dopo l'eliminazione`);
+        
         
         return false;
       }
       
       return success;
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'eliminazione del cliente ID: ${id}:`, error);
+      
       
       // In caso di fallimento riproviamo con un approach più diretto usando raw SQL
       try {
-        console.log(`[INFO] Tentativo alternativo di eliminazione con SQL diretto per il cliente ID: ${id}`);
+        
         
         // Utilizzo di raw SQL con Drizzle invece di postgres direttamente
         // Questo permette di mantenere la compatibilità con la pooled connection
@@ -431,33 +431,33 @@ export class PostgresStorage implements IStorage {
         const verifyDeleted = await db.select({ id: clients.id }).from(clients).where(eq(clients.id, id));
         const success = verifyDeleted.length === 0;
         
-        console.log(`[INFO] Risultato del tentativo alternativo: cliente ${success ? 'eliminato' : 'ancora presente'}`);
+        
         
         return success;
       } catch (fallbackError) {
-        console.error(`[ERROR] Fallimento anche del tentativo alternativo:`, fallbackError);
+        
         throw fallbackError; // Propaga l'errore originale
       }
     }
   }
   
   async archiveClient(id: number): Promise<Client> {
-    console.log(`[INFO] Archiviazione cliente ID: ${id} - Inizio processo`);
+    
     
     try {
       // STEP 1: Verifichiamo che il cliente esista
-      console.log(`[INFO] Verifica esistenza cliente ID: ${id}`);
+      
       const existingClient = await this.getClient(id);
       
       if (!existingClient) {
-        console.log(`[ERROR] Cliente ID: ${id} non trovato per archiviazione`);
+        
         throw new Error(`Client with id ${id} not found`);
       }
       
-      console.log(`[INFO] Cliente ID: ${id} trovato, procedo con archiviazione`);
+      
       
       // STEP 2: Aggiorniamo lo stato di archiviazione con Drizzle ORM
-      console.log(`[INFO] Aggiornamento stato archiviazione per cliente ID: ${id}`);
+      
       try {
         const result = await db.update(clients)
           .set({ isArchived: true })
@@ -465,16 +465,16 @@ export class PostgresStorage implements IStorage {
           .returning();
         
         if (!result[0]) {
-          console.log(`[ERROR] Nessun risultato restituito dall'operazione di archiviazione per cliente ID: ${id}`);
+          
           throw new Error(`Failed to archive client with id ${id} - No result returned`);
         }
         
-        console.log(`[INFO] Cliente ID: ${id} archiviato con successo tramite Drizzle ORM`);
+        
         return result[0];
       } catch (drizzleError) {
         // STEP 3: Fallback in caso di errore con Drizzle ORM
-        console.log(`[WARNING] Errore con Drizzle ORM durante archiviazione cliente ID: ${id}, tento approccio SQL diretto`);
-        console.error(drizzleError);
+        
+        
         
         try {
           // Utilizzo SQL diretto come fallback
@@ -486,45 +486,45 @@ export class PostgresStorage implements IStorage {
           `;
           
           if (!sqlResult || sqlResult.length === 0) {
-            console.log(`[ERROR] Fallback SQL: Nessun cliente archiviato con ID: ${id}`);
+            
             throw new Error(`Failed to archive client with id ${id} - SQL direct approach failed`);
           }
           
-          console.log(`[INFO] Fallback SQL: Cliente ID: ${id} archiviato con successo`);
+          
           return sqlResult[0] as Client;
         } catch (sqlError) {
-          console.error(`[ERROR] Anche l'approccio SQL diretto è fallito per cliente ID: ${id}`, sqlError);
+          
           throw new Error(`Failed to archive client with id ${id} - Both approaches failed`);
         }
       }
     } catch (error) {
-      console.error(`[ERROR] Errore fatale durante l'archiviazione del cliente ID: ${id}:`, error);
+      
       throw error;
     }
   }
   
   async restoreClient(id: number): Promise<Client> {
-    console.log(`[INFO] Ripristino cliente archiviato ID: ${id} - Inizio processo`);
+    
     
     try {
       // STEP 1: Verifichiamo che il cliente esista
-      console.log(`[INFO] Verifica esistenza cliente ID: ${id}`);
+      
       const existingClient = await this.getClient(id);
       
       if (!existingClient) {
-        console.log(`[ERROR] Cliente ID: ${id} non trovato per ripristino`);
+        
         throw new Error(`Client with id ${id} not found`);
       }
       
       if (existingClient.isArchived !== true) {
-        console.log(`[WARNING] Cliente ID: ${id} non è archiviato, non serve ripristinarlo`);
+        
         return existingClient; // Ritorna il cliente già non archiviato
       }
       
-      console.log(`[INFO] Cliente ID: ${id} trovato, procedo con il ripristino`);
+      
       
       // STEP 2: Ripristiniamo il cliente con Drizzle ORM
-      console.log(`[INFO] Aggiornamento stato archiviazione per cliente ID: ${id}`);
+      
       try {
         const result = await db.update(clients)
           .set({ isArchived: false })
@@ -532,16 +532,16 @@ export class PostgresStorage implements IStorage {
           .returning();
         
         if (!result[0]) {
-          console.log(`[ERROR] Nessun risultato restituito dall'operazione di ripristino per cliente ID: ${id}`);
+          
           throw new Error(`Failed to restore client with id ${id} - No result returned`);
         }
         
-        console.log(`[INFO] Cliente ID: ${id} ripristinato con successo tramite Drizzle ORM`);
+        
         return result[0];
       } catch (drizzleError) {
         // STEP 3: Fallback in caso di errore con Drizzle ORM
-        console.log(`[WARNING] Errore con Drizzle ORM durante ripristino cliente ID: ${id}, tento approccio SQL diretto`);
-        console.error(drizzleError);
+        
+        
         
         try {
           // Utilizzo SQL diretto come fallback
@@ -553,25 +553,25 @@ export class PostgresStorage implements IStorage {
           `;
           
           if (!sqlResult || sqlResult.length === 0) {
-            console.log(`[ERROR] Fallback SQL: Nessun cliente ripristinato con ID: ${id}`);
+            
             throw new Error(`Failed to restore client with id ${id} - SQL direct approach failed`);
           }
           
-          console.log(`[INFO] Fallback SQL: Cliente ID: ${id} ripristinato con successo`);
+          
           return sqlResult[0] as Client;
         } catch (sqlError) {
-          console.error(`[ERROR] Anche l'approccio SQL diretto è fallito per cliente ID: ${id}`, sqlError);
+          
           throw new Error(`Failed to restore client with id ${id} - Both approaches failed`);
         }
       }
     } catch (error) {
-      console.error(`[ERROR] Errore fatale durante il ripristino del cliente ID: ${id}:`, error);
+      
       throw error;
     }
   }
   
   async getClientByToken(token: string): Promise<Client | undefined> {
-    console.log(`DEBUG - getClientByToken chiamato con token: ${token}`);
+    
     
     // Prima facciamo una query senza controllo data per debuggare
     const checkClient = await db.select().from(clients).where(
@@ -579,17 +579,17 @@ export class PostgresStorage implements IStorage {
     );
     
     if (checkClient.length === 0) {
-      console.log(`DEBUG - Nessun cliente trovato con token: ${token}`);
+      
       return undefined;
     }
     
     const now = new Date();
     const expiryDate = checkClient[0].tokenExpiry as Date;
     
-    console.log(`DEBUG - Token trovato per cliente ID: ${checkClient[0].id}`);
-    console.log(`DEBUG - Data corrente: ${now.toISOString()}`);
-    console.log(`DEBUG - Data scadenza token: ${expiryDate?.toISOString()}`);
-    console.log(`DEBUG - Token scaduto? ${expiryDate < now}`);
+    
+    
+    
+    
     
     // Ora eseguiamo la query con il controllo di scadenza corretto
     const result = await db.select().from(clients).where(
@@ -600,9 +600,9 @@ export class PostgresStorage implements IStorage {
     );
     
     if (result.length === 0) {
-      console.log(`DEBUG - Token scaduto o non valido`);
+      
     } else {
-      console.log(`DEBUG - Token valido, cliente trovato: ${result[0].id}`);
+      
     }
     
     return result[0];
@@ -610,12 +610,12 @@ export class PostgresStorage implements IStorage {
   
   async generateOnboardingToken(clientId: number, language: 'english' | 'italian' = 'english', customMessage?: string, advisorEmail?: string, customSubject?: string): Promise<string> {
     // Log di debug aggiuntivi per verificare se l'oggetto email è passato correttamente
-    console.log("DEBUG Storage - generateOnboardingToken ricevuto questi parametri:");
-    console.log(`DEBUG Storage - clientId: ${clientId}`);
-    console.log(`DEBUG Storage - language: ${language}`);
-    console.log(`DEBUG Storage - customMessage: ${customMessage || "(non specificato)"}`);
-    console.log(`DEBUG Storage - advisorEmail: ${advisorEmail || "(non specificato)"}`);
-    console.log(`DEBUG Storage - customSubject: ${customSubject || "(non specificato)"}`);
+    
+    
+    
+    
+    
+    
     
     const client = await this.getClient(clientId);
     if (!client) {
@@ -634,13 +634,13 @@ export class PostgresStorage implements IStorage {
       
       if (expiryDate > now) {
         // Il token esistente è ancora valido, lo riutilizziamo
-        console.log(`DEBUG Storage - Riutilizzo token esistente per cliente ID: ${clientId}`);
+        
         needsNewToken = false;
       } else {
-        console.log(`DEBUG Storage - Token esistente scaduto per cliente ID: ${clientId}, ne genero uno nuovo`);
+        
       }
     } else {
-      console.log(`DEBUG Storage - Nessun token esistente per cliente ID: ${clientId}, ne genero uno nuovo`);
+      
     }
     
     // Se necessario, generiamo un nuovo token
@@ -659,13 +659,13 @@ export class PostgresStorage implements IStorage {
         tokenExpiry: expiry
       });
       
-      console.log(`DEBUG Storage - Nuovo token generato per cliente ID: ${clientId}: ${token}`);
+      
     }
 
     // Generate onboarding link (solo per debug)
     const baseUrl = process.env.BASE_URL || `https://workspace.gianmarcotrapasso.replit.app`;
     const onboardingLink = `${baseUrl}/onboarding?token=${token}`;
-    console.log(`DEBUG Storage - Link onboarding: ${onboardingLink}`);
+    
     
     // Get advisor information (to include signature)
     const advisor = client.advisorId ? await this.getUser(client.advisorId) : undefined;
@@ -697,9 +697,9 @@ export class PostgresStorage implements IStorage {
         .set({ totalAssets: totalValue })
         .where(eq(clients.id, clientId));
       
-      console.log(`[INFO] Aggiornato totalAssets per il cliente ${clientId}: €${totalValue}`);
+      
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'aggiornamento del totalAssets per il cliente ${clientId}:`, error);
+      
     }
   }
   
@@ -829,7 +829,7 @@ export class PostgresStorage implements IStorage {
       const bufferedProvided = Buffer.from(providedHash, 'hex');
       return timingSafeEqual(bufferedStored, bufferedProvided);
     } catch (err) {
-      console.error('Error verifying password:', err);
+      
       return false;
     }
   }
@@ -843,7 +843,7 @@ export class PostgresStorage implements IStorage {
         .orderBy(desc(clientLogs.createdAt));
       return result;
     } catch (error) {
-      console.error(`[ERROR] Errore durante il recupero dei log per il cliente ID: ${clientId}:`, error);
+      
       throw error;
     }
   }
@@ -905,7 +905,7 @@ export class PostgresStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error('[ERROR] Errore durante la creazione del log del cliente:', error);
+      
       throw error;
     }
   }
@@ -959,7 +959,7 @@ export class PostgresStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'aggiornamento del log ID: ${id}:`, error);
+      
       throw error;
     }
   }
@@ -972,7 +972,7 @@ export class PostgresStorage implements IStorage {
       
       return result.length > 0;
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'eliminazione del log ID: ${id}:`, error);
+      
       throw error;
     }
   }
@@ -985,7 +985,7 @@ export class PostgresStorage implements IStorage {
         .where(eq(aiProfiles.clientId, clientId));
       return result[0];
     } catch (error) {
-      console.error(`[ERROR] Errore durante il recupero del profilo AI per il cliente ID: ${clientId}:`, error);
+      
       throw error;
     }
   }
@@ -1001,7 +1001,7 @@ export class PostgresStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error(`[ERROR] Errore durante la creazione del profilo AI per il cliente ID: ${profile.clientId}:`, error);
+      
       throw error;
     }
   }
@@ -1035,7 +1035,7 @@ export class PostgresStorage implements IStorage {
         });
       }
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'aggiornamento del profilo AI per il cliente ID: ${clientId}:`, error);
+      
       throw error;
     }
   }
@@ -1048,7 +1048,7 @@ export class PostgresStorage implements IStorage {
       
       return result.length > 0;
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'eliminazione del profilo AI per il cliente ID: ${clientId}:`, error);
+      
       throw error;
     }
   }
@@ -1114,14 +1114,14 @@ export class PostgresStorage implements IStorage {
         dateTime: meetingDateTime  // Ora siamo sicuri che sia un Date
       };
       
-      console.log(`Inserimento meeting nel DB con dateTime=${meetingDateTime}`);
+      
       
       // Inserisci il meeting nel database
       const result = await db.insert(meetings).values(meetingToInsert).returning();
       
       return result[0];
     } catch (error) {
-      console.error("Errore nella creazione del meeting:", error);
+      
       throw error;
     }
   }
@@ -1171,7 +1171,7 @@ export class PostgresStorage implements IStorage {
         updatedFields.dateTime = meetingDateTime;
       }
       
-      console.log(`Aggiornamento meeting nel DB con dati:`, updatedFields);
+      
       
       // Aggiorna il meeting
       const result = await db
@@ -1182,7 +1182,7 @@ export class PostgresStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Errore nell'aggiornamento del meeting:", error);
+      
       throw error;
     }
   }
@@ -1200,14 +1200,14 @@ export class PostgresStorage implements IStorage {
       
       return deleted.length > 0;
     } catch (error) {
-      console.error("Errore nell'eliminazione del meeting:", error);
+      
       throw error;
     }
   }
 
   async getMeetingsForDate(advisorId: number, date: Date): Promise<Meeting[]> {
     try {
-      console.log(`DEBUG - Retrieving all meetings for advisor ${advisorId}`);
+      
       
       // Rimosso il filtro per data per mostrare tutti i meeting dell'advisor
       const result = await db
@@ -1218,23 +1218,23 @@ export class PostgresStorage implements IStorage {
         )
         .orderBy(meetings.dateTime);
       
-      console.log(`DEBUG - Found ${result.length} meetings for advisor ${advisorId}`);
+      
       
       // Debug: mostra i meeting trovati
       if (result.length > 0) {
-        console.log(`DEBUG - Meeting dates: ${result.map(m => new Date(m.dateTime).toISOString()).join(', ')}`);
+        
       }
       
       return result;
     } catch (error) {
-      console.error("Errore nel recupero dei meeting per advisor:", error);
+      
       throw error;
     }
   }
 
   async getAllMeetings(advisorId: number): Promise<Meeting[]> {
     try {
-      console.log(`DEBUG - Retrieving all meetings for advisor ${advisorId}`);
+      
       
       const result = await db
         .select()
@@ -1244,11 +1244,11 @@ export class PostgresStorage implements IStorage {
         )
         .orderBy(meetings.dateTime);
       
-      console.log(`DEBUG - Found ${result.length} meetings for advisor ${advisorId}`);
+      
       
       return result;
     } catch (error) {
-      console.error("Errore nel recupero di tutti i meeting:", error);
+      
       throw error;
     }
   }
@@ -1280,7 +1280,7 @@ export class PostgresStorage implements IStorage {
       
       return result;
     } catch (error) {
-      console.error('Error getting completed tasks:', error);
+      
       return [];
     }
   }
@@ -1313,7 +1313,7 @@ export class PostgresStorage implements IStorage {
       
       return true;
     } catch (error) {
-      console.error('Error marking task as completed:', error);
+      
       return false;
     }
   }
@@ -1333,7 +1333,7 @@ export class PostgresStorage implements IStorage {
       
       return true;
     } catch (error) {
-      console.error('Error marking task as uncompleted:', error);
+      
       return false;
     }
   }
@@ -1350,11 +1350,11 @@ export class PostgresStorage implements IStorage {
         })
         .where(eq(clients.id, clientId));
       
-      console.log(`Client ${clientId} active status updated to ${active}`);
+      
       
       return { success: true };
     } catch (error) {
-      console.error(`Error updating client active status: ${error}`);
+      
       return { success: false, error: 'Database error' };
     }
   }

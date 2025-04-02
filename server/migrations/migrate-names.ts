@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
  * from the name field for all clients where firstName or lastName is empty.
  */
 async function migrateClientNames() {
-  console.log('Starting client name migration...');
+  
   
   // Get all clients
   const allClients = await db.select().from(clients);
@@ -16,7 +16,7 @@ async function migrateClientNames() {
   for (const client of allClients) {
     // Skip clients that already have firstName and lastName populated
     if (client.firstName && client.lastName) {
-      console.log(`Skipping client ${client.id} (${client.name}) - already has first/last name`);
+      
       continue;
     }
     
@@ -34,21 +34,21 @@ async function migrateClientNames() {
         })
         .where(eq(clients.id, client.id));
       
-      console.log(`Migrated client ${client.id} - "${client.name}" → firstName: "${firstName}", lastName: "${lastName}"`);
+      
       migratedCount++;
     }
   }
   
-  console.log(`Migration complete. ${migratedCount} client records updated.`);
+  
 }
 
 // Run the migration
 migrateClientNames()
   .then(() => {
-    console.log('Client name migration finished successfully.');
+    
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Error during client name migration:', error);
+    
     process.exit(1);
   });

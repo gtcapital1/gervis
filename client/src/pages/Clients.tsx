@@ -165,7 +165,7 @@ export default function Clients() {
   // Delete client mutation con verifica del risultato
   const deleteClientMutation = useMutation({
     mutationFn: async (clientId: number) => {
-      console.log(`[DEBUG] Avvio eliminazione cliente ${clientId}`);
+      
       
       // Utilizziamo apiRequest standard per garantire la corretta gestione degli errori
       const deleteResponse = await apiRequest(`/api/clients/${clientId}?_t=${Date.now()}`, {
@@ -183,7 +183,7 @@ export default function Clients() {
         }
       });
       
-      console.log(`[DEBUG] Risposta eliminazione:`, deleteResponse);
+      
       
       // Verifica che l'eliminazione sia avvenuta realmente
       // Aspetta un momento e poi richiedi l'elenco dei clienti per verificare
@@ -198,16 +198,15 @@ export default function Clients() {
         }
       });
       
-      console.log(`[DEBUG] Verifica post-eliminazione:`, verifyResponse);
+      
       
       // Controlla se il cliente è ancora presente
       const clientStillExists = verifyResponse.clients?.some((c: any) => c.id === clientId);
       
       if (clientStillExists) {
-        console.error(`[ERROR] Il cliente ${clientId} risulta ancora presente dopo l'eliminazione!`);
+        
         
         // Tenta un'altra richiesta DELETE più aggressiva come fallback
-        console.warn(`[DEBUG] Tentativo di recupero eliminazione per cliente ${clientId}...`);
         
         const recoveryResponse = await fetch(`/api/clients/${clientId}?_fallback=true&_t=${Date.now()}_${Math.random()}`, {
           method: 'DELETE',
@@ -240,10 +239,10 @@ export default function Clients() {
         const clientStillExistsAfterRecovery = secondVerifyResponse.clients?.some((c: any) => c.id === clientId);
         
         if (clientStillExistsAfterRecovery) {
-          console.error(`[ERROR] Eliminazione fallita anche dopo il recovery!`);
+          
           throw new Error("Impossibile eliminare il cliente. Si prega di contattare l'assistenza.");
         } else {
-          console.log(`[DEBUG] Eliminazione riuscita dopo recovery`);
+          
           return { success: true, message: "Client deleted successfully (after recovery)" };
         }
       }
@@ -252,7 +251,7 @@ export default function Clients() {
       return { success: true, message: "Client deleted successfully", verified: true };
     },
     onSuccess: (data) => {
-      console.log(`[DEBUG] Eliminazione cliente completata con successo:`, data);
+      
       
       // Invalidiamo la query per aggiornare l'elenco clienti
       queryClient.invalidateQueries({ queryKey: ['/api/clients'] });
@@ -268,7 +267,7 @@ export default function Clients() {
     },
     onError: (error) => {
       // Log dettagliato dell'errore per debugging
-      console.error(`[ERROR] Errore nell'eliminazione cliente:`, error);
+      
       
       // Mostriamo un messaggio di errore all'utente
       toast({

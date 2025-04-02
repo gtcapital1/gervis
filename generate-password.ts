@@ -11,6 +11,6 @@ async function generateHash(password: string) {
 
 // Generate hash for "Gervis1"
 generateHash('Gervis1').then(hash => {
-  console.log('Password: Gervis1');
-  console.log('Hash:', hash);
+  
+  
 }); 

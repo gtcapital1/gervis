@@ -260,14 +260,14 @@ export default function AuthPage() {
       }
       
       // Log per debug
-      console.log("Tentativo di login con:", { email: data.email, passwordLength: data.password.length });
+      
       
       loginMutation.mutate({ 
         email: data.email, 
         password: data.password 
       }, {
         onSuccess: (response) => {
-          console.log("Login success response:", response);
+          
           
           // Controlla se l'utente necessita di verifica
           if (response.message && response.message.includes("non verificata") || response.needsVerification) {
@@ -289,7 +289,7 @@ export default function AuthPage() {
           }
         },
         onError: (error: any) => {
-          console.error("Login error:", error);
+          
           
           // Se l'errore contiene informazioni sulla necessità di verifica
           if (error.status === 403 && error.data?.needsVerification) {
@@ -320,7 +320,7 @@ export default function AuthPage() {
         },
       });
     } catch (error) {
-      console.error("Exception during login:", error);
+      
       toast({
         title: "Errore imprevisto",
         description: "Si è verificato un errore imprevisto. Riprova più tardi.",
@@ -379,7 +379,7 @@ export default function AuthPage() {
         phone: userData.phone
       }, {
         onSuccess: (response) => {
-          console.log("Registration success response:", response);
+          
           
           // Se la registrazione richiede la verifica del PIN
           if (response.message && response.message.includes("PIN")) {
@@ -400,7 +400,7 @@ export default function AuthPage() {
           }
         },
         onError: (error: any) => {
-          console.error("Registration error:", error);
+          
           
           // Gestione errori specifici
           if (error.message && error.message.includes("Email already registered")) {
@@ -419,7 +419,7 @@ export default function AuthPage() {
         },
       });
     } catch (error) {
-      console.error("Exception during registration:", error);
+      
       toast({
         title: "Errore imprevisto",
         description: "Si è verificato un errore imprevisto. Riprova più tardi.",

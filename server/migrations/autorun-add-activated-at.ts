@@ -9,7 +9,7 @@ import { clients } from "@shared/schema";
 import { eq } from "drizzle-orm/expressions";
 
 export async function autorunAddActivatedAt(silent = false) {
-  if (!silent) console.log("Starting migration to add 'activated_at' column to clients table");
+  if (!silent) 
   
   try {
     // Verifica se la colonna activated_at esiste già
@@ -21,29 +21,29 @@ export async function autorunAddActivatedAt(silent = false) {
     `);
     
     // Verifica il formato dei risultati per debug
-    if (!silent) console.log("Column exists check result:", columnExists);
+    if (!silent) 
     
     // Accesso sicuro al valore
     const exists = columnExists.length > 0 && 
       (columnExists[0]?.exists === true || columnExists[0]?.exists === 't' || columnExists[0]?.exists === 'true');
     
     if (exists) {
-      if (!silent) console.log("Column 'activated_at' already exists");
+      if (!silent) 
       return true;
     }
     
     // Aggiungi la colonna activated_at alla tabella clients
-    if (!silent) console.log("Adding 'activated_at' column to clients table");
+    if (!silent) 
     await db.execute(sql`
       ALTER TABLE clients 
       ADD COLUMN activated_at TIMESTAMP;
     `);
     
-    if (!silent) console.log("Column 'activated_at' added to clients table");
+    if (!silent) 
     
     // Imposta il valore iniziale per i client già attivi
     // Per i client attivi senza activatedAt, utilizziamo onboardedAt se disponibile, altrimenti createdAt
-    if (!silent) console.log("Setting initial values for activated_at for existing active clients");
+    if (!silent) 
     
     await db.execute(sql`
       UPDATE clients
@@ -55,11 +55,11 @@ export async function autorunAddActivatedAt(silent = false) {
       WHERE active = true;
     `);
     
-    if (!silent) console.log("Initial values for activated_at set successfully");
+    if (!silent) 
     
     return true;
   } catch (error) {
-    console.error(`Error during migration:`, error);
+    
     return false;
   }
 } 

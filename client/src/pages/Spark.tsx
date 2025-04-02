@@ -143,7 +143,7 @@ export default function Spark() {
       setPromptData(response as PromptDebugResponse);
       setShowPrompt(true);
     } catch (error) {
-      console.error("Errore nel caricamento del prompt:", error);
+      
       setErrorMessage("Errore nel caricamento del prompt di debug.");
     } finally {
       setIsLoadingPrompt(false);

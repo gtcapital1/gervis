@@ -19,7 +19,7 @@ router.patch("/:id/toggle-active", async (req, res) => {
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error("Error toggling client active status:", error);
+    
     res.status(500).json({ 
       error: error.message || "Failed to update client status",
       details: error.message

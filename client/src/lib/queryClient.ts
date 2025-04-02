@@ -16,9 +16,9 @@ async function throwIfResNotOk(res: Response) {
         const text = await res.text();
         if (text.trim().toLowerCase().startsWith('<!doctype') || 
             text.trim().toLowerCase().startsWith('<html')) {
-          console.error("DIAGNOSI ERRORE: Il server ha restituito HTML invece di JSON");
-          console.error(`Status: ${res.status}, URL: ${res.url}`);
-          console.error(`Contenuto HTML (primi 200 caratteri): ${text.substring(0, 200)}`);
+          
+          
+          
           throw new Error(`Il server ha restituito HTML invece di JSON. Status: ${res.status}`);
         } else {
           throw new Error(`${res.status}: ${text || res.statusText}`);
@@ -37,10 +37,10 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
     // Debug richiesta
-    console.log(`[API DEBUG] Richiesta: ${options?.method || 'GET'} ${urlWithTimestamp}`);
+    
     
     // Log della presenza dei cookie
-    console.log(`[API DEBUG] Cookie disponibili:`, document.cookie ? 'Sì' : 'No');
+    
     
     // Opzioni della richiesta con anti-cache headers
     const requestOptions: RequestInit = {
@@ -61,7 +61,7 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
       (requestOptions.headers as Record<string, string>)["Expires"] = "0";
       (requestOptions.headers as Record<string, string>)["X-Api-Call"] = "true";
       
-      console.log(`[API] ${options.method} request: Extra headers added for: ${urlWithTimestamp}`);
+      
     }
     
     // Esecuzione della richiesta
@@ -70,16 +70,16 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     // Per richieste DELETE o PATCH, controlla prima se è text/html
     if (options?.method === 'DELETE' || options?.method === 'PATCH') {
       const contentType = res.headers.get('content-type') || '';
-      console.log(`[API] ${options.method} response content-type: ${contentType}`);
+      
       
       if (contentType.includes('text/html')) {
-        console.error(`[API] Rilevata risposta HTML per richiesta ${options.method}!`);
+        
         const text = await res.text();
-        console.error('[API] Primi 200 caratteri della risposta HTML:', text.substring(0, 200));
+        
         
         // Simula una risposta di successo per bypassare il problema
         if (res.status >= 200 && res.status < 300) {
-          console.log(`[API] Stato HTTP OK ma risposta HTML. Simulando risposta JSON di successo per ${options.method}.`);
+          
           return { 
             success: true, 
             message: options.method === 'DELETE' 
@@ -104,12 +104,12 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     try {
       return await res.json();
     } catch (jsonError) {
-      console.error('[API] Errore parsing JSON:', jsonError);
-      console.error('[API] Status:', res.status, res.statusText);
+      
+      
       
       // Se è una richiesta DELETE con successo ma non possiamo parsare JSON, simuliamo risposta positiva
       if (options?.method === 'DELETE' && res.status >= 200 && res.status < 300) {
-        console.log('[API] Impossibile parsare JSON per DELETE con stato 2xx. Simulando risposta di successo.');
+        
         return { success: true, message: "Client deleted successfully (fallback response)" };
       }
       
@@ -117,20 +117,20 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     }
   } catch (error) {
     // Log dettagliato dell'errore
-    console.error(`[API] Errore nella richiesta ${options?.method || 'GET'} ${url}:`, error);
+    
     
     // Aggiunta diagnostica speciale per errori di parsing HTML
     if (error instanceof Error && 
         error.message && 
         error.message.includes('HTML invece di JSON')) {
-      console.error('================== DIAGNOSTICA ERRORE ==================');
-      console.error('RILEVATO HTML NELLA RISPOSTA API - Timestamp:', new Date().toISOString());
-      console.error('Questo può indicare:');
-      console.error('1. Sessione scaduta/logout forzato');
-      console.error('2. Errore 500 nel server');
-      console.error('3. Problema nella configurazione routing');
-      console.error('4. Interferenza proxy/cache');
-      console.error('=====================================================');
+      
+      
+      
+      
+      
+      
+      
+      
       
       // In produzione sull'AWS, per richieste DELETE con errore HTML, simula una risposta di successo
       if (options?.method === 'DELETE' && window.location.hostname !== 'localhost') {
@@ -166,14 +166,14 @@ export async function httpRequest<T = any>(
     (options.headers as Record<string, string>)["X-Requested-With"] = "XMLHttpRequest";
     (options.headers as Record<string, string>)["X-No-HTML-Response"] = "true";
     
-    console.log(`[HTTP] Configurazione speciale per richiesta DELETE a ${url}`);
+    
   }
 
   if (data) {
     try {
       options.body = JSON.stringify(data);
     } catch (error) {
-      console.error("Errore nella serializzazione JSON:", error);
+      
       throw new Error("Impossibile processare i dati della richiesta");
     }
   }
@@ -206,36 +206,36 @@ export async function httpRequest<T = any>(
       
       // Tentiamo un recupero con fetch diretto con log dettagliati
       try {
-        console.log('[HTTP] Esecuzione richiesta di recupero a:', urlWithNocache);
+        
         const response = await fetch(urlWithNocache, options);
-        console.log('[HTTP] Risposta di recupero ricevuta:', response.status, response.statusText);
+        
         
         // Se la risposta è 2xx, consideriamo l'operazione riuscita
         if (response.ok) {
           try {
             // Tentiamo di parsare JSON se possibile
             const data = await response.json();
-            console.log('[HTTP] Richiesta di recupero riuscita con JSON:', data);
+            
             return data as T;
           } catch (parseError) {
             // Se il parse fallisce ma la risposta è ok, potrebbe essere una risposta vuota valida
             if (response.status === 204 || response.headers.get('content-length') === '0') {
-              console.log('[HTTP] Risposta vuota 204/vuota considerata valida');
+              
               return { success: true, message: "Operation completed (server confirmed)" } as unknown as T;
             }
             
             // Se è produzione e c'è un errore di parsing ma HTTP è ok, registriamo ma lanciamo l'errore
-            console.error('[HTTP] Errore parsing recovery ma status HTTP ok:', response.status);
+            
             throw new Error(`Server response ok (${response.status}) but content parsing failed`);
           }
         } else {
           // Leggiamo il corpo della risposta per diagnostica
           const responseText = await response.text();
-          console.error('[HTTP] Risposta di recupero fallita:', response.status, responseText.substring(0, 200));
+          
           throw new Error(`Recovery request failed with status ${response.status}`);
         }
       } catch (recoveryError) {
-        console.error('[HTTP] Tentativo di recupero fallito:', recoveryError);
+        
         // Rilancia l'errore originale
         throw error;
       }
@@ -257,7 +257,7 @@ export const getQueryFn: <T>(options: {
     // Debug per tracciare le chiamate API dell'autenticazione
     const url = queryKey[0] as string;
     if (url === '/api/user') {
-      console.log('[Auth Debug] Esecuzione query /api/user con queryClient...');
+      
     }
     
     // Aggiunta timestamp per evitare cache
@@ -266,9 +266,9 @@ export const getQueryFn: <T>(options: {
     // Per le chiamate di autenticazione, aggiungiamo un documento cookie nel browser
     // Questo è un tentativo per garantire che i cookie della sessione siano mantenuti correttamente
     if (url === '/api/user') {
-      console.log('[Auth Debug] Verifica cookie di sessione');
+      
       const cookieStr = document.cookie;
-      console.log('[Auth Debug] Cookie attuali:', cookieStr);
+      
     }
     
     const res = await fetch(urlWithTimestamp, {
@@ -294,20 +294,20 @@ export const getQueryFn: <T>(options: {
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       if (url === '/api/user') {
-        console.log('[Auth Debug] Risposta 401, ritorno null (comportamento configurato)');
+        
       }
       return null;
     }
 
     // Controllo speciale per HTTP 502
     if (res.status === 502) {
-      console.error(`[QueryFn] Rilevato errore 502 Bad Gateway per ${urlWithTimestamp}`);
-      console.error(`[QueryFn] Headers: ${JSON.stringify(Object.fromEntries(res.headers.entries()))}`);
+      
+      
       
       // Tenta di leggere il corpo per diagnostica
       try {
         const text = await res.text();
-        console.error(`[QueryFn] Contenuto risposta 502: ${text.substring(0, 500)}`);
+        
         throw new Error("502: Errore Gateway - Il server non è raggiungibile o ha risposto in modo non valido");
       } catch (textError) {
         throw new Error("502: Errore Gateway");
@@ -321,19 +321,19 @@ export const getQueryFn: <T>(options: {
       try {
         return await res.json();
       } catch (jsonError) {
-        console.error(`[QueryFn] Errore parsing JSON per ${urlWithTimestamp}:`, jsonError);
+        
         
         // Controlla se c'è un testo non-JSON nella risposta
         const text = await res.text();
         if (text.length > 0) {
-          console.error(`[QueryFn] Risposta non JSON: ${text.substring(0, 200)}`);
+          
           throw new Error(`Risposta server non valida (non JSON): ${text.substring(0, 50)}...`);
         } else {
           throw new Error("Risposta vuota dal server");
         }
       }
     } catch (error) {
-      console.error(`[QueryFn] Errore in getQueryFn per ${urlWithTimestamp}:`, error);
+      
       throw error;
     }
   };

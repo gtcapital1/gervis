@@ -1,7 +1,7 @@
 import { sql } from '@vercel/postgres';
 
 export async function addEmailSettingsColumns() {
-  console.log('Aggiunta colonne per impostazioni email...');
+  
   try {
     await sql`
       ALTER TABLE users
@@ -12,10 +12,10 @@ export async function addEmailSettingsColumns() {
       ADD COLUMN smtp_from TEXT,
       ADD COLUMN custom_email_enabled BOOLEAN DEFAULT FALSE;
     `;
-    console.log('Colonne per impostazioni email aggiunte con successo.');
+    
     return true;
   } catch (error) {
-    console.error('Errore durante l\'aggiunta delle colonne per impostazioni email:', error);
+    
     return false;
   }
 }
@@ -25,7 +25,7 @@ if (require.main === module) {
   addEmailSettingsColumns()
     .then(() => process.exit(0))
     .catch(err => {
-      console.error('Errore:', err);
+      
       process.exit(1);
     });
 } 

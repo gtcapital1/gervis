@@ -6,7 +6,7 @@ import { sql } from "drizzle-orm";
 
 async function addEmailVerificationFields() {
   try {
-    console.log("Starting email verification fields migration...");
+    
     
     // Add the fields to the users table
     await db.execute(sql`
@@ -21,9 +21,9 @@ async function addEmailVerificationFields() {
       UPDATE users SET is_email_verified = TRUE WHERE is_email_verified IS NULL;
     `);
     
-    console.log("Email verification fields added successfully!");
+    
   } catch (error) {
-    console.error("Error adding email verification fields:", error);
+    
     throw error;
   }
 }
@@ -31,10 +31,10 @@ async function addEmailVerificationFields() {
 // Run the migration
 addEmailVerificationFields()
   .then(() => {
-    console.log("Email verification migration completed successfully!");
+    
     process.exit(0);
   })
   .catch((error) => {
-    console.error("Email verification migration failed:", error);
+    
     process.exit(1);
   });

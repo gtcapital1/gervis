@@ -98,7 +98,7 @@ export default function CalendarPage() {
   // Quando l'utente cambia la data selezionata, rifacciamo la query
   useEffect(() => {
     if (selectedDate) {
-      console.log("Data selezionata cambiata, ricarichiamo gli eventi");
+      
       refetch();
     }
   }, [selectedDate, refetch]);
@@ -106,7 +106,7 @@ export default function CalendarPage() {
   // Dopo che i dati vengono caricati, aggiungiamo più log di debug
   useEffect(() => {
     if (data?.events) {
-      console.log(`Ricevuti ${data.events.length} eventi dall'API`);
+      
       // Log dei primi 5 eventi per un controllo rapido
       data.events.slice(0, 5).forEach((event, index) => {
         console.log(`Evento ${index + 1}:`, {
@@ -195,7 +195,7 @@ export default function CalendarPage() {
   // Mutation per creare un nuovo meeting
   const createMeetingMutation = useMutation({
     mutationFn: (data: { clientId: number, subject: string, dateTime: string, duration: number, location: string, notes: string }) => {
-      console.log("Creating meeting with data:", data);
+      
       return apiRequest('/api/meetings', {
         method: 'POST',
         body: JSON.stringify(data),
@@ -214,7 +214,7 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     },
     onError: (error) => {
-      console.error("Error creating meeting:", error);
+      
       toast({
         title: "Errore",
         description: "Impossibile creare il meeting. Riprova più tardi.",
@@ -252,7 +252,7 @@ export default function CalendarPage() {
         dateTime.setHours(hours, minutes, 0, 0);
         
         // Verifica che dateTime sia un oggetto Date valido e converti a stringa ISO
-        console.log("Updating meeting with date:", dateTime);
+        
         
         // Converte la data in una stringa ISO standard
         const dateTimeStr = dateTime.toISOString();
@@ -265,7 +265,7 @@ export default function CalendarPage() {
           duration: eventDuration
         });
       } catch (error) {
-        console.error("Error creating date object:", error);
+        
         toast({
           title: "Errore data",
           description: "Si è verificato un errore con la data selezionata. Riprova.",
@@ -289,10 +289,10 @@ export default function CalendarPage() {
   
   const confirmDeleteEvent = () => {
     if (deleteConfirmEvent) {
-      console.log("Confirming delete for event:", deleteConfirmEvent.id);
+      
       deleteMeetingMutation.mutate(deleteConfirmEvent.id);
     } else {
-      console.error("No event selected for deletion");
+      
     }
   };
   
@@ -382,10 +382,10 @@ export default function CalendarPage() {
     startDateTime.setHours(hours, minutes, 0, 0);
     
     // Log di debug
-    console.log("Data selezionata:", selectedDate);
-    console.log("Ora selezionata:", eventTime);
-    console.log("Data creata:", startDateTime);
-    console.log("Invia email:", sendMeetingEmail);
+    
+    
+    
+    
     
     // URL con parametro query sendEmail
     const url = sendMeetingEmail ? '/api/meetings?sendEmail=true' : '/api/meetings';
@@ -413,7 +413,7 @@ export default function CalendarPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     }).catch((error) => {
-      console.error("Error creating meeting:", error);
+      
       toast({
         title: "Errore",
         description: "Impossibile creare il meeting. Riprova più tardi.",
@@ -476,7 +476,7 @@ export default function CalendarPage() {
       const targetDateStr = format(targetDate, 'yyyy-MM-dd');
       const hourStr = hour.split(':')[0];
       
-      console.log(`Cercando eventi per data ${targetDateStr} e ora ${hourStr}`);
+      
       
       // Filtra gli eventi che hanno la stessa data e lo stesso orario
       const filteredEvents = events.filter(event => {
@@ -484,7 +484,7 @@ export default function CalendarPage() {
         const matchesHour = event.startTime.startsWith(hourStr);
         
         if (matchesDate && matchesHour) {
-          console.log(`Trovato evento per ${targetDateStr} ${hourStr}:`, event);
+          
         }
         
         return matchesDate && matchesHour;
@@ -492,7 +492,7 @@ export default function CalendarPage() {
       
       return filteredEvents;
     } catch (e) {
-      console.error("Errore nel calcolo eventi settimanali:", e);
+      
       return [];
     }
   };

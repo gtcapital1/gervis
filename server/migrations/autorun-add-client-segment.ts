@@ -11,13 +11,13 @@ dotenv.config();
  * Script di migrazione che aggiunge la colonna client_segment alla tabella clients
  */
 async function runMigration() {
-  console.log('Avvio migrazione per aggiungere client_segment...');
+  
   
   // Ottieni la URL del database dalle variabili d'ambiente
   const url = process.env.DATABASE_URL;
   
   if (!url) {
-    console.error('DATABASE_URL non impostata. La migrazione non può procedere.');
+    
     process.exit(1);
   }
   
@@ -32,13 +32,13 @@ async function runMigration() {
     // Esegui la migrazione
     await migrationClient.unsafe(sqlScript);
     
-    console.log('Migrazione client_segment completata con successo!');
+    
     
     // Chiudi la connessione
     await migrationClient.end();
     process.exit(0);
   } catch (error) {
-    console.error('Errore durante la migrazione:', error);
+    
     process.exit(1);
   }
 }

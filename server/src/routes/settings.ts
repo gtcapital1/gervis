@@ -22,7 +22,7 @@ router.get('/email', async (req, res) => {
 
     res.json(settings);
   } catch (error) {
-    console.error('Errore nel recupero delle impostazioni email:', error);
+    
     res.status(500).json({ error: 'Errore nel recupero delle impostazioni email' });
   }
 });
@@ -75,7 +75,7 @@ router.post('/email', async (req, res) => {
 
     res.json(settings);
   } catch (error) {
-    console.error('Errore nel salvataggio delle impostazioni email:', error);
+    
     res.status(500).json({ error: 'Errore nel salvataggio delle impostazioni email' });
   }
 });

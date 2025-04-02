@@ -6,7 +6,7 @@ import { scrypt, randomBytes, timingSafeEqual, createHash } from "crypto";
 import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
-import { sendVerificationEmail, sendVerificationPin } from "./email";
+import { sendVerificationPin } from "./email";
 
 declare global {
   namespace Express {
@@ -59,7 +59,7 @@ export function setupAuth(app: Express) {
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
   const isHttps = baseUrl.startsWith('https://');
   
-  console.log(`DEBUG - setupAuth - Environment: ${isProduction ? 'production' : 'development'}, HTTPS: ${isHttps}`);
+  
   
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "top-secret-session-key",
@@ -78,7 +78,7 @@ export function setupAuth(app: Express) {
     }
   };
 
-  console.log(`DEBUG - setupAuth - Cookie settings: secure=${sessionSettings.cookie?.secure}, sameSite=${sessionSettings.cookie?.sameSite}`);
+  
   
   // Importante per proxy in produzione
   app.set("trust proxy", 1);
@@ -105,18 +105,18 @@ export function setupAuth(app: Express) {
   );
 
   passport.serializeUser((user, done) => {
-    console.log(`[DEBUG AUTH] Serializzazione utente: ${user.id} (${user.email})`);
+    
     done(null, user.id)
   });
   
   passport.deserializeUser(async (id: number, done) => {
     try {
       // Log dell'inizio del processo
-      console.log(`[DEBUG AUTH] Deserializzazione utente ID: ${id}`);
+      
       
       // Verifica che id sia un numero valido
       if (!id || typeof id !== 'number' || isNaN(id)) {
-        console.error(`[DEBUG AUTH] ID utente non valido: ${id}, tipo: ${typeof id}`);
+        
         return done(null, null);
       }
       
@@ -125,26 +125,26 @@ export function setupAuth(app: Express) {
       
       // Verifica esistenza dell'utente
       if (!user) {
-        console.log(`[DEBUG AUTH] Deserializzazione fallita: utente ID ${id} non trovato nel database`);
+        
         return done(null, null);
       }
       
       // Verifica validità oggetto utente
       if (!user.id || !user.email) {
-        console.error(`[DEBUG AUTH] Utente recuperato non valido:`, user);
+        
         return done(null, null);
       }
       
-      console.log(`[DEBUG AUTH] Deserializzazione completata: ${user.id} (${user.email})`);
+      
       
       // Controlla lo stato di approvazione
       if (user.approvalStatus !== 'approved') {
-        console.log(`[DEBUG AUTH] Utente con stato approvazione: ${user.approvalStatus}`);
+        
       }
       
       done(null, user);
     } catch (err) {
-      console.error(`[DEBUG AUTH] Errore deserializzazione utente ID ${id}:`, err);
+      
       done(err);
     }
   });
@@ -199,13 +199,13 @@ export function setupAuth(app: Express) {
         // Default language is Italian per requirements
         await sendVerificationPin(
           user.email,
-          user.name || `${user.firstName} ${user.lastName}`,
+          user.firstName && user.lastName ? ` ` : user.name || "",
           verificationPin,
           'italian'
         );
-        console.log(`Verification PIN email sent to ${user.email}`);
+        
       } catch (emailError) {
-        console.error('Failed to send verification PIN email:', emailError);
+        
         // Continue with registration even if email fails
       }
 
@@ -224,23 +224,23 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    console.log(`[DEBUG AUTH] Tentativo login per email: ${req.body?.email || 'non specificata'}`);
+    
     
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
-        console.error(`[DEBUG AUTH] Errore durante autenticazione:`, err);
+        
         return next(err);
       }
       
       if (!user) {
-        console.log(`[DEBUG AUTH] Login fallito - credenziali non valide per: ${req.body?.email || 'non specificata'}`);
+        
         return res.status(401).json({ 
           success: false, 
           message: "Email o password non validi" 
         });
       }
       
-      console.log(`[DEBUG AUTH] Credenziali valide per utente ID: ${user.id}, email: ${user.email}`);
+      
       
       // Check if email is verified
       if (!user.isEmailVerified) {
@@ -269,20 +269,20 @@ export function setupAuth(app: Express) {
         });
       }
       
-      console.log(`[DEBUG AUTH] Tentativo login manuale per utente ID: ${user.id}`);
+      
       
       req.login(user, (err: any) => {
         if (err) {
-          console.error(`[DEBUG AUTH] Errore durante login manuale:`, err);
+          
           return next(err);
         }
         
         // Verifica che il login sia avvenuto correttamente
         if (req.isAuthenticated()) {
-          console.log(`[DEBUG AUTH] Login completato con successo, sessionID: ${req.session.id}`);
-          console.log(`[DEBUG AUTH] Cookie: ${JSON.stringify(req.session.cookie)}`);
+          
+          
         } else {
-          console.warn(`[DEBUG AUTH] Anomalia: req.login completato ma utente non autenticato!`);
+
         }
         
         return res.status(200).json({ success: true, user });
@@ -291,63 +291,63 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", (req, res, next) => {
-    console.log(`[DEBUG AUTH] Tentativo logout utente - Autenticato: ${req.isAuthenticated() || false}`);
+    
     
     if (req.user) {
-      console.log(`[DEBUG AUTH] Logout per utente ID: ${req.user.id}, email: ${req.user.email}`);
+      
     } else {
-      console.log(`[DEBUG AUTH] Tentativo logout senza utente autenticato`);
+      
     }
     
     req.logout((err: any) => {
       if (err) {
-        console.error(`[DEBUG AUTH] Errore durante logout:`, err);
+        
         return next(err);
       }
       
-      console.log(`[DEBUG AUTH] Logout completato con successo`);
+      
       // Verifica la sessione dopo il logout
       if (req.session) {
-        console.log(`[DEBUG AUTH] Sessione ancora presente dopo logout: ${req.session.id}`);
+        
         // Rigenerazione ID sessione per sicurezza
         req.session.regenerate((regErr) => {
           if (regErr) {
-            console.error(`[DEBUG AUTH] Errore rigenerazione sessione:`, regErr);
+            
           } else {
-            console.log(`[DEBUG AUTH] Sessione rigenerata con successo: ${req.session.id}`);
+            
           }
           res.status(200).json({ success: true });
         });
       } else {
-        console.log(`[DEBUG AUTH] Nessuna sessione trovata dopo logout`);
+        
         res.status(200).json({ success: true });
       }
     });
   });
 
   app.get("/api/user", (req, res) => {
-    console.log(`[DEBUG AUTH] Richiesta GET /api/user - Autenticato: ${req.isAuthenticated() || false}`);
+    
     
     // Log lo stato della sessione
-    console.log(`[DEBUG AUTH] Sessione: ${req.session ? `ID ${req.session.id}` : 'nessuna sessione'}`);
+    
     if (req.session) {
-      console.log(`[DEBUG AUTH] Cookie expires: ${req.session.cookie.expires}`);
-      console.log(`[DEBUG AUTH] Cookie maxAge: ${req.session.cookie.maxAge}`);
-      console.log(`[DEBUG AUTH] Cookie secure: ${req.session.cookie.secure}`);
-      console.log(`[DEBUG AUTH] Cookie httpOnly: ${req.session.cookie.httpOnly}`);
-      console.log(`[DEBUG AUTH] Cookie path: ${req.session.cookie.path}`);
-      console.log(`[DEBUG AUTH] Cookie sameSite: ${req.session.cookie.sameSite}`);
+      
+      
+      
+      
+      
+      
     }
     
     if (!req.isAuthenticated()) {
-      console.log('[DEBUG AUTH] Utente non autenticato per /api/user');
+      
       return res.status(401).json({ 
         success: false, 
         message: "Not authenticated" 
       });
     }
     
-    console.log(`[DEBUG AUTH] Utente autenticato ID: ${req.user.id}, email: ${req.user.email}`);
+    
     res.json({ success: true, user: req.user });
   });
 
@@ -472,7 +472,7 @@ export function setupAuth(app: Express) {
       try {
         await sendVerificationPin(
           user.email,
-          user.name || `${user.firstName} ${user.lastName}`,
+          user.firstName && user.lastName ? ` ` : user.name || "",
           verificationPin,
           'italian'
         );
@@ -482,7 +482,7 @@ export function setupAuth(app: Express) {
           message: "Nuovo PIN inviato con successo"
         });
       } catch (emailError) {
-        console.error('Failed to send verification PIN email:', emailError);
+        
         return res.status(500).json({
           success: false,
           message: "Errore nell'invio dell'email con il PIN di verifica"
@@ -493,3 +493,4 @@ export function setupAuth(app: Express) {
     }
   });
 }
+export {}

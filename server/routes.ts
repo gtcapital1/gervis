@@ -20,7 +20,7 @@ import {
   insertRecommendationSchema
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
-import { sendCustomEmail, sendVerificationEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail } from "./email";
+import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
@@ -93,45 +93,195 @@ if (!global.meetingsData) {
   global.meetingsData = [];
 }
 
-// Aggiungiamo una funzione per eseguire la migrazione per aggiungere la colonna duration
-async function addDurationColumnIfNeeded() {
-  try {
-    console.log("Verifico se la colonna duration esiste nella tabella meetings...");
-    
-    // Controlliamo se la colonna esiste già
-    const columnExists = await pgClient`
-      SELECT EXISTS (
-        SELECT FROM information_schema.columns 
-        WHERE table_name = 'meetings' AND column_name = 'duration'
-      ) as exists
-    `;
-    
-    if (columnExists[0] && columnExists[0].exists === true) {
-      console.log("La colonna duration esiste già nella tabella meetings.");
-      return;
-    }
-    
-    // Se siamo qui, la colonna non esiste e dobbiamo aggiungerla
-    console.log("Aggiungo la colonna duration alla tabella meetings...");
-    
-    try {
-      await pgClient`
-        ALTER TABLE meetings ADD COLUMN duration INTEGER DEFAULT 60
-      `;
-      console.log("Colonna duration aggiunta con successo!");
-      
-      // Aggiorniamo tutti i meeting esistenti impostando una durata di default
-      await pgClient`
-        UPDATE meetings SET duration = 60 WHERE duration IS NULL
-      `;
-      console.log("Tutti i meeting esistenti hanno ora una durata di default di 60 minuti.");
-    } catch (e) {
-      // La colonna potrebbe essere stata aggiunta da un'altra istanza
-      console.log("Errore durante l'aggiunta della colonna - potrebbe già esistere:", e);
-    }
-  } catch (error) {
-    console.error("Errore durante la migrazione della colonna duration:", error);
+// Funzione di logging sicura che anonimizza i dati sensibili
+function safeLog(message: string, data?: any, level: 'info' | 'error' | 'debug' = 'info'): void {
+  // In produzione, riduce la verbosità dei log
+  if (process.env.NODE_ENV === 'production' && level === 'debug') {
+    return;
   }
+
+  // Funzione per sanitizzare dati sensibili in oggetti complessi
+  const sanitizeData = (obj: any): any => {
+    if (!obj || typeof obj !== 'object') return obj;
+    
+    const sensitiveFields = [
+      'password', 'email', 'token', 'signature', 'creditCard', 
+      'taxCode', 'address', 'phoneNumber', 'phone'
+    ];
+    
+    const newObj = Array.isArray(obj) ? [...obj] : {...obj};
+    
+    for (const key in newObj) {
+      if (typeof newObj[key] === 'object' && newObj[key] !== null) {
+        newObj[key] = sanitizeData(newObj[key]);
+      } else if (sensitiveFields.some(field => key.toLowerCase().includes(field))) {
+        if (typeof newObj[key] === 'string') {
+          // Mantiene solo l'inizio e la fine del valore per scopi di debug
+          const val = newObj[key];
+          newObj[key] = val.length > 6 
+            ? `${val.substring(0, 3)}***${val.substring(val.length - 3)}`
+            : '***';
+        } else {
+          newObj[key] = '***';
+        }
+      }
+    }
+    
+    return newObj;
+  };
+  
+  const logMethod = level === 'error' ? () => {} : () => {};
+  
+  if (data) {
+    logMethod(`[${level.toUpperCase()}] ${message}`, sanitizeData(data));
+  } else {
+    logMethod(`[${level.toUpperCase()}] ${message}`);
+  }
+}
+
+// Funzione per formattare le risposte di errore in modo sicuro
+function handleErrorResponse(res: Response, error: any, userMessage: string = 'Si è verificato un errore'): void {
+  // Determina il tipo di errore e il codice di stato HTTP appropriato
+  let statusCode = 500;
+  let errorResponse: any = { success: false, message: userMessage };
+  
+  // Log dell'errore con informazioni complete per il debug interno
+  if (error instanceof Error) {
+    safeLog(`Errore dettagliato: ${error.message}`, { stack: error.stack }, 'error');
+  } else {
+    safeLog(`Errore non standard: ${String(error)}`, {}, 'error');
+  }
+  
+  // Personalizza la risposta in base al tipo di errore
+  if (error instanceof z.ZodError) {
+    statusCode = 400;
+    
+    // In ambiente di sviluppo, fornisci i dettagli degli errori di validazione
+    if (process.env.NODE_ENV !== 'production') {
+      errorResponse.errors = error.errors.map(e => ({
+        path: e.path,
+        message: e.message
+      }));
+    } else {
+      errorResponse.message = 'Dati di input non validi';
+    }
+  } else if (error.name === 'UnauthorizedError' || error.message?.includes('unauthoriz')) {
+    statusCode = 401;
+    errorResponse.message = 'Non autorizzato';
+  } else if (error.message?.includes('not found') || error.message?.includes('non trovato')) {
+    statusCode = 404;
+    errorResponse.message = 'Risorsa non trovata';
+  }
+  
+  // In ambiente di sviluppo, includere un ID univoco dell'errore per facilitare il debug
+  if (process.env.NODE_ENV !== 'production') {
+    errorResponse.errorId = `ERR-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+    safeLog(`Errore ID: ${errorResponse.errorId}`, {}, 'error');
+  }
+  
+  res.status(statusCode).json(errorResponse);
+}
+
+// Middleware CSRF per proteggere le richieste POST/PUT/DELETE
+function csrfProtection(req: Request, res: Response, next: Function) {
+  // Ignora per metodi sicuri (GET, HEAD, OPTIONS)
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) {
+    return next();
+  }
+  
+  // Implementa la logica CSRF utilizzando l'header Referer/Origin
+  const origin = req.headers.origin || '';
+  const referer = req.headers.referer || '';
+  const hostDomain = req.headers.host || '';
+  
+  // Verifica che l'origine della richiesta corrisponda al nostro dominio
+  // Idealmente, utilizzare un token CSRF dedicato sarebbe più sicuro
+  if (process.env.NODE_ENV === 'production') {
+    const validOrigin = origin.includes(hostDomain) || referer.includes(hostDomain);
+    if (!validOrigin) {
+      safeLog('Tentativo di CSRF rilevato', { origin, referer, host: hostDomain }, 'error');
+      return res.status(403).json({ success: false, message: 'Accesso negato' });
+    }
+  }
+  
+  next();
+}
+
+// Middleware di rate limiting per proteggere da attacchi brute force
+const rateLimiters: Record<string, Record<string, {count: number, timestamp: number}>> = {};
+
+function rateLimit(options: { windowMs: number, max: number, keyGenerator?: (req: Request) => string }) {
+  const { windowMs = 60000, max = 30, keyGenerator } = options;
+  
+  return (req: Request, res: Response, next: Function) => {
+    // Identifica la rotta
+    const endpoint = req.path;
+    
+    // Genera una chiave univoca per il client (default: IP)
+    const clientKey = keyGenerator ? keyGenerator(req) : (
+      req.ip || req.headers['x-forwarded-for'] || 'unknown'
+    );
+    
+    // Inizializza la struttura dati se non esiste
+    if (!rateLimiters[endpoint]) {
+      rateLimiters[endpoint] = {};
+    }
+    
+    const now = Date.now();
+    
+    // Elimina i record scaduti
+    Object.keys(rateLimiters[endpoint]).forEach(key => {
+      if (now - rateLimiters[endpoint][key].timestamp > windowMs) {
+        delete rateLimiters[endpoint][key];
+      }
+    });
+    
+    // Crea un nuovo record se non esiste
+    if (!rateLimiters[endpoint][clientKey as string]) {
+      rateLimiters[endpoint][clientKey as string] = { count: 0, timestamp: now };
+    }
+    
+    // Incrementa il contatore
+    rateLimiters[endpoint][clientKey as string].count++;
+    
+    // Verifica se il limite è stato superato
+    if (rateLimiters[endpoint][clientKey as string].count > max) {
+      safeLog('Rate limit superato', { endpoint, clientKey }, 'debug');
+      return res.status(429).json({
+        success: false,
+        message: 'Troppe richieste, riprova più tardi'
+      });
+    }
+    
+    next();
+  };
+}
+
+// Funzione per validare e sanitizzare file caricati
+function validateFile(file: UploadedFile, options: { 
+  allowedMimeTypes: string[], 
+  maxSizeBytes: number 
+}): { valid: boolean; error?: string } {
+  const { allowedMimeTypes, maxSizeBytes } = options;
+  
+  // Verifica la dimensione
+  if (!file || file.size === 0) {
+    return { valid: false, error: 'File vuoto' };
+  }
+  
+  if (file.size > maxSizeBytes) {
+    return { valid: false, error: `File troppo grande (max: ${maxSizeBytes / (1024 * 1024)}MB)` };
+  }
+  
+  // Verifica il MIME type
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return { 
+      valid: false, 
+      error: `Tipo di file non supportato. Tipi consentiti: ${allowedMimeTypes.join(', ')}` 
+    };
+  }
+  
+  return { valid: true };
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -145,9 +295,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     debug: true,
     parseNested: true
   }));
-  
-  // Esegui la migrazione per aggiungere la colonna duration
-  await addDurationColumnIfNeeded();
   
   // Setup authentication
   setupAuth(app);
@@ -204,7 +351,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       res.json({ success: true, users });
     } catch (error) {
-      console.error('Error fetching users:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to fetch users', error: String(error) });
     }
   });
@@ -215,7 +362,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getPendingUsers();
       res.json({ success: true, users });
     } catch (error) {
-      console.error('Error fetching pending users:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to fetch pending users', error: String(error) });
     }
   });
@@ -234,7 +381,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true, user, message: 'Utente approvato con successo' });
     } catch (error) {
-      console.error('Error approving user:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to approve user', error: String(error) });
     }
   });
@@ -253,7 +400,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true, user, message: 'Utente rifiutato con successo' });
     } catch (error) {
-      console.error('Error rejecting user:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to reject user', error: String(error) });
     }
   });
@@ -274,7 +421,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         res.status(404).json({ success: false, message: 'Utente non trovato' });
       }
     } catch (error) {
-      console.error('Error deleting user:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to delete user', error: String(error) });
     }
   });
@@ -283,22 +430,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/clients', isAuthenticated, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
-        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
       }
       
       const clients = await storage.getClientsByAdvisor(req.user.id);
       res.json({ success: true, clients });
     } catch (error) {
-      console.error('Error fetching clients:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch clients', error: String(error) });
+      safeLog('Errore durante il recupero dei clienti', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile recuperare la lista clienti');
     }
   });
   
   // Create new client
-  app.post('/api/clients', isAuthenticated, async (req, res) => {
+  app.post('/api/clients', 
+    isAuthenticated, 
+    rateLimit({ windowMs: 60000, max: 10 }), // Limita a 10 creazioni al minuto
+    async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
-        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+          return res.status(401).json({ success: false, message: 'Non autorizzato' });
       }
       
       // Validate client data
@@ -307,43 +457,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         advisorId: req.user.id,
         isOnboarded: false
       });
+        
+        // Log sicuro dei dati
+        safeLog('Creazione nuovo cliente', { userId: req.user.id }, 'debug');
       
       // Create client in database
       const client = await storage.createClient(clientData);
       
       res.json({ success: true, client });
     } catch (error) {
-      console.error('Error creating client:', error);
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ success: false, message: 'Invalid client data', errors: error.errors });
-      } else {
-        res.status(500).json({ success: false, message: 'Failed to create client', error: String(error) });
+        safeLog('Errore durante la creazione del cliente', error, 'error');
+        handleErrorResponse(res, error, 'Impossibile creare il cliente');
       }
     }
-  });
+  );
   
   // Get client details
   app.get('/api/clients/:id', isAuthenticated, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
-        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
       }
       
       const clientId = parseInt(req.params.id);
       if (isNaN(clientId)) {
-        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
       }
       
       // Get client from database
       const client = await storage.getClient(clientId);
       
       if (!client) {
-        return res.status(404).json({ success: false, message: 'Client not found' });
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
       }
       
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Not authorized to view this client' });
+        safeLog('Tentativo di accesso non autorizzato ai dettagli del cliente', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato ad accedere a questo cliente' });
       }
       
       // Get assets for this client
@@ -363,8 +515,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mifid
       });
     } catch (error) {
-      console.error('Error fetching client details:', error);
-      res.status(500).json({ success: false, message: 'Failed to fetch client details', error: String(error) });
+      safeLog('Errore durante il recupero dei dettagli del cliente', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile recuperare i dettagli del cliente');
     }
   });
   
@@ -372,34 +524,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/clients/:id', isAuthenticated, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
-        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
       }
       
       const clientId = parseInt(req.params.id);
       if (isNaN(clientId)) {
-        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
       }
       
       // Get client from database
       const client = await storage.getClient(clientId);
       
       if (!client) {
-        return res.status(404).json({ success: false, message: 'Client not found' });
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
       }
       
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user.id) {
-        return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
+        safeLog('Tentativo di aggiornamento non autorizzato dei dati del cliente', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato a modificare questo cliente' });
       }
-      
-      // Log dei valori di interesse di investimento
-      console.log("[DEBUG] Aggiornamento cliente - Valori interessi ricevuti:", {
-        retirementInterest: req.body.retirementInterest,
-        wealthGrowthInterest: req.body.wealthGrowthInterest,
-        incomeGenerationInterest: req.body.incomeGenerationInterest,
-        capitalPreservationInterest: req.body.capitalPreservationInterest,
-        estatePlanningInterest: req.body.estatePlanningInterest
-      });
       
       // Update client in database
       const updatedClient = await storage.updateClient(clientId, req.body);
@@ -409,80 +554,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: updatedClient
       });
     } catch (error) {
-      console.error('Error updating client details:', error);
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ success: false, message: 'Invalid client data', errors: error.errors });
-      } else {
-        res.status(500).json({ success: false, message: 'Failed to update client details', error: String(error) });
-      }
+      safeLog('Errore durante l\'aggiornamento del cliente', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile aggiornare i dati del cliente');
     }
   });
   
   // Delete client
   app.delete('/api/clients/:id', isAuthenticated, async (req, res) => {
-    console.log(`[DEBUG] Ricevuta richiesta DELETE per cliente ID: ${req.params.id} - Query params:`, req.query);
     try {
       // Verifica autenticazione
       if (!req.user || !req.user.id) {
-        console.log(`[DEBUG] DELETE client - Autenticazione fallita`);
-        return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
       }
       
       const clientId = parseInt(req.params.id);
       if (isNaN(clientId)) {
-        console.log(`[DEBUG] DELETE client - ID client non valido: ${req.params.id}`);
-        return res.status(400).json({ success: false, message: 'Invalid client ID' });
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
       }
       
-      console.log(`[DEBUG] DELETE client ${clientId} - Verifica esistenza cliente`);
       // Get client from database
       const client = await storage.getClient(clientId);
       
       if (!client) {
-        console.log(`[DEBUG] DELETE client ${clientId} - Cliente non trovato`);
-        return res.status(404).json({ success: false, message: 'Client not found' });
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
       }
       
-      console.log(`[DEBUG] DELETE client ${clientId} - Verifica autorizzazioni: advisorId=${client.advisorId}, userId=${req.user.id}`);
       // Check if this client belongs to the current advisor
       if (client.advisorId !== req.user.id) {
-        console.log(`[DEBUG] DELETE client ${clientId} - Non autorizzato (client.advisorId=${client.advisorId}, req.user.id=${req.user.id})`);
-        return res.status(403).json({ success: false, message: 'Not authorized to delete this client' });
+        safeLog('Tentativo di eliminazione non autorizzato del cliente', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato a eliminare questo cliente' });
       }
       
-      console.log(`[DEBUG] DELETE client ${clientId} - Avvio processo di eliminazione`);
       // Delete the client
       const success = await storage.deleteClient(clientId);
       
       if (success) {
-        console.log(`[DEBUG] DELETE client ${clientId} - Eliminazione riuscita, invio risposta con success=true`);
-        const responseObj = { success: true, message: 'Client deleted successfully' };
-        console.log(`[DEBUG] DELETE client ${clientId} - Payload risposta:`, JSON.stringify(responseObj));
-        res.json(responseObj);
+        res.json({ success: true, message: 'Cliente eliminato con successo' });
       } else {
-        console.log(`[DEBUG] DELETE client ${clientId} - Eliminazione fallita, invio risposta con status 500`);
-        res.status(500).json({ success: false, message: 'Failed to delete client' });
+        res.status(500).json({ success: false, message: 'Impossibile eliminare il cliente' });
       }
     } catch (error) {
-      console.error(`[ERROR] Errore durante l'eliminazione del cliente:`, error);
-      console.log(`[DEBUG] DELETE client - Errore catturato, invio risposta con status 500`);
-      
-      // Log dettagliato dello stack trace
-      if (error instanceof Error) {
-        console.error(`[ERROR] Stack trace:`, error.stack);
-      }
-      
-      res.status(500).json({ 
-        success: false, 
-        message: 'An error occurred while deleting client', 
-        error: String(error),
-        timestamp: new Date().toISOString()
-      });
+      safeLog('Errore durante l\'eliminazione del cliente', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile eliminare il cliente');
     }
   });
   
   // Update user password
-  app.post('/api/user/password', isAuthenticated, async (req, res) => {
+  app.post('/api/user/password', 
+    isAuthenticated, 
+    rateLimit({ windowMs: 300000, max: 5 }), // Limita a 5 tentativi ogni 5 minuti
+    async (req, res) => {
     try {
       // Password change schema
       const passwordSchema = z.object({
@@ -499,13 +621,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get the user
       const user = await storage.getUser(req.user?.id as number);
       if (!user) {
-        return res.status(404).json({ message: 'User not found' });
+          return res.status(404).json({ message: 'Utente non trovato' });
       }
       
       // Verify the current password
       const isPasswordValid = await comparePasswords(validatedData.currentPassword, user.password);
       if (!isPasswordValid) {
-        return res.status(400).json({ message: 'Current password is incorrect' });
+          safeLog('Tentativo di cambio password con password errata', 
+            { userId: req.user?.id }, 'error');
+          return res.status(400).json({ message: 'Password attuale non corretta' });
       }
       
       // Hash the new password
@@ -514,16 +638,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update the password
       await storage.updateUser(req.user?.id as number, { password: hashedPassword });
       
-      res.json({ success: true, message: 'Password updated successfully' });
+        safeLog('Password aggiornata con successo', { userId: req.user?.id }, 'info');
+        res.json({ success: true, message: 'Password aggiornata con successo' });
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        res.status(400).json({ errors: error.errors });
-      } else {
-        console.error('Error updating password:', error);
-        res.status(500).json({ message: 'Failed to update password' });
+        safeLog('Errore durante l\'aggiornamento della password', error, 'error');
+        handleErrorResponse(res, error, 'Impossibile aggiornare la password');
       }
     }
-  });
+  );
   
   // Update user signature
   app.post('/api/user/signature', isAuthenticated, async (req, res) => {
@@ -543,7 +665,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.errors });
       } else {
-        console.error('Error updating signature:', error);
+        
         res.status(500).json({ message: 'Failed to update signature' });
       }
     }
@@ -595,7 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.errors });
       } else {
-        console.error('Error updating company logo:', error);
+        
         res.status(500).json({ message: 'Failed to update company logo' });
       }
     }
@@ -626,7 +748,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Company logo deleted successfully'
       });
     } catch (error) {
-      console.error('Error deleting company logo:', error);
+      
       res.status(500).json({ message: 'Failed to delete company logo' });
     }
   });
@@ -666,7 +788,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (error instanceof z.ZodError) {
         res.status(400).json({ errors: error.errors });
       } else {
-        console.error('Error updating company information:', error);
+        
         res.status(500).json({ message: 'Failed to update company information' });
       }
     }
@@ -713,7 +835,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Redirect to login page with success parameter
       return res.redirect('/?verificationSuccess=true');
     } catch (error) {
-      console.error("Email verification error:", error);
+      
       return res.status(500).json({ 
         success: false, 
         message: "Errore durante la verifica dell'email" 
@@ -778,7 +900,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Email di verifica inviata con successo" 
       });
     } catch (error) {
-      console.error("Resend verification error:", error);
+      
       res.status(500).json({ 
         success: false, 
         message: "Errore durante l'invio dell'email di verifica" 
@@ -840,8 +962,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const lastName = client.lastName || client.name.split(' ').slice(1).join(' ');
         
         // Debug per l'oggetto email
-        console.log("DEBUG - Invio email onboarding:");
-        console.log("DEBUG - customSubject:", customSubject);
+        
+        
         
         try {
           // Send the onboarding email
@@ -861,18 +983,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
           );
           // Se arriviamo qui, l'email è stata inviata con successo
           emailSent = true;
-          console.log(`Email di onboarding inviata con successo a ${client.email}`);
+          
           
           // Log dettagliati anche in caso di successo
-          console.log("DEBUG - Dettagli email inviata con successo:");
-          console.log("DEBUG - Destinatario:", client.email);
-          console.log("DEBUG - Nome:", firstName, lastName);
-          console.log("DEBUG - Link:", link);
-          console.log("DEBUG - Lingua:", language);
-          console.log("DEBUG - Advisor email:", advisor?.email);
-          console.log("DEBUG - Signature presente:", !!advisor?.signature);
+          
+          
+          
+          
+          
+          
+          
         } catch (emailError: any) {
-          console.error("ERRORE CRITICO - Invio email onboarding fallito:", emailError);
+          
           
           // Estrazione dettagli errore più specifici
           const errorDetails = {
@@ -883,7 +1005,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             responseCode: emailError.responseCode || null
           };
           
-          console.error("DEBUG - Dettagli errore email:", JSON.stringify(errorDetails, null, 2));
+          
           
           // Restituiamo un errore al client con dettagli più specifici
           return res.status(500).json({ 
@@ -899,13 +1021,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Log aggiuntivi per debug
-      console.log("DEBUG ROUTES - Valori inviati nella risposta:");
-      console.log("DEBUG ROUTES - token:", token);
-      console.log("DEBUG ROUTES - link:", link);
-      console.log("DEBUG ROUTES - language:", language);
-      console.log("DEBUG ROUTES - sendEmail richiesto:", sendEmail);
-      console.log("DEBUG ROUTES - emailSent effettivo:", emailSent);
-      console.log("DEBUG ROUTES - customSubject ricevuto:", customSubject);
+      
+      
+      
+      
+      
+      
+      
       
       res.json({ 
         success: true, 
@@ -920,7 +1042,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Error generating onboarding token:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to generate onboarding token', error: String(error) });
     }
   });
@@ -952,10 +1074,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const advisor = await storage.getUser(req.user?.id as number);
       
       // Registriamo i dettagli della richiesta email
-      console.log("DEBUG - Dettagli invio email custom:");
-      console.log("DEBUG - Destinatario:", client.email);
-      console.log("DEBUG - Oggetto:", subject);
-      console.log("DEBUG - Lingua:", language);
+      
+      
+      
+      
       
       try {
         // Send email and log it automatically
@@ -972,19 +1094,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           true             // Registra l'email nei log
         );
         
-        console.log(`Email inviata con successo a ${client.email}`);
+        
         
         // Log dettagliati anche in caso di successo
-        console.log("DEBUG - Dettagli email custom inviata con successo:");
-        console.log("DEBUG - Destinatario:", client.email);
-        console.log("DEBUG - Oggetto:", subject);
-        console.log("DEBUG - Lingua:", language);
-        console.log("DEBUG - Signature presente:", !!advisor?.signature);
+        
+        
+        
+        
+        
         
         res.json({ success: true, message: "Email sent successfully" });
       } catch (emailError: any) {
         // Log dettagliato dell'errore
-        console.error("ERRORE CRITICO - Invio email fallito:", emailError);
+        
         
         // Estrazione dettagli errore più specifici
         const errorDetails = {
@@ -996,7 +1118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           stack: emailError.stack || "No stack trace available"
         };
         
-        console.error("DEBUG - Dettagli errore email:", JSON.stringify(errorDetails, null, 2));
+        
         
         // Inviamo i dettagli dell'errore al frontend
         res.status(500).json({ 
@@ -1007,7 +1129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } catch (error) {
-      console.error("Error in send-email route:", error);
+      
       res.status(500).json({ 
         success: false, 
         message: "Failed to process email request", 
@@ -1046,7 +1168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isOnboarded: client.isOnboarded
       });
     } catch (error) {
-      console.error("Error fetching client by token:", error);
+      
       res.status(500).json({ 
         success: false, 
         message: "Failed to fetch client data" 
@@ -1084,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         isOnboarded: client.isOnboarded
       });
     } catch (error) {
-      console.error("Error fetching client by token:", error);
+      
       res.status(500).json({ 
         success: false, 
         message: "Failed to fetch client data" 
@@ -1157,7 +1279,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         netWorth
       });
       
-      console.log("[DEBUG] Onboarding - Updated client:", updatedClient);
+      
       
       // Add assets if provided
       if (assets && Array.isArray(assets)) {
@@ -1175,7 +1297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: updatedClient
       });
     } catch (error) {
-      console.error("Error completing onboarding:", error);
+      
       if (error instanceof z.ZodError) {
         res.status(400).json({ 
           success: false, 
@@ -1194,7 +1316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Complete client onboarding with query parameter
   app.post('/api/onboarding', async (req, res) => {
     try {
-      console.log("[DEBUG] Onboarding - Request body:", JSON.stringify(req.body, null, 2));
+      
       
       const token = req.query.token as string;
       
@@ -1205,7 +1327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log("[DEBUG] Onboarding - Token:", token);
+      
       
       // Get client by onboarding token
       const client = await storage.getClientByToken(token);
@@ -1217,7 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log("[DEBUG] Onboarding - Found client:", client.id);
+      
       
       // Validate the request body against the schema
       const { 
@@ -1225,7 +1347,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...mifidData
       } = req.body;
       
-      console.log("[DEBUG] Onboarding - MIFID data to save:", JSON.stringify(mifidData, null, 2));
+      
       
       try {
         // Save MIFID data
@@ -1236,9 +1358,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           updatedAt: new Date()
         }).returning();
         
-        console.log("[DEBUG] Onboarding - Saved MIFID data:", JSON.stringify(savedMifid, null, 2));
+        
       } catch (mifidError) {
-        console.error("[ERROR] Failed to save MIFID data:", mifidError);
+        
         return res.status(500).json({
           success: false,
           message: "Failed to save MIFID data",
@@ -1291,7 +1413,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             clientId: client.id
           });
         }
-        console.log("[DEBUG] Onboarding - Saved assets:", assets.length);
+        
       }
       
       res.json({ 
@@ -1300,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: updatedClient
       });
     } catch (error) {
-      console.error("[ERROR] Error completing onboarding:", error);
+      
       if (error instanceof z.ZodError) {
         res.status(400).json({ 
           success: false, 
@@ -1320,7 +1442,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Archive client
   app.post('/api/clients/:id/archive', isAuthenticated, async (req, res) => {
     try {
-      console.log("[INFO] Ricevuta richiesta di archiviazione cliente");
+      
       const clientId = parseInt(req.params.id);
       
       if (isNaN(clientId)) {
@@ -1348,7 +1470,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`[INFO] Archiviazione cliente ID: ${clientId}`);
+      
       const archivedClient = await storage.archiveClient(clientId);
       
       res.json({
@@ -1357,7 +1479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: archivedClient
       });
     } catch (error) {
-      console.error("[ERROR] Errore archiviazione cliente:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to archive client",
@@ -1369,7 +1491,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Restore client from archive
   app.post('/api/clients/:id/restore', isAuthenticated, async (req, res) => {
     try {
-      console.log("[INFO] Ricevuta richiesta di ripristino cliente");
+      
       const clientId = parseInt(req.params.id);
       
       if (isNaN(clientId)) {
@@ -1397,7 +1519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`[INFO] Ripristino cliente ID: ${clientId}`);
+      
       const restoredClient = await storage.restoreClient(clientId);
       
       res.json({
@@ -1406,7 +1528,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client: restoredClient
       });
     } catch (error) {
-      console.error("[ERROR] Errore ripristino cliente:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to restore client",
@@ -1434,7 +1556,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logs: allLogs
       });
     } catch (error) {
-      console.error("[ERROR] Errore recupero log di tutti i clienti:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to retrieve all client logs",
@@ -1466,7 +1588,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[INFO] Recupero log per cliente ID: ${clientId}`);
+      
       const logs = await storage.getClientLogs(clientId);
       
       res.json({
@@ -1474,7 +1596,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         logs
       });
     } catch (error) {
-      console.error("[ERROR] Errore recupero log cliente:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to retrieve client logs",
@@ -1507,9 +1629,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      console.log(`[INFO] Creazione log per cliente ID: ${clientId}, tipo: ${type}`);
-      console.log(`[INFO] Data del log ricevuta (raw): ${logDate}`);
-      console.log(`[INFO] Tipo di dato logDate: ${typeof logDate}`);
+      
+      
+      
       
       // Elaborazione esplicita della data
       let logDateTime: Date;
@@ -1525,10 +1647,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               message: "La data fornita non è valida. Formato richiesto: ISO 8601 (YYYY-MM-DDTHH:MM:SS.sssZ)"
             });
           } else {
-            console.log(`[INFO] Data convertita con successo: ${logDateTime.toISOString()}`);
+            
           }
         } catch (e) {
-          console.error(`[ERROR] Errore nella conversione della data: ${e}`);
+          
           return res.status(400).json({
             success: false,
             message: "Errore nella conversione della data. Usa il formato ISO 8601."
@@ -1538,7 +1660,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Default a 10:00 di oggi se nessuna data fornita
         logDateTime = new Date();
         logDateTime.setHours(10, 0, 0, 0);
-        console.log(`[INFO] Nessuna data fornita, utilizzo oggi alle 10:00: ${logDateTime.toISOString()}`);
+        
       }
       
       const logData = {
@@ -1558,7 +1680,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         log: newLog
       });
     } catch (error) {
-      console.error("[ERROR] Errore creazione log cliente:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to create client log",
@@ -1586,7 +1708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[INFO] Aggiornamento log ID: ${logId}`);
+      
       
       // Elaborazione della data, se fornita
       let logDateTime: Date | undefined;
@@ -1598,10 +1720,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.warn(`[WARN] Data non valida ricevuta per aggiornamento: ${logDate}, ignoro questo campo`);
             logDateTime = undefined;
           } else {
-            console.log(`[INFO] Data di aggiornamento convertita: ${logDateTime.toISOString()}`);
+            
           }
         } catch (e) {
-          console.error(`[ERROR] Errore nella conversione della data di aggiornamento: ${e}`);
+          
           logDateTime = undefined;
         }
       }
@@ -1625,7 +1747,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         log: updatedLog
       });
     } catch (error) {
-      console.error("[ERROR] Errore aggiornamento log:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to update client log",
@@ -1644,7 +1766,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log(`[INFO] Eliminazione log ID: ${logId}`);
+      
       
       const deleted = await storage.deleteClientLog(logId);
       
@@ -1660,7 +1782,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: "Log deleted successfully"
       });
     } catch (error) {
-      console.error("[ERROR] Errore eliminazione log:", error);
+      
       res.status(500).json({
         success: false,
         message: "Failed to delete client log",
@@ -1812,7 +1934,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json(portfolioData);
     } catch (error) {
-      console.error('Error fetching portfolio data:', error);
+      
       res.status(500).json({ error: 'Failed to fetch portfolio data' });
     }
   });
@@ -1843,7 +1965,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const completedTasks = await storage.getCompletedTasks(advisorId, today);
         const completedTaskIds = new Set(completedTasks.map(task => task.taskId));
       } catch (err) {
-        console.log("Impossibile recuperare le attività completate, tabella non ancora creata");
+        
         const completedTaskIds = new Set();
       }
       */
@@ -1880,7 +2002,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
     } catch (error) {
-      console.error('Error fetching tasks:', error);
+      
       res.status(500).json({ error: 'Failed to fetch tasks' });
     }
   });
@@ -1903,7 +2025,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Attività segnata come completata'
       });
     } catch (error) {
-      console.error('Error marking task as completed:', error);
+      
       res.status(500).json({ error: 'Failed to mark task as completed' });
     }
   });
@@ -1926,7 +2048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Attività segnata come da completare'
       });
     } catch (error) {
-      console.error('Error marking task as uncompleted:', error);
+      
       res.status(500).json({ error: 'Failed to mark task as uncompleted' });
     }
   });
@@ -1943,8 +2065,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Ottieni tutti i meeting dell'advisor
       const meetings = await storage.getMeetingsByAdvisor(advisorId);
       
-      console.log(`DEBUG - Trovati ${meetings.length} meeting per l'advisor ${advisorId}`);
-      console.log(`DEBUG - Meeting trovati:`, meetings.map(m => ({ id: m.id, dateTime: m.dateTime, subject: m.subject })));
+      
+      
       
       // Get all clients for this advisor
       const clients = await storage.getClientsByAdvisor(advisorId);
@@ -1956,15 +2078,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Trova il cliente associato a questo meeting
         const client = clients.find(c => c.id === meeting.clientId);
         if (!client) {
-          console.log(`Cliente non trovato per meeting ${meeting.id}`);
+          
           continue;
         }
         
         // Converti dateTime in Date se è una stringa
         const meetingDate = new Date(meeting.dateTime);
         
-        // DEBUG: Log della data originale
-        console.log(`DEBUG - Meeting ${meeting.id}: dateTime originale = ${meetingDate.toISOString()}`);
+        
+        
         
         // Estrai solo il tempo per startTime e endTime
         const startHour = meetingDate.getHours().toString().padStart(2, '0');
@@ -1981,7 +2103,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Formatta la data in YYYY-MM-DD
         const dateStr = meetingDate.toISOString().split('T')[0];
         
-        console.log(`DEBUG - Meeting ${meeting.id} formattato: date=${dateStr}, startTime=${startTime}, endTime=${endTime}`);
+        
         
         events.push({
           id: meeting.id,
@@ -1996,10 +2118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      console.log(`DEBUG - Invio ${events.length} eventi al frontend`);
+      
       res.json({ events });
     } catch (error) {
-      console.error('Error fetching agenda:', error);
+      
       res.status(500).json({ error: 'Failed to fetch agenda' });
     }
   });
@@ -2013,9 +2135,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Missing required fields' });
       }
       
-      console.log('Creating meeting with data:', req.body);
-      console.log('DateTime received:', dateTime);
-      console.log('Send email option:', sendEmail);
+      
+      
+      
       
       // Verifica che dateTime sia una stringa ISO valida e lo converte in un oggetto Date
       let meetingDate;
@@ -2028,9 +2150,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (isNaN(meetingDate.getTime())) {
           throw new Error('Invalid date');
         }
-        console.log('Parsed meeting date:', meetingDate);
+        
       } catch (e) {
-        console.error('Error parsing date:', e);
+        
         return res.status(400).json({ error: 'Invalid dateTime format. Please provide a valid ISO date string.' });
       }
       
@@ -2060,8 +2182,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         notes: notes || ''
       };
       
-      console.log('Creating meeting with final data:', meetingToCreate);
-      console.log('dateTime type:', typeof meetingToCreate.dateTime);
+      
+      
       
       // Create a new meeting in the database
       const meeting = await storage.createMeeting(meetingToCreate);
@@ -2125,17 +2247,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               false // Non creare automaticamente un log per l'email
             );
             
-            console.log(`Meeting invitation email sent to ${client.email}`);
+            
             emailSent = true;
           } else {
-            console.log(`Cannot send meeting invitation: client email is missing`);
+            
           }
         } catch (emailError) {
-          console.error('Error sending meeting invitation email:', emailError);
+          
           // Continue even if email sending fails
         }
       } else {
-        console.log('Email invito non inviata per scelta dell\'utente');
+        
       }
       
       res.status(201).json({ 
@@ -2145,7 +2267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         icalData: sendEmail === true ? icalData : undefined // Include the iCalendar data in the response if email was sent
       });
     } catch (error) {
-      console.error('Error scheduling meeting:', error);
+      
       res.status(500).json({ error: 'Failed to schedule meeting' });
     }
   });
@@ -2201,9 +2323,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           
           updateData.dateTime = meetingDate;
-          console.log(`Meeting ${meetingId} nuova data: ${meetingDate.toISOString()}`);
+          safeLog(`Meeting ${meetingId} nuova data`, { date: meetingDate.toISOString() }, 'debug');
         } catch (err) {
-          console.error('Errore nella parsificazione della data:', err);
+          const error = typedCatch<Error>(err);
+          safeLog('Errore nella parsificazione della data', { message: error.message }, 'error');
           return res.status(400).json({ error: 'Formato data non valido' });
         }
       }
@@ -2230,30 +2353,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const advisor = await storage.getUser(advisorId);
             
             if (advisor) {
-              await sendMeetingUpdateEmail({
-                to: client.email,
-                clientName: client.firstName,
-                advisorName: advisor.name || advisor.username,
-                advisorEmail: advisor.email,
-                subject: meeting.subject,
-                dateTime: meeting.dateTime,
-                location: meeting.location || "Videoconferenza",
-                notes: meeting.notes
+              // Formatta le date per l'email
+              const oldDate = oldMeeting.dateTime.toLocaleDateString('it-IT', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
               });
               
-              console.log(`Email di aggiornamento inviata a ${client.email} per il meeting ${meetingId}`);
+              const oldTime = oldMeeting.dateTime.toLocaleTimeString('it-IT', {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              
+              const newDate = meeting.dateTime.toLocaleDateString('it-IT', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              
+              const newTime = meeting.dateTime.toLocaleTimeString('it-IT', {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+              
+              // Calcola l'ora di fine basata sulla durata
+              const endTime = new Date(meeting.dateTime);
+              endTime.setMinutes(endTime.getMinutes() + (meeting.duration || 60));
+              
+              // Genera iCalendar data
+              const icalData = generateICalendarEvent({
+                startTime: meeting.dateTime,
+                endTime,
+                subject: meeting.subject,
+                description: meeting.notes || '',
+                location: meeting.location || 'Videoconferenza',
+                organizer: { 
+                  name: advisor.name || advisor.username, 
+                  email: advisor.email || '' 
+                },
+                attendees: [
+                  { 
+                    name: `${client.firstName} ${client.lastName}`, 
+                    email: client.email 
+                  }
+                ]
+              });
+              
+              // Separa il nome dell'advisor
+              const advisorName = advisor.name || advisor.username;
+              const advisorNameParts = advisorName.split(' ');
+              const advisorFirstName = advisorNameParts[0] || advisorName;
+              const advisorLastName = advisorNameParts.slice(1).join(' ') || '';
+              
+              await sendMeetingUpdateEmail(
+                client.email,
+                client.firstName,
+                advisorFirstName,
+                advisorLastName,
+                meeting.subject,
+                oldDate,
+                oldTime,
+                newDate,
+                newTime,
+                meeting.location || "Videoconferenza",
+                meeting.notes || '',
+                icalData,
+                advisor.email || '',
+                client.id,
+                advisorId,
+                true // log email
+              );
+              
+              safeLog(`Email di aggiornamento inviata`, { 
+                to: client.email, 
+                meetingId
+              }, 'info');
             }
           }
-        } catch (emailError) {
-          console.error('Errore invio email:', emailError);
+        } catch (err) {
+          const emailError = typedCatch<Error>(err);
+          safeLog('Errore invio email di aggiornamento meeting', { message: emailError.message }, 'error');
           // Non fallire l'intera operazione se l'email non va a buon fine
         }
       }
       
       res.json(updatedMeeting);
     } catch (error) {
-      console.error('Errore aggiornamento meeting:', error);
-      res.status(500).json({ error: 'Errore durante l\'aggiornamento del meeting' });
+      safeLog('Errore aggiornamento meeting', error, 'error');
+      handleErrorResponse(res, error, 'Errore durante l\'aggiornamento del meeting');
     }
   });
   
@@ -2290,7 +2479,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         message: 'Meeting deleted successfully'
       });
     } catch (error) {
-      console.error('Error deleting meeting:', error);
+      
       res.status(500).json({ error: 'Failed to delete meeting' });
     }
   });
@@ -2312,9 +2501,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     location: string;
     organizer: { name: string; email: string };
     attendees: Array<{ name: string; email: string }>;
-  }) {
+  }): string {
     // Format times to iCal format
-    const formatDate = (date: Date) => {
+    const formatDate = (date: Date): string => {
       return date.toISOString().replace(/-|:|\.\d+/g, '');
     };
     
@@ -2403,7 +2592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         daysToNextAudit
       });
     } catch (error) {
-      console.error('Error fetching compliance data:', error);
+      
       res.status(500).json({ error: 'Failed to fetch compliance data' });
     }
   });
@@ -2539,7 +2728,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ activities });
     } catch (error) {
-      console.error('Error fetching activity data:', error);
+      
       res.status(500).json({ error: 'Failed to fetch activity data' });
     }
   });
@@ -2579,7 +2768,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mifid: updatedMifid
       });
     } catch (error) {
-      console.error('Error updating MIFID data:', error);
+      
       if (error instanceof z.ZodError) {
         res.status(400).json({ success: false, message: 'Invalid MIFID data', errors: error.errors });
       } else {
@@ -2607,7 +2796,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mifids
       });
     } catch (error) {
-      console.error('Error fetching MIFID data:', error);
+      
       res.status(500).json({ success: false, message: 'Failed to fetch MIFID data', error: String(error) });
     }
   });
@@ -2689,7 +2878,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         totalAssets: totalValue
       });
     } catch (error) {
-      console.error('Error updating client assets:', error);
+      
       if (error instanceof z.ZodError) {
         res.status(400).json({ success: false, message: 'Invalid asset data', errors: error.errors });
       } else {
@@ -2701,49 +2890,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Toggle client active status
   app.patch('/api/clients/:id/toggle-active', isAuthenticated, async (req, res) => {
     try {
-      console.log("DEBUG - Inizio elaborazione richiesta toggle-active");
+      
       
       if (!req.user || !req.user.id) {
-        console.log("DEBUG - Utente non autenticato o dati utente non validi");
+        
         return res.status(401).json({ success: false, message: 'User not authenticated or invalid user data' });
       }
       
       const clientId = parseInt(req.params.id);
-      console.log("DEBUG - ID cliente ricevuto:", clientId);
+      
       
       if (isNaN(clientId)) {
-        console.log("DEBUG - ID cliente non valido");
+        
         return res.status(400).json({ success: false, message: 'Invalid client ID' });
       }
       
       // Get client from database
-      console.log("DEBUG - Richiesta client dal database, ID:", clientId);
+      
       const client = await storage.getClient(clientId);
-      console.log("DEBUG - Client trovato:", client ? `ID: ${client.id}, Advisor: ${client.advisorId}` : "Nessun client trovato");
+      
       
       if (!client) {
-        console.log("DEBUG - Cliente non trovato");
+        
         return res.status(404).json({ success: false, message: 'Client not found' });
       }
       
       // Check if this client belongs to the current advisor
-      console.log("DEBUG - Confronto advisor:", { clientAdvisor: client.advisorId, currentUser: req.user.id });
+      
       if (client.advisorId !== req.user.id) {
-        console.log("DEBUG - Non autorizzato: l'advisor del cliente non corrisponde all'utente corrente");
+        
         return res.status(403).json({ success: false, message: 'Not authorized to update this client' });
       }
       
       // Se il valore viene passato nella request, usa quello, altrimenti inverte lo stato corrente
       const newActiveStatus = req.body.active !== undefined ? req.body.active : !client.active;
-      console.log("DEBUG - Nuovo stato active:", newActiveStatus, "Stato corrente:", client.active);
+      
       
       // Aggiorna lo stato active del cliente
-      console.log("DEBUG - Aggiornamento stato cliente in corso...");
+      
       const result = await storage.updateClientActiveStatus(clientId, newActiveStatus);
-      console.log("DEBUG - Risultato aggiornamento:", result);
+      
       
       if (!result.success) {
-        console.log("DEBUG - Errore nell'aggiornamento:", result.error);
+        
         return res.status(500).json({ 
           success: false, 
           message: 'Failed to update client active status', 
@@ -2752,19 +2941,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Ottieni il cliente aggiornato
-      console.log("DEBUG - Richiesta client aggiornato");
-      const updatedClient = await storage.getClient(clientId);
-      console.log("DEBUG - Client aggiornato stato active:", updatedClient?.active);
       
-      console.log("DEBUG - Invio risposta di successo");
+      const updatedClient = await storage.getClient(clientId);
+      
+      
+      
       return res.json({ 
         success: true, 
         client: updatedClient
       });
     } catch (error) {
-      console.error('Errore dettagliato aggiornamento stato cliente:', error);
+      
       if (error instanceof Error) {
-        console.error('Stack trace:', error.stack);
+        
       }
       res.status(500).json({ 
         success: false, 
@@ -2779,14 +2968,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Test SMTP connection
     app.post('/api/users/:userId/smtp-test', isAuthenticated, async (req, res) => {
       try {
-        console.log("DEBUG - Test SMTP request received:", req.params.userId);
-        console.log("DEBUG - Test SMTP request body:", JSON.stringify(req.body, null, 2));
+        
+        
         
         const userId = parseInt(req.params.userId);
         
         // Ensure the user is only testing their own SMTP settings
         if (userId !== req.user?.id) {
-          console.log(`DEBUG - Auth mismatch: ${userId} vs ${req.user?.id}`);
+          
           return res.status(403).json({ success: false, message: 'Not authorized to test SMTP settings for this user' });
         }
         
@@ -2800,31 +2989,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         
         try {
-          console.log("DEBUG - Validating SMTP test data");
+          
           const validatedData = smtpTestSchema.parse(req.body);
-          console.log("DEBUG - SMTP data validated successfully");
+          
           
           // Import test function
           const { testSMTPConnection } = require('./email');
-          console.log("DEBUG - Calling testSMTPConnection with:", {
+          
+          const result = await testSMTPConnection({
             host: validatedData.host,
             port: validatedData.port,
             user: validatedData.user
           });
-          const result = await testSMTPConnection(validatedData);
           
-          console.log("DEBUG - SMTP test result:", JSON.stringify(result, null, 2));
+          
           res.json(result);
         } catch (validationError) {
           if (validationError instanceof z.ZodError) {
-            console.error("DEBUG - Validation errors:", JSON.stringify(validationError.errors, null, 2));
+            
             return res.status(400).json({ success: false, errors: validationError.errors });
           } else {
             throw validationError;
           }
         }
       } catch (error) {
-        console.error('Error testing SMTP connection:', error);
+        
         res.status(500).json({ 
           success: false, 
           message: 'Failed to test SMTP connection',
@@ -2876,7 +3065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (error instanceof z.ZodError) {
           res.status(400).json({ success: false, errors: error.errors });
         } else {
-          console.error('Error updating email settings:', error);
+          
           res.status(500).json({ 
             success: false,
             message: 'Failed to update email settings',
@@ -2913,7 +3102,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         });
       } catch (error) {
-        console.error('Error fetching email settings:', error);
+        
         res.status(500).json({ 
           success: false, 
           message: 'Failed to fetch email settings',
@@ -2988,17 +3177,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         // Invia email di onboarding al cliente
         await sendOnboardingEmail(
-          client.email,
+          client.email || '',  // Assicura che l'email non sia mai null
           client.firstName,
           client.lastName,
           onboardingLink,
           validatedData.language,
           validatedData.message,
           advisor?.signature,
-          advisor?.email,
+          req.user.email,
           validatedData.subject,
-          clientId,
-          req.user.id
+          client.id,
+          req.user.id,
+          true // log email
         );
         
         res.json({
@@ -3008,7 +3198,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       } catch (emailError) {
         // Cattura errori specifici dell'invio email
-        console.error('Error sending onboarding email:', emailError);
+        
         
         let errorMessage = 'Failed to send onboarding email';
         
@@ -3028,8 +3218,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
     } catch (error) {
-      console.error('Error in onboarding email process:', error);
-      res.status(500).json({ success: false, message: 'Error in onboarding email process', error: String(error) });
+      safeLog('Errore durante la creazione del link di onboarding', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile creare il link di onboarding');
     }
   });
 
@@ -3064,7 +3254,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         customEmailEnabled: user.custom_email_enabled
       });
     } catch (error) {
-      console.error("Errore nel recupero delle impostazioni email:", error);
+      
       res.status(500).json({ error: "Errore nel recupero delle impostazioni email" });
     }
   });
@@ -3105,7 +3295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ success: true });
     } catch (error) {
-      console.error("Errore nel salvataggio delle impostazioni email:", error);
+      
       res.status(500).json({ error: "Errore nel salvataggio delle impostazioni email" });
     }
   });
@@ -3115,29 +3305,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Send PDF by email
   app.post('/api/clients/send-pdf', isAuthenticated, async (req, res) => {
     try {
-      // Log dettagliato della richiesta
-      console.log('DEBUG - Ricevuta richiesta send-pdf');
-      console.log('DEBUG - Content-Type:', req.headers['content-type']);
-      
       // Verifica presenza dei file nella richiesta
       if (!req.files) {
-        console.log('DEBUG - Nessun file trovato nella richiesta');
         return res.status(400).json({
           success: false,
           message: 'Nessun file trovato nella richiesta'
         });
       }
       
-      // Log dei file ricevuti
-      console.log('DEBUG - Files ricevuti:', {
-        hasFiles: true,
-        filesKeys: Object.keys(req.files),
-        fileCount: Object.keys(req.files).length
-      });
-      
       // Verifica che il file PDF sia presente e valido
       if (!req.files.pdf) {
-        console.log('DEBUG - Campo PDF non trovato tra i file:', Object.keys(req.files));
+        safeLog('Campo PDF mancante nella richiesta', { filesKeys: Object.keys(req.files) }, 'debug');
         return res.status(400).json({
           success: false,
           message: 'File PDF mancante nella richiesta'
@@ -3146,34 +3324,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const pdfFile = req.files.pdf as UploadedFile;
       
-      // Log del file PDF
-      console.log('DEBUG - PDF ricevuto:', {
-        name: pdfFile.name,
-        size: pdfFile.size,
-        mimetype: pdfFile.mimetype,
-        md5: pdfFile.md5,
-        hasTempFilePath: !!pdfFile.tempFilePath
+      // Valida il file PDF
+      const validationResult = validateFile(pdfFile, {
+        allowedMimeTypes: ['application/pdf'],
+        maxSizeBytes: 10 * 1024 * 1024 // 10MB
       });
       
-      // Verifica dimensione del PDF
-      if (pdfFile.size === 0) {
-        console.log('DEBUG - File PDF vuoto');
+      if (!validationResult.valid) {
         return res.status(400).json({
           success: false,
-          message: 'Il file PDF è vuoto'
+          message: validationResult.error
         });
       }
-      
-      // Log dei parametri del body
-      console.log('DEBUG - Body parametri:', {
-        hasClientId: !!req.body.clientId,
-        clientId: req.body.clientId,
-        hasEmailSubject: !!req.body.emailSubject,
-        emailSubject: req.body.emailSubject,
-        hasEmailBody: !!req.body.emailBody,
-        emailBodyLength: req.body.emailBody?.length,
-        allBodyKeys: Object.keys(req.body)
-      });
       
       // Verifica che tutti i campi richiesti siano presenti
       const missingFields = [];
@@ -3182,17 +3344,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.body.emailBody) missingFields.push('emailBody');
 
       if (missingFields.length > 0) {
-        console.log('DEBUG - Campi mancanti:', {
-          missingFields,
-          bodyKeys: Object.keys(req.body)
-        });
         return res.status(400).json({
           success: false,
-          message: `Mancano i seguenti parametri: ${missingFields.join(', ')}`,
-          debug: {
-            missingFields,
-            bodyKeys: Object.keys(req.body)
-          }
+          message: `Mancano i seguenti parametri: ${missingFields.join(', ')}`
         });
       }
       
@@ -3207,6 +3361,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ success: false, message: 'Cliente non trovato' });
       }
       
+      // Verify that the client belongs to this advisor
+      if (client.advisorId !== req.user?.id) {
+        safeLog('Tentativo di invio email a un cliente non autorizzato', 
+          { userId: req.user?.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato ad inviare email a questo cliente' });
+      }
+      
       // Get advisor/user data to get the signature
       const userId = req.user?.id;
       let advisorSignature = 'Il tuo consulente finanziario';
@@ -3217,12 +3378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const user = await storage.getUser(userId);
           if (user && user.signature) {
             advisorSignature = user.signature;
-            console.log('DEBUG - Firma trovata nelle impostazioni utente:', advisorSignature);
-          } else {
-            console.log('DEBUG - Firma non trovata nelle impostazioni utente, uso default');
           }
         } catch (error) {
-          console.error('Errore nel recupero delle impostazioni utente:', error);
+          safeLog('Errore nel recupero delle impostazioni utente', error, 'error');
           // Continuiamo con la firma di default
         }
       }
@@ -3237,9 +3395,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailBody += "\n\nCordiali saluti,";
         }
       }
-      
-      console.log('DEBUG - Email body finale:', emailBody);
-      console.log('DEBUG - Firma consulente:', advisorSignature);
       
       // Prepare attachments
       const attachments = [
@@ -3277,17 +3432,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({
         success: true,
-        message: 'Email inviata con successo',
-        clientEmail: client.email
+        message: 'Email inviata con successo'
       });
       
-    } catch (error: any) {
-      console.error('Errore durante l\'invio del PDF via email:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Si è verificato un errore durante l\'invio dell\'email',
-        error: error.message
-      });
+    } catch (error) {
+      safeLog('Errore durante l\'invio del PDF via email', error, 'error');
+      handleErrorResponse(res, error, 'Si è verificato un errore durante l\'invio dell\'email');
     }
   });
 

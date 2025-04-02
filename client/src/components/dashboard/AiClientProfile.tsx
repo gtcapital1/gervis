@@ -64,8 +64,8 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);
       }
       const result = await response.json();
-      console.log("======== AI PROFILE DATA START ========");
-      console.log("AI Profile data:", JSON.stringify(result, null, 2));
+      
+      
       
       // Verifica se i dati sono già aggiornati
       if (result.upToDate) {
@@ -77,44 +77,44 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       if (result.data) {
         // Controlla il nuovo formato raccomandazioni
         if (result.data.raccomandazioni) {
-          console.log("Raccomandazioni type:", typeof result.data.raccomandazioni);
-          console.log("Raccomandazioni è array?", Array.isArray(result.data.raccomandazioni));
-          console.log("Raccomandazioni value:", JSON.stringify(result.data.raccomandazioni, null, 2));
+          
+          
+          
           
           // Prova a esaminare il primo elemento se è un array
           if (Array.isArray(result.data.raccomandazioni) && result.data.raccomandazioni.length > 0) {
-            console.log("Primo elemento raccomandazioni:", JSON.stringify(result.data.raccomandazioni[0], null, 2));
-            console.log("Tipo primo elemento:", typeof result.data.raccomandazioni[0]);
+            
+            
             
             if (typeof result.data.raccomandazioni[0] === 'object') {
-              console.log("Keys del primo elemento:", Object.keys(result.data.raccomandazioni[0]));
-              console.log("Valori del primo elemento:", Object.values(result.data.raccomandazioni[0]));
-              console.log("Actions:", JSON.stringify(result.data.raccomandazioni[0].actions, null, 2));
+              
+              
+              
             }
           }
         } else {
           // Fallback per il vecchio formato
-          console.log("Approfondimenti type:", typeof result.data.approfondimenti);
-          console.log("Approfondimenti è array?", Array.isArray(result.data.approfondimenti));
-          console.log("Approfondimenti value:", JSON.stringify(result.data.approfondimenti, null, 2));
           
-          console.log("Suggerimenti type:", typeof result.data.suggerimenti);
-          console.log("Suggerimenti è array?", Array.isArray(result.data.suggerimenti));
-          console.log("Suggerimenti value:", JSON.stringify(result.data.suggerimenti, null, 2));
+          
+          
+          
+          
+          
+          
           
           // Prova a esaminare il primo elemento se è un array
           if (Array.isArray(result.data.approfondimenti) && result.data.approfondimenti.length > 0) {
-            console.log("Primo elemento approfondimenti:", JSON.stringify(result.data.approfondimenti[0], null, 2));
-            console.log("Tipo primo elemento:", typeof result.data.approfondimenti[0]);
+            
+            
             
             if (typeof result.data.approfondimenti[0] === 'object') {
-              console.log("Keys del primo elemento:", Object.keys(result.data.approfondimenti[0]));
-              console.log("Valori del primo elemento:", Object.values(result.data.approfondimenti[0]));
+              
+              
             }
           }
         }
       }
-      console.log("======== AI PROFILE DATA END ========");
+      
       
       return result;
     },
@@ -148,7 +148,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           return formatContent(parsed); // Richiama ricorsivamente sulla versione parsata
         } catch (e) {
           // Non è JSON valido, continua a trattarlo come stringa
-          console.log("Tentativo di parsing JSON fallito, trattato come testo:", e);
+          
         }
       }
       
@@ -165,30 +165,30 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     
     // Se è un array
     if (Array.isArray(content)) {
-      console.log("Array content:", content);
-      console.log("First item type:", typeof content[0]);
+      
+      
       
       // Rimuoviamo questa condizione che mostra elementi generici
       // e lasciamo che il codice successivo gestisca gli oggetti nell'array
       
       // Se l'array contiene oggetti, formattali in modo speciale
       if (content.length > 0 && typeof content[0] === 'object') {
-        console.log("Array of objects detected");
-        console.log("Sample object keys:", Object.keys(content[0]));
+        
+        
         
         return (
           <ul className="space-y-4 list-none pl-0">
             {content.map((item, index) => {
-              console.log(`Item ${index}:`, item);
+              
               
               // Estrai le proprietà rilevanti dagli oggetti
               const title = item.title || item.titolo || '';
               const description = item.description || item.descrizione || item.content || item.contenuto || '';
               const actions = item.actions || [];
               
-              console.log(`Item ${index} title:`, title);
-              console.log(`Item ${index} description:`, description);
-              console.log(`Item ${index} actions:`, actions);
+              
+              
+              
               
               return (
                 <li key={index} className="border-l-2 border-primary bg-white text-gray-900 pl-3 py-3 px-4 rounded-md shadow-sm">
@@ -230,7 +230,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         );
       } else {
         // Array di valori primitivi
-        console.log("Array of primitives detected");
+        
         return (
           <ul className="space-y-2 list-disc pl-5">
             {content.map((item, index) => (
@@ -275,7 +275,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           </div>
         );
       } catch (e) {
-        console.error("Errore nella formattazione del contenuto JSON:", e);
+        
         return <p className="text-red-500">Errore durante la visualizzazione del contenuto</p>;
       }
     }

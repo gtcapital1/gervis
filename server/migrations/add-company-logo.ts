@@ -7,7 +7,7 @@ import { db } from "../db";
 import { sql } from "drizzle-orm";
 
 async function addCompanyLogoField() {
-  console.log("Iniziando la migrazione per aggiungere il campo company_logo...");
+  
 
   try {
     // Controlla se la colonna esiste già
@@ -24,14 +24,14 @@ async function addCompanyLogoField() {
         ALTER TABLE users 
         ADD COLUMN company_logo TEXT
       `);
-      console.log("Campo company_logo aggiunto con successo alla tabella users");
+      
     } else {
-      console.log("Il campo company_logo esiste già nella tabella users");
+      
     }
 
-    console.log("Migrazione completata con successo");
+    
   } catch (error) {
-    console.error("Errore durante l'aggiunta del campo company_logo:", error);
+    
     throw error;
   }
 }
@@ -40,6 +40,6 @@ async function addCompanyLogoField() {
 addCompanyLogoField()
   .then(() => process.exit(0))
   .catch((error) => {
-    console.error("Errore durante la migrazione:", error);
+    
     process.exit(1);
   });

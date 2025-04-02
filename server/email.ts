@@ -2,12 +2,51 @@ import nodemailer from 'nodemailer';
 import SMTPTransport from 'nodemailer/lib/smtp-transport';
 import { storage } from './storage';
 
+// Funzione per creare una firma professionale
+function createSignature(userData: {
+  firstName?: string;
+  lastName?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  role?: string;
+}) {
+  const { firstName, lastName, company, email, phone } = userData;
+  
+  // Verifica che ci siano almeno i dati essenziali
+  if (!firstName && !lastName) {
+    return '';
+  }
+  
+  let signature = '';
+  
+  // Nome e cognome (in grassetto)
+  if (firstName || lastName) {
+    signature += `<strong>${[firstName, lastName].filter(Boolean).join(' ')}</strong><br>`;
+  }
+  
+  // Società se presente
+  if (company) {
+    signature += `${company}<br>`;
+  }
+  
+  // Email come link
+  if (email) {
+    signature += `<a href="mailto:${email}" style="color: #007bff; text-decoration: none;">${email}</a><br>`;
+  }
+  
+  // Telefono (senza prefisso "Tel:")
+  if (phone) {
+    signature += `${phone}`;
+  }
+  
+  return signature ? `<div style="margin-top: 20px; color: #555; font-size: 14px; border-top: 1px solid #eee; padding-top: 10px;">${signature}</div>` : '';
+}
+
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
 function getEmailConfig(userConfig: any = null) {
   // Se sono state fornite configurazioni utente, utilizzale
   if (userConfig && userConfig.customEmailEnabled) {
-    console.log("DEBUG - Email config - Utilizzo configurazione utente");
-  
     return {
       host: userConfig.smtpHost,
       port: userConfig.smtpPort,
@@ -45,7 +84,7 @@ const options: SMTPTransport.Options = {
 }
 
 // Ottiene il transporter appropriato per un utente dato
-async function getTransporter(userId = null) {
+async function getTransporter(userId: number | null) {
   if (!userId) {
     throw new Error("Impossibile inviare email: ID utente non specificato");
   }
@@ -67,15 +106,150 @@ async function getTransporter(userId = null) {
       const emailConfig = getEmailConfig(userConfig);
       const transporter = createTransporter(emailConfig);
       
-      console.log(`DEBUG - Utilizzo configurazione email personalizzata per utente ${userId}`);
-      return { transporter, config: emailConfig };
+      // Aggiungiamo i dati utente per generare la firma automaticamente
+      const userData = {
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        email: user.email || '',
+        company: user.company || undefined,
+        phone: user.phone || undefined,
+        role: user.role || 'Consulente Finanziario'
+      };
+      
+      return { transporter, config: emailConfig, userData };
     } else {
       // Nessuna configurazione email valida
       throw new Error("Configurazione email non impostata. Per favore configura le impostazioni SMTP nelle impostazioni utente.");
     }
   } catch (error) {
-    console.error(`Errore nel recupero delle configurazioni email dell'utente ${userId}:`, error);
     // Rilancia l'errore per informare il chiamante del problema
+    throw error;
+  }
+}
+
+// Funzione generica per inviare email
+async function sendEmail({
+  userId,
+  to,
+  subject,
+  html,
+  from = null,
+  cc = null,
+  attachments = [],
+  clientId = null,
+  logEmail = false,
+  logType = "email",
+  logTitle = null,
+  logContent = null,
+  useSignature = true,
+  signatureData = null,
+}: {
+  userId: number;
+  to: string | string[];
+  subject: string;
+  html: string;
+  from?: string | null;
+  cc?: string | null;
+  attachments?: any[];
+  clientId?: number | null;
+  logEmail?: boolean;
+  logType?: string;
+  logTitle?: string | null;
+  logContent?: string | null;
+  useSignature?: boolean;
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  } | null;
+}) {
+  try {
+    // Ottieni il transporter appropriato
+    const { transporter, config, userData } = await getTransporter(userId);
+    
+    // Modifica l'HTML per aggiungere la firma se richiesto e non è già inclusa
+    if (useSignature && !html.includes('margin-top: 20px; color: #555; font-size: 14px; border-top: 1px solid #eee;')) {
+      // Usa i dati firma personalizzati se forniti, altrimenti usa i dati utente
+      const signatureSource = signatureData || {
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        company: userData.company,
+        phone: userData.phone,
+        role: userData.role
+      };
+      
+      const signature = createSignature(signatureSource);
+      
+      // Verifica se esiste un marker per la firma
+      if (html.includes('<!-- SIGNATURE_POSITION -->')) {
+        // Inserisci la firma al posto del marker
+        html = html.replace('<!-- SIGNATURE_POSITION -->', signature);
+      }
+      // Altrimenti usiamo il comportamento precedente
+      else if (html.includes('</div>')) {
+        // Trova l'ultima occorrenza di </div> nell'HTML
+        const lastDivIndex = html.lastIndexOf('</div>');
+        if (lastDivIndex !== -1) {
+          html = html.substring(0, lastDivIndex) + signature + html.substring(lastDivIndex);
+        } else {
+          // Se non c'è un tag </div>, aggiungi la firma alla fine
+          html += signature;
+        }
+      } else if (html.includes('</body>')) {
+        html = html.replace('</body>', `${signature}</body>`);
+      } else {
+        html += signature;
+      }
+    }
+    
+    // Prepara le opzioni email
+    const mailOptions: {
+      from: string;
+      to: string | string[];
+      subject: string;
+      html: string;
+      cc?: string;
+      attachments?: any[];
+    } = {
+      from: from || `"Gervis" <${config.from}>`,
+      to,
+      subject,
+      html,
+      attachments
+    };
+    
+    // Aggiungi cc se fornito
+    if (cc) {
+      mailOptions.cc = cc;
+    }
+    
+    // Invia l'email
+    const info = await transporter.sendMail(mailOptions);
+    
+    // Registra l'email nei log se richiesto
+    if (logEmail && clientId) {
+      try {
+        await storage.createClientLog({
+          clientId,
+          type: logType,
+          title: logTitle || `Email: ${subject}`,
+          content: logContent || html,
+          emailSubject: subject,
+          emailRecipients: Array.isArray(to) ? to.join(', ') : to,
+          logDate: new Date(),
+          createdBy: userId
+        });
+      } catch (logError) {
+        // Non interrompiamo il flusso se la registrazione nel log fallisce
+      }
+    }
+    
+    return true;
+  } catch (error) {
     throw error;
   }
 }
@@ -139,7 +313,17 @@ export async function sendVerificationPin(
   userEmail: string,
   userName: string,
   pin: string,
-  language: EmailLanguage = 'italian'
+  language: EmailLanguage = 'italian',
+  userId: number,
+  useSignature: boolean = false,
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }
 ) {
   try {
     const content = language === 'english' ? emailVerificationContent.english : emailVerificationContent.italian;
@@ -160,55 +344,15 @@ export async function sendVerificationPin(
       </div>
     `;
     
-    await transporter.sendMail({
-      from: `"Gervis" <${emailConfig.from}>`,
+    return await sendEmail({
+      userId,
       to: userEmail,
       subject: content.subject,
       html,
+      useSignature,
+      signatureData
     });
-    
-    console.log(`Verification PIN email sent to ${userEmail}`);
-    return true;
   } catch (error) {
-    console.error('Error sending verification PIN email:', error);
-    throw error;
-  }
-}
-
-// Function to send email verification (legacy - maintaining for backward compatibility)
-export async function sendVerificationEmail(
-  userEmail: string,
-  userName: string,
-  verificationLink: string,
-  language: EmailLanguage = 'italian'
-) {
-  try {
-    const content = language === 'english' ? emailVerificationContent.english : emailVerificationContent.italian;
-    
-    // Creiamo una versione semplificata senza bottone
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-        <h2 style="color: #0066cc;">${content.title}</h2>
-        <p style="margin-bottom: 16px;">${content.greeting(userName)}</p>
-        <p>${content.message}</p>
-        <p style="margin-top: 20px;">Codice di verifica richiesto per accedere.</p>
-        <p style="font-size: 14px; color: #666;">${content.expiry}</p>
-        <p style="font-size: 14px; color: #666;">${content.footer}</p>
-        <p style="margin-top: 30px;">${content.signature}</p>
-      </div>
-    `;
-    
-    await transporter.sendMail({
-      from: `"Gervis" <${emailConfig.from}>`,
-      to: userEmail,
-      subject: content.subject,
-      html,
-    });
-    
-    console.log(`Verification email sent to ${userEmail}`);
-    return true;
-  } catch (error) {
-    console.error('Error sending verification email:', error);
     throw error;
   }
 }
@@ -223,32 +367,22 @@ export async function sendCustomEmail(
   advisorEmail?: string,
   clientId?: number,
   userId?: number,
-  logEmail: boolean = true
+  logEmail: boolean = true,
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }
 ) {
   try {
-    // Ottieni il transporter appropriato in base all'ID utente
-    const { transporter, config } = await getTransporter(userId);
-    
-    const content = language === 'english' ? englishContent : italianContent;
-    
-    // Verifica se il messaggio già contiene la firma dell'advisor
-    const hasCordiali = message.includes("Cordiali saluti,");
-    const containsSignature = advisorSignature && message.includes(advisorSignature);
-    
-    // Se il messaggio termina con "Cordiali saluti," e non ha già la firma, aggiungila
-    let completeMessage = message;
-    if (hasCordiali && !containsSignature && advisorSignature) {
-      // Trova l'indice di "Cordiali saluti,"
-      const salutationIndex = completeMessage.indexOf("Cordiali saluti,");
-      if (salutationIndex !== -1) {
-        // Inserisci la firma dopo "Cordiali saluti,"
-        completeMessage = completeMessage.substring(0, salutationIndex + "Cordiali saluti,".length) + 
-                         "\n" + advisorSignature + 
-                         completeMessage.substring(salutationIndex + "Cordiali saluti,".length);
-      }
+    if (!userId) {
+      throw new Error("Impossibile inviare email: ID utente non specificato");
     }
     
-    const emailHtml = `
+    const html = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -256,55 +390,33 @@ export async function sendCustomEmail(
       <style>
         body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .signature { margin-top: 30px; }
       </style>
     </head>
     <body>
       <div class="container">
-        <div style="white-space: pre-line;">${completeMessage}</div>
+        <div style="white-space: pre-line;">${message}</div>
+        <!-- SIGNATURE_POSITION -->
       </div>
     </body>
     </html>
     `;
     
-    const mailOptions = {
-      from: `"Gervis" <${config.from}>`,
+    return await sendEmail({
+      userId,
       to: clientEmail,
       cc: advisorEmail,
-      subject: subject,
-      html: emailHtml,
-      attachments: attachments || []
-    };
-    
-    console.log("DEBUG - Invio email custom in corso...");
-    console.log("DEBUG - Firma advisor:", advisorSignature);
-    console.log("DEBUG - Messaggio completo:", completeMessage);
-    
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${clientEmail}: ${info.messageId}`);
-    
-    // Registra l'email nei log del cliente se richiesto
-    if (logEmail && clientId) {
-      try {
-        await storage.createClientLog({
-          clientId: clientId,
-          type: "email",
-          title: `Email: ${subject}`,
-          content: completeMessage,
-          emailSubject: subject,
-          emailRecipients: clientEmail,
-          logDate: new Date(),
-          createdBy: userId
-        });
-        console.log(`Email to ${clientEmail} logged in client history`);
-      } catch (logError) {
-        console.error("Errore durante la registrazione dell'email nei log:", logError);
-        // Non interrompiamo il flusso se la registrazione nel log fallisce
-      }
-    }
-    
-    return true;
+      subject,
+      html,
+      attachments,
+      clientId,
+      logEmail,
+      logTitle: `Email: ${subject}`,
+      logContent: message,
+      useSignature: true,
+      signatureData: signatureData
+    });
   } catch (error) {
-    console.error('Error sending email:', error);
     throw error;
   }
 }
@@ -321,178 +433,86 @@ export async function sendOnboardingEmail(
   customSubject?: string,
   clientId?: number,
   userId?: number,
-  logEmail: boolean = true
+  logEmail: boolean = true,
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }
 ) {
-  console.log(`DEBUG - Inizio sendOnboardingEmail per ${clientEmail}`);
   try {
-    // Ottieni il transporter appropriato in base all'ID utente
-    const { transporter, config } = await getTransporter(userId);
+    if (!userId) {
+      throw new Error("Impossibile inviare email: ID utente non specificato");
+    }
     
     // Select content based on language
     const content = language === 'english' ? englishContent : italianContent;
-    console.log(`DEBUG - Lingua selezionata: ${language}`);
     
-    // Process custom message if provided
-    // Remove salutations that might be duplicated in the email
-    let processedMessage = customMessage || '';
-    const greetingPatterns = [
-      new RegExp(`Dear\\s+${firstName}\\s+${lastName}`, 'i'),
-      new RegExp(`Gentile\\s+${firstName}\\s+${lastName}`, 'i'),
-      /^Dear\s+.*,/i,
-      /^Gentile\s+.*,/i
-    ];
-    
-    // Remove greeting lines from custom message to avoid duplication
-    if (customMessage) {
-      const messageLines = customMessage.split('\n');
-      const filteredLines = messageLines.filter(line => {
-        const trimmedLine = line.trim();
-        return !greetingPatterns.some(pattern => pattern.test(trimmedLine));
-      });
-      processedMessage = filteredLines.join('\n');
-    }
-    
-    // Format the message content with HTML paragraphs
+    // Format the message content with HTML paragraphs if provided
     const messageContent = customMessage 
-      ? processedMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
+      ? customMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
       : `<p>${content.invitation}</p>`;
     
-    // Prepare signature section - Verifico se la firma dell'advisor contiene già una formula di saluto
-    const containsSignaturePhrase = advisorSignature && 
-      (advisorSignature.toLowerCase().includes('cordiali saluti') || 
-       advisorSignature.toLowerCase().includes('best regards') ||
-       advisorSignature.toLowerCase().includes('warm regards') ||
-       advisorSignature.toLowerCase().includes('regards') ||
-       advisorSignature.toLowerCase().includes('saluti'));
-
-    const signatureHtml = advisorSignature 
-      ? containsSignaturePhrase
-          ? `<p style="white-space: pre-line; margin-top: 30px;">${advisorSignature}</p>`
-          : `<p style="white-space: pre-line; margin-top: 30px;">${advisorSignature}</p>`
-      : `<p style="margin-top: 30px;">${content.team}</p>`;
-    
     const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
-        ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
-        <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
-        ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
-        <p style="margin-top: 20px;">${content.callToAction}</p>
-        <div style="margin: 30px 0;">
-          <a href="${onboardingLink}" 
-             style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold;">
-            ${content.buttonText}
-          </a>
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .button { background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; display: inline-block; font-weight: bold; }
+          .expiry { font-size: 14px; color: #666; }
+          .signature { margin-top: 30px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
+          <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
+          ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
+          <p style="margin-top: 20px;">${content.callToAction}</p>
+          <div style="margin: 30px 0;">
+            <a href="${onboardingLink}" class="button">
+              ${content.buttonText}
+            </a>
+          </div>
+          <p class="expiry">${content.expiry}</p>
+          <p>${content.questions}</p>
+          <!-- SIGNATURE_POSITION -->
         </div>
-        <p style="font-size: 14px; color: #666;">${content.expiry}</p>
-        <p>${content.questions}</p>
-        ${signatureHtml}
-      </div>
+      </body>
+      </html>
     `;
   
-    // CORRETTO: Rispetta la scelta dell'utente per l'oggetto dell'email
-    console.log("DEBUG - sendOnboardingEmail - customSubject originale:", customSubject);
-    
     // Utilizziamo prioritariamente il valore fornito dall'utente, con fallback solo se vuoto
     const emailSubject = customSubject && customSubject.trim().length > 0 
       ? customSubject 
-      : "Completa il tuo profilo";
-      
-    console.log("DEBUG - OGGETTO FINALE USATO (scelto dall'utente o fallback):", emailSubject);
+      : content.subject;
     
-    // Costruiamo interamente l'oggetto email per evitare problemi
-    const mailOptions: {
-      from: string;
-      to: string;
-      subject: string;
-      html: string;
-      cc?: string;
-    } = {
-      from: `"Gervis" <${config.from}>`,
+    return await sendEmail({
+      userId,
       to: clientEmail,
+      cc: advisorEmail,
       subject: emailSubject,
-      html: html
-    };
-    
-    // Se c'è un advisorEmail, lo aggiungiamo come CC
-    if (advisorEmail) {
-      console.log("DEBUG - Aggiunto CC a:", advisorEmail);
-      mailOptions.cc = advisorEmail;
-    }
-    
-    console.log("DEBUG - Mail options complete:", JSON.stringify(mailOptions, null, 2));
-    console.log(`DEBUG - Tentativo invio email a ${clientEmail} tramite ${config.host}:${config.port}`);
-    
-    // Invio effettivo dell'email
-    console.log("DEBUG - Chiamata transporter.sendMail iniziata");
-    const info = await transporter.sendMail(mailOptions);
-    console.log("DEBUG - Chiamata transporter.sendMail completata con successo");
-    console.log(`DEBUG - Dettagli risposta SMTP:`, JSON.stringify(info));
-    
-    console.log(`Onboarding email sent to ${clientEmail}`);
-    
-    // Registra l'email nei log del cliente se richiesto
-    if (logEmail && clientId) {
-      try {
-        // Estrai il testo del messaggio dall'HTML per il log
-        let messageForLog = customMessage || content.invitation;
-        if (customMessage) {
-          // Già elaborato in precedenza
-          messageForLog = processedMessage;
-        }
-        
-        await storage.createClientLog({
-          clientId: clientId,
-          type: "email",
-          title: "Email di onboarding",
-          content: `Email di onboarding inviata in ${language === 'italian' ? 'italiano' : 'inglese'}\n\n${messageForLog}`,
-          emailSubject: emailSubject,
-          emailRecipients: clientEmail,
-          logDate: new Date(),
-          createdBy: userId
-        });
-        console.log(`Onboarding email to ${clientEmail} logged in client history`);
-      } catch (logError) {
-        console.error("Errore durante la registrazione dell'email di onboarding nei log:", logError);
-        // Non interrompiamo il flusso se la registrazione nel log fallisce
-      }
-    }
-    
-    return true;
-  } catch (error: any) {
-    console.error('ERROR - Errore critico invio onboarding email:');
-    console.error(`ERROR - Destinatario: ${clientEmail}`);
-    console.error(`ERROR - Host SMTP: ${config.host}:${config.port}`);
-    console.error(`ERROR - Messaggio errore: ${error.message}`);
-    console.error(`ERROR - Stack trace: ${error.stack}`);
-    
-    // Log dettagliato degli errori SMTP
-    if (error.code) console.error("ERROR - Codice errore:", error.code);
-    if (error.command) console.error("ERROR - Comando SMTP fallito:", error.command);
-    if (error.response) console.error("ERROR - Risposta server SMTP:", error.response);
-    if (error.responseCode) console.error("ERROR - Codice risposta:", error.responseCode);
-    if (error.rejected) console.error("ERROR - Destinatari rifiutati:", error.rejected);
-    
-    // Rilancia l'errore per la gestione a livello più alto
+      html,
+      clientId,
+      logEmail,
+      logTitle: "Email di onboarding",
+      logContent: `Email di onboarding inviata in ${language === 'italian' ? 'italiano' : 'inglese'}\n\n${customMessage || content.invitation}`,
+      useSignature: true,
+      signatureData: signatureData
+    });
+  } catch (error) {
     throw error;
   }
 }
 
 /**
  * Invia un'email di invito a un meeting al cliente
- * @param to Email del destinatario
- * @param clientName Nome del cliente
- * @param advisorFirstName Nome dell'advisor
- * @param advisorLastName Cognome dell'advisor
- * @param subject Oggetto della riunione
- * @param date Data della riunione (formattata)
- * @param time Ora della riunione (formattata)
- * @param location Luogo della riunione
- * @param notes Note aggiuntive
- * @param icalData Dati iCalendar per l'allegato
- * @param advisorEmail Email dell'advisor
- * @param clientId ID del cliente
- * @param advisorId ID dell'advisor
- * @param logEmail Se true, registra l'email nel database
  */
 export async function sendMeetingInviteEmail(
   to: string,
@@ -508,7 +528,15 @@ export async function sendMeetingInviteEmail(
   advisorEmail: string,
   clientId: number,
   advisorId: number,
-  logEmail: boolean = true
+  logEmail: boolean = true,
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }
 ) {
   const emailTemplate = `
 <!DOCTYPE html>
@@ -570,6 +598,9 @@ export async function sendMeetingInviteEmail(
       border-radius: 5px;
       margin-top: 15px;
     }
+    .signature { 
+      margin-top: 30px; 
+    }
   </style>
 </head>
 <body>
@@ -596,6 +627,8 @@ export async function sendMeetingInviteEmail(
       
       <p>Cordiali saluti,<br>
       ${advisorFirstName} ${advisorLastName}</p>
+      
+      <!-- SIGNATURE_POSITION -->
     </div>
     
     <div class="footer">
@@ -605,65 +638,36 @@ export async function sendMeetingInviteEmail(
 </body>
 </html>`;
 
-  const emailData = {
-    to,
-    from: emailConfig.from,
-    subject: `Invito a meeting: ${subject}`,
-    html: emailTemplate,
-    attachments: [
+  try {
+    const attachments = [
       {
         filename: 'meeting.ics',
         content: icalData,
         contentType: 'text/calendar'
       }
-    ]
-  };
-
-  try {
-    // Invia l'email
-    await transporter.sendMail(emailData);
+    ];
     
-    if (logEmail) {
-      // Registra l'email nel database
-      const emailLog = {
-        emailType: 'meeting_invite',
-        recipientEmail: to,
-        recipientName: clientName,
-        subject: emailData.subject,
-        content: emailTemplate,
-        clientId,
-        advisorId
-      };
-      
-      await storage.createEmailLog(emailLog);
-    }
-    
-    console.log(`[Email Service] Meeting invite sent to ${to}`);
-    return true;
+    return await sendEmail({
+      userId: advisorId,
+      to,
+      subject: `Invito a meeting: ${subject}`,
+      html: emailTemplate,
+      attachments,
+      clientId,
+      logEmail,
+      logType: "meeting_invite",
+      logTitle: "Invito a meeting",
+      logContent: emailTemplate,
+      useSignature: true,
+      signatureData: signatureData
+    });
   } catch (error) {
-    console.error("[Email Service] Error sending meeting invite:", error);
-    return false;
+    throw error;
   }
 }
 
 /**
  * Invia un'email di aggiornamento di un meeting al cliente
- * @param to Email del destinatario
- * @param clientName Nome del cliente
- * @param advisorFirstName Nome dell'advisor
- * @param advisorLastName Cognome dell'advisor
- * @param subject Oggetto aggiornato della riunione
- * @param oldDate Data precedente (formattata)
- * @param oldTime Ora precedente (formattata)
- * @param newDate Nuova data (formattata)
- * @param newTime Nuova ora (formattata)
- * @param location Nuovo luogo della riunione
- * @param notes Note aggiuntive aggiornate
- * @param icalData Dati iCalendar aggiornati per l'allegato
- * @param advisorEmail Email dell'advisor
- * @param clientId ID del cliente
- * @param advisorId ID dell'advisor
- * @param logEmail Se true, registra l'email nel database
  */
 export async function sendMeetingUpdateEmail(
   to: string,
@@ -681,7 +685,15 @@ export async function sendMeetingUpdateEmail(
   advisorEmail: string,
   clientId: number,
   advisorId: number,
-  logEmail: boolean = true
+  logEmail: boolean = true,
+  signatureData?: {
+    firstName?: string;
+    lastName?: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    role?: string;
+  }
 ) {
   const emailTemplate = `
 <!DOCTYPE html>
@@ -749,6 +761,9 @@ export async function sendMeetingUpdateEmail(
       border-radius: 5px;
       margin-top: 15px;
     }
+    .signature { 
+      margin-top: 30px; 
+    }
   </style>
 </head>
 <body>
@@ -783,6 +798,8 @@ export async function sendMeetingUpdateEmail(
       
       <p>Cordiali saluti,<br>
       ${advisorFirstName} ${advisorLastName}</p>
+      
+      <!-- SIGNATURE_POSITION -->
     </div>
     
     <div class="footer">
@@ -792,86 +809,66 @@ export async function sendMeetingUpdateEmail(
 </body>
 </html>`;
 
-  const emailData = {
-    to,
-    from: emailConfig.from,
-    subject: `Aggiornamento meeting: ${subject}`,
-    html: emailTemplate,
-    attachments: [
+  try {
+    const attachments = [
       {
         filename: 'meeting.ics',
         content: icalData,
         contentType: 'text/calendar'
       }
-    ]
-  };
-
-  try {
-    // Invia l'email
-    await transporter.sendMail(emailData);
+    ];
     
-    if (logEmail) {
-      // Registra l'email nel database
-      const emailLog = {
-        emailType: 'meeting_update',
-        recipientEmail: to,
-        recipientName: clientName,
-        subject: emailData.subject,
-        content: emailTemplate,
-        clientId,
-        advisorId
-      };
-      
-      await storage.createEmailLog(emailLog);
-    }
-    
-    console.log(`[Email Service] Meeting update sent to ${to}`);
-    return true;
+    return await sendEmail({
+      userId: advisorId,
+      to,
+      subject: `Aggiornamento meeting: ${subject}`,
+      html: emailTemplate,
+      attachments,
+      clientId,
+      logEmail,
+      logType: "meeting_update",
+      logTitle: "Aggiornamento meeting",
+      logContent: emailTemplate,
+      useSignature: true,
+      signatureData: signatureData
+    });
   } catch (error) {
-    console.error("[Email Service] Error sending meeting update:", error);
-    return false;
+    throw error;
   }
 }
 
 // Esporta la funzione di test connessione SMTP
-export async function testSMTPConnection(smtpConfig) {
+export async function testSMTPConnection(smtpConfig: {
+  host: string;
+  port: string | number;
+  user: string;
+  password: string;
+  from?: string;
+}) {
   try {
-    console.log("DEBUG - testSMTPConnection chiamata con:", JSON.stringify(smtpConfig, null, 2));
-    
     const config = {
       host: smtpConfig.host,
-      port: parseInt(smtpConfig.port, 10),
-      secure: parseInt(smtpConfig.port, 10) === 465,
+      port: parseInt(smtpConfig.port.toString(), 10),
+      secure: parseInt(smtpConfig.port.toString(), 10) === 465,
       user: smtpConfig.user,
       pass: smtpConfig.password,
       from: smtpConfig.from || smtpConfig.user
     };
     
-    console.log("DEBUG - Configurazione SMTP costruita:", JSON.stringify({
-      host: config.host,
-      port: config.port,
-      secure: config.secure,
-      user: config.user,
-      from: config.from
-    }, null, 2));
-    
     const testTransporter = createTransporter(config);
-    console.log("DEBUG - Transporter creato, verifico la connessione...");
     
     try {
       await testTransporter.verify();
-      console.log("DEBUG - Verifica connessione SMTP completata con successo");
+      
       return { success: true, message: 'Connessione SMTP verificata con successo' };
-    } catch (verifyError) {
-      console.error("DEBUG - Errore verifica SMTP:", verifyError);
+    } catch (verifyError: any) {
       return { 
         success: false, 
         message: `Errore connessione SMTP: ${verifyError.message}`,
         error: verifyError.message
       };
     }
-  } catch (error) {
-    console.error("Errore nella verifica della connessione SMTP:", error);
+  } catch (error: any) {
     return { 
       success: false, 
       message: `Errore connessione SMTP: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,

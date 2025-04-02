@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db';
 
 export async function addEmailSettingsColumns() {
-  console.log('Verifico ed aggiungo colonne per impostazioni email...');
+  
   
   try {
     // Verifica se la colonna smtp_host esiste già
@@ -14,7 +14,7 @@ export async function addEmailSettingsColumns() {
 
     // Se la colonna non esiste, aggiungi le colonne necessarie
     if (checkResult.length === 0) {
-      console.log('Le colonne per impostazioni email non esistono, le aggiungo...');
+      
       
       await db.execute(sql`
         ALTER TABLE users
@@ -26,19 +26,23 @@ export async function addEmailSettingsColumns() {
         ADD COLUMN custom_email_enabled BOOLEAN DEFAULT FALSE;
       `);
       
-      console.log('Colonne per impostazioni email aggiunte con successo.');
+      
     } else {
-      console.log('Le colonne per impostazioni email esistono già.');
+      
     }
     
     return true;
   } catch (error) {
-    console.error('Errore durante l\'aggiunta delle colonne per impostazioni email:', error);
+    
     return false;
   }
 }
 
 // Esegui la migrazione all'avvio del server
 addEmailSettingsColumns()
-  .then(() => console.log('Migrazione per impostazioni email completata.'))
-  .catch(err => console.error('Errore durante la migrazione per impostazioni email:', err)); 
+  .then(() => {
+    // Migration completed successfully
+  })
+  .catch(err => {
+    // Error handling
+  });  

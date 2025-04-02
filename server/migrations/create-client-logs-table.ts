@@ -8,7 +8,7 @@ import { sql } from "drizzle-orm/sql";
 import * as url from 'url';
 
 export async function createClientLogsTable() {
-  console.log("Creazione tabella client_logs...");
+  
   
   try {
     // Verifica se la tabella client_logs esiste già
@@ -23,7 +23,7 @@ export async function createClientLogsTable() {
     const exists = tableExists[0].exists;
     
     if (exists) {
-      console.log("La tabella client_logs esiste già.");
+      
       return;
     }
     
@@ -43,9 +43,9 @@ export async function createClientLogsTable() {
       );
     `);
     
-    console.log("Tabella client_logs creata con successo.");
+    
   } catch (error) {
-    console.error("Errore durante la creazione della tabella client_logs:", error);
+    
     throw error;
   }
 }
@@ -56,11 +56,11 @@ const isMainModule = import.meta.url === url.pathToFileURL(process.argv[1]).href
 if (isMainModule) {
   createClientLogsTable()
     .then(() => {
-      console.log("Migrazione completata.");
+      
       process.exit(0);
     })
     .catch((error) => {
-      console.error("Errore durante la migrazione:", error);
+      
       process.exit(1);
     });
 }

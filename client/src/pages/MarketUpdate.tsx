@@ -244,7 +244,7 @@ export default function MarketUpdate() {
   
   // Logging informazioni di debug quando montato
   useEffect(() => {
-    console.log('[Debug Market] Componente montato, user auth status:', user ? 'autenticato' : 'non autenticato');
+    
   }, [user]);
   
   const { t } = useTranslation();
@@ -281,7 +281,7 @@ export default function MarketUpdate() {
         }
         return response.json();
       } catch (error) {
-        console.error('Errore durante il recupero degli indici:', error);
+        
         throw error;
       }
     }
@@ -303,7 +303,7 @@ export default function MarketUpdate() {
         }
         return response.json();
       } catch (error) {
-        console.error('Errore durante il recupero delle notizie:', error);
+        
         throw error;
       }
     },
@@ -327,7 +327,7 @@ export default function MarketUpdate() {
         }
         return response.json();
       } catch (error) {
-        console.error('Errore durante il recupero dei ticker:', error);
+        
         throw error;
       }
     },
@@ -403,7 +403,7 @@ export default function MarketUpdate() {
   // Funzione per aggiornare tutti i dati
   const refreshAllData = () => {
     // Log di debug per monitorare lo stato dell'utente durante refresh dati
-    console.log('[Debug Market] refreshAllData chiamato, stato auth:', user ? `autenticato (${user.id})` : 'non autenticato');
+    
     
     refetchIndices();
     refetchNews();

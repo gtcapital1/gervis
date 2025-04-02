@@ -87,7 +87,7 @@ export function UserManagement() {
   });
 
   // Log per debug
-  console.log("UserManagement - Query state:", { isLoading, isError, errorMessage: error?.message });
+  
   
   // Gestione degli utenti in base ai dati ricevuti
   const pendingUsers = users?.users?.filter(user => user.approvalStatus === "pending") || [];

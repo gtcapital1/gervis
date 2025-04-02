@@ -8,7 +8,9 @@ import { db } from "../db";
 import { sql } from "drizzle-orm/sql";
 
 export async function autorunCreateClientLogs(silent = false) {
-  if (!silent) console.log("Verifica tabella client_logs...");
+  if (!silent) {
+    console.log("Verifying client_logs table existence...");
+  }
   
   try {
     // Verifica se la tabella client_logs esiste già
@@ -23,11 +25,15 @@ export async function autorunCreateClientLogs(silent = false) {
     const exists = tableExists[0].exists;
     
     if (exists) {
-      if (!silent) console.log("La tabella client_logs esiste già.");
+      if (!silent) {
+        console.log("client_logs table already exists.");
+      }
       return;
     }
     
-    if (!silent) console.log("Creazione tabella client_logs...");
+    if (!silent) {
+      console.log("Creating client_logs table...");
+    }
     
     // Crea la tabella client_logs
     await db.execute(sql`
@@ -45,9 +51,14 @@ export async function autorunCreateClientLogs(silent = false) {
       );
     `);
     
-    if (!silent) console.log("Tabella client_logs creata con successo.");
+    if (!silent) {
+      console.log("client_logs table created successfully.");
+    }
+    return true;
   } catch (error) {
-    console.error("Errore durante la verifica/creazione della tabella client_logs:", error);
-    throw error;
+    if (!silent) {
+      console.error("Errore durante la creazione della tabella client_logs:", error);
+    }
+    return false;
   }
 }

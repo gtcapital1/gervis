@@ -11,12 +11,12 @@ import postgres from "postgres";
 
 export async function autorunCascadeFix(silent = false) {
   if (!silent) {
-    console.log("Esecuzione fix automatico vincoli CASCADE DELETE...");
+    
   }
   
   if (!process.env.DATABASE_URL) {
     if (!silent) {
-      console.error("Errore: DATABASE_URL non trovato nelle variabili d'ambiente");
+      
     }
     return;
   }
@@ -45,8 +45,8 @@ export async function autorunCascadeFix(silent = false) {
     const recommendationsDeleteRule = recommendationsConstraint[0]?.confdeltype;
     
     if (!silent) {
-      console.log(`Stato attuale dei vincoli - assets: ${assetDeleteRule}, recommendations: ${recommendationsDeleteRule}`);
-      console.log("Nota: 'c' indica CASCADE, 'a' indica NO ACTION, 'r' indica RESTRICT");
+      
+      
     }
     
     const needsAssetFix = !assetDeleteRule || assetDeleteRule !== 'c';
@@ -55,7 +55,7 @@ export async function autorunCascadeFix(silent = false) {
     // Se necessario, ricrea i vincoli con CASCADE
     if (needsAssetFix) {
       if (!silent) {
-        console.log("Ricreazione vincolo assets_client_id_fkey con CASCADE DELETE...");
+        
       }
       
       try {
@@ -74,18 +74,18 @@ export async function autorunCascadeFix(silent = false) {
         `);
         
         if (!silent) {
-          console.log("Vincolo assets_client_id_fkey ricreato con successo");
+          
         }
       } catch (error) {
         if (!silent) {
-          console.error("Errore durante la ricreazione del vincolo assets_client_id_fkey:", error);
+          
         }
       }
     }
     
     if (needsRecommendationFix) {
       if (!silent) {
-        console.log("Ricreazione vincolo recommendations_client_id_fkey con CASCADE DELETE...");
+        
       }
       
       try {
@@ -104,11 +104,11 @@ export async function autorunCascadeFix(silent = false) {
         `);
         
         if (!silent) {
-          console.log("Vincolo recommendations_client_id_fkey ricreato con successo");
+          
         }
       } catch (error) {
         if (!silent) {
-          console.error("Errore durante la ricreazione del vincolo recommendations_client_id_fkey:", error);
+          
         }
       }
     }
@@ -116,7 +116,7 @@ export async function autorunCascadeFix(silent = false) {
     // Verifica permessi DELETE sulle tabelle
     try {
       if (!silent) {
-        console.log("Verifica permessi DELETE sul database...");
+        
       }
       
       await migrationClient.unsafe(`
@@ -124,28 +124,28 @@ export async function autorunCascadeFix(silent = false) {
       `);
       
       if (!silent) {
-        console.log("Permessi DELETE assegnati con successo");
+        
       }
     } catch (error) {
       if (!silent) {
-        console.log("Nota: Impossibile assegnare esplicitamente i permessi DELETE. L'utente potrebbe già avere i permessi necessari.");
+        
       }
     }
     
     if (!silent) {
-      console.log("Fix automatico completato.");
+      
     }
     return true;
   } catch (error) {
     if (!silent) {
-      console.error("Errore durante l'esecuzione del fix automatico:", error);
+      
     }
     return false;
   } finally {
     // Chiudi la connessione al DB
     await migrationClient.end();
     if (!silent) {
-      console.log("Connessione al database chiusa");
+      
     }
   }
 }

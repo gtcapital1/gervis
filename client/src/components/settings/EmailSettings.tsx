@@ -48,7 +48,7 @@ const EmailSettings: React.FC = () => {
           });
         }
       } catch (err) {
-        console.error('Errore nel caricamento delle impostazioni:', err);
+        
       } finally {
         setIsFetching(false);
       }

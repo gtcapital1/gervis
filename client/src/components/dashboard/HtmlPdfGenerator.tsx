@@ -757,7 +757,7 @@ export function HtmlPdfGenerator({
       // Aggiorna lo stato con l'HTML generato
       setPreviewHtml(htmlContent);
     } catch (error) {
-      console.error("Errore durante la generazione dell'anteprima HTML:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante la generazione dell'anteprima.",
@@ -817,12 +817,12 @@ export function HtmlPdfGenerator({
           });
         })
         .catch(error => {
-          console.error("Errore durante la generazione del PDF:", error);
+          
           throw error;
         });
       
     } catch (error) {
-      console.error("Errore durante il download del PDF:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante il download del PDF.",
@@ -886,7 +886,7 @@ export function HtmlPdfGenerator({
       const fileName = `MIFID_${sanitizedLastName}_${sanitizedFirstName}_${currentDate}.pdf`;
       
       try {
-        console.log('Generazione PDF iniziata usando html2pdf...');
+        
         
         // Configurazione per html2pdf
         const opt = {
@@ -928,7 +928,7 @@ export function HtmlPdfGenerator({
         formData.append('emailBody', emailBody);
         
         // Log per debug
-        console.log('Invio richiesta al server...');
+        
         
         // Invia la richiesta al server
         const response = await fetch('/api/clients/send-pdf', {
@@ -940,12 +940,12 @@ export function HtmlPdfGenerator({
         // Controlla se la risposta è ok
         if (!response.ok) {
           const errorText = await response.text();
-          console.error("Errore dal server:", errorText);
+          
           throw new Error(`Errore dal server: ${response.status} ${response.statusText}`);
         }
         
         const result = await response.json();
-        console.log('Risposta dal server:', result);
+        
         
         toast({
           title: "Email inviata",
@@ -957,7 +957,7 @@ export function HtmlPdfGenerator({
           onGenerated();
         }
       } catch (error) {
-        console.error("Errore durante la generazione o l'invio del PDF:", error);
+        
         toast({
           title: "Errore",
           description: "Si è verificato un errore durante la generazione o l'invio del PDF. Riprova più tardi.",
@@ -967,7 +967,7 @@ export function HtmlPdfGenerator({
         setIsSending(false);
       }
     } catch (error) {
-      console.error("Errore imprevisto:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore imprevisto. Riprova più tardi.",

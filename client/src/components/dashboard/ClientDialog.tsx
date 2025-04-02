@@ -101,7 +101,7 @@ export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
         variant: "destructive",
       });
       
-      console.error("Failed to create client:", error);
+      
     },
     onSettled: () => {
       setIsSubmitting(false);

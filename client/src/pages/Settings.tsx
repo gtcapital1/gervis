@@ -173,7 +173,7 @@ export default function Settings() {
             });
           }
         } catch (error) {
-          console.error('Error fetching email settings:', error);
+          
         }
       };
       fetchEmailSettings();
@@ -210,7 +210,7 @@ export default function Settings() {
           description: "Le impostazioni SMTP sono corrette e funzionanti.",
         });
       } else {
-        console.error("DEBUG - Errore risposta test SMTP:", response);
+        
         toast({
           title: "Errore connessione SMTP",
           description: response.message || "Impossibile connettersi al server SMTP",
@@ -218,7 +218,7 @@ export default function Settings() {
         });
       }
     } catch (error) {
-      console.error("DEBUG - Eccezione test SMTP:", error);
+      
       toast({
         title: "Errore",
         description: error.message || "Si è verificato un errore durante il test della connessione SMTP",

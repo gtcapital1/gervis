@@ -121,18 +121,18 @@ export async function getClientProfile(req: Request, res: Response) {
       const mifid = await storage.getMifidByClient(clientId);
       
       // Debug log per verificare i dati MIFID
-      console.log("[DEBUG_CONTROLLER] MIFID data for client ID:", clientId);
-      console.log("[DEBUG_CONTROLLER] MIFID found:", mifid ? "Yes" : "No");
-      console.log("[DEBUG_CONTROLLER] MIFID properties:");
+      
+      
+      
       if (mifid) {
-        console.log("  - riskProfile:", mifid.riskProfile);
-        console.log("  - investmentExperience:", mifid.investmentExperience);
-        console.log("  - investmentHorizon:", mifid.investmentHorizon);
-        console.log("  - wealthGrowthInterest:", mifid.wealthGrowthInterest);
-        console.log("  - incomeGenerationInterest:", mifid.incomeGenerationInterest);
-        console.log("  - capitalPreservationInterest:", mifid.capitalPreservationInterest);
-        console.log("  - estatePlanningInterest:", mifid.estatePlanningInterest);
-        console.log("  - retirementInterest:", mifid.retirementInterest);
+        
+        
+        
+        
+        
+        
+        
+        
       }
       
       // Genera un nuovo profilo arricchito utilizzando l'AI
@@ -184,7 +184,7 @@ export async function getClientProfile(req: Request, res: Response) {
       });
     }
   } catch (error: any) {
-    console.error("Error generating client profile:", error);
+    
     
     // Gestione degli errori specifici
     if (error.message && (
@@ -214,11 +214,11 @@ export async function generateEnrichedProfile(clientId: number): Promise<AiClien
 
     // Get MIFID data
     const mifid = await getMifidByClient(clientId);
-    console.log("[PROFILE DEBUG] MIFID data for client ID:", clientId);
-    console.log("[PROFILE DEBUG] MIFID data:", JSON.stringify(mifid, null, 2));
-    console.log("[PROFILE DEBUG] riskProfile:", mifid?.riskProfile);
-    console.log("[PROFILE DEBUG] investmentExperience:", mifid?.investmentExperience);
-    console.log("[PROFILE DEBUG] investmentHorizon:", mifid?.investmentHorizon);
+    
+    
+    
+    
+    
 
     // Get client logs
     const clientLogs = await getClientLogsByClientId(clientId);
@@ -235,7 +235,7 @@ export async function generateEnrichedProfile(clientId: number): Promise<AiClien
 
     return profileData;
   } catch (error: any) {
-    console.error("Error generating enriched profile:", error);
+    
     
     // Gestione degli errori specifici
     if (error.message && (

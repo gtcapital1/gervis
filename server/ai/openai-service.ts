@@ -27,6 +27,88 @@ interface AiClientProfile {
 }
 
 /**
+ * Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
+ */
+function createClientProfilePrompt(client: Client, mifid: MifidType | null, logs: ClientLog[]): string {
+  // Funzione helper per controllare e formattare i valori
+  const formatValue = (value: any, type = 'string') => {
+    if (value === null || value === undefined || value === '') {
+      return "Non specificato";
+    }
+    
+    if (type === 'money' && typeof value === 'number') {
+      return `€${value.toLocaleString()}`;
+    }
+    
+    return value;
+  };
+
+  // Formatta i dati del cliente in un prompt strutturato
+  let prompt = `
+# Profilo Cliente
+- Nome: ${formatValue(client.name)}
+- Email: ${formatValue(client.email)}
+${mifid ? `
+- Profilo di rischio: ${formatValue(mifid.riskProfile)}
+- Reddito annuale: ${formatValue(mifid.annualIncome, 'money')}
+- Spese mensili: ${formatValue(mifid.monthlyExpenses, 'money')}
+- Debiti: ${formatValue(mifid.debts, 'money')}
+- Dipendenti: ${formatValue(mifid.dependents)}
+- Stato occupazione: ${formatValue(mifid.employmentStatus)}
+
+## Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
+` : ''}
+`;
+
+  // Aggiungi la cronologia delle interazioni se disponibile
+  if (logs && logs.length > 0) {
+    prompt += "\n# Cronologia Interazioni\n";
+    logs.forEach((log, index) => {
+      prompt += `\n## Interazione ${index + 1} (${log.type}) - ${new Date(log.logDate).toLocaleDateString()}\n`;
+      prompt += `Titolo: ${log.title}\n`;
+      prompt += `Contenuto: ${log.content}\n`;
+    });
+  }
+
+  // Aggiungi istruzioni specifiche per l'AI
+  prompt += `
+# Istruzioni
+Analizza il profilo del cliente e la cronologia delle interazioni per creare delle raccomandazioni personalizzate.
+
+Ogni raccomandazione deve:
+1. Identificare un aspetto rilevante del profilo finanziario del cliente
+2. Fornire una spiegazione contestualizzata che mostri comprensione della situazione
+3. Proporre 2-3 azioni concrete e specifiche che il consulente dovrebbe intraprendere
+
+Rispondi in italiano usando un formato JSON con un campo principale:
+- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
+
+IMPORTANTE:
+- Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
+- Non separare approfondimenti e suggerimenti, ma integra analisi e azioni in un'unica raccomandazione.
+- Le azioni devono essere specifiche, realizzabili e rilevanti per questo cliente specifico.
+- Identifica 3-5 raccomandazioni significative.
+
+Esempio di formato:
+{
+  "raccomandazioni": [
+    {
+      "title": "Ottimizzazione del portafoglio ad alto rischio",
+      "description": "Il cliente presenta un profilo di rischio aggressivo con concentrazione in azioni tech e immobili che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
+      "actions": [
+        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario",
+        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali",
+        "Presentare un'analisi di scenario comparativa tra portafoglio attuale e proposta diversificata"
+      ]
+    }
+  ]
+}
+`;
+
+  return prompt;
+}
+
+/**
  * Genera un profilo client arricchito utilizzando OpenAI
  * @param client Il cliente per cui generare il profilo
  * @param mifid Il profilo di rischio del cliente
@@ -40,25 +122,14 @@ export async function generateClientProfile(
 ): Promise<AiClientProfile> {
   // Verifica se la chiave API OpenAI è impostata
   if (!OPENAI_API_KEY) {
-    console.error("OPENAI_API_KEY not found in environment variables");
     throw new Error("OpenAI API key not configured");
   }
 
   // Debug: stampa i valori importanti di mifid
-  console.log("[DEBUG] VALORI MIFID IMPORTANTI:");
   if (mifid) {
-    console.log({
-      riskProfile: mifid.riskProfile,
-      investmentExperience: mifid.investmentExperience,
-      investmentHorizon: mifid.investmentHorizon,
-      wealthGrowthInterest: mifid.wealthGrowthInterest,
-      incomeGenerationInterest: mifid.incomeGenerationInterest,
-      capitalPreservationInterest: mifid.capitalPreservationInterest,
-      estatePlanningInterest: mifid.estatePlanningInterest,
-      retirementInterest: mifid.retirementInterest
-    });
+    // Valori di mifid (debug log rimosso)
   } else {
-    console.log("MIFID è null");
+    // Log omesso
   }
 
   try {
@@ -139,17 +210,14 @@ Esempio di formato di risposta:
         parsedData = JSON.parse(content);
       }
     } catch (error) {
-      console.error("Error parsing OpenAI response:", error);
-      console.log("Raw response:", content);
-      
       // Se non riesci a parsare il JSON, crea un oggetto formattato manualmente
       // cercando di separare gli approfondimenti dai suggerimenti nel testo
       const sections = content.split(/\n\s*#{1,3}\s*Suggerimenti|Raccomandazioni|Azioni/i);
       
       // Crea array di oggetti con title/description e actions
-      const formatTextToObjects = (text: string) => {
+      const formatTextToObjects = (text: string): ProfileItem[] => {
         const lines = text.split(/\n+/).filter(line => line.trim());
-        const result = [];
+        const result: ProfileItem[] = [];
         
         for (let i = 0; i < lines.length; i++) {
           const line = lines[i].trim();
@@ -270,102 +338,6 @@ Esempio di formato di risposta:
       ]
     };
   } catch (error) {
-    console.error("Error generating client profile:", error);
     throw error;
   }
-}
-
-/**
- * Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
- */
-function createClientProfilePrompt(client: Client, mifid: MifidType | null, logs: ClientLog[]): string {
-  // Funzione helper per controllare e formattare i valori
-  const formatValue = (value: any, type = 'string') => {
-    if (value === null || value === undefined || value === '') {
-      return "Non specificato";
-    }
-    
-    if (type === 'money' && typeof value === 'number') {
-      return `€${value.toLocaleString()}`;
-    }
-    
-    return value;
-  };
-
-  // Formatta i dati del cliente in un prompt strutturato
-  let prompt = `
-# Profilo Cliente
-- Nome: ${formatValue(client.name)}
-- Email: ${formatValue(client.email)}
-${mifid ? `
-- Profilo di rischio: ${formatValue(mifid.riskProfile)}
-- Esperienza di investimento: ${formatValue(mifid.investmentExperience)}
-- Orizzonte di investimento: ${formatValue(mifid.investmentHorizon)}
-- Reddito annuale: ${formatValue(mifid.annualIncome, 'money')}
-- Spese mensili: ${formatValue(mifid.monthlyExpenses, 'money')}
-- Debiti: ${formatValue(mifid.debts, 'money')}
-- Dipendenti: ${formatValue(mifid.dependents)}
-- Stato occupazione: ${formatValue(mifid.employmentStatus)}
-
-## Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
-- Crescita patrimoniale: ${formatValue(mifid.wealthGrowthInterest)}
-- Generazione di reddito: ${formatValue(mifid.incomeGenerationInterest)}
-- Conservazione del capitale: ${formatValue(mifid.capitalPreservationInterest)}
-- Pianificazione patrimoniale: ${formatValue(mifid.estatePlanningInterest)}
-- Pensionamento: ${formatValue(mifid.retirementInterest)}
-` : ''}
-`;
-
-  // Aggiungi la cronologia delle interazioni se disponibile
-  if (logs && logs.length > 0) {
-    prompt += "\n# Cronologia Interazioni\n";
-    logs.forEach((log, index) => {
-      prompt += `\n## Interazione ${index + 1} (${log.type}) - ${new Date(log.logDate).toLocaleDateString()}\n`;
-      prompt += `Titolo: ${log.title}\n`;
-      prompt += `Contenuto: ${log.content}\n`;
-    });
-  }
-
-  // Aggiungi istruzioni specifiche per l'AI
-  prompt += `
-# Istruzioni
-Analizza il profilo del cliente e la cronologia delle interazioni per creare delle raccomandazioni personalizzate.
-
-Ogni raccomandazione deve:
-1. Identificare un aspetto rilevante del profilo finanziario del cliente
-2. Fornire una spiegazione contestualizzata che mostri comprensione della situazione
-3. Proporre 2-3 azioni concrete e specifiche che il consulente dovrebbe intraprendere
-
-Rispondi in italiano usando un formato JSON con un campo principale:
-- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
-
-IMPORTANTE:
-- Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
-- Non separare approfondimenti e suggerimenti, ma integra analisi e azioni in un'unica raccomandazione.
-- Le azioni devono essere specifiche, realizzabili e rilevanti per questo cliente specifico.
-- Identifica 3-5 raccomandazioni significative.
-
-Esempio di formato:
-{
-  "raccomandazioni": [
-    {
-      "title": "Ottimizzazione del portafoglio ad alto rischio",
-      "description": "Il cliente presenta un profilo di rischio aggressivo con concentrazione in azioni tech e immobili che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
-      "actions": [
-        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario",
-        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali",
-        "Presentare un'analisi di scenario comparativa tra portafoglio attuale e proposta diversificata"
-      ]
-    }
-  ]
-}
-`;
-
-  // Debug: stampa il prompt completo
-  console.log("[DEBUG] PROMPT COMPLETO PER OPENAI:");
-  console.log("---------------------------------------");
-  console.log(prompt);
-  console.log("---------------------------------------");
-
-  return prompt;
 }

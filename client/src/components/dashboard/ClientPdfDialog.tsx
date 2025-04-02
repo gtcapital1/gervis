@@ -128,7 +128,7 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
       // Carica i dati del cliente usando l'API reale
       apiRequest(`/api/clients/${clientId}`)
         .then((response: ClientApiResponse) => {
-          console.log("Dati cliente ricevuti:", response);
+          
           
           if (response.success && response.client) {
             // Se abbiamo dati MIFID separati, li associamo al client
@@ -145,7 +145,7 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
           setIsLoading(false);
         })
         .catch((err) => {
-          console.error("Errore nel caricamento dei dati cliente:", err);
+          
           setError("Errore nel caricamento dei dati. Riprova più tardi.");
           setIsLoading(false);
         });
@@ -163,7 +163,7 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
         if (!response.ok) return null;
         return response.text();
       } catch (error) {
-        console.error("Errore nel recupero della firma:", error);
+        
         return null;
       }
     },
@@ -181,7 +181,7 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
         if (!response.ok) return null;
         return response.text();
       } catch (error) {
-        console.error("Errore nel recupero del logo:", error);
+        
         return null;
       }
     },
@@ -199,7 +199,7 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
         if (!response.ok) return null;
         return response.text();
       } catch (error) {
-        console.error("Errore nel recupero delle info aziendali:", error);
+        
         return null;
       }
     },

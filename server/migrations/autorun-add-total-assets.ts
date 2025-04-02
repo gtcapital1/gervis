@@ -9,7 +9,7 @@ import { clients, assets } from "@shared/schema";
 import { eq } from "drizzle-orm/expressions";
 
 export async function autorunAddTotalAssets(silent = false) {
-  if (!silent) console.log("Starting migration to add 'total_assets' column to clients table");
+  if (!silent) 
   
   try {
     // Verifica se la colonna total_assets esiste già
@@ -21,34 +21,34 @@ export async function autorunAddTotalAssets(silent = false) {
     `);
     
     // Verifica il formato dei risultati per debug
-    if (!silent) console.log("Column exists check result:", columnExists);
+    if (!silent) 
     
     // Accesso sicuro al valore
     const exists = columnExists.length > 0 && 
       (columnExists[0]?.exists === true || columnExists[0]?.exists === 't' || columnExists[0]?.exists === 'true');
     
     if (exists) {
-      if (!silent) console.log("Column 'total_assets' already exists");
+      if (!silent) 
       return true;
     }
     
     // Aggiungi la colonna total_assets alla tabella clients
-    if (!silent) console.log("Adding 'total_assets' column to clients table");
+    if (!silent) 
     await db.execute(sql`
       ALTER TABLE clients 
       ADD COLUMN total_assets INTEGER DEFAULT 0;
     `);
     
-    if (!silent) console.log("Column 'total_assets' added to clients table");
+    if (!silent) 
     
     // Ottieni tutti i client IDs
     const clientsList = await db.select({ id: clients.id }).from(clients);
     
-    if (!silent) console.log(`Found ${clientsList.length} clients to update`);
+    if (!silent) 
     
     // Debug del primo cliente se disponibile
     if (clientsList.length > 0 && !silent) {
-      console.log("First client format:", clientsList[0]);
+      
     }
     
     // Per ogni cliente, calcola il totale dei suoi asset e aggiorna il record
@@ -62,7 +62,7 @@ export async function autorunAddTotalAssets(silent = false) {
       
       // Debug del primo asset se disponibile
       if (clientAssets.length > 0 && updatedCount === 0 && !silent) {
-        console.log("First client assets format:", clientAssets[0]);
+        
       }
       
       // Calcola la somma totale
@@ -81,15 +81,15 @@ export async function autorunAddTotalAssets(silent = false) {
       updatedCount++;
       
       if (!silent && updatedCount % 10 === 0) {
-        console.log(`Updated ${updatedCount}/${clientsList.length} clients`);
+        
       }
     }
     
-    if (!silent) console.log(`Updated total_assets for ${updatedCount} clients`);
+    if (!silent) 
     
     return true;
   } catch (error) {
-    console.error(`Error during migration:`, error);
+    
     return false;
   }
 } 

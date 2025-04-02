@@ -125,18 +125,18 @@ const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number,
 // Funzione per recuperare i dati degli indici principali
 export async function getMarketIndices(req: Request, res: Response) {
   try {
-    console.log(`DEBUG-MARKET: Inizio getMarketIndices - ${new Date().toISOString()}`);
+    
     
     // Utilizziamo la Financial Modeling Prep API per ottenere dati reali
     const apiKey = process.env.FINANCIAL_API_KEY;
     
     // Verifichiamo che la chiave API sia disponibile
     if (!apiKey) {
-      console.error("DEBUG-MARKET-ERROR: Chiave API Financial Modeling Prep non trovata");
+      
       throw new Error("API key not found");
     }
     
-    console.log(`DEBUG-MARKET: API key verificata, lunghezza: ${apiKey.length} - ${new Date().toISOString()}`);
+    
     
     // Per migliorare la stabilità, utilizziamo un sistema di cache in memoria
     // che mantiene i dati per un certo periodo di tempo (30 minuti)
@@ -144,23 +144,23 @@ export async function getMarketIndices(req: Request, res: Response) {
     const cachedData = getFromCache(cacheKey);
     
     if (cachedData) {
-      console.log(`DEBUG-MARKET: Usando dati in cache per indici - ${new Date().toISOString()}`);
+      
       return res.json(cachedData);
     }
     
-    console.log(`DEBUG-MARKET: Nessun dato in cache, recupero dati freschi - ${new Date().toISOString()}`);
+    
     
     // Prepariamo le richieste per tutti gli indici
-    console.log(`DEBUG-MARKET: Avvio fetch per ${MAIN_INDICES.length} indici - ${new Date().toISOString()}`);
+    
     
     const fetchPromises = MAIN_INDICES.map(async (index) => {
       try {
-        console.log(`DEBUG-MARKET: Elaborazione indice ${index.name} (${index.symbol}) - ${new Date().toISOString()}`);
+        
         
         // Il piano gratuito di Financial Modeling Prep è limitato solo alle azioni americane
         // Quindi controlliamo se l'indice è americano
         if (index.country !== 'us') {
-          console.log(`DEBUG-MARKET: Indice ${index.name} non è US, ritorno N/A - ${new Date().toISOString()}`);
+          
           // Per indici non americani, mostriamo N/A invece di dati fissi
           return {
             symbol: index.symbol,
@@ -187,19 +187,19 @@ export async function getMarketIndices(req: Request, res: Response) {
         }
         
         const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
-        console.log(`DEBUG-MARKET: Recupero dati per ${index.name} da ${url.replace(apiKey, 'API_KEY_HIDDEN')} - ${new Date().toISOString()}`);
+        
         
         // Utilizziamo la nuova funzione fetchWithTimeout
-        console.log(`DEBUG-MARKET: Inizio chiamata fetch per ${index.name} - ${new Date().toISOString()}`);
+        
         
         const response = await fetchWithTimeout(url);
         
-        console.log(`DEBUG-MARKET: Risposta fetch ricevuta per ${index.name} - ${new Date().toISOString()}`);
-        console.log(`DEBUG-MARKET: Status risposta per ${index.name}: ${response.status} - ${new Date().toISOString()}`);
+        
+        
         
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           const data = response.data[0];
-          console.log(`Dati ricevuti per ${index.name}: ${JSON.stringify(data).substring(0, 100)}...`);
+          
           return {
             symbol: index.symbol,
             name: index.name,
@@ -210,7 +210,7 @@ export async function getMarketIndices(req: Request, res: Response) {
             currency: "$"
           };
         } else {
-          console.log(`Nessun dato disponibile per ${index.name}`);
+          
           // Se non abbiamo dati, mostriamo N/A
           return {
             symbol: index.symbol,
@@ -223,7 +223,7 @@ export async function getMarketIndices(req: Request, res: Response) {
           };
         }
       } catch (err) {
-        console.error(`Errore nel recuperare i dati per ${index.symbol}:`, err);
+        
         // In caso di errore, mostriamo N/A
         return {
           symbol: index.symbol,
@@ -245,7 +245,7 @@ export async function getMarketIndices(req: Request, res: Response) {
     
     res.json(indices);
   } catch (error) {
-    console.error("Errore nel recupero degli indici di mercato:", error);
+    
     
     // In caso di errore generale, mostriamo N/A per tutti gli indici
     const indices: MarketIndex[] = MAIN_INDICES.map(index => {
@@ -300,15 +300,15 @@ const FIXED_TICKER_DATA: Record<string, { price: number, changePercent: number, 
 // Funzione per recuperare dati per ticker specifici
 export async function getTickerData(req: Request, res: Response) {
   try {
-    console.log(`DEBUG-MARKET: Inizio getTickerData - ${new Date().toISOString()}`);
+    
     
     // Ottieni la lista di ticker dalla query (es. ?symbols=AAPL,MSFT,GOOGL)
     const symbols = req.query.symbols ? (req.query.symbols as string).split(',') : [];
     
-    console.log(`DEBUG-MARKET: Ticker richiesti: ${symbols.join(', ')} - ${new Date().toISOString()}`);
+    
     
     if (!symbols.length) {
-      console.log(`DEBUG-MARKET: Nessun ticker specificato nella richiesta - ${new Date().toISOString()}`);
+      
       return res.status(400).json({ error: "Nessun ticker specificato" });
     }
     
@@ -317,22 +317,22 @@ export async function getTickerData(req: Request, res: Response) {
     
     // Verifichiamo che la chiave API sia disponibile
     if (!apiKey) {
-      console.error(`DEBUG-MARKET-ERROR: Chiave API Financial Modeling Prep non trovata - ${new Date().toISOString()}`);
+      
       throw new Error("API key not found");
     }
     
-    console.log(`DEBUG-MARKET: API key verificata per ticker, lunghezza: ${apiKey.length} - ${new Date().toISOString()}`);
+    
     
     // Verifica se abbiamo dati nella cache
     const cacheKey = `tickers_${symbols.join('_')}`;
     const cachedData = getFromCache(cacheKey);
     
     if (cachedData) {
-      console.log(`DEBUG-MARKET: Usando dati in cache per ticker - ${new Date().toISOString()}`);
+      
       return res.json(cachedData);
     }
     
-    console.log(`DEBUG-MARKET: Nessun dato in cache per ticker, recupero dati freschi - ${new Date().toISOString()}`);
+    
     
     // Separa i ticker americani da quelli non americani
     // Il piano gratuito di Financial Modeling Prep supporta solo azioni americane
@@ -371,7 +371,7 @@ export async function getTickerData(req: Request, res: Response) {
         const symbolsString = usSymbols.join(',');
         
         // Impostiamo un timeout più lungo per problemi di rete su AWS
-        console.log(`DEBUG-MARKET: Inizio chiamata fetch per ticker ${symbolsString} - ${new Date().toISOString()}`);
+        
         
         const tickerApiKey = process.env.FINANCIAL_API_KEY;
         if (!tickerApiKey) {
@@ -379,13 +379,13 @@ export async function getTickerData(req: Request, res: Response) {
         }
         
         const tickerUrl = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${tickerApiKey}`;
-        console.log(`Recupero dati per ${symbols.length} ticker da ${tickerUrl.replace(tickerApiKey, 'API_KEY_HIDDEN')}`);
+        
         
         // Utilizziamo la nuova funzione fetchWithTimeout
         const response = await fetchWithTimeout(tickerUrl);
         
-        console.log(`DEBUG-MARKET: Risposta axios ricevuta per ticker ${symbolsString} - ${new Date().toISOString()}`);
-        console.log(`DEBUG-MARKET: Status risposta per ticker: ${response.status} - ${new Date().toISOString()}`);
+        
+        
         
         if (response.data && Array.isArray(response.data) && response.data.length > 0) {
           // Trasformiamo i dati nel formato atteso
@@ -436,7 +436,7 @@ export async function getTickerData(req: Request, res: Response) {
           }
         }
       } catch (apiError) {
-        console.error("Errore nella chiamata API per ticker americani:", apiError);
+        
         
         // In caso di errore dell'API, mostriamo N/A per tutti i ticker americani
         for (const symbol of usSymbols) {
@@ -457,7 +457,7 @@ export async function getTickerData(req: Request, res: Response) {
     // Ritorno dei dati al client
     res.json(apiTickers);
   } catch (error) {
-    console.error("Errore nel recupero dei dati dei ticker:", error);
+    
     
     // In caso di errore generale, restituire dati non disponibili
     const tickers: StockTicker[] = (req.query.symbols as string).split(',').map(symbol => {
@@ -532,7 +532,7 @@ export async function getTickerSuggestions(req: Request, res: Response) {
     
     res.json(suggestions);
   } catch (error) {
-    console.error("Errore nel recupero dei suggerimenti ticker:", error);
+    
     res.status(500).json({ error: "Errore nel recupero dei suggerimenti ticker" });
   }
 }
@@ -569,7 +569,7 @@ export async function validateTicker(req: Request, res: Response) {
       });
     }, 300);
   } catch (error) {
-    console.error("Errore nella validazione del ticker:", error);
+    
     res.status(500).json({ error: "Errore nella validazione del ticker" });
   }
 }
@@ -582,7 +582,7 @@ export async function getFinancialNews(req: Request, res: Response) {
     // Ottieni il parametro limit se presente
     const limit = req.query.limit as string || '20'; // Default 20 se non specificato
     
-    console.log(`DEBUG-MARKET: Inizio getFinancialNews con filtro ${filter} e limit ${limit} - ${new Date().toISOString()}`);
+    
     
     // Riattivazione del codice originale
     const cacheKey = `financial_news_${filter}`;
@@ -590,19 +590,19 @@ export async function getFinancialNews(req: Request, res: Response) {
     // Controlla se abbiamo dati cached
     const cachedData = getFromCache(cacheKey);
     if (cachedData) {
-      console.log(`DEBUG-MARKET: Utilizzando dati in cache per notizie ${filter} - ${new Date().toISOString()}`);
+      
       return res.json(cachedData);
     }
     
-    console.log(`DEBUG-MARKET: Nessun dato in cache per notizie, recupero dati freschi - ${new Date().toISOString()}`);
+    
     
     const apiKey = process.env.FINANCIAL_API_KEY;
     if (!apiKey) {
-      console.error(`DEBUG-MARKET-ERROR: API key non configurata per Financial Modeling Prep - ${new Date().toISOString()}`);
+      
       throw new Error("API key non configurata per Financial Modeling Prep");
     }
     
-    console.log(`DEBUG-MARKET: API key verificata per notizie, lunghezza: ${apiKey.length} - ${new Date().toISOString()}`);
+    
     
     let newsItems: NewsItem[] = [];
     let apiUrl = '';
@@ -615,25 +615,25 @@ export async function getFinancialNews(req: Request, res: Response) {
       apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
     }
     
-    console.log(`DEBUG-MARKET: Recupero notizie finanziarie per ${filter} da ${apiUrl.replace(apiKey, 'API_KEY_HIDDEN')} - ${new Date().toISOString()}`);
+    
     
     // Impostiamo un timeout più lungo per problemi di rete su AWS
-    console.log(`DEBUG-MARKET: Inizio chiamata axios per notizie ${filter} - ${new Date().toISOString()}`);
+    
     
     // Utilizziamo la nuova funzione fetchWithTimeout
-    console.log(`DEBUG-MARKET: Inizio chiamata fetch per notizie ${filter} - ${new Date().toISOString()}`);
+    
     
     const response = await fetchWithTimeout(apiUrl);
     
-    console.log(`DEBUG-MARKET: Risposta axios ricevuta per notizie ${filter} - ${new Date().toISOString()}`);
-    console.log(`DEBUG-MARKET: Status risposta per notizie: ${response.status} - ${new Date().toISOString()}`);
+    
+    
     
     // Con axios, il corpo della risposta è già in response.data
     const data = response.data;
-    console.log(`DEBUG-MARKET: Tipo dati ricevuti: ${typeof data}, isArray: ${Array.isArray(data)} - ${new Date().toISOString()}`);
+    
     
     if (Array.isArray(data)) {
-      console.log(`DEBUG-MARKET: Notizie ricevute: ${data.length} items - ${new Date().toISOString()}`);
+      
       
       // Whitelist delle testate giornalistiche più rilevanti
       const trustedSourcesWhitelist = [
@@ -679,7 +679,7 @@ export async function getFinancialNews(req: Request, res: Response) {
         );
       });
       
-      console.log(`DEBUG-MARKET: Notizie filtrate per fonti affidabili: ${filteredData.length} items - ${new Date().toISOString()}`);
+      
       
       // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
       let finalData = filteredData;
@@ -710,20 +710,20 @@ export async function getFinancialNews(req: Request, res: Response) {
       
       // Cache dei risultati per 15 minuti (900000 ms)
       saveToCache(cacheKey, newsItems, 900000);
-      console.log(`DEBUG-MARKET: Notizie salvate nella cache con chiave ${cacheKey} - ${new Date().toISOString()}`);
+      
     } else {
-      console.error(`DEBUG-MARKET-ERROR: Formato di risposta API inatteso: ${JSON.stringify(data).substring(0, 200)} - ${new Date().toISOString()}`);
+      
       throw new Error("Formato di risposta API inatteso");
     }
     
-    console.log(`DEBUG-MARKET: Invio risposta con ${newsItems.length} notizie - ${new Date().toISOString()}`);
+    
     res.json(newsItems);
   } catch (error) {
-    console.error(`DEBUG-MARKET-ERROR: Errore nel recupero delle notizie finanziarie: ${error} - ${new Date().toISOString()}`);
+    
     
     // In caso di errore, restituiamo un array vuoto di notizie
     // piuttosto che dati fittizi, seguendo il principio di data integrity
-    console.log(`DEBUG-MARKET: Invio array vuoto come fallback - ${new Date().toISOString()}`);
+    
     res.json([]);
   }
 }

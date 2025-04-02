@@ -6,7 +6,7 @@ import { sql } from 'drizzle-orm';
 
 async function addSignatureField() {
   try {
-    console.log('Adding signature field to users table...');
+    
     
     // Execute SQL statement to add the signature column if it doesn't exist
     await db.execute(sql`
@@ -14,9 +14,9 @@ async function addSignatureField() {
       ADD COLUMN IF NOT EXISTS "signature" text;
     `);
     
-    console.log('Signature field added successfully!');
+    
   } catch (error) {
-    console.error('Error adding signature field:', error);
+    
   }
 }
 

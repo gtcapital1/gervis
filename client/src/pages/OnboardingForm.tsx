@@ -161,7 +161,7 @@ export default function OnboardingForm() {
       i18n.changeLanguage('en');
     }
     
-    console.log("Lingua impostata su:", i18n.language);
+    
   }, [i18n]);
 
   // Fetch client data using token
@@ -219,7 +219,7 @@ export default function OnboardingForm() {
       }, 2000);
     },
     onError: (error: any) => {
-      console.error("Error submitting form:", error);
+      
       if (error.message?.includes("token")) {
         setFormError("Errore durante l'invio del modulo. Per favore, richiedi un nuovo link di onboarding.");
       } else if (error.response?.data?.error) {
@@ -256,11 +256,11 @@ export default function OnboardingForm() {
     setFormError(null);
     
     try {
-      console.log("DEBUG - Invio dati:", data);
+      
       
       await mutation.mutateAsync(data);
     } catch (error: any) {
-      console.error("DEBUG - Errore durante l'invio:", error);
+      
       if (error.message?.includes("token")) {
         setFormError("Errore durante l'invio del modulo. Per favore, richiedi un nuovo link di onboarding.");
       } else if (error.response?.data?.error) {

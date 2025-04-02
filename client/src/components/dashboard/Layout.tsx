@@ -64,7 +64,7 @@ export function Layout({ children }: LayoutProps) {
     i18n.changeLanguage(newLang);
     // Save language preference to localStorage for persistence
     localStorage.setItem('preferredLanguage', newLang);
-    console.log("Lingua cambiata a:", newLang);
+    
   };
   
   // Handle logout

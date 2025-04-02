@@ -141,7 +141,7 @@ export default function OnboardingForm() {
       i18n.changeLanguage('en');
     }
     
-    console.log("Lingua impostata su:", i18n.language);
+    
   }, [i18n]);
 
   // Fetch client data using token

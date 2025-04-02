@@ -187,7 +187,7 @@ export function ClientPdfGenerator({
     const filename = `MiFID_${safeLastName}${safeFirstName ? '_' + safeFirstName : ''}_${date}.pdf`;
     
     // Log per debug
-    console.log("Nome file generato:", filename);
+    
     
     return filename;
   };
@@ -440,7 +440,7 @@ export function ClientPdfGenerator({
       // Aggiorna lo stato con l'HTML generato
       setPreviewHtml(htmlContent);
     } catch (error) {
-      console.error("Errore durante la generazione dell'anteprima HTML:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante la generazione dell'anteprima.",
@@ -471,7 +471,7 @@ export function ClientPdfGenerator({
         description: "Il PDF è stato scaricato con successo."
       });
     } catch (error) {
-      console.error("Errore durante il download del PDF:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante il download del PDF.",
@@ -528,9 +528,9 @@ export function ClientPdfGenerator({
         // Chiudi il dialog
       if (onGenerated) {
         onGenerated();
-        }
+      }
       } else {
-        console.error("Errore invio email:", result);
+        
         toast({
           title: "Errore",
           description: result.message || "Si è verificato un errore durante l'invio dell'email.",
@@ -538,7 +538,7 @@ export function ClientPdfGenerator({
         });
       }
     } catch (error) {
-      console.error("Errore durante l'invio dell'email:", error);
+      
       toast({
         title: "Errore",
         description: "Si è verificato un errore durante l'invio dell'email.",

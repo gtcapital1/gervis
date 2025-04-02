@@ -278,7 +278,7 @@ export default function ClientDetail() {
   // Redirect if not authenticated
   React.useEffect(() => {
     if (!isAuthLoading && !user) {
-      console.log("DEBUG - Utente non autenticato, redirect a /login");
+      
       setLocation("/login");
     }
   }, [user, isAuthLoading, setLocation]);
@@ -306,9 +306,9 @@ export default function ClientDetail() {
   } = useQuery<ClientQueryResponse>({
     queryKey: ['client', clientId],
     queryFn: async () => {
-      console.log("DEBUG - Fetching client data for ID:", clientId);
+      
       const response = await apiRequest(`/api/clients/${clientId}`);
-      console.log("DEBUG - API Response:", response);
+      
       
       // La risposta API ha già la struttura corretta
       return response;
@@ -321,10 +321,10 @@ export default function ClientDetail() {
   const mifid = clientData?.mifid;
   
   // Debug logs per verificare i dati
-  console.log("DEBUG - Client Data:", clientData);
-  console.log("DEBUG - Client:", client);
-  console.log("DEBUG - Is Client Onboarded:", client?.isOnboarded);
-  console.log("DEBUG - Error:", error);
+  
+  
+  
+  
   
   // Filtra gli asset per mostrare solo quelli con valore maggiore di 0
   const assets = (clientData?.assets || []).filter((asset: AssetType) => asset.value > 0);
@@ -550,11 +550,11 @@ Grazie per la tua fiducia e collaborazione.`
   // Mutation per gestire l'onboarding
   const sendOnboardingMutation = useMutation({
     mutationFn: (params: OnboardingParams) => {
-      console.log("DEBUG - Parametri onboarding:", params);
+      
       
       // IMPORTANTE: Parametro separato "sendEmail" per determinare l'azione
       const isSendingEmail = params.sendEmail === true;
-      console.log("DEBUG - isSendingEmail:", isSendingEmail);
+      
       
       return apiRequest(`/api/clients/${clientId}/onboarding-token`, {
         method: 'POST',
@@ -563,8 +563,8 @@ Grazie per la tua fiducia e collaborazione.`
     },
     onSuccess: (data: { token: string, link: string, language: 'english' | 'italian', emailSent?: boolean }, variables) => {
       // Log per verificare i dati ricevuti dal server
-      console.log("DEBUG - Risposta onboarding:", data);
-      console.log("DEBUG - Variables usate nella chiamata:", variables);
+      
+      
       
       // Salva il link nel localStorage per persistenza
       localStorage.setItem(`onboardingLink_${clientId}`, data.link);
@@ -592,7 +592,7 @@ Grazie per la tua fiducia e collaborazione.`
       }
     },
     onError: (error) => {
-      console.error("DEBUG - Errore onboarding:", error);
+      
       toast({
         title: t('common.error'),
         description: t('client.link_generation_failed'),
@@ -604,7 +604,7 @@ Grazie per la tua fiducia e collaborazione.`
   // Funzione per aggiornare lo stato active del cliente
   const updateClientActiveMutation = useMutation({
     mutationFn: async () => {
-      console.log(`Invio richiesta per toggle-active del cliente ${clientId}. Stato corrente: ${client?.active}`);
+      
       try {
         // Aggiungi un timestamp per evitare la cache
         const timestamp = new Date().getTime();
@@ -619,17 +619,17 @@ Grazie per la tua fiducia e collaborazione.`
         
         // Controlla se la risposta è HTML invece di JSON (errore comune)
         if (typeof response === 'string' && response.includes('<!doctype html>')) {
-          console.error('Ricevuta risposta HTML invece di JSON:', response.substring(0, 100));
+          
           throw new Error('Risposta del server non valida: ricevuto HTML invece di JSON');
         }
         
-        console.log('Risposta ricevuta:', response);
+        
         
         // In caso di risposta non valida, forzare un refresh della pagina dopo 1 secondo 
         // per aggirare il problema
         if (!response || !response.success) {
           setTimeout(() => {
-            console.log('Forzatura refresh pagina per aggirare errore risposta');
+            
             window.location.reload();
           }, 1000);
           
@@ -638,17 +638,17 @@ Grazie per la tua fiducia e collaborazione.`
         
         return response;
       } catch (error) {
-        console.error('Errore catturato nella chiamata API:', error);
+        
         // In caso di errore, forzare un refresh della pagina dopo 1 secondo
         setTimeout(() => {
-          console.log('Forzatura refresh pagina dopo errore');
+          
           window.location.reload();
         }, 1000);
         throw error;
       }
     },
     onSuccess: (response) => {
-      console.log('Mutation completata con successo:', response);
+      
       toast({ 
         title: client?.active 
           ? t('client.deactivation_successful') 
@@ -661,7 +661,7 @@ Grazie per la tua fiducia e collaborazione.`
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
     },
     onError: (error: any) => {
-      console.error('Errore dettagliato:', error);
+      
       toast({
         title: t('common.error'),
         description: error.message || t('client.status_update_error'),
@@ -689,7 +689,7 @@ Grazie per la tua fiducia e collaborazione.`
         language: 'italian' // Hardcoded per ora, ma puoi rendere parametrizzabile
       };
       
-      console.log(`Generazione link onboarding per cliente ${clientId}...`);
+      
       
       // Modifica l'endpoint per usare onboarding-token invece di onboarding-email
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-token`, {
@@ -697,7 +697,7 @@ Grazie per la tua fiducia e collaborazione.`
         body: JSON.stringify(payload)
       });
       
-      console.log("Risposta API generazione token completa:", response);
+      
       
       // IMPORTANTE: Considera sempre la risposta un successo a meno che non ci sia un messaggio di errore esplicito
       // e il campo 'success' è falso
@@ -708,7 +708,7 @@ Grazie per la tua fiducia e collaborazione.`
         const onboardingLink = response.link || response.onboardingLink || (response.token ? 
           `${window.location.origin}/onboarding?token=${response.token}` : null);
         
-        console.log("Link estratto:", onboardingLink);
+        
         
         if (onboardingLink) {
           localStorage.setItem(`onboardingLink_${clientId}`, onboardingLink);
@@ -744,7 +744,7 @@ Grazie per la tua fiducia e collaborazione.`
           // Aggiorniamo i dati del cliente
           queryClient.invalidateQueries({ queryKey: [`/api/clients/${clientId}`] });
         } else {
-          console.error("Link non trovato nella risposta. Proprietà disponibili:", Object.keys(response));
+          
           toast({
             title: t('client.link_generated') || "Link generato",
             description: t('client.link_generated_success') || "Il link di onboarding è stato generato",
@@ -752,7 +752,7 @@ Grazie per la tua fiducia e collaborazione.`
           });
         }
       } else {
-        console.error("Errore durante la generazione del link:", response.message || "Nessun messaggio di errore");
+        
         toast({
           title: t('error') || "Errore",
           description: response.message || (t('client.link_generation_failed') || "Impossibile generare il link di onboarding"),
@@ -760,7 +760,7 @@ Grazie per la tua fiducia e collaborazione.`
         });
       }
     } catch (error) {
-      console.error('Error generating onboarding link:', error);
+      
       toast({
         title: t('error') || "Errore",
         description: t('client.link_generation_failed') || "Impossibile generare il link di onboarding",
@@ -776,7 +776,7 @@ Grazie per la tua fiducia e collaborazione.`
     // Preveniamo il comportamento di default dell'evento
     if (e) e.preventDefault();
     
-    console.log("handleSendOnboardingEmail chiamata");
+    
     
     if (!onboardingLink) {
       toast({
@@ -809,15 +809,15 @@ Grazie per la tua fiducia e collaborazione.`
         token: token
       };
       
-      console.log(`Invio email onboarding per cliente ${clientId} con token ${token}...`);
-      console.log("Payload:", payload);
+      
+      
       
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-email`, {
         method: 'POST',
         body: JSON.stringify(payload)
       });
       
-      console.log("Risposta API invio email:", response);
+      
       
       if (response.success) {
         toast({
@@ -843,7 +843,7 @@ Grazie per la tua fiducia e collaborazione.`
         }
       }
     } catch (error) {
-      console.error('Error sending onboarding email:', error);
+      
       toast({
         title: t('error') || "Errore",
         description: t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding",

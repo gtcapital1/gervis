@@ -447,7 +447,7 @@ export default function Dashboard() {
         return parsed.total || 0;
       }
     } catch (e) {
-      console.error(`Error parsing MIFID assets for client ${clientId}:`, e);
+      
     }
     
     return 0;
@@ -512,7 +512,7 @@ export default function Dashboard() {
   // Modifico la funzione handleTaskCompletion per usare lo stato locale
   const handleTaskCompletion = async (taskId: number, isCompleted: boolean) => {
     try {
-      console.log(`Starting task completion toggle: ID=${taskId}, currently completed=${isCompleted}`);
+      
       
       // Aggiorna immediatamente lo stato locale per un feedback visivo istantaneo
       setLocalCompletedTaskIds(prev => {
@@ -529,17 +529,17 @@ export default function Dashboard() {
         ? `/api/tasks/${taskId}/uncomplete`
         : `/api/tasks/${taskId}/complete`;
       
-      console.log(`Calling API endpoint: ${url}`);
+      
       
       // Tenta di chiamare l'API
       try {
         const response = await apiRequest(url, {
           method: 'POST',
         });
-        console.log(`API response:`, response);
+        
         
         // Invalida le query rilevanti per aggiornare i dati
-        console.log('Invalidating queries...');
+        
         queryClient.invalidateQueries({ queryKey: ['/api/tasks/today'] });
         queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
       } catch (e) {
@@ -548,7 +548,7 @@ export default function Dashboard() {
       }
       
     } catch (error) {
-      console.error('Error toggling task completion:', error);
+      
       toast({
         title: t('common.error'),
         description: t('dashboard.task_toggle_error'),
@@ -1046,7 +1046,7 @@ export default function Dashboard() {
       return sum + clientAssets;
     }, 0);
     
-    console.log(`AUM calcolato da totalAssets: ${totalActiveAUM}`);
+    
     
     return totalActiveAUM || portfolioStats.totalAUM; // Fallback ai dati dell'API se la somma è zero
   };
@@ -1162,7 +1162,7 @@ export default function Dashboard() {
                         size="icon"
                         className={`h-6 w-6 rounded-full p-0 mt-2 ${localCompletedTaskIds.has(event.id) ? 'bg-green-100 text-green-500' : 'bg-muted'}`}
                 onClick={() => {
-                          console.log('Toggling task completion for event ID:', event.id);
+                          
                           handleTaskCompletion(event.id, localCompletedTaskIds.has(event.id));
                         }}
                       >
@@ -1382,7 +1382,7 @@ export default function Dashboard() {
                               variant="ghost"
                 className="w-full"
                 onClick={() => {
-                  console.log('Click su view trends (client pipeline)');
+                  
                   setShowTrendDialog(true);
                 }}
               >
@@ -1517,7 +1517,7 @@ export default function Dashboard() {
                 variant="outline" 
                 className="w-full mt-4" 
                 onClick={() => {
-                  console.log('Click su view trends (comunicazione)');
+                  
                   setShowCommunicationTrendDialog(true);
                 }}
               >
@@ -1656,7 +1656,7 @@ export default function Dashboard() {
                     <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
                       <Pie
                         data={(() => {
-                          console.log('Esecuzione funzione grafico distribuzione asset per segmento');
+                          
                           
                           // Oggetto per accumulare i valori totali per segmento
                           const segmentTotals: {[key: string]: number} = {
@@ -1667,19 +1667,19 @@ export default function Dashboard() {
                             'uhnw': 0
                           };
                           
-                          console.log('Totale clienti attivi:', activeClients.length);
+                          
                           
                           // Assegna ogni cliente al segmento corretto usando direttamente total_assets
                           activeClients.forEach(client => {
                             // Usa direttamente il campo total_assets dal cliente
                             const totalAsset = client.totalAssets || 0;
                             
-                            console.log(`Cliente ${client.name}, ID ${client.id}, totale asset: ${totalAsset}`);
+                            
                             
                             // Se il cliente ha già un segmento assegnato, usalo
                             if (client.clientSegment && CLIENT_SEGMENTS.includes(client.clientSegment as any)) {
                               segmentTotals[client.clientSegment] += totalAsset;
-                              console.log(`  Segmento da DB: ${client.clientSegment}`);
+                              
                             } 
                             // Altrimenti calcola il segmento in base agli asset
                             else {
@@ -1699,11 +1699,11 @@ export default function Dashboard() {
                               }
                               
                               segmentTotals[segmentName] += totalAsset;
-                              console.log(`  Segmento calcolato: ${segmentName}`);
+                              
                             }
                           });
                           
-                          console.log('Totali per segmento:', segmentTotals);
+                          
                           
                           // Crea l'array finale per il grafico
                           const segmentLabels: {[key: string]: string} = {
@@ -1731,7 +1731,7 @@ export default function Dashboard() {
                               fill: segmentColors[key]
                             }));
                           
-                          console.log('Dati grafico finali:', result);
+                          
                           return result;
                         })()}
                         cx="50%"

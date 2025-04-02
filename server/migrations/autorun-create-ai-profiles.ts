@@ -34,13 +34,13 @@ export async function autorunCreateAiProfiles(silent = false): Promise<void> {
       `);
       
       if (!silent) {
-        console.log("Tabella ai_profiles creata con successo");
+        
       }
     } else if (!silent) {
-      console.log("La tabella ai_profiles esiste già");
+      
     }
   } catch (error) {
-    console.error("Errore durante la verifica/creazione della tabella ai_profiles:", error);
+    
     throw error;
   }
 }

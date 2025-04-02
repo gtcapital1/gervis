@@ -67,7 +67,7 @@ export async function getPromptForDebug(req: Request, res: Response) {
       promptLength: prompt.length
     });
   } catch (error) {
-    console.error("Error generating prompt for debug:", error);
+    
     return res.status(500).json({
       success: false,
       message: "Error generating prompt",
@@ -249,7 +249,7 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
     });
 
   } catch (error) {
-    console.error("Error generating investment ideas:", error);
+    
     return res.status(500).json({
       success: false,
       message: "Error generating investment ideas",

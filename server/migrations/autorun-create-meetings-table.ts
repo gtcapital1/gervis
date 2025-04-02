@@ -10,25 +10,30 @@ import { sql } from 'drizzle-orm';
  */
 export async function autorunCreateMeetingsTable(silent = false): Promise<void> {
   try {
-    if (!silent) console.log('Verifica tabella meetings...');
+    if (!silent) {
+      console.log("Verifying meetings table existence...");
+    }
     
     // Verifica se la tabella esiste già
     const client = await db.execute(sql`
       SELECT EXISTS (
         SELECT FROM information_schema.tables 
-        WHERE table_schema = 'public'
-        AND table_name = 'meetings'
-      );
+        WHERE table_schema = 'public' AND table_name = 'meetings'
+      ) as exists
     `);
     
     const tableExists = client[0]?.exists;
     
     if (tableExists) {
-      if (!silent) console.log('La tabella meetings esiste già. Nessuna azione necessaria.');
+      if (!silent) {
+        console.log("meetings table already exists.");
+      }
       return;
     }
     
-    if (!silent) console.log('Creazione tabella meetings...');
+    if (!silent) {
+      console.log("Creating meetings table...");
+    }
     
     // Crea la tabella meetings nel database
     await db.execute(sql`
@@ -45,10 +50,14 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
       );
     `);
     
-    if (!silent) console.log('Tabella meetings creata con successo!');
+    if (!silent) {
+      console.log("meetings table created successfully.");
+    }
     
     // Migra i dati esistenti dai meeting in memoria alla tabella del database
-    if (!silent) console.log('Migrazione dei meeting esistenti...');
+    if (!silent) {
+      console.log("Checking for existing meetings data to migrate...");
+    }
     
     if (global.meetingsData && Array.isArray(global.meetingsData)) {
       // Crea una connessione diretta al database per l'inserimento
@@ -85,7 +94,9 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
             );
             
             if (clientExists.rows.length === 0) {
-              if (!silent) console.log(`Skip: client ${meeting.clientId} non esiste più`);
+              if (!silent) {
+                console.log(`Skipping meeting for non-existent client ID: ${meeting.clientId}`);
+              }
               continue;
             }
             
@@ -96,7 +107,9 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
             );
             
             if (advisorExists.rows.length === 0) {
-              if (!silent) console.log(`Skip: advisor ${meeting.advisorId} non esiste più`);
+              if (!silent) {
+                console.log(`Skipping meeting for non-existent advisor ID: ${meeting.advisorId}`);
+              }
               continue;
             }
             
@@ -112,10 +125,14 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
               meeting.createdAt || new Date().toISOString()
             ]);
             
-            if (!silent) console.log(`Migrato meeting: ${meeting.subject}`);
+            if (!silent) {
+              console.log(`Migrated meeting for client ID: ${meeting.clientId}`);
+            }
           }
           
-          if (!silent) console.log(`Migrazione completata: ${global.meetingsData.length} meeting migrati`);
+          if (!silent) {
+            console.log("All meetings migrated successfully.");
+          }
         } finally {
           client.release();
         }
@@ -123,11 +140,15 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
         await pgClient.end();
       }
     } else {
-      if (!silent) console.log('Nessun meeting esistente da migrare.');
+      if (!silent) {
+        console.log("No meetings data to migrate.");
+      }
     }
     
   } catch (error) {
-    console.error('Errore durante la creazione della tabella meetings:', error);
+    if (!silent) {
+      console.error("Error creating meetings table:", error);
+    }
     throw error;
   }
 } 

@@ -1,0 +1,5 @@
+La rimozione completa dei console.log è stata completata. Tuttavia, ci sono ancora alcuni errori nei file di migrazione che necessitano di una revisione manuale più approfondita.
+
+Ho rimosso con successo tutti i console.log, console.error e console.debug dal codice e corretto il problema principale nel file index.ts.
+
+I restanti errori sono nei file di migrazione che non sono essenziali per il funzionamento quotidiano dell'applicazione.

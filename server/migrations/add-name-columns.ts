@@ -6,25 +6,25 @@ import { sql } from 'drizzle-orm';
  * and populate them with data from the name column.
  */
 async function addNameColumns() {
-  console.log('Starting database schema migration for firstName and lastName columns...');
+  
   
   try {
     // Step 1: Add firstName column if it doesn't exist
-    console.log('Adding firstName column...');
+    
     await db.execute(sql`
       ALTER TABLE clients 
       ADD COLUMN IF NOT EXISTS first_name TEXT
     `);
     
     // Step 2: Add lastName column if it doesn't exist
-    console.log('Adding lastName column...');
+    
     await db.execute(sql`
       ALTER TABLE clients 
       ADD COLUMN IF NOT EXISTS last_name TEXT
     `);
     
     // Step 3: Populate the new columns with data from the name column
-    console.log('Populating firstName and lastName from name column...');
+    
     await db.execute(sql`
       UPDATE clients
       SET 
@@ -50,9 +50,9 @@ async function addNameColumns() {
         POSITION(' ' IN name) = 0
     `);
     
-    console.log('Schema migration completed successfully!');
+    
   } catch (error) {
-    console.error('Error during schema migration:', error);
+    
     throw error;
   }
 }
@@ -60,10 +60,10 @@ async function addNameColumns() {
 // Run the migration
 addNameColumns()
   .then(() => {
-    console.log('Database columns added and populated successfully.');
+    
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Schema migration failed:', error);
+    
     process.exit(1);
   });
