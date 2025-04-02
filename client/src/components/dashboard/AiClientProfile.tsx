@@ -284,7 +284,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return <p>{String(content)}</p>;
   };
 
-  // Se sta caricando, mostra uno skeleton
+  // Se sta caricando, mostra uno skeleton con messaggio di elaborazione
   if (isLoading) {
     return (
       <Card>
@@ -295,10 +295,26 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex flex-col items-center justify-center py-6 text-center space-y-4">
+            <div className="relative">
+              <Brain className="h-16 w-16 text-blue-300" />
+              <div className="absolute top-0 right-0 h-full w-full flex items-center justify-center">
+                <div className="h-8 w-8 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h3 className="text-lg font-semibold text-blue-500">
+                {t('ai_profile_processing', { ns: 'client' })}
+              </h3>
+              <p className="text-muted-foreground max-w-md">
+                {t('ai_profile_processing_description', { ns: 'client' })}
+              </p>
+            </div>
+          </div>
           <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-24 w-full" />
           <Skeleton className="h-8 w-full" />
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-24 w-full" />
         </CardContent>
       </Card>
     );

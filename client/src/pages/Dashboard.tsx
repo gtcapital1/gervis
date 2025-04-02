@@ -164,7 +164,7 @@ interface PortfolioData {
 }
 
 // Interfaccia per i periodi di tempo
-type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
+type TimeframePeriod = '1w' | '1m';
 
 export default function Dashboard() {
   const { toast } = useToast();
@@ -172,7 +172,7 @@ export default function Dashboard() {
   const { t } = useTranslation();
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
-  const [timeframe, setTimeframe] = useState<'1w' | '1m' | '3m' | '6m' | '1y'>('1m'); // Default: 1 mese
+  const [timeframe, setTimeframe] = useState<'1w' | '1m'>('1m'); // Default: 1 mese
   
   // Funzione per calcolare la data di inizio in base al timeframe
   const getStartDateFromTimeframe = () => {
@@ -186,18 +186,6 @@ export default function Dashboard() {
         const oneMonthAgo = new Date();
         oneMonthAgo.setDate(now.getDate() - 30);
         return oneMonthAgo;
-      case '3m':
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(now.getMonth() - 3);
-        return threeMonthsAgo;
-      case '6m':
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(now.getMonth() - 6);
-        return sixMonthsAgo;
-      case '1y':
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(now.getFullYear() - 1);
-        return oneYearAgo;
       default:
         const defaultDate = new Date();
         defaultDate.setDate(now.getDate() - 30);
@@ -313,6 +301,62 @@ export default function Dashboard() {
   
   // Calculate the start date based on selected timeframe
   const startDate = getStartDateFromTimeframe();
+  
+  // Calculate the previous period start date
+  const getPreviousPeriodEndDate = () => {
+    const now = new Date();
+    // If current timeframe is 1w, previous period ends 7 days ago
+    if (timeframe === '1w') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(now.getDate() - 7);
+      return oneWeekAgo;
+    } 
+    // If current timeframe is 1m, previous period ends 30 days ago
+    else {
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setDate(now.getDate() - 30);
+      return oneMonthAgo;
+    }
+  };
+  
+  const previousPeriodEndDate = getPreviousPeriodEndDate();
+
+  // Calculate previous period stats for comparison by examining client status at the end of the previous period
+  const previousLeadClients = clients.filter(client => {
+    // Check if client was created before the previous period end
+    const wasCreated = client.createdAt && new Date(client.createdAt) <= previousPeriodEndDate;
+    // Check if client was not onboarded or was onboarded after previous period end
+    const wasNotOnboarded = !client.isOnboarded || (client.onboardedAt && new Date(client.onboardedAt) > previousPeriodEndDate);
+    // Check if client was not archived at that time (we don't have archivedAt, so we'll assume current archive status)
+    const wasNotArchived = !client.isArchived;
+    
+    return wasCreated && wasNotOnboarded && wasNotArchived;
+  }).length;
+
+  const previousProspectClients = clients.filter(client => {
+    // Check if client was onboarded before the previous period end
+    const wasOnboarded = client.onboardedAt && new Date(client.onboardedAt) <= previousPeriodEndDate;
+    // Check if client was not active (since we don't have activatedAt timestamp)
+    const wasNotActive = !client.active;
+    // Check if client was not archived
+    const wasNotArchived = !client.isArchived;
+    
+    return wasOnboarded && wasNotActive && wasNotArchived;
+  }).length;
+
+  const previousActiveClientCount = clients.filter(client => {
+    // Since we don't have activatedAt, we'll use onboardedAt and active flag
+    const wasActive = client.active && client.onboardedAt && new Date(client.onboardedAt) <= previousPeriodEndDate;
+    // Check if client was not archived
+    const wasNotArchived = !client.isArchived;
+    
+    return wasActive && wasNotArchived;
+  }).length;
+
+  // Calculate differences
+  const leadDifference = leadClients - previousLeadClients;
+  const prospectDifference = prospectClients - previousProspectClients;
+  const activeDifference = activeClientCount - previousActiveClientCount;
   
   // Calculate conversion rates for the selected period
   // Clients created in the selected period
@@ -595,9 +639,6 @@ export default function Dashboard() {
       switch (selectedTimeframe) {
         case '1w': return new Date(now.setDate(now.getDate() - 7));
         case '1m': return new Date(now.setDate(now.getDate() - 30));
-        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
         default: return new Date(now.setDate(now.getDate() - 30));
       }
     })();
@@ -697,9 +738,6 @@ export default function Dashboard() {
       switch (selectedTimeframe) {
         case '1w': return new Date(now.setDate(now.getDate() - 7));
         case '1m': return new Date(now.setDate(now.getDate() - 30));
-        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
         default: return new Date(now.setDate(now.getDate() - 30));
       }
     })();
@@ -745,9 +783,6 @@ export default function Dashboard() {
       switch (selectedTimeframe) {
         case '1w': return new Date(now.setDate(now.getDate() - 7));
         case '1m': return new Date(now.setDate(now.getDate() - 30));
-        case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-        case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-        case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
         default: return new Date(now.setDate(now.getDate() - 30));
       }
     })();
@@ -791,8 +826,8 @@ export default function Dashboard() {
   const generateTrendData = (type: 'conversion' | 'acquisition' | 'assets' | 'time'): TrendData[] => {
     const results: TrendData[] = [];
     
-    // Periodi da confrontare - dal più lungo al più breve
-    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    // Periodi da confrontare - solo 1m e 1w
+    const periods: TimeframePeriod[] = ['1m', '1w'];
     
     periods.forEach(period => {
       // Non generare più dati casuali, ma utilizza solo valori reali o zero
@@ -843,8 +878,8 @@ export default function Dashboard() {
   const generateProspectTrendData = (): TrendData[] => {
     const results: TrendData[] = [];
     
-    // Periodi da confrontare - dal più lungo al più breve
-    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    // Periodi da confrontare - solo 1m e 1w
+    const periods: TimeframePeriod[] = ['1m', '1w'];
     
     periods.forEach(period => {
       const tempStartDate = (() => {
@@ -852,9 +887,6 @@ export default function Dashboard() {
         switch (period) {
           case '1w': return new Date(now.setDate(now.getDate() - 7));
           case '1m': return new Date(now.setDate(now.getDate() - 30));
-          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
           default: return new Date(now.setDate(now.getDate() - 30));
         }
       })();
@@ -884,8 +916,8 @@ export default function Dashboard() {
   const generateLeadTimeTrendData = (): TrendData[] => {
     const results: TrendData[] = [];
     
-    // Periodi da confrontare - dal più lungo al più breve
-    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    // Periodi da confrontare - solo 1m e 1w
+    const periods: TimeframePeriod[] = ['1m', '1w'];
     
     periods.forEach(period => {
       const tempStartDate = (() => {
@@ -893,9 +925,6 @@ export default function Dashboard() {
         switch (period) {
           case '1w': return new Date(now.setDate(now.getDate() - 7));
           case '1m': return new Date(now.setDate(now.getDate() - 30));
-          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
           default: return new Date(now.setDate(now.getDate() - 30));
         }
       })();
@@ -933,8 +962,8 @@ export default function Dashboard() {
   const generateProspectTimeTrendData = (): TrendData[] => {
     const results: TrendData[] = [];
     
-    // Periodi da confrontare - dal più lungo al più breve
-    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    // Periodi da confrontare - solo 1m e 1w
+    const periods: TimeframePeriod[] = ['1m', '1w'];
     
     periods.forEach(period => {
       const tempStartDate = (() => {
@@ -942,9 +971,6 @@ export default function Dashboard() {
         switch (period) {
           case '1w': return new Date(now.setDate(now.getDate() - 7));
           case '1m': return new Date(now.setDate(now.getDate() - 30));
-          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
           default: return new Date(now.setDate(now.getDate() - 30));
         }
       })();
@@ -984,7 +1010,7 @@ export default function Dashboard() {
     
     // Se non ci sono log, restituisci solo zeri
     if (!clientLogs.length) {
-      const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+      const periods: TimeframePeriod[] = ['1m', '1w'];
       return periods.map(period => ({
         period,
         value1: 0,
@@ -993,8 +1019,8 @@ export default function Dashboard() {
       }));
     }
     
-    // Periodi da confrontare - dal più lungo al più breve
-    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    // Periodi da confrontare - solo 1m e 1w
+    const periods: TimeframePeriod[] = ['1m', '1w'];
     
     periods.forEach(period => {
       const tempStartDate = (() => {
@@ -1002,9 +1028,6 @@ export default function Dashboard() {
         switch (period) {
           case '1w': return new Date(now.setDate(now.getDate() - 7));
           case '1m': return new Date(now.setDate(now.getDate() - 30));
-          case '3m': return new Date(now.setMonth(now.getMonth() - 3));
-          case '6m': return new Date(now.setMonth(now.getMonth() - 6));
-          case '1y': return new Date(now.setFullYear(now.getFullYear() - 1));
           default: return new Date(now.setDate(now.getDate() - 30));
         }
       })();
@@ -1223,24 +1246,6 @@ export default function Dashboard() {
                   >
                     {t('dashboard.timeframe_1m')}
                   </button>
-                  <button 
-                    onClick={() => setTimeframe('3m')} 
-                    className={`px-1.5 py-0.5 text-xs ${timeframe === '3m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-                  >
-                    {t('dashboard.timeframe_3m')}
-                  </button>
-                  <button 
-                    onClick={() => setTimeframe('6m')} 
-                    className={`px-1.5 py-0.5 text-xs ${timeframe === '6m' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-                  >
-                    {t('dashboard.timeframe_6m')}
-                  </button>
-                  <button 
-                    onClick={() => setTimeframe('1y')} 
-                    className={`px-1.5 py-0.5 text-xs ${timeframe === '1y' ? 'bg-primary text-primary-foreground' : 'bg-transparent hover:bg-muted'}`}
-                  >
-                    {t('dashboard.timeframe_1y')}
-                  </button>
                 </div>
               </CardDescription>
             </CardHeader>
@@ -1248,16 +1253,31 @@ export default function Dashboard() {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="space-y-1">
                   <div className="text-3xl font-bold">{formatNumber(leadClients)}</div>
-                  <div className="text-sm text-muted-foreground">{t('dashboard.leads')}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {t('dashboard.leads')}
+                    <div className={`text-xs ${leadDifference > 0 ? 'text-green-500' : leadDifference < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      {leadDifference > 0 ? `+${leadDifference}` : leadDifference < 0 ? leadDifference : '+0'} {timeframe === '1w' ? "nell'ultima settimana" : "nell'ultimo mese"}
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-3xl font-bold">{formatNumber(prospectClients)}</div>
-                  <div className="text-sm text-muted-foreground">{t('dashboard.prospects')}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {t('dashboard.prospects')}
+                    <div className={`text-xs ${prospectDifference > 0 ? 'text-green-500' : prospectDifference < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      {prospectDifference > 0 ? `+${prospectDifference}` : prospectDifference < 0 ? prospectDifference : '+0'} {timeframe === '1w' ? "nell'ultima settimana" : "nell'ultimo mese"}
+                    </div>
+                  </div>
                 </div>
                 <div className="space-y-1">
                   <div className="text-3xl font-bold">{formatNumber(activeClientCount)}</div>
-                  <div className="text-sm text-muted-foreground">{t('dashboard.active_clients')}</div>
-            </div>
+                  <div className="text-sm text-muted-foreground">
+                    {t('dashboard.active_clients')}
+                    <div className={`text-xs ${activeDifference > 0 ? 'text-green-500' : activeDifference < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                      {activeDifference > 0 ? `+${activeDifference}` : activeDifference < 0 ? activeDifference : '+0'} {timeframe === '1w' ? "nell'ultima settimana" : "nell'ultimo mese"}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* Conversion stats */}
@@ -1280,11 +1300,7 @@ export default function Dashboard() {
                         <span className="text-sm font-medium">{formatPercent(activeConversionRate)}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 italic text-right">
-                        {timeframe === '1w' ? t('dashboard.last_week') : 
-                          timeframe === '1m' ? t('dashboard.last_month') :
-                          timeframe === '3m' ? t('dashboard.last_3_months') :
-                          timeframe === '6m' ? t('dashboard.last_6_months') : 
-                          t('dashboard.last_year')}
+                        {timeframe === '1w' ? t('dashboard.last_week') : t('dashboard.last_month')}
                       </div>
                     </div>
                   </CardContent>
@@ -1308,11 +1324,7 @@ export default function Dashboard() {
                         <span className="text-sm font-medium">{newProspectsPerDay.toFixed(1)}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 italic text-right">
-                        {timeframe === '1w' ? t('dashboard.last_week') : 
-                          timeframe === '1m' ? t('dashboard.last_month') :
-                          timeframe === '3m' ? t('dashboard.last_3_months') :
-                          timeframe === '6m' ? t('dashboard.last_6_months') : 
-                          t('dashboard.last_year')}
+                        {timeframe === '1w' ? t('dashboard.last_week') : t('dashboard.last_month')}
                       </div>
                     </div>
                   </CardContent>
@@ -1338,11 +1350,7 @@ export default function Dashboard() {
                         <span className="text-sm font-medium">{formatCompactValue(assetsPerActiveClient)}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 italic text-right">
-                        {timeframe === '1w' ? t('dashboard.last_week') : 
-                          timeframe === '1m' ? t('dashboard.last_month') :
-                          timeframe === '3m' ? t('dashboard.last_3_months') :
-                          timeframe === '6m' ? t('dashboard.last_6_months') : 
-                          t('dashboard.last_year')}
+                        {timeframe === '1w' ? t('dashboard.last_week') : t('dashboard.last_month')}
                       </div>
                     </div>
                   </CardContent>
@@ -1366,11 +1374,7 @@ export default function Dashboard() {
                         <span className="text-sm font-medium">{avgProspectTime} {t('dashboard.days')}</span>
                       </div>
                       <div className="text-xs text-muted-foreground mt-2 italic text-right">
-                        {timeframe === '1w' ? t('dashboard.last_week') : 
-                          timeframe === '1m' ? t('dashboard.last_month') :
-                          timeframe === '3m' ? t('dashboard.last_3_months') :
-                          timeframe === '6m' ? t('dashboard.last_6_months') : 
-                          t('dashboard.last_year')}
+                        {timeframe === '1w' ? t('dashboard.last_week') : t('dashboard.last_month')}
                       </div>
                     </div>
                   </CardContent>
@@ -1412,25 +1416,7 @@ export default function Dashboard() {
                 >
                   {t('dashboard.timeframe_1m')}
                 </button>
-                <button 
-                  onClick={() => setInteractionsTimeframe('3m')} 
-                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '3m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
-                >
-                  {t('dashboard.timeframe_3m')}
-                </button>
-                <button 
-                  onClick={() => setInteractionsTimeframe('6m')} 
-                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '6m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
-                >
-                  {t('dashboard.timeframe_6m')}
-                </button>
-                <button 
-                  onClick={() => setInteractionsTimeframe('1y')} 
-                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1y' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
-                >
-                  {t('dashboard.timeframe_1y')}
-                </button>
-                        </div>
+              </div>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col">
               {/* Media di interazioni per cliente */}

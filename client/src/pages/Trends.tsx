@@ -29,6 +29,7 @@ import { Client } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { formatNumber, formatPercent, formatCurrency } from "@/lib/utils";
 import { PageHeader } from "@/components/ui/page-header";
+import { useAuth } from "@/hooks/use-auth";
 import { 
   XAxis, 
   YAxis, 
@@ -47,9 +48,9 @@ type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
 
 interface TrendData {
   period: string;
-  value1: number;
-  value2?: number;
-  value3?: number;
+  value1: number | null;
+  value2?: number | null;
+  value3?: number | null;
 }
 
 interface ClientLog {
@@ -74,8 +75,12 @@ const COLORS = {
 
 export default function Trends() {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<string>("onboarding");
-  const [timeframe, setTimeframe] = useState<TimeframePeriod>('3m');
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const timeframe: TimeframePeriod = '1y'; // Keep fixed timeframe
+  
+  // Ottenere la data di registrazione dell'utente corrente
+  const userRegistrationDate = user?.createdAt ? new Date(user.createdAt) : null;
   
   // Fetch clients
   const { data: clientsData, isLoading: isLoadingClients } = useQuery<{clients: Client[]} | null>({
@@ -101,34 +106,206 @@ export default function Trends() {
   const clientLogs = allClientLogsData?.logs || [];
   
   // Funzione per calcolare la data di inizio in base al timeframe
-  const getStartDateFromTimeframe = (selectedTimeframe: TimeframePeriod = timeframe) => {
+  const getStartDateFromTimeframe = () => {
+    const today = new Date();
+    const oneYearAgo = new Date(today);
+    oneYearAgo.setFullYear(today.getFullYear() - 1);
+    return oneYearAgo;
+  };
+  
+  // Funzione per determinare se un periodo dovrebbe essere visibile in base alla data di registrazione dell'utente
+  const isPeriodVisibleForUser = (period: TimeframePeriod): boolean => {
+    if (!userRegistrationDate) return true;
+    
     const now = new Date();
-    switch (selectedTimeframe) {
+    let periodStartDate: Date;
+    
+    switch (period) {
       case '1w':
-        const oneWeekAgo = new Date();
-        oneWeekAgo.setDate(now.getDate() - 7);
-        return oneWeekAgo;
+        periodStartDate = new Date(now);
+        periodStartDate.setDate(now.getDate() - 7);
+        break;
       case '1m':
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setDate(now.getDate() - 30);
-        return oneMonthAgo;
+        periodStartDate = new Date(now);
+        periodStartDate.setDate(now.getDate() - 30);
+        break;
       case '3m':
-        const threeMonthsAgo = new Date();
-        threeMonthsAgo.setMonth(now.getMonth() - 3);
-        return threeMonthsAgo;
+        periodStartDate = new Date(now);
+        periodStartDate.setMonth(now.getMonth() - 3);
+        break;
       case '6m':
-        const sixMonthsAgo = new Date();
-        sixMonthsAgo.setMonth(now.getMonth() - 6);
-        return sixMonthsAgo;
+        periodStartDate = new Date(now);
+        periodStartDate.setMonth(now.getMonth() - 6);
+        break;
       case '1y':
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(now.getFullYear() - 1);
-        return oneYearAgo;
+        periodStartDate = new Date(now);
+        periodStartDate.setFullYear(now.getFullYear() - 1);
+        break;
       default:
-        const defaultDate = new Date();
-        defaultDate.setDate(now.getDate() - 30);
-        return defaultDate;
+        periodStartDate = new Date(now);
+        periodStartDate.setDate(now.getDate() - 30);
     }
+    
+    // Il periodo è visibile se l'utente era già registrato all'inizio del periodo
+    return userRegistrationDate <= periodStartDate;
+  };
+  
+  // Genera dati per il numero totale di lead in ogni periodo
+  const generateLeadCountTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      // Per ogni periodo, calcola il numero totale di lead
+      const leadCounts: number[] = [];
+
+      // Calcola la data di fine di ogni mese/settimana all'interno del periodo
+      const endDate = new Date();
+      const startDate = getStartDateFromTimeframe();
+      let currentDate = new Date(startDate);
+      
+      // Incrementi temporali a seconda del periodo
+      const timeIncrement = period === '1w' ? 1 : // Giorni per la settimana
+                           (period === '1m' ? 2 : // 2 giorni per il mese
+                           (period === '3m' ? 7 : // Settimanale per 3 mesi
+                           (period === '6m' ? 14 : // Bisettimanale per 6 mesi
+                            30))); // Mensile per l'anno
+      
+      while (currentDate <= endDate) {
+        // Conta i lead a questa data
+        const leadCount = clients.filter(client => 
+          !client.isOnboarded && 
+          !client.isArchived && 
+          client.createdAt && 
+          new Date(client.createdAt) <= currentDate
+        ).length;
+        
+        leadCounts.push(leadCount);
+        
+        // Incrementa la data per il prossimo punto
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(currentDate.getDate() + timeIncrement);
+        currentDate = nextDate;
+      }
+      
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
+      results.push({
+        period,
+        value1: isVisible ? (leadCounts.length > 0 ? leadCounts[leadCounts.length - 1] : 0) : null
+      });
+    });
+    
+    return results;
+  };
+  
+  // Genera dati per il numero totale di prospect in ogni periodo
+  const generateProspectCountTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      // Per ogni periodo, calcola il numero totale di prospect
+      const prospectCounts: number[] = [];
+
+      // Calcola la data di fine di ogni mese/settimana all'interno del periodo
+      const endDate = new Date();
+      const startDate = getStartDateFromTimeframe();
+      let currentDate = new Date(startDate);
+      
+      // Incrementi temporali a seconda del periodo
+      const timeIncrement = period === '1w' ? 1 : // Giorni per la settimana
+                           (period === '1m' ? 2 : // 2 giorni per il mese
+                           (period === '3m' ? 7 : // Settimanale per 3 mesi
+                           (period === '6m' ? 14 : // Bisettimanale per 6 mesi
+                            30))); // Mensile per l'anno
+      
+      while (currentDate <= endDate) {
+        // Conta i prospect a questa data
+        const prospectCount = clients.filter(client => 
+          client.isOnboarded && 
+          !client.isArchived && 
+          !client.active && 
+          client.onboardedAt && 
+          new Date(client.onboardedAt) <= currentDate
+        ).length;
+        
+        prospectCounts.push(prospectCount);
+        
+        // Incrementa la data per il prossimo punto
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(currentDate.getDate() + timeIncrement);
+        currentDate = nextDate;
+      }
+      
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
+      results.push({
+        period,
+        value1: isVisible ? (prospectCounts.length > 0 ? prospectCounts[prospectCounts.length - 1] : 0) : null
+      });
+    });
+    
+    return results;
+  };
+  
+  // Genera dati per il numero totale di clienti attivi in ogni periodo
+  const generateActiveClientCountTrendData = (): TrendData[] => {
+    const results: TrendData[] = [];
+    
+    // Periodi da confrontare - dal più lungo al più breve
+    const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    periods.forEach(period => {
+      // Per ogni periodo, calcola il numero totale di clienti attivi
+      const activeClientCounts: number[] = [];
+
+      // Calcola la data di fine di ogni mese/settimana all'interno del periodo
+      const endDate = new Date();
+      const startDate = getStartDateFromTimeframe();
+      let currentDate = new Date(startDate);
+      
+      // Incrementi temporali a seconda del periodo
+      const timeIncrement = period === '1w' ? 1 : // Giorni per la settimana
+                           (period === '1m' ? 2 : // 2 giorni per il mese
+                           (period === '3m' ? 7 : // Settimanale per 3 mesi
+                           (period === '6m' ? 14 : // Bisettimanale per 6 mesi
+                            30))); // Mensile per l'anno
+      
+      while (currentDate <= endDate) {
+        // Conta i clienti attivi a questa data
+        const activeClientCount = clients.filter(client => 
+          client.isOnboarded && 
+          !client.isArchived && 
+          client.active && 
+          client.onboardedAt && 
+          new Date(client.onboardedAt) <= currentDate
+        ).length;
+        
+        activeClientCounts.push(activeClientCount);
+        
+        // Incrementa la data per il prossimo punto
+        const nextDate = new Date(currentDate);
+        nextDate.setDate(currentDate.getDate() + timeIncrement);
+        currentDate = nextDate;
+      }
+      
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
+      results.push({
+        period,
+        value1: isVisible ? (activeClientCounts.length > 0 ? activeClientCounts[activeClientCounts.length - 1] : 0) : null
+      });
+    });
+    
+    return results;
   };
   
   // Genera dati combinati per lead e prospect al giorno
@@ -139,7 +316,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Calcola il numero di giorni nel periodo
       const daysInPeriod = Math.ceil((new Date().getTime() - tempStartDate.getTime()) / (1000 * 3600 * 24));
@@ -160,11 +337,14 @@ export default function Trends() {
       // Calcola la media giornaliera di nuovi prospect
       const newProspectsPerDay = parseFloat((prospectsInPeriod.length / daysInPeriod).toFixed(1));
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: newLeadsPerDay,
-        value2: newProspectsPerDay
+        value1: isVisible ? newLeadsPerDay : null,
+        value2: isVisible ? newProspectsPerDay : null
       });
     });
     
@@ -179,7 +359,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Filtra i clienti che sono diventati prospect nel periodo
       const clientsWithLeadTime = clients.filter(client => 
@@ -219,11 +399,14 @@ export default function Trends() {
         avgProspectTime = parseFloat((totalProspectTime / clientsWithProspectTime.length).toFixed(1));
       }
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: avgLeadTime,
-        value2: avgProspectTime
+        value1: isVisible ? avgLeadTime : null,
+        value2: isVisible ? avgProspectTime : null
       });
     });
     
@@ -238,7 +421,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Clients created in the selected period
       const newClientsInPeriod = clients.filter(client => {
@@ -271,11 +454,14 @@ export default function Trends() {
         ? (newActiveClientsInPeriod.length / newProspectsInPeriod.length) * 100 
         : 0;
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: prospectConversionRate,
-        value2: activeConversionRate
+        value1: isVisible ? prospectConversionRate : null,
+        value2: isVisible ? activeConversionRate : null
       });
     });
     
@@ -291,7 +477,7 @@ export default function Trends() {
       const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
       return periods.map(period => ({
         period,
-        value1: 0
+        value1: isPeriodVisibleForUser(period) ? 0 : null
       }));
     }
     
@@ -299,7 +485,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Filtra i log in base al periodo
       const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
@@ -316,10 +502,13 @@ export default function Trends() {
       // Calcola la media settimanale per cliente
       const weeksPerClient = emailsInPeriod / (activeClientsCount * weeksInPeriod);
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: parseFloat(weeksPerClient.toFixed(2)) // Email settimanali per cliente
+        value1: isVisible ? parseFloat(weeksPerClient.toFixed(2)) : null // Email settimanali per cliente
       });
     });
     
@@ -335,7 +524,7 @@ export default function Trends() {
       const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
       return periods.map(period => ({
         period,
-        value1: 0
+        value1: isPeriodVisibleForUser(period) ? 0 : null
       }));
     }
     
@@ -343,7 +532,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Filtra i log in base al periodo
       const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
@@ -360,10 +549,13 @@ export default function Trends() {
       // Calcola la media settimanale per cliente
       const weeksPerClient = callsInPeriod / (activeClientsCount * weeksInPeriod);
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: parseFloat(weeksPerClient.toFixed(2)) // Chiamate settimanali per cliente
+        value1: isVisible ? parseFloat(weeksPerClient.toFixed(2)) : null // Chiamate settimanali per cliente
       });
     });
     
@@ -379,7 +571,7 @@ export default function Trends() {
       const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
       return periods.map(period => ({
         period,
-        value1: 0
+        value1: isPeriodVisibleForUser(period) ? 0 : null
       }));
     }
     
@@ -387,7 +579,7 @@ export default function Trends() {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
     periods.forEach(period => {
-      const tempStartDate = getStartDateFromTimeframe(period);
+      const tempStartDate = getStartDateFromTimeframe();
       
       // Filtra i log in base al periodo
       const logsInPeriod = clientLogs.filter(log => new Date(log.logDate) >= tempStartDate);
@@ -404,10 +596,13 @@ export default function Trends() {
       // Calcola la media settimanale per cliente
       const weeksPerClient = meetingsInPeriod / (activeClientsCount * weeksInPeriod);
       
+      // Se il periodo non è visibile per l'utente, i valori sono null
+      const isVisible = isPeriodVisibleForUser(period);
+      
       // Aggiungi all'array risultati
       results.push({
         period,
-        value1: parseFloat(weeksPerClient.toFixed(2)) // Incontri settimanali per cliente
+        value1: isVisible ? parseFloat(weeksPerClient.toFixed(2)) : null // Incontri settimanali per cliente
       });
     });
     
@@ -415,18 +610,124 @@ export default function Trends() {
   };
   
   return (
-    <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader 
-        title={t('dashboard.trends')}
-        subtitle={t('dashboard.trends_description')}
-      >
-      </PageHeader>
-      
-      <Tabs defaultValue="onboarding" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="mb-6 grid grid-cols-2 w-full max-w-md mx-auto">
-          <TabsTrigger value="onboarding">{t('dashboard.client_onboarding_trends')}</TabsTrigger>
-          <TabsTrigger value="interaction">{t('dashboard.client_interaction_trends')}</TabsTrigger>
+    <div className="container mx-auto p-4 md:p-6">
+      <PageHeader
+        title={t("dashboard.trends")}
+        subtitle={t("dashboard.trends_description")}
+      />
+
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="mb-6 grid grid-cols-3 w-full max-w-[600px] mx-auto text-xs md:text-sm">
+          <TabsTrigger value="overview">{t("dashboard.client_overview")}</TabsTrigger>
+          <TabsTrigger value="onboarding">{t("dashboard.client_onboarding_trends")}</TabsTrigger>
+          <TabsTrigger value="interaction">{t("dashboard.client_interaction_trends")}</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          {isLoadingClients ? (
+            <div className="py-12 text-center text-muted-foreground">
+              {t('dashboard.loading')}...
+            </div>
+          ) : (
+            <>
+              {/* Lead Count Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserPlus className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.leads')}
+                  </CardTitle>
+                  <CardDescription>{t('dashboard.total_lead_count')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={generateLeadCountTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? value : 'N/A'} />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.leads')} 
+                          stroke={COLORS.primary}
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Prospect Count Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserCheck className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.prospects')}
+                  </CardTitle>
+                  <CardDescription>{t('dashboard.total_prospect_count')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={generateProspectCountTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? value : 'N/A'} />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.prospects')} 
+                          stroke={COLORS.secondary}
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              {/* Active Client Count Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <UserCheck className="mr-2 h-5 w-5 text-muted-foreground" />
+                    {t('dashboard.active_clients')}
+                  </CardTitle>
+                  <CardDescription>{t('dashboard.total_active_client_count')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <RechartsLineChart data={generateActiveClientCountTrendData()}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="period" />
+                        <YAxis />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? value : 'N/A'} />
+                        <Legend />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.active_clients')} 
+                          stroke={COLORS.tertiary}
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+        </TabsContent>
         
         <TabsContent value="onboarding" className="space-y-6">
           {isLoadingClients ? (
@@ -451,10 +752,24 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis tickFormatter={(value) => `${value}%`} />
-                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(1)}%`} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? `${value.toFixed(1)}%` : 'N/A'} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.lead_to_prospect')} stroke={COLORS.primary} strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.prospect_to_active')} stroke={COLORS.secondary} strokeWidth={2} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.lead_to_prospect')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value2" 
+                          name={t('dashboard.prospect_to_active')} 
+                          stroke={COLORS.secondary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -477,10 +792,24 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip formatter={(value: number) => value.toFixed(1)} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? value.toFixed(1) : 'N/A'} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.new_leads_per_day')} stroke={COLORS.primary} strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.new_prospects_per_day')} stroke={COLORS.secondary} strokeWidth={2} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.new_leads_per_day')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value2" 
+                          name={t('dashboard.new_prospects_per_day')} 
+                          stroke={COLORS.secondary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -503,10 +832,24 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(1)} ${t('dashboard.days')}`} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? `${value.toFixed(1)} ${t('dashboard.days')}` : 'N/A'} />
                         <Legend />
-                        <Line type="monotone" dataKey="value1" name={t('dashboard.as_lead')} stroke={COLORS.primary} strokeWidth={2} />
-                        <Line type="monotone" dataKey="value2" name={t('dashboard.as_prospect')} stroke={COLORS.secondary} strokeWidth={2} />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value1" 
+                          name={t('dashboard.as_lead')} 
+                          stroke={COLORS.primary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="value2" 
+                          name={t('dashboard.as_prospect')} 
+                          stroke={COLORS.secondary} 
+                          strokeWidth={2}
+                          connectNulls={true}
+                        />
                       </RechartsLineChart>
                     </ResponsiveContainer>
                   </div>
@@ -539,14 +882,15 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}` : 'N/A'} />
                         <Legend />
                         <Line 
                           type="monotone" 
                           dataKey="value1" 
                           name={t('dashboard.emails_per_client')} 
                           stroke={COLORS.primary} 
-                          strokeWidth={2} 
+                          strokeWidth={2}
+                          connectNulls={true}
                         />
                       </RechartsLineChart>
                     </ResponsiveContainer>
@@ -570,14 +914,15 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}` : 'N/A'} />
                         <Legend />
                         <Line 
                           type="monotone" 
                           dataKey="value1" 
                           name={t('dashboard.calls_per_client')} 
                           stroke={COLORS.primary} 
-                          strokeWidth={2} 
+                          strokeWidth={2}
+                          connectNulls={true}
                         />
                       </RechartsLineChart>
                     </ResponsiveContainer>
@@ -601,14 +946,15 @@ export default function Trends() {
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="period" />
                         <YAxis />
-                        <RechartsTooltip formatter={(value: number) => `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}`} />
+                        <RechartsTooltip formatter={(value: any) => value !== null ? `${value.toFixed(2)} / ${t('dashboard.client')} / ${t('dashboard.week')}` : 'N/A'} />
                         <Legend />
                         <Line 
                           type="monotone" 
                           dataKey="value1" 
                           name={t('dashboard.meetings_per_client')} 
                           stroke={COLORS.primary} 
-                          strokeWidth={2} 
+                          strokeWidth={2}
+                          connectNulls={true}
                         />
                       </RechartsLineChart>
                     </ResponsiveContainer>
