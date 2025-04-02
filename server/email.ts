@@ -40,7 +40,7 @@ function createSignature(userData: {
     signature += `${phone}`;
   }
   
-  return signature ? `<div style="margin-top: 20px; color: #555; font-size: 14px; border-top: 1px solid #eee; padding-top: 10px;">${signature}</div>` : '';
+  return signature ? `<div style="margin-top: 20px; color: #555; border-top: 1px solid #eee; padding-top: 10px;">${signature}</div>` : '';
 }
 
 // Funzione di supporto per prendere variabili di configurazione email da diversi formati
@@ -118,8 +118,29 @@ async function getTransporter(userId: number | null) {
       
       return { transporter, config: emailConfig, userData };
     } else {
-      // Nessuna configurazione email valida
-      throw new Error("Configurazione email non impostata. Per favore configura le impostazioni SMTP nelle impostazioni utente.");
+      // Configurazione email di default per utenti senza configurazioni personalizzate
+      const defaultConfig = {
+        host: process.env.SMTP_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.SMTP_PORT || '587', 10),
+        secure: process.env.SMTP_PORT === '465',
+        user: process.env.SMTP_USER || '',
+        pass: process.env.SMTP_PASS || '',
+        from: process.env.SMTP_USER || ''
+      };
+      
+      const transporter = createTransporter(defaultConfig);
+      
+      // Dati utente per la firma
+      const userData = {
+        firstName: user?.firstName || '',
+        lastName: user?.lastName || '',
+        email: user?.email || '',
+        company: user?.company || undefined,
+        phone: user?.phone || undefined,
+        role: user?.role || 'Consulente Finanziario'
+      };
+      
+      return { transporter, config: defaultConfig, userData };
     }
   } catch (error) {
     // Rilancia l'errore per informare il chiamante del problema
@@ -326,6 +347,10 @@ export async function sendVerificationPin(
   }
 ) {
   try {
+    if (!userId) {
+      throw new Error("Impossibile inviare email: ID utente non specificato");
+    }
+    
     const content = language === 'english' ? emailVerificationContent.english : emailVerificationContent.italian;
     
     const html = `
@@ -341,17 +366,34 @@ export async function sendVerificationPin(
         <p style="font-size: 14px; color: #666;">${content.expiry}</p>
         <p style="font-size: 14px; color: #666;">${content.footer}</p>
         <p style="margin-top: 30px;">${content.signature}</p>
+        <!-- SIGNATURE_POSITION -->
       </div>
     `;
     
-    return await sendEmail({
-      userId,
+    // Configurazione per Aruba
+    const arubaConfig = {
+      host: process.env.SMTP_HOST || 'smtp.aruba.it',
+      port: 465,
+      secure: true,
+      auth: {
+        user: process.env.SMTP_USER || 'registration@gervis.it',
+        pass: process.env.SMTP_PASS || '',
+        method: 'LOGIN' // Specificare LOGIN come metodo di autenticazione
+      }
+    };
+    
+    // Crea transporter
+    const transporter = nodemailer.createTransport(arubaConfig);
+    
+    // Invia l'email
+    await transporter.sendMail({
+      from: `"Gervis" <${process.env.SMTP_FROM || 'registration@gervis.it'}>`,
       to: userEmail,
       subject: content.subject,
-      html,
-      useSignature,
-      signatureData
+      html
     });
+    
+    return true;
   } catch (error) {
     throw error;
   }
@@ -471,23 +513,23 @@ export async function sendOnboardingEmail(
       </head>
       <body>
         <div class="container">
-          ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
-          <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
-          ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
-          <p style="margin-top: 20px;">${content.callToAction}</p>
-          <div style="margin: 30px 0;">
+        ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
+        <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
+        ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
+        <p style="margin-top: 20px;">${content.callToAction}</p>
+        <div style="margin: 30px 0;">
             <a href="${onboardingLink}" class="button">
-              ${content.buttonText}
-            </a>
-          </div>
-          <p class="expiry">${content.expiry}</p>
-          <p>${content.questions}</p>
-          <!-- SIGNATURE_POSITION -->
+            ${content.buttonText}
+          </a>
         </div>
+          <p class="expiry">${content.expiry}</p>
+        <p>${content.questions}</p>
+          <!-- SIGNATURE_POSITION -->
+      </div>
       </body>
       </html>
     `;
-  
+    
     // Utilizziamo prioritariamente il valore fornito dall'utente, con fallback solo se vuoto
     const emailSubject = customSubject && customSubject.trim().length > 0 
       ? customSubject 
@@ -622,13 +664,6 @@ export async function sendMeetingInviteEmail(
       </div>
       
       <p>Puoi aggiungere questo evento al tuo calendario utilizzando l'allegato .ics in questa email.</p>
-      
-      <p>Per qualsiasi domanda o necessità di riorganizzare l'appuntamento, non esitare a contattarci.</p>
-      
-      <p>Cordiali saluti,<br>
-      ${advisorFirstName} ${advisorLastName}</p>
-      
-      <!-- SIGNATURE_POSITION -->
     </div>
     
     <div class="footer">
@@ -636,7 +671,8 @@ export async function sendMeetingInviteEmail(
     </div>
   </div>
 </body>
-</html>`;
+</html>
+`;
 
   try {
     const attachments = [
@@ -649,16 +685,16 @@ export async function sendMeetingInviteEmail(
     
     return await sendEmail({
       userId: advisorId,
-      to,
-      subject: `Invito a meeting: ${subject}`,
+      to: to,
+      subject: subject,
       html: emailTemplate,
       attachments,
-      clientId,
-      logEmail,
-      logType: "meeting_invite",
-      logTitle: "Invito a meeting",
-      logContent: emailTemplate,
-      useSignature: true,
+      clientId: clientId,
+      logEmail: logEmail,
+      logType: "meeting-invite",
+      logTitle: `Invito a meeting con ${clientName}`,
+      logContent: `Invito a meeting con ${clientName} il ${date} alle ${time}`,
+      useSignature: false,
       signatureData: signatureData
     });
   } catch (error) {
@@ -820,16 +856,16 @@ export async function sendMeetingUpdateEmail(
     
     return await sendEmail({
       userId: advisorId,
-      to,
+      to: to,
       subject: `Aggiornamento meeting: ${subject}`,
       html: emailTemplate,
       attachments,
-      clientId,
+        clientId,
       logEmail,
       logType: "meeting_update",
       logTitle: "Aggiornamento meeting",
       logContent: emailTemplate,
-      useSignature: true,
+      useSignature: false,
       signatureData: signatureData
     });
   } catch (error) {

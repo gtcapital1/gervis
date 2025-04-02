@@ -201,7 +201,8 @@ export function setupAuth(app: Express) {
           user.email,
           user.firstName && user.lastName ? ` ` : user.name || "",
           verificationPin,
-          'italian'
+          'italian',
+          user.id
         );
         
       } catch (emailError) {
@@ -474,7 +475,8 @@ export function setupAuth(app: Express) {
           user.email,
           user.firstName && user.lastName ? ` ` : user.name || "",
           verificationPin,
-          'italian'
+          'italian',
+          user.id
         );
         
         return res.status(200).json({

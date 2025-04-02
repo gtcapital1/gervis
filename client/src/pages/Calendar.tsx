@@ -387,11 +387,8 @@ export default function CalendarPage() {
     
     
     
-    // URL con parametro query sendEmail
-    const url = sendMeetingEmail ? '/api/meetings?sendEmail=true' : '/api/meetings';
-    
     // Creazione evento tramite apiRequest
-    apiRequest(url, {
+    apiRequest('/api/meetings', {
       method: 'POST',
       body: JSON.stringify({
         clientId: newEventClientId,
@@ -399,7 +396,8 @@ export default function CalendarPage() {
         dateTime: startDateTime.toISOString(),
         duration: eventDuration,
         location: eventLocation,
-        notes: newEventNotes
+        notes: newEventNotes,
+        sendEmail: sendMeetingEmail
       })
     }).then(() => {
       setIsCreateDialogOpen(false);

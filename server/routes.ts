@@ -77,9 +77,9 @@ interface Meeting {
   subject: string;
   title?: string;
   location?: string;
-  dateTime: string;
+  dateTime: Date; // Modificato da string a Date per coerenza
   notes: string;
-  createdAt: string;
+  createdAt: Date; // Modificato da string a Date per coerenza
   duration?: number;
 }
 
@@ -1641,7 +1641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Verifica che la data sia valida
           if (isNaN(logDateTime.getTime())) {
-            console.warn(`[WARN] Data non valida ricevuta: ${logDate}`);
+
             return res.status(400).json({
               success: false,
               message: "La data fornita non è valida. Formato richiesto: ISO 8601 (YYYY-MM-DDTHH:MM:SS.sssZ)"
@@ -1717,7 +1717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           logDateTime = new Date(logDate);
           // Verifica che la data sia valida
           if (isNaN(logDateTime.getTime())) {
-            console.warn(`[WARN] Data non valida ricevuta per aggiornamento: ${logDate}, ignoro questo campo`);
+
             logDateTime = undefined;
           } else {
             
@@ -2128,16 +2128,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Trova la route per creare un meeting POST /api/meetings
   app.post('/api/meetings', isAuthenticated, async (req, res) => {
+
     try {
-      const { clientId, subject, dateTime, duration, notes, location, sendEmail } = req.body;
+      // Extract meeting data from request
+      const { clientId, subject, title, location, dateTime, notes, duration, sendEmail } = req.body;
       
+
+      
+      // Validate required data
       if (!clientId || !subject || !dateTime) {
-        return res.status(400).json({ error: 'Missing required fields' });
+
+        return res.status(400).json({ error: 'Meeting details incomplete' });
       }
-      
-      
-      
-      
       
       // Verifica che dateTime sia una stringa ISO valida e lo converte in un oggetto Date
       let meetingDate;
@@ -2170,87 +2172,119 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: 'Advisor not found' });
       }
       
-      // Importante: create un oggetto per l'inserimento che abbia dateTime come Date vero e proprio
-      const meetingToCreate = {
-        clientId: parseInt(clientId),
+      // Crea un nuovo meeting
+      const meeting = await storage.createMeeting({
+        clientId,
         advisorId: req.user?.id as number,
         subject,
-        title: subject, // Use subject as title initially
-        location: location || 'zoom', // Use provided location or default to zoom
-        dateTime: meetingDate, // Come oggetto Date
-        duration: duration || 60, // Use provided duration or default to 60 minutes
-        notes: notes || ''
-      };
+        title,
+        location,
+        dateTime: meetingDate,
+        notes,
+        duration: duration || 60 // Default a 60 minuti
+      });
       
+
       
-      
-      
-      // Create a new meeting in the database
-      const meeting = await storage.createMeeting(meetingToCreate);
-      
-      // Invia email solo se l'opzione è attivata
+      // Invia un'email di invito se richiesto (default: true)
       let emailSent = false;
-      if (sendEmail === true) {
+      
+      // Determina se inviare email (controlla esplicitamente, gestisci vari formati)
+      const shouldSendEmail = sendEmail === true || sendEmail === 'true' || sendEmail === 1;
+      
+      if (shouldSendEmail) {
+
+        
         try {
-          // Format the date for display in the email
-          const formattedDate = meetingDate.toLocaleDateString('it-IT', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
+          // Ottieni i dati del cliente
+          const client = await storage.getClient(clientId);
+
           
-          const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
-            hour: '2-digit',
-            minute: '2-digit'
-          });
+          // Ottieni i dati dell'advisor
+          const advisor = await storage.getUser(req.user?.id as number);
+
           
-          // Calculate end time based on duration
-          const endTime = new Date(meetingDate);
-          endTime.setMinutes(endTime.getMinutes() + (duration || 60));
-          
-          // Generate iCalendar data
-          const icalData = generateICalendarEvent({
-            startTime: meetingDate,
-            endTime: endTime, // Use calculated end time based on duration
-            subject,
-            description: notes || '',
-            location: location || 'Online',
-            organizer: {
-              name: `${advisor.firstName} ${advisor.lastName}`,
-              email: advisor.email
-            },
-            attendees: [
-              {
-                name: `${client.firstName} ${client.lastName}`,
-                email: client.email
-              }
-            ]
-          });
-          
-          // Verifica che client.email sia definito prima di inviare l'email
-          if (client.email) {
-            await sendMeetingInviteEmail(
-              client.email,
-              client.firstName || '',
-              advisor.firstName || '',
-              advisor.lastName || '',
+          // Se client e advisor esistono, procedi
+          if (client && advisor) {
+            // Formatta data e ora per email
+            const formattedDate = meetingDate.toLocaleDateString('it-IT', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
+              hour: '2-digit',
+              minute: '2-digit'
+            });
+            
+
+            
+            // Calcola ora di fine
+            const endTime = new Date(meetingDate);
+            endTime.setMinutes(endTime.getMinutes() + (duration || 60));
+            
+
+            
+            // Generate iCalendar data
+            const icalData = generateICalendarEvent({
+              startTime: meetingDate,
+              endTime,
               subject,
-              formattedDate,
-              formattedTime,
-              meeting.location || 'Online',
-              notes || '',
-              icalData,
-              advisor.email,
-              client.id,
-              advisor.id as number,
-              false // Non creare automaticamente un log per l'email
-            );
+              description: notes || '',
+              location: location || 'Online',
+              organizer: {
+                name: `${advisor.firstName} ${advisor.lastName}`,
+                email: advisor.email
+              },
+              attendees: [
+                {
+                  name: `${client.firstName} ${client.lastName}`,
+                  email: client.email
+                }
+              ]
+            });
             
-            
-            emailSent = true;
-          } else {
-            
+
+            // Verifica che client.email sia definito prima di inviare l'email
+            if (client.email) {
+
+              
+              try {
+                await sendMeetingInviteEmail(
+                  client.email,
+                  client.firstName || '',
+                  advisor.firstName || '',
+                  advisor.lastName || '',
+                  subject,
+                  formattedDate,
+                  formattedTime,
+                  meeting.location || 'Online',
+                  notes || '',
+                  icalData,
+                  advisor.email,
+                  client.id,
+                  advisor.id as number,
+                  false, // Non creare automaticamente un log per l'email
+                  {
+                    firstName: advisor.firstName || '',
+                    lastName: advisor.lastName || '',
+                    email: advisor.email || '',
+                    company: advisor.company || '',
+                    phone: advisor.phone || '',
+                    role: advisor.role || 'Consulente Finanziario'
+                  }
+                );
+                
+
+                emailSent = true;
+              } catch (emailError) {
+
+                
+              }
+            } else {
+            }
           }
         } catch (emailError) {
           
@@ -2263,8 +2297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json({ 
         success: true, 
         meeting,
-        emailSent,
-        icalData: sendEmail === true ? icalData : undefined // Include the iCalendar data in the response if email was sent
+        emailSent
       });
     } catch (error) {
       
@@ -2341,8 +2374,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verifica se l'orario è cambiato e invia una nuova email
       const isDateTimeChanged = dateTime && oldMeeting.dateTime.toString() !== updateData.dateTime?.toString();
       
+
       if (isDateTimeChanged && updatedMeeting) {
         const meeting = updatedMeeting;
+        
+
         
         try {
           // Ottieni le informazioni del cliente per inviare l'email
@@ -2407,24 +2443,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
               const advisorFirstName = advisorNameParts[0] || advisorName;
               const advisorLastName = advisorNameParts.slice(1).join(' ') || '';
               
-              await sendMeetingUpdateEmail(
-                client.email,
-                client.firstName,
-                advisorFirstName,
-                advisorLastName,
-                meeting.subject,
-                oldDate,
-                oldTime,
-                newDate,
-                newTime,
-                meeting.location || "Videoconferenza",
-                meeting.notes || '',
-                icalData,
-                advisor.email || '',
-                client.id,
-                advisorId,
-                true // log email
-              );
+
+              
+              try {
+                await sendMeetingUpdateEmail(
+                  client.email,
+                  client.firstName,
+                  advisorFirstName,
+                  advisorLastName,
+                  meeting.subject,
+                  oldDate,
+                  oldTime,
+                  newDate,
+                  newTime,
+                  meeting.location || "Videoconferenza",
+                  meeting.notes || '',
+                  icalData,
+                  advisor.email || '',
+                  client.id,
+                  advisorId,
+                  true, // log email
+                  {
+                    firstName: advisor.firstName || '',
+                    lastName: advisor.lastName || '',
+                    email: advisor.email || '',
+                    company: advisor.company || '',
+                    phone: advisor.phone || '',
+                    role: advisor.role || 'Consulente Finanziario'
+                  }
+                );
+                
+
+              } catch (emailError) {
+              }
               
               safeLog(`Email di aggiornamento inviata`, { 
                 to: client.email, 
@@ -2502,6 +2553,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     organizer: { name: string; email: string };
     attendees: Array<{ name: string; email: string }>;
   }): string {
+
+    
     // Format times to iCal format
     const formatDate = (date: Date): string => {
       return date.toISOString().replace(/-|:|\.\d+/g, '');
@@ -2509,6 +2562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     
     const now = new Date();
     const icalUid = `${now.getTime()}-${Math.random().toString(36).substring(2, 11)}@gervis.app`;
+    
     
     // Create iCalendar content
     let icalContent = [

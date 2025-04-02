@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { ApprovalPendingOverlay } from "@/components/ApprovalPendingOverlay";
 
 // Utility function to get initials from name
 function getInitials(name: string): string {
