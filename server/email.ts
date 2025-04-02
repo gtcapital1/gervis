@@ -73,12 +73,16 @@ const options: SMTPTransport.Options = {
       pass: config.pass
   },
   tls: {
-    // Non verifica il certificato del server
-    rejectUnauthorized: false
-  },
-  debug: true, // abilita debug per vedere maggiori dettagli
-  logger: true // mostra log dettagliati
+    // Verifica del certificato abilitata in produzione, disabilitata solo in ambiente di sviluppo
+    rejectUnauthorized: process.env.NODE_ENV !== 'development'
+  }
 };
+
+  // Mostra un avviso se la verifica del certificato è disabilitata
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('ATTENZIONE: La verifica del certificato SSL/TLS è disabilitata in ambiente di sviluppo. ' +
+                'Questa configurazione non è sicura per l\'ambiente di produzione.');
+  }
 
   return nodemailer.createTransport(options);
 }
@@ -379,6 +383,10 @@ export async function sendVerificationPin(
         user: process.env.SMTP_USER || 'registration@gervis.it',
         pass: process.env.SMTP_PASS || '',
         method: 'LOGIN' // Specificare LOGIN come metodo di autenticazione
+      },
+      tls: {
+        // Verifica del certificato abilitata in produzione, disabilitata solo in ambiente di sviluppo
+        rejectUnauthorized: process.env.NODE_ENV !== 'development'
       }
     };
     
@@ -831,11 +839,6 @@ export async function sendMeetingUpdateEmail(
       <p>L'invito al calendario è stato aggiornato automaticamente. In alternativa, puoi aggiungere questo evento al tuo calendario utilizzando l'allegato .ics in questa email.</p>
       
       <p>Per qualsiasi domanda o necessità di riorganizzare l'appuntamento, non esitare a contattarci.</p>
-      
-      <p>Cordiali saluti,<br>
-      ${advisorFirstName} ${advisorLastName}</p>
-      
-      <!-- SIGNATURE_POSITION -->
     </div>
     
     <div class="footer">

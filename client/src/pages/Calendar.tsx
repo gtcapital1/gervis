@@ -84,6 +84,7 @@ export default function CalendarPage() {
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [eventDuration, setEventDuration] = useState<number>(60); // Durata di default: 60 minuti
   const [sendMeetingEmail, setSendMeetingEmail] = useState(false);
+  const [sendMeetingUpdateEmail, setSendMeetingUpdateEmail] = useState(false); // New state for update email
   const { t } = useTranslation();
   const { toast } = useToast();
   
@@ -140,14 +141,16 @@ export default function CalendarPage() {
   
   // Mutation per aggiornare un meeting
   const updateMeetingMutation = useMutation({
-    mutationFn: (data: { id: number, title: string, location: string, dateTime: string, duration: number }) => {
+    mutationFn: (data: { id: number, title: string, location: string, dateTime: string, duration: number, notes?: string, sendEmail?: boolean }) => {
       return apiRequest(`/api/meetings/${data.id}`, {
         method: 'PUT',
         body: JSON.stringify({
           title: data.title,
           location: data.location,
           dateTime: data.dateTime,
-          duration: data.duration
+          duration: data.duration,
+          notes: data.notes,
+          sendEmail: data.sendEmail
         }),
       });
     },
@@ -228,6 +231,7 @@ export default function CalendarPage() {
     setEditingEvent(event);
     setEventTitle(event.title);
     setEventLocation(event.location);
+    setSendMeetingUpdateEmail(false); // Reset email flag when opening edit dialog
     
     // Estrai data e ora dall'evento
     if (event.startTime) {
@@ -262,7 +266,9 @@ export default function CalendarPage() {
           title: eventTitle,
           location: eventLocation,
           dateTime: dateTimeStr,
-          duration: eventDuration
+          duration: eventDuration,
+          notes: newEventNotes,
+          sendEmail: sendMeetingUpdateEmail
         });
       } catch (error) {
         
@@ -333,16 +339,20 @@ export default function CalendarPage() {
     if (selectedDate) {
       const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Inizia da lunedì
       const date = addDays(weekStart, i);
+      // Controlla se la data è oggi
+      const isToday = format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
       return {
         name: format(date, "EEEE", { locale: it }),
         date: date,
-        dateString: format(date, "yyyy-MM-dd")
+        dateString: format(date, "yyyy-MM-dd"),
+        isToday
       };
     }
     return {
       name: weekDays[i],
       date: new Date(),
-      dateString: ""
+      dateString: "",
+      isToday: false
     };
   });
   
@@ -437,8 +447,22 @@ export default function CalendarPage() {
       const currentDate = new Date(selectedDate);
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Lunedì
       const targetDate = addDays(weekStart, dayIndex);
+      
+      // Imposta sia eventDate che selectedDate in modo che la data sia coerente in tutto il componente
       setEventDate(targetDate);
+      setSelectedDate(targetDate); // Aggiorna anche selectedDate per assicurarsi che il dialogo mostri la data corretta
+      
+      // Imposta l'ora selezionata
       setEventTime(hour);
+      
+      // Reset other fields for a new meeting
+      setEventTitle("");
+      setNewEventNotes("");
+      setEventLocation("zoom");
+      setEventDuration(60);
+      setSendMeetingEmail(false);
+      
+      // Apri il dialog
       setIsCreateDialogOpen(true);
     }
   };
@@ -616,9 +640,11 @@ export default function CalendarPage() {
                     <tr className="h-6">
                       <th className="w-14 py-1"></th>
                       {weekDaysWithDates.map((day, index) => (
-                        <th key={index} className="text-center py-1 px-1 border-b text-xs">
+                        <th key={index} className={`text-center py-1 px-1 border-b text-xs ${day.isToday ? 'bg-blue-50' : ''}`}>
                           <div className="text-xs">{day.name}</div>
-                          <div className="text-xs text-gray-500">{format(day.date, "d MMM", { locale: it })}</div>
+                          <div className={`text-xs ${day.isToday ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
+                            {format(day.date, "d MMM", { locale: it })}
+                          </div>
                         </th>
                       ))}
                     </tr>
@@ -632,7 +658,7 @@ export default function CalendarPage() {
                         {weekDaysWithDates.map((day, dayIndex) => (
                           <td 
                             key={dayIndex} 
-                            className="border-b border-r border-gray-100 relative p-0"
+                            className={`border-b border-r border-gray-100 relative p-0 ${day.isToday ? 'bg-blue-50/50' : ''}`}
                             onClick={() => handleWeeklyTimeSlotClick(dayIndex, hour)}
                           >
                             {/* Pulsante per aggiungere evento in questa cella */}
@@ -832,6 +858,32 @@ export default function CalendarPage() {
                     {getDurationOptions()}
                   </select>
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="notes" className="text-sm font-medium flex items-center">
+                  <FileText className="h-4 w-4 mr-2 text-blue-500" />
+                  Note
+                </label>
+                <Textarea
+                  id="notes"
+                  placeholder="Note aggiuntive"
+                  value={newEventNotes}
+                  onChange={(e) => setNewEventNotes(e.target.value)}
+                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
+                />
+              </div>
+              <div className="flex items-center space-x-2 pt-2">
+                <Checkbox 
+                  id="sendUpdateEmail" 
+                  checked={sendMeetingUpdateEmail} 
+                  onCheckedChange={(checked) => setSendMeetingUpdateEmail(checked === true)} 
+                />
+                <label
+                  htmlFor="sendUpdateEmail"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Invia email di aggiornamento al cliente
+                </label>
               </div>
             </div>
           </div>

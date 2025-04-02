@@ -20,7 +20,7 @@ import {
   insertRecommendationSchema
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
-import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail } from "./email";
+import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
@@ -31,6 +31,9 @@ import { eq } from "drizzle-orm";
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { UploadedFile } from 'express-fileupload';
+
+// Definire un alias temporaneo per evitare errori del linter
+type e = Error;
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -130,12 +133,19 @@ function safeLog(message: string, data?: any, level: 'info' | 'error' | 'debug' 
     return newObj;
   };
   
-  const logMethod = level === 'error' ? () => {} : () => {};
-  
-  if (data) {
-    logMethod(`[${level.toUpperCase()}] ${message}`, sanitizeData(data));
+  // Utilizziamo console.log/error in base al livello
+  if (level === 'error') {
+    if (data) {
+      console.error(`[${level.toUpperCase()}] ${message}`, sanitizeData(data));
+    } else {
+      console.error(`[${level.toUpperCase()}] ${message}`);
+    }
   } else {
-    logMethod(`[${level.toUpperCase()}] ${message}`);
+    if (data) {
+      console.log(`[${level.toUpperCase()}] ${message}`, sanitizeData(data));
+    } else {
+      console.log(`[${level.toUpperCase()}] ${message}`);
+    }
   }
 }
 
@@ -888,7 +898,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const verificationUrl = `${baseUrl}/api/verify-email?token=${verificationToken}`;
       
       // Send verification email
-      await sendVerificationEmail(
+      await sendVerificationPin(
         user.email,
         user.name || `${user.firstName} ${user.lastName}`,
         verificationUrl,
@@ -2327,7 +2337,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Estrai i dati dalla richiesta
-      const { title, location, notes, dateTime, duration } = req.body;
+      const { title, location, notes, dateTime, duration, sendEmail } = req.body;
       
       // Prepara i dati da aggiornare
       const updateData: Partial<Meeting> = {};
@@ -2374,8 +2384,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Verifica se l'orario è cambiato e invia una nuova email
       const isDateTimeChanged = dateTime && oldMeeting.dateTime.toString() !== updateData.dateTime?.toString();
       
+      // Determina se inviare email (controlla esplicitamente, gestisci vari formati)
+      const shouldSendEmail = sendEmail === true || sendEmail === 'true' || sendEmail === 1;
 
-      if (isDateTimeChanged && updatedMeeting) {
+      if (isDateTimeChanged && updatedMeeting && shouldSendEmail) {
         const meeting = updatedMeeting;
         
 
@@ -2736,52 +2748,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         };
       });
       
-      // Se non ci sono attività dai log, genera alcune attività simulate
-      if (activities.length === 0) {
-        const simulatedActivities = [
-          {
-            id: 1,
-            type: 'call',
-            description: 'Call completed with',
-            client: 'Marco T.',
-            time: '10:30 AM',
-            status: 'summary ready',
-            color: 'blue'
-          },
-          {
-            id: 2,
-            type: 'lead',
-            description: 'New prospect added',
-            client: 'Serena V.',
-            time: '9:15 AM',
-            status: 'added by you',
-            color: 'green'
-          },
-          {
-            id: 3,
-            type: 'document',
-            description: 'Proposal sent to',
-            client: 'Giuseppe N.',
-            time: 'Yesterday',
-            status: 'awaiting feedback',
-            color: 'amber'
-          },
-          {
-            id: 4,
-            type: 'message',
-            description: 'Message from',
-            client: 'Laura B.',
-            time: 'Yesterday',
-            status: 'needs response',
-            color: 'purple'
-          }
-        ];
-        
-        activities.push(...simulatedActivities);
-      }
+      // Non generiamo più attività simulate, restituiamo l'array così com'è
       
       res.json({ activities });
     } catch (error) {
+      
       
       res.status(500).json({ error: 'Failed to fetch activity data' });
     }
@@ -3497,4 +3468,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   const httpServer = createServer(app);
   return httpServer;
+}
+
+// Helper function to type catch errors
+function typedCatch<T extends Error>(error: unknown): T {
+  if (error instanceof Error as any) {
+    return error as T;
+  }
+  
+  // Se non è un Error, crea un nuovo Error con il messaggio convertito in stringa
+  const newError = new Error(String(error)) as T;
+  return newError;
 }
