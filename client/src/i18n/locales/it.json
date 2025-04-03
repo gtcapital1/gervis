@@ -266,7 +266,14 @@
     "daily_acquisition": "Acquisizione giornaliera",
     "as_lead": "Tempo come lead",
     "as_prospect": "Tempo come prospect",
-    "average_time": "Tempi medi"
+    "average_time": "Tempi medi",
+    "per_new_prospect": "Asset medi nuovi Prospect",
+    "per_new_active_client": "Asset medi nuovi Clienti Attivi",
+    "average_assets_new_prospects": "Asset Medi Nuovi Prospect",
+    "average_assets_new_active_clients": "Asset Medi Nuovi Clienti Attivi",
+    "new_prospects": "Nuovi Prospect",
+    "new_active_clients": "Nuovi Clienti Attivi",
+    "average_assets_active_clients": "Asset Medi Clienti Attivi"
   },
   "client": {
     "active_client": "Cliente Attivo",
@@ -1012,5 +1019,25 @@
     "master": "Laurea Magistrale",
     "phd": "Dottorato",
     "other": "Altro"
+  },
+  "trends": {
+    "assets": "Asset",
+    "average_assets": "Asset Medi",
+    "average_assets_new_prospects": "Asset Medi Nuovi Prospect",
+    "average_assets_new_active_clients": "Asset Medi Nuovi Clienti Attivi",
+    "average_assets_active_clients": "Asset Medi Clienti Attivi",
+    "new_prospects": "Nuovi Prospect",
+    "new_active_clients": "Nuovi Clienti Attivi",
+    "active_clients": "Clienti Attivi",
+    "leads": "Lead",
+    "prospects": "Prospect",
+    "lead_to_prospect": "Lead a Prospect",
+    "prospect_to_active": "Prospect a Attivo",
+    "avg_days_as_lead": "Media Giorni come Lead",
+    "avg_days_as_prospect": "Media Giorni come Prospect",
+    "new_leads": "Nuovi Lead",
+    "email_per_client": "Email per Cliente",
+    "call_per_client": "Chiamate per Cliente",
+    "meeting_per_client": "Incontri per Cliente"
   }
 } 

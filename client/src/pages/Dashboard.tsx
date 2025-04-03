@@ -497,9 +497,21 @@ export default function Dashboard() {
     return 0;
   };
   
-  // Calcola la media degli asset per i prospect usando MIFID
+  // Calcola la media degli asset per i prospect usando total_assets
   const assetsPerProspect = prospectsInPeriod.length > 0 ? 
-    parseFloat((prospectsInPeriod.reduce((sum, client) => sum + getMifidAssetTotal(client.id), 0) / prospectsInPeriod.length).toFixed(1)) : 0;
+    parseFloat((prospectsInPeriod.reduce((sum, client) => {
+      const assetTotal = client.totalAssets || 0;
+      console.log(`Client ${client.id} (${client.name}) - Asset total: ${assetTotal}`);
+      return sum + assetTotal;
+    }, 0) / prospectsInPeriod.length).toFixed(1)) : 0;
+  
+  console.log('New prospects in period:', prospectsInPeriod.length);
+  console.log('Prospects details:', prospectsInPeriod.map(p => ({
+    id: p.id,
+    name: p.name,
+    onboardedAt: p.onboardedAt,
+    totalAssets: p.totalAssets || 0
+  })));
   
   // Calcola la media degli asset per i clienti attivi usando MIFID
   const assetsPerActiveClient = activeClientsInPeriod.length > 0 ? 

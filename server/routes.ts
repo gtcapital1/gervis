@@ -31,6 +31,7 @@ import { eq } from "drizzle-orm";
 import express from 'express';
 import fileUpload from 'express-fileupload';
 import { UploadedFile } from 'express-fileupload';
+import { trendService } from './trends-service';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -1829,6 +1830,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Validate ticker symbol
   app.post('/api/market/validate-ticker', validateTicker);
 
+  // ===== Trend Data API Routes =====
+  
+  // Get trend data for an advisor
+  app.get('/api/trends/:advisorId', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const advisorId = parseInt(req.params.advisorId);
+      const userId = req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+
+      // Verifica che l'utente abbia accesso ai dati del consulente
+      if (userId !== advisorId && !req.user?.isAdmin) {
+        return res.status(403).json({ error: 'Non autorizzato ad accedere a questi dati' });
+      }
+
+      console.log(`Fetching trend data for advisor ${advisorId}`);
+      
+      // Genera i trend per assicurarsi che i dati siano aggiornati
+      await trendService.generateAndSaveTrendsForAdvisor(advisorId);
+      
+      // Ottieni i dati di trend per il consulente
+      const trendData = await trendService.getTrendDataForAdvisor(advisorId);
+      
+      console.log('Formatted trend data:', trendData);
+      
+      res.json({
+        success: true,
+        data: trendData
+      });
+    } catch (error) {
+      console.error('Error fetching trend data:', error);
+      res.status(500).json({ error: 'Errore nel recupero dei dati di trend' });
+    }
+  });
+
   // ===== AI API Routes =====
   
   // Get AI-generated client profile
@@ -3466,8 +3504,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  // Aggiungo il nuovo endpoint per le statistiche sui trends
+  app.get('/api/statistics/trends/summary', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+      
+      const summary = await trendService.getAllTrendsSummary(userId);
+      
+      res.json({
+        success: true,
+        data: summary
+      });
+    } catch (error) {
+      handleErrorResponse(res, error, 'Errore nel recupero delle statistiche');
+    }
+  });
+  
+  // Create and return the server
+  const server = createServer(app);
+  return server;
 }
 
 // Helper function to type catch errors

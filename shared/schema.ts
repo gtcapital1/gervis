@@ -335,3 +335,27 @@ export const mifidRelations = relations(mifid, ({ one }) => ({
 // Tipo per i dati dell'onboarding
 export type MifidData = typeof mifid.$inferInsert;
 export type Mifid = typeof mifid.$inferSelect;
+
+// Trend Data Schema
+export const trendData = pgTable("trend_data", {
+  id: serial("id").primaryKey(),
+  advisorId: integer("advisor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  type: text("type").notNull(),
+  date: timestamp("date").notNull(),
+  value: integer("value"),
+  valueFloat: text("value_float"),
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertTrendDataSchema = createInsertSchema(trendData).pick({
+  advisorId: true,
+  type: true,
+  date: true,
+  value: true,
+  valueFloat: true,
+  metadata: true,
+});
+
+export type InsertTrendData = z.infer<typeof insertTrendDataSchema>;
+export type TrendData = typeof trendData.$inferSelect;

@@ -14,6 +14,10 @@ import { autorunCreateMeetingsTable } from "./migrations/autorun-create-meetings
 import { autorunAddActiveAndOnboardedAt } from "./migrations/autorun-add-active-onboardedat";
 import { addEmailSettingsColumns } from "./migrations/autorun-add-email-settings";
 import { autorunAddMeetingDuration } from "./migrations/autorun-add-meeting-duration";
+import { autorunCreateTrendData } from "./migrations/autorun-create-trend-data";
+
+// Importa il servizio dei trend
+import { trendService } from './trends-service';
 
 // Extend Express Request to include user property
 import session from "express-session";
@@ -190,6 +194,17 @@ app.use((req, res, next) => {
     
   } catch (error) {
     
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Genera automaticamente i trend per tutti i consulenti all'avvio
+  try {
+    // Generiamo i trend in modo asincrono senza attendere il completamento
+    trendService.generateTrendsForAllAdvisors()
+      .then(() => console.log('Successfully generated trends for all advisors'))
+      .catch(err => console.error('Error generating trends for all advisors:', err));
+  } catch (error) {
+    console.error('Error initiating trend generation:', error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

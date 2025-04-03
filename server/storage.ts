@@ -11,7 +11,7 @@ import {
   mifid, type Mifid
 } from "@shared/schema";
 import session from "express-session";
-import { eq, and, gt, sql, desc, gte, lte, inArray } from 'drizzle-orm';
+import { eq, and, gt, sql, desc, gte, lte, inArray, lt } from 'drizzle-orm';
 import connectPgSimple from "connect-pg-simple";
 import { randomBytes, createHash, scrypt, timingSafeEqual } from 'crypto';
 import createMemoryStore from 'memorystore';
@@ -1403,3 +1403,167 @@ export class PostgresStorage implements IStorage {
 }
 
 export const storage = new PostgresStorage();
+
+// Trend Data Methods
+export async function saveTrendData(
+  advisorId: number,
+  type: string,
+  date: Date,
+  value: number | null,
+  valueFloat: string | null = null,
+  metadata: any = null
+): Promise<boolean> {
+  try {
+    // Importa direttamente dalla radice per evitare problemi di path
+    const schema = await import('@shared/schema');
+    
+    await db.insert(schema.trendData).values({
+      advisorId,
+      type: type as any, // Cast come any per evitare problemi di tipo
+      date,
+      value: value !== null ? value : undefined,
+      valueFloat: valueFloat !== null ? valueFloat : undefined,
+      metadata,
+    });
+    return true;
+  } catch (error) {
+    console.error(`Error saving trend data for advisor ${advisorId}:`, error);
+    return false;
+  }
+}
+
+export async function getTrendData(
+  advisorId: number,
+  type: string | string[] | null = null,
+  startDate: Date | null = null,
+  endDate: Date | null = null
+): Promise<any[]> {
+  try {
+    // Importa direttamente dalla radice per evitare problemi di path
+    const schema = await import('@shared/schema');
+    
+    let query = db.select().from(schema.trendData).where(eq(schema.trendData.advisorId, advisorId));
+    
+    // Filtra per tipo
+    if (type !== null) {
+      if (Array.isArray(type)) {
+        query = query.where(inArray(schema.trendData.type, type as any[]));
+      } else {
+        query = query.where(eq(schema.trendData.type, type as any));
+      }
+    }
+    
+    // Filtra per intervallo di date
+    if (startDate !== null) {
+      query = query.where(gte(schema.trendData.date, startDate));
+    }
+    
+    if (endDate !== null) {
+      query = query.where(lte(schema.trendData.date, endDate));
+    }
+    
+    // Ordina per data
+    query = query.orderBy(schema.trendData.date);
+    
+    const result = await query;
+    return result;
+  } catch (error) {
+    console.error(`Error fetching trend data for advisor ${advisorId}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Ottiene i dati di trend aggregati per diversi timeframe
+ * @param advisorId - ID del consulente
+ * @param type - Tipo di trend da recuperare (o array di tipi)
+ * @param timeframe - Timeframe di aggregazione ('daily', 'weekly', 'monthly', 'quarterly', 'semiannual', 'yearly')
+ * @param limit - Numero massimo di punti dati da recuperare
+ * @param userCreatedAt - Data di iscrizione dell'utente (per limitare i dati a questa data)
+ * @returns Array di oggetti con dati aggregati per timeframe
+ */
+export async function getTrendDataByTimeframe(
+  advisorId: number,
+  type: string | string[] | null = null,
+  timeframe: 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'semiannual' | 'yearly' = 'monthly',
+  limit: number = 12,
+  userCreatedAt: Date | null = null
+): Promise<any[]> {
+  try {
+    // Importa direttamente dalla radice per evitare problemi di path
+    const schema = await import('@shared/schema');
+    
+    // Calcola la data di inizio in base al timeframe e al limite
+    let startDate = new Date();
+    let sqlTimeframeFormat: string;
+    
+    switch(timeframe) {
+      case 'daily':
+        startDate.setDate(startDate.getDate() - limit);
+        sqlTimeframeFormat = 'YYYY-MM-DD';
+        break;
+      case 'weekly':
+        startDate.setDate(startDate.getDate() - (limit * 7));
+        sqlTimeframeFormat = 'IYYY-IW'; // ISO year and week
+        break;
+      case 'monthly':
+        startDate.setMonth(startDate.getMonth() - limit);
+        sqlTimeframeFormat = 'YYYY-MM';
+        break;
+      case 'quarterly':
+        startDate.setMonth(startDate.getMonth() - (limit * 3));
+        sqlTimeframeFormat = 'YYYY-"Q"Q'; // Anno e trimestre (es. 2023-Q1)
+        break;
+      case 'semiannual':
+        startDate.setMonth(startDate.getMonth() - (limit * 6));
+        sqlTimeframeFormat = 'YYYY-"H"' + 
+          sql`CASE WHEN EXTRACT(MONTH FROM "date") <= 6 THEN '1' ELSE '2' END`; // Anno e semestre (es. 2023-H1, 2023-H2)
+        break;
+      case 'yearly':
+        startDate.setFullYear(startDate.getFullYear() - limit);
+        sqlTimeframeFormat = 'YYYY';
+        break;
+    }
+    
+    // Se l'utente ha una data di iscrizione, usa quella come limite minimo
+    if (userCreatedAt && userCreatedAt > startDate) {
+      startDate = userCreatedAt;
+    }
+    
+    // Costruisci la query SQL per raggruppare per timeframe
+    let query = sql`
+      SELECT 
+        TO_CHAR("date", ${sqlTimeframeFormat}) AS timeframe_key,
+        type,
+        MAX("date") AS latest_date,
+        AVG(CASE WHEN value IS NOT NULL THEN value::float ELSE NULL END) AS avg_value,
+        AVG(CASE WHEN value_float IS NOT NULL THEN value_float::float ELSE NULL END) AS avg_value_float,
+        COUNT(*) AS data_points
+      FROM trend_data
+      WHERE advisor_id = ${advisorId}
+        AND "date" >= ${startDate}
+    `;
+    
+    // Aggiungi filtri per tipo
+    if (type !== null) {
+      if (Array.isArray(type)) {
+        query = sql`${query} AND type IN (${sql.join(type)})`; 
+      } else {
+        query = sql`${query} AND type = ${type}`;
+      }
+    }
+    
+    // Completa la query con GROUP BY e ORDER BY
+    query = sql`
+      ${query}
+      GROUP BY timeframe_key, type
+      ORDER BY timeframe_key DESC, type
+    `;
+    
+    const result = await db.execute(query);
+    return result;
+  } catch (error) {
+    console.error(`Error fetching trend data by timeframe for advisor ${advisorId}:`, error);
+    return [];
+  }
+}

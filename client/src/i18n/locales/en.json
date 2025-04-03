@@ -270,7 +270,9 @@
     "daily_acquisition": "Daily Acquisition",
     "as_lead": "Time as lead",
     "as_prospect": "Time as prospect",
-    "average_time": "Average Times"
+    "average_time": "Average Times",
+    "per_new_prospect": "Average Assets New Prospects",
+    "per_new_active_client": "Average Assets New Active Clients"
   },
   "client_edit": {
     "email": "Email Address",
@@ -865,5 +867,25 @@
     "emailDefaultSubject": "Welcome to our advisory service",
     "send": "Send",
     "preview": "Preview"
+  },
+  "trends": {
+    "assets": "Assets",
+    "average_assets": "Average Assets",
+    "average_assets_new_prospects": "Average Assets New Prospects",
+    "average_assets_new_active_clients": "Average Assets New Active Clients",
+    "average_assets_active_clients": "Average Assets Active Clients",
+    "new_prospects": "New Prospects",
+    "new_active_clients": "New Active Clients",
+    "active_clients": "Active Clients",
+    "leads": "Leads",
+    "prospects": "Prospects",
+    "lead_to_prospect": "Lead to Prospect",
+    "prospect_to_active": "Prospect to Active",
+    "avg_days_as_lead": "Avg Days as Lead",
+    "avg_days_as_prospect": "Avg Days as Prospect",
+    "new_leads": "New Leads",
+    "email_per_client": "Emails per Client",
+    "call_per_client": "Calls per Client",
+    "meeting_per_client": "Meetings per Client"
   }
 } 
