@@ -138,11 +138,18 @@ export default function Trends() {
   // Funzione per generare dati per il grafico dei lead
   const generateLeadCountTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const data = getTrendDataByType('lead_count', period);
       return {
         period,
-        value1: data?.value || null
+        value1: isPeriodValid ? (data?.value !== null ? data?.value || 0 : 0) : null
       };
     });
   };
@@ -150,11 +157,18 @@ export default function Trends() {
   // Funzione per generare dati per il grafico dei prospect
   const generateProspectCountTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const data = getTrendDataByType('prospect_count', period);
       return {
         period,
-        value1: data?.value || null
+        value1: isPeriodValid ? (data?.value !== null ? data?.value || 0 : 0) : null
       };
     });
   };
@@ -162,11 +176,18 @@ export default function Trends() {
   // Funzione per generare dati per il grafico dei clienti attivi
   const generateActiveClientCountTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const data = getTrendDataByType('active_client_count', period);
       return {
         period,
-        value1: data?.value || null
+        value1: isPeriodValid ? (data?.value !== null ? data?.value || 0 : 0) : null
       };
     });
   };
@@ -174,13 +195,20 @@ export default function Trends() {
   // Funzione per generare dati per il grafico dei tassi di conversione
   const generateConversionTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const leadToProspect = getTrendDataByType('conversion_rate_lead_to_prospect', period);
       const prospectToClient = getTrendDataByType('conversion_rate_prospect_to_client', period);
       return {
         period,
-        value1: leadToProspect?.value || null,
-        value2: prospectToClient?.value || null
+        value1: isPeriodValid ? (leadToProspect?.value !== null ? leadToProspect?.value || 0 : 0) : null,
+        value2: isPeriodValid ? (prospectToClient?.value !== null ? prospectToClient?.value || 0 : 0) : null
       };
     });
   };
@@ -188,13 +216,20 @@ export default function Trends() {
   // Funzione per generare dati per il grafico dei tempi medi
   const generateTimeTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const leadTime = getTrendDataByType('average_time_as_lead', period);
       const prospectTime = getTrendDataByType('average_time_as_prospect', period);
       return {
         period,
-        value1: leadTime?.valueFloat ? parseFloat(leadTime.valueFloat) : null,
-        value2: prospectTime?.valueFloat ? parseFloat(prospectTime.valueFloat) : null
+        value1: isPeriodValid ? (leadTime?.valueFloat ? parseFloat(leadTime.valueFloat) : 0) : null,
+        value2: isPeriodValid ? (prospectTime?.valueFloat ? parseFloat(prospectTime.valueFloat) : 0) : null
       };
     });
   };
@@ -202,15 +237,22 @@ export default function Trends() {
   // Funzione per generare dati per il grafico delle interazioni
   const generateInteractionTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const emailData = getTrendDataByType('email_per_client', period);
       const callData = getTrendDataByType('call_per_client', period);
       const meetingData = getTrendDataByType('meeting_per_client', period);
       return {
         period,
-        value1: emailData?.valueFloat ? parseFloat(emailData.valueFloat) : null,
-        value2: callData?.valueFloat ? parseFloat(callData.valueFloat) : null,
-        value3: meetingData?.valueFloat ? parseFloat(meetingData.valueFloat) : null
+        value1: isPeriodValid ? (emailData?.valueFloat ? parseFloat(emailData.valueFloat) : 0) : null,
+        value2: isPeriodValid ? (callData?.valueFloat ? parseFloat(callData.valueFloat) : 0) : null,
+        value3: isPeriodValid ? (meetingData?.valueFloat ? parseFloat(meetingData.valueFloat) : 0) : null
       };
     });
   };
@@ -218,13 +260,20 @@ export default function Trends() {
   // Funzione per generare dati per il grafico delle acquisizioni
   const generateAcquisitionTrendData = (): TrendData[] => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
+    
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const leadsData = getTrendDataByType('new_leads_per_day', period);
       const prospectsData = getTrendDataByType('new_prospects_per_day', period);
       return {
         period,
-        value1: leadsData?.valueFloat ? parseFloat(leadsData.valueFloat) : null,
-        value2: prospectsData?.valueFloat ? parseFloat(prospectsData.valueFloat) : null
+        value1: isPeriodValid ? (leadsData?.valueFloat ? parseFloat(leadsData.valueFloat) : 0) : null,
+        value2: isPeriodValid ? (prospectsData?.valueFloat ? parseFloat(prospectsData.valueFloat) : 0) : null
       };
     });
   };
@@ -233,12 +282,18 @@ export default function Trends() {
   const generateActiveClientAssetsTrendData = () => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
+    
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const assetData = getTrendDataByType('assets_per_active_client', period);
       
       return {
         period,
-        value: assetData?.valueFloat ? parseFloat(assetData.valueFloat) : null
+        value: isPeriodValid ? (assetData?.valueFloat ? parseFloat(assetData.valueFloat) : 0) : null
       };
     });
   };
@@ -247,47 +302,52 @@ export default function Trends() {
   const generateAssetsTrendData = () => {
     const periods: TimeframePeriod[] = ['1y', '6m', '3m', '1m', '1w'];
     
-    // Utilizzo una data di fallback se la subscription date non è disponibile
-    let subscriptionDate = new Date();
-    if (user?.createdAt) {
-      subscriptionDate = new Date(user.createdAt);
-    } else {
-      // Se non abbiamo neanche createdAt, utilizziamo una data nel passato recente
-      subscriptionDate.setFullYear(subscriptionDate.getFullYear() - 1);
-    }
+    // Ottieni la data di iscrizione dell'utente
+    const userCreatedAt = user?.createdAt ? new Date(user.createdAt) : new Date();
     
     return periods.map(period => {
+      // Verifica se il periodo è valido in base alla data di iscrizione
+      const isPeriodValid = isPeriodValidForUser(period, userCreatedAt);
+      
       const prospectData = getTrendDataByType('assets_per_new_prospect', period);
       const activeData = getTrendDataByType('assets_per_new_active_client', period);
       
-      // Calcola la data di inizio del timeframe
-      const startDate = new Date();
-      switch (period) {
-        case '1y':
-          startDate.setFullYear(startDate.getFullYear() - 1);
-          break;
-        case '6m':
-          startDate.setMonth(startDate.getMonth() - 6);
-          break;
-        case '3m':
-          startDate.setMonth(startDate.getMonth() - 3);
-          break;
-        case '1m':
-          startDate.setMonth(startDate.getMonth() - 1);
-          break;
-        case '1w':
-          startDate.setDate(startDate.getDate() - 7);
-          break;
-      }
-
       return {
         period,
-        prospectValue: prospectData?.valueFloat ? parseFloat(prospectData.valueFloat) : null,
-        activeValue: activeData?.valueFloat ? parseFloat(activeData.valueFloat) : null
+        prospectValue: isPeriodValid ? (prospectData?.valueFloat ? parseFloat(prospectData.valueFloat) : 0) : null,
+        activeValue: isPeriodValid ? (activeData?.valueFloat ? parseFloat(activeData.valueFloat) : 0) : null
       };
     });
   };
   
+  // Funzione helper per verificare se un periodo è valido in base alla data di iscrizione dell'utente
+  const isPeriodValidForUser = (period: TimeframePeriod, userCreatedAt: Date): boolean => {
+    const now = new Date();
+    const periodStartDate = new Date();
+    
+    // Calcola la data di inizio del periodo
+    switch (period) {
+      case '1y':
+        periodStartDate.setFullYear(now.getFullYear() - 1);
+        break;
+      case '6m':
+        periodStartDate.setMonth(now.getMonth() - 6);
+        break;
+      case '3m':
+        periodStartDate.setMonth(now.getMonth() - 3);
+        break;
+      case '1m':
+        periodStartDate.setMonth(now.getMonth() - 1);
+        break;
+      case '1w':
+        periodStartDate.setDate(now.getDate() - 7);
+        break;
+    }
+    
+    // Il periodo è valido se l'utente era già iscritto all'inizio del periodo
+    return userCreatedAt <= periodStartDate;
+  };
+
   return (
     <div className="container mx-auto p-4 md:p-6">
       <PageHeader
@@ -670,7 +730,9 @@ export default function Trends() {
                           dataKey="period" 
                           tickFormatter={(value) => t(`dashboard.timeframe_${value}`)}
                         />
-                        <YAxis />
+                        <YAxis 
+                          tickFormatter={(value) => formatCompactValue(value)}
+                        />
                         <RechartsTooltip 
                           formatter={(value: number) => formatCompactValue(value)}
                           labelFormatter={(label: string) => t(`dashboard.timeframe_${label}`)}
@@ -707,7 +769,9 @@ export default function Trends() {
                           dataKey="period" 
                           tickFormatter={(value) => t(`dashboard.timeframe_${value}`)}
                         />
-                        <YAxis />
+                        <YAxis 
+                          tickFormatter={(value) => formatCompactValue(value)}
+                        />
                         <RechartsTooltip 
                           formatter={(value: number) => formatCompactValue(value)}
                           labelFormatter={(label: string) => t(`dashboard.timeframe_${label}`)}
@@ -744,7 +808,9 @@ export default function Trends() {
                           dataKey="period" 
                           tickFormatter={(value) => t(`dashboard.timeframe_${value}`)}
                         />
-                        <YAxis />
+                        <YAxis 
+                          tickFormatter={(value) => formatCompactValue(value)}
+                        />
                         <RechartsTooltip 
                           formatter={(value: number) => formatCompactValue(value)}
                           labelFormatter={(label: string) => t(`dashboard.timeframe_${label}`)}

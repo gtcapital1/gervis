@@ -113,7 +113,9 @@ export class TrendService {
         // 1. Conteggio lead
         const leadCount = clients.filter(client => 
           !client.isOnboarded && 
-          !client.isArchived
+          !client.isArchived &&
+          client.createdAt && // Verifica che createdAt esista
+          new Date(client.createdAt) < startDate // Verifica che sia stato creato prima dell'inizio del periodo
         ).length;
         
         await storage.saveTrendData(
