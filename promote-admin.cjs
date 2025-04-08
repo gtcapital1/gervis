@@ -55,13 +55,17 @@ async function createAndPromoteAdmin() {
     let userId;
 
     if (checkUser.rows.length === 0) {
+      // Estrai username dall'email (parte prima della @)
+      const username = email.split('@')[0];
+      
       // Crea nuovo utente
       const insertResult = await client.query(
         `INSERT INTO users (
-          email, first_name, last_name, password, role, 
+          username, email, first_name, last_name, password, role, 
           approval_status, is_email_verified, registration_completed
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
         [
+          username,
           email,
           'Gianmarco',
           'Trapasso',
