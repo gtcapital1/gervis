@@ -58,7 +58,7 @@ async function createAndPromoteAdmin() {
       // Crea nuovo utente
       const insertResult = await client.query(
         `INSERT INTO users (
-          email, first_name, last_name, role, 
+          email, first_name, last_name, password, role, 
           approval_status, is_email_verified, registration_completed
         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [
