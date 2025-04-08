@@ -236,6 +236,17 @@ export const insertAiProfileSchema = createInsertSchema(aiProfiles).pick({
 export type InsertAiProfile = z.infer<typeof insertAiProfileSchema>;
 export type AiProfile = typeof aiProfiles.$inferSelect;
 
+// Advisor Suggestions Schema
+export const advisorSuggestions = pgTable("advisor_suggestions", {
+  id: serial("id").primaryKey(),
+  advisorId: integer("advisor_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  suggestionsData: jsonb("suggestions_data").notNull(),
+  lastGeneratedAt: timestamp("last_generated_at").notNull().defaultNow()
+});
+
+export type AdvisorSuggestions = typeof advisorSuggestions.$inferSelect;
+export type InsertAdvisorSuggestions = typeof advisorSuggestions.$inferInsert;
+
 // Meeting Schema
 export const meetings = pgTable("meetings", {
   id: serial("id").primaryKey(),

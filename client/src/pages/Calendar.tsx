@@ -125,7 +125,7 @@ export default function CalendarPage() {
   const events = data?.events || [];
   
   // Giorni della settimana
-  const weekDays = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"];
+  const weekDays = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
   
   // Ore del giorno (dalle 8 alle 18)
   const dayHours = Array.from({ length: 11 }, (_, i) => `${i + 8}:00`);
@@ -335,7 +335,7 @@ export default function CalendarPage() {
   });
   
   // Aggiorna la visualizzazione della settimana per mostrare eventi nella data corretta
-  const weekDaysWithDates = Array.from({ length: 7 }, (_, i) => {
+  const weekDaysWithDates = Array.from({ length: 5 }, (_, i) => {
     if (selectedDate) {
       const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 }); // Inizia da lunedì
       const date = addDays(weekStart, i);
@@ -635,12 +635,12 @@ export default function CalendarPage() {
             </CardHeader>
             <CardContent className="p-0 flex-1 overflow-hidden">
               <div className="h-full overflow-auto">
-                <table className="min-w-full divide-y divide-gray-200 border rounded-md">
+                <table className="w-full divide-y divide-gray-200 border rounded-md table-fixed">
                   <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr className="h-6">
                       <th className="w-14 py-1"></th>
                       {weekDaysWithDates.map((day, index) => (
-                        <th key={index} className={`text-center py-1 px-1 border-b text-xs ${day.isToday ? 'bg-blue-50' : ''}`}>
+                        <th key={index} className="text-center py-1 px-1 border-b text-xs w-1/5">
                           <div className="text-xs">{day.name}</div>
                           <div className={`text-xs ${day.isToday ? 'text-blue-600 font-medium' : 'text-gray-500'}`}>
                             {format(day.date, "d MMM", { locale: it })}
@@ -652,13 +652,13 @@ export default function CalendarPage() {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {dayHours.map((hour) => (
                       <tr key={hour} className="h-[calc((100vh-90px)/11)]">
-                        <td className="border-r border-gray-100 text-center text-xs font-medium text-gray-500 px-1">
+                        <td className="w-14 border-r border-gray-100 text-center text-xs font-medium text-gray-500 px-1">
                           {hour}
                         </td>
                         {weekDaysWithDates.map((day, dayIndex) => (
                           <td 
                             key={dayIndex} 
-                            className={`border-b border-r border-gray-100 relative p-0 ${day.isToday ? 'bg-blue-50/50' : ''}`}
+                            className="w-1/5 border-b border-r border-gray-100 relative p-0"
                             onClick={() => handleWeeklyTimeSlotClick(dayIndex, hour)}
                           >
                             {/* Pulsante per aggiungere evento in questa cella */}

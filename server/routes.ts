@@ -22,7 +22,7 @@ import {
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
-import { getClientProfile } from "./ai/profile-controller";
+import { getClientProfile, updateClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
 import nodemailer from 'nodemailer';
 import { db, sql as pgClient } from './db'; // Importa pgClient correttamente
@@ -32,6 +32,7 @@ import express from 'express';
 import fileUpload from 'express-fileupload';
 import { UploadedFile } from 'express-fileupload';
 import { trendService } from './trends-service';
+import { getAdvisorSuggestions } from './ai/advisor-suggestions-controller';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -1871,6 +1872,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Get AI-generated client profile
   app.get('/api/ai/client-profile/:clientId', isAuthenticated, getClientProfile);
+  app.post('/api/ai/client-profile/:clientId', isAuthenticated, updateClientProfile);
+  app.get('/api/ai/advisor-suggestions', isAuthenticated, getAdvisorSuggestions);
 
   // ===== Spark API Routes =====
 
@@ -3521,6 +3524,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       handleErrorResponse(res, error, 'Errore nel recupero delle statistiche');
+    }
+  });
+  
+  /**
+   * API per inviare email generiche o personalizzate per clienti
+   * Può essere usata per inviare email ad un cliente specifico (usando clientId)
+   * o a qualsiasi destinatario (usando to)
+   */
+  app.post('/api/send-email', isAuthenticated, async (req, res) => {
+    try {
+      const { subject, message, to, clientId, language = 'italian' } = req.body;
+      
+      // Verifica che ci siano almeno i campi obbligatori
+      if (!subject || !message) {
+        return res.status(400).json({
+          success: false,
+          message: 'I campi oggetto e messaggio sono obbligatori'
+        });
+      }
+      
+      let emailTo = to;
+      let clientName = '';
+      
+      // Se c'è un clientId, recupera l'email del cliente
+      if (clientId) {
+        const client = await storage.getClient(clientId);
+        if (!client) {
+          return res.status(404).json({
+            success: false,
+            message: 'Cliente non trovato'
+          });
+        }
+        
+        if (!client.email) {
+          return res.status(400).json({
+            success: false,
+            message: 'Il cliente non ha un indirizzo email'
+          });
+        }
+        
+        emailTo = client.email;
+        clientName = client.name || '';
+      }
+      
+      // Verifica che ci sia un destinatario
+      if (!emailTo) {
+        return res.status(400).json({
+          success: false,
+          message: 'Destinatario email mancante'
+        });
+      }
+      
+      // Invia l'email
+      const userId = req.user?.id;
+      await sendCustomEmail(
+        emailTo,
+        subject,
+        message,
+        language as any,
+        undefined, // attachments
+        undefined, // advisorSignature
+        undefined, // advisorEmail
+        clientId || undefined,
+        userId,
+        true // logEmail
+      );
+      
+      // Log dell'azione
+      safeLog('Email inviata', { to: emailTo, clientId, subject }, 'info');
+      
+      return res.json({
+        success: true,
+        message: 'Email inviata con successo'
+      });
+    } catch (error) {
+      handleErrorResponse(res, error, 'Errore nell\'invio dell\'email');
     }
   });
   

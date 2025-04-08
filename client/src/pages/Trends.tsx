@@ -326,28 +326,28 @@ export default function Trends() {
     const periodStartDate = new Date();
     
     // Calcola la data di inizio del periodo
-    switch (period) {
-      case '1y':
+      switch (period) {
+        case '1y':
         periodStartDate.setFullYear(now.getFullYear() - 1);
-        break;
-      case '6m':
+          break;
+        case '6m':
         periodStartDate.setMonth(now.getMonth() - 6);
-        break;
-      case '3m':
+          break;
+        case '3m':
         periodStartDate.setMonth(now.getMonth() - 3);
-        break;
-      case '1m':
+          break;
+        case '1m':
         periodStartDate.setMonth(now.getMonth() - 1);
-        break;
-      case '1w':
+          break;
+        case '1w':
         periodStartDate.setDate(now.getDate() - 7);
-        break;
-    }
-    
+          break;
+      }
+
     // Il periodo è valido se l'utente era già iscritto all'inizio del periodo
     return userCreatedAt <= periodStartDate;
   };
-
+  
   return (
     <div className="container mx-auto p-4 md:p-6">
       <PageHeader

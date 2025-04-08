@@ -7,7 +7,23 @@
 import { Request, Response } from 'express';
 import { generateClientProfile } from './openai-service';
 import { storage } from '../storage';
-import { Client, ClientLog } from '@shared/schema';
+import { Client, ClientLog, Mifid } from '@shared/schema';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
+
+// Tipo per un item del profilo AI
+interface ProfileItem {
+  title: string;
+  description: string;
+  actions?: string[];
+}
+
+// Tipo per il profilo AI del cliente
+export interface AiClientProfile {
+  raccomandazioni: ProfileItem[] | string;
+  approfondimenti?: ProfileItem[] | string;
+  suggerimenti?: ProfileItem[] | string;
+}
 
 // Intervallo in millisecondi (24 ore) prima di considerare i dati "obsoleti"
 const CACHE_VALIDITY_DURATION = 24 * 60 * 60 * 1000;
@@ -204,24 +220,19 @@ export async function getClientProfile(req: Request, res: Response) {
   }
 }
 
-export async function generateEnrichedProfile(clientId: number): Promise<AiClientProfile> {
+export async function generateEnrichedProfile(clientId: number, advisorId: number): Promise<AiClientProfile> {
   try {
     // Get client data
-    const client = await getClientById(clientId);
+    const client = await storage.getClient(clientId);
     if (!client) {
       throw new Error(`Client with ID ${clientId} not found`);
     }
 
     // Get MIFID data
-    const mifid = await getMifidByClient(clientId);
+    const mifid = await storage.getMifidByClient(clientId);
     
-    
-    
-    
-    
-
     // Get client logs
-    const clientLogs = await getClientLogsByClientId(clientId);
+    const clientLogs = await storage.getClientLogs(clientId);
     
     // Generate profile
     const profileData = await generateClientProfile(client, mifid || null, clientLogs);
@@ -230,13 +241,11 @@ export async function generateEnrichedProfile(clientId: number): Promise<AiClien
     await storage.createAiProfile({
       clientId,
       profileData,
-      createdBy: req.user.id
+      createdBy: advisorId
     });
 
     return profileData;
   } catch (error: any) {
-    
-    
     // Gestione degli errori specifici
     if (error.message && (
       error.message.includes("OpenAI API key not configured") ||
@@ -246,5 +255,73 @@ export async function generateEnrichedProfile(clientId: number): Promise<AiClien
     }
     
     throw new Error("Failed to generate enriched profile: " + (error.message || "Unknown error"));
+  }
+}
+
+/**
+ * Aggiorna il profilo AI di un cliente
+ * POST /api/ai/client-profile/:clientId
+ */
+export async function updateClientProfile(req: Request, res: Response) {
+  try {
+    const clientId = parseInt(req.params.clientId);
+    
+    if (isNaN(clientId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid client ID"
+      });
+    }
+    
+    // Verifica se l'utente è autenticato
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Not authenticated"
+      });
+    }
+    
+    // Recupera il cliente dal database
+    const client = await storage.getClient(clientId);
+    
+    if (!client) {
+      return res.status(404).json({
+        success: false,
+        message: "Client not found"
+      });
+    }
+    
+    // Verifica che il cliente appartenga all'advisor corrente
+    if (client.advisorId !== req.user.id) {
+      return res.status(403).json({
+        success: false,
+        message: "You don't have permission to update this client's profile"
+      });
+    }
+    
+    // Genera un nuovo profilo arricchito
+    const profileData = await generateEnrichedProfile(clientId, req.user.id);
+    
+    return res.json({
+      success: true,
+      data: profileData
+    });
+    
+  } catch (error: any) {
+    // Gestione degli errori specifici
+    if (error.message && (
+      error.message.includes("OpenAI API key not configured") ||
+      error.message.includes("Credito OpenAI esaurito")
+    )) {
+      return res.status(402).json({
+        success: false,
+        error: error.message
+      });
+    }
+    
+    return res.status(500).json({
+      success: false,
+      error: "Failed to update client profile: " + (error.message || "Unknown error")
+    });
   }
 }

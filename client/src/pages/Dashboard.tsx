@@ -89,6 +89,7 @@ import {
   HoverCardContent,
   HoverCardTrigger
 } from "@/components/ui/hover-card";
+import AdvisorSuggestionsButton from "@/components/dashboard/AdvisorSuggestionsButton";
 
 // Definizione delle interfacce per i tipi di dati
 interface Task {
@@ -1105,6 +1106,7 @@ export default function Dashboard() {
         title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
       >
+        <AdvisorSuggestionsButton />
       </PageHeader>
 
       {/* 🔷 Dashboard Overview (at-a-glance) */}
@@ -1172,8 +1174,15 @@ export default function Dashboard() {
       {/* Two column layout for main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - 2/3 width */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Today's Agenda */}
+        <div className="lg:col-span-2 space-y-2">
+          {/* Overview card */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          
+          {/* Le card esistenti rimangono qui ... */}
+          
+          </div>
+          
+          {/* Task Manager */}
           <Card>
             <CardHeader>
               <CardTitle>{t('dashboard.todays_agenda')}</CardTitle>

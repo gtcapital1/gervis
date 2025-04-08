@@ -513,11 +513,11 @@
     "learn_more": "Learn More",
     "smart_crm": {
       "title": "Smart CRM",
-      "description": "Simplify client onboarding with digital forms and automated data collection. Easily organize and manage client profiles, documents, and communications in a single centralized platform."
+      "description": "Simplify client onboarding with digital forms and automated data collection. Easily organize and manage client profiles, Mifid documents, and communications in a single centralized platform."
     },
     "junior_assistant": {
       "title": "Sigmund",
-      "description": "Gervis analyzes client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs and styles."
+      "description": "Gervis analyzes client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs, as well as a list of priorities to follow every day."
     },
     "portfolio_intelligence": {
       "title": "Spark",

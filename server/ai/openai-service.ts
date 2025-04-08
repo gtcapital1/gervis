@@ -18,12 +18,37 @@ interface ProfileItem {
   actions?: string[]; // Azioni specifiche che il consulente può intraprendere
 }
 
-interface AiClientProfile {
+export interface AiClientProfile {
   raccomandazioni: ProfileItem[] | string; // Nuovo formato unificato che include sia insight che azioni
   
   // Campi legacy per retrocompatibilità
   approfondimenti?: ProfileItem[] | string;
   suggerimenti?: ProfileItem[] | string;
+  
+  // Informazioni del cliente
+  clientId?: number;
+  clientName?: string;
+}
+
+/**
+ * Interfaccia per i suggerimenti al consulente
+ */
+interface AdvisorRecommendation {
+  title: string;
+  description: string;
+  businessReason: string;
+  clientId: number;
+  clientName: string;
+  suggestedAction: string;
+  priority: 'Alta' | 'Media' | 'Bassa';
+  personalizedEmail: {
+    subject: string;
+    body: string;
+  };
+}
+
+interface AdvisorSuggestions {
+  opportunities: AdvisorRecommendation[];
 }
 
 /**
@@ -338,6 +363,156 @@ Esempio di formato di risposta:
       ]
     };
   } catch (error) {
+    throw error;
+  }
+}
+
+/**
+ * Crea un prompt per generare suggerimenti per il consulente
+ */
+function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
+  // Formatta i profili per includere le informazioni del cliente
+  const formattedProfiles = aiProfiles.map(profile => ({
+    clientId: profile.clientId,
+    clientName: profile.clientName,
+    raccomandazioni: profile.raccomandazioni
+  }));
+
+  // Estrai gli ID e i nomi dei clienti reali per riferimento esplicito
+  const realClientIds = aiProfiles.map(profile => profile.clientId);
+  const realClientNames = aiProfiles.map(profile => profile.clientName);
+
+  return `
+# Analisi di Opportunità di Business per Consulente Finanziario
+
+Analizzerai i profili dei clienti per identificare le opportunità di business più rilevanti, in base ai dati disponibili. 
+
+## Obiettivo
+Generare un elenco di opportunità di business CONCRETE e SPECIFICHE, ordinate per priorità in base al potenziale valore economico per il consulente.
+
+## Profili AI dei Clienti
+
+${JSON.stringify(formattedProfiles, null, 2)}
+
+## IDs e Nomi dei Clienti Reali Disponibili
+
+IDs: ${JSON.stringify(realClientIds)}
+Nomi: ${JSON.stringify(realClientNames)}
+
+## Formato di Risposta
+
+Rispondi con un oggetto JSON strutturato come nel formato seguente (questo è SOLO un esempio di formato):
+{
+  "opportunities": [
+    {
+      "title": "Ottimizzazione portafoglio con rendimento maggiore",
+      "description": "Il cliente ha espresso insoddisfazione per il rendimento attuale e dispone di liquidità non investita",
+      "clientId": 123,
+      "clientName": "Marco Rossi",
+      "suggestedAction": "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici e healthcare",
+      "priority": "Alta",
+      "personalizedEmail": {
+        "subject": "Proposta specifica per ottimizzare i rendimenti del tuo portafoglio",
+        "body": "Ho preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità di circa €150.000 che hai accumulato negli ultimi mesi potrebbe essere messa a frutto in modo più efficace.\\n\\nVorresti fissare un incontro il prossimo martedì alle 15:00 per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio."
+      }
+    }
+  ]
+}
+
+## Istruzioni Dettagliate
+
+1. SUGGESTED ACTION:
+   - Fornisci UNA SOLA azione chiara, specifica e immediatamente attuabile
+   - L'azione deve essere formulata come un'iniziativa proattiva del consulente
+   - Deve essere sufficientemente dettagliata da poter essere inserita in un'email di invito al cliente
+
+2. PRIORITÀ:
+   - Alta: opportunità a elevato valore economico o con scadenza imminente (>€50.000 di asset potenziali o >€1.000 commissioni)
+   - Media: opportunità di valore medio o senza particolare urgenza (€10.000-50.000 di asset o €200-1.000 commissioni)
+   - Bassa: opportunità di valore più contenuto ma comunque meritevoli di attenzione
+
+3. PERSONALIZED EMAIL:
+   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità
+   - L'email deve iniziare DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiegare perché si adatta al cliente
+   - Non c'è bisogno di introduzioni troppo formali, vai dritto al punto
+   - NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
+   - Utilizza un tono professionale, autorevole e diretto che rifletta l'esperienza di un consulente senior
+   - EVITA frasi troppo entusiaste come "Sono entusiasta di", "Non vedo l'ora di", o linguaggio emotivo
+   - Utilizza uno stile di comunicazione conciso, pragmatico e orientato ai risultati
+   - Includi dettagli specifici tratti dai dati del cliente che dimostrano un'analisi approfondita
+   - L'email deve essere pronta all'uso, come se fosse scritta direttamente dal consulente
+   - Chiedi al cliente di farti sapere le sue disponibilità per una chiamata per discuterne
+
+IMPORTANTE:
+- Identifica almeno 3-5 opportunità di business concrete
+- Basa le tue raccomandazioni SOLO sui dati presenti nei profili AI forniti
+- UTILIZZA SOLO i clientId e clientName forniti nei profili AI
+- In caso di dati insufficienti, NON inventare informazioni ma genera opportunità più generiche
+- Ordina le opportunità dalla priorità più alta alla più bassa
+- Ogni opportunità deve avere una chiara motivazione di business e un'azione specifica
+- Ogni opportunità DEVE includere una email completamente personalizzata e specifica per quell'opportunità
+- NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
+`;
+}
+
+/**
+ * Genera suggerimenti per il consulente basati sui profili dei clienti
+ * @param aiProfiles - Array di profili AI dei clienti
+ * @returns Oggetto con suggerimenti categorizzati
+ */
+export async function generateAdvisorSuggestions(
+  aiProfiles: AiClientProfile[]
+): Promise<AdvisorSuggestions> {
+  if (!OPENAI_API_KEY) {
+    throw new Error("OpenAI API key not configured");
+  }
+  
+  try {
+    // Crea il prompt
+    const prompt = createAdvisorSuggestionsPrompt(aiProfiles);
+    
+    // Inizializza OpenAI
+    const openai = new OpenAI({
+      apiKey: OPENAI_API_KEY
+    });
+    
+    // Chiama l'API OpenAI
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo-16k',
+      messages: [
+        {
+          role: 'system',
+          content: `Sei un esperto consulente finanziario specializzato nell'analisi dei dati dei clienti. 
+          Il tuo compito è identificare opportunità, clienti da riattivare, e attività operative necessarie.
+          Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.3,
+      max_tokens: 4000
+    });
+    
+    const content = completion.choices[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error("No content in OpenAI response");
+    }
+    
+    // Parsing della risposta
+    try {
+      return JSON.parse(content) as AdvisorSuggestions;
+    } catch (error) {
+      console.error("Error parsing OpenAI JSON response:", error);
+      // Restituisci un oggetto vuoto se ci sono problemi
+      return {
+        opportunities: []
+      };
+    }
+  } catch (error) {
+    console.error("Error generating advisor suggestions:", error);
     throw error;
   }
 }

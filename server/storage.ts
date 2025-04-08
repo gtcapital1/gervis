@@ -76,6 +76,11 @@ export interface IStorage {
   updateAiProfile(clientId: number, profileData: any): Promise<AiProfile>;
   deleteAiProfile(clientId: number): Promise<boolean>;
   
+  // Advisor Suggestions Methods
+  getAdvisorSuggestions(advisorId: number): Promise<any>;
+  updateAdvisorSuggestions(advisorId: number, suggestionsData: any): Promise<void>;
+  createAdvisorSuggestions(data: { advisorId: number, suggestionsData: any }): Promise<void>;
+  
   // Meeting Methods
   getMeetingsByAdvisor(advisorId: number): Promise<Meeting[]>;
   getMeetingsByClient(clientId: number): Promise<Meeting[]>;
@@ -1398,6 +1403,63 @@ export class PostgresStorage implements IStorage {
         .returning();
       
       return newMifid;
+    }
+  }
+
+  // Advisor Suggestions Methods
+  async getAdvisorSuggestions(advisorId: number): Promise<any> {
+    try {
+      // Importa direttamente dalla radice per evitare problemi di path
+      const schema = await import('@shared/schema');
+      
+      // Ottieni i suggerimenti per il consulente specifico
+      const suggestions = await db.select().from(schema.advisorSuggestions)
+        .where(eq(schema.advisorSuggestions.advisorId, advisorId))
+        .limit(1);
+      
+      return suggestions.length > 0 ? suggestions[0] : null;
+    } catch (error) {
+      console.error(`Error retrieving advisor suggestions for advisor ${advisorId}:`, error);
+      return null;
+    }
+  }
+
+  async updateAdvisorSuggestions(advisorId: number, suggestionsData: any): Promise<void> {
+    try {
+      // Importa direttamente dalla radice per evitare problemi di path
+      const schema = await import('@shared/schema');
+      
+      // Aggiorna i suggerimenti
+      await db.update(schema.advisorSuggestions)
+        .set({
+          suggestionsData,
+          lastGeneratedAt: new Date()
+        })
+        .where(eq(schema.advisorSuggestions.advisorId, advisorId));
+      
+      console.log(`Updated advisor suggestions for advisor ${advisorId}`);
+    } catch (error) {
+      console.error(`Error updating advisor suggestions for advisor ${advisorId}:`, error);
+      throw error;
+    }
+  }
+
+  async createAdvisorSuggestions(data: { advisorId: number, suggestionsData: any }): Promise<void> {
+    try {
+      // Importa direttamente dalla radice per evitare problemi di path
+      const schema = await import('@shared/schema');
+      
+      // Crea nuovi suggerimenti
+      await db.insert(schema.advisorSuggestions).values({
+        advisorId: data.advisorId,
+        suggestionsData: data.suggestionsData,
+        lastGeneratedAt: new Date()
+      });
+      
+      console.log(`Created advisor suggestions for advisor ${data.advisorId}`);
+    } catch (error) {
+      console.error(`Error creating advisor suggestions for advisor ${data.advisorId}:`, error);
+      throw error;
     }
   }
 }
