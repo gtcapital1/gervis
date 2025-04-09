@@ -361,7 +361,7 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
       "suggestedAction": "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici e healthcare",
       "personalizedEmail": {
         "subject": "Proposta specifica per ottimizzare i rendimenti del tuo portafoglio",
-        "body": "Ho preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità di circa €150.000 che hai accumulato negli ultimi mesi potrebbe essere messa a frutto in modo più efficace.\\n\\nVorresti fissare un incontro il prossimo martedì alle 15:00 per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio."
+        "body": "Gentile Marco,\\n\\nHo preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità accumulata negli ultimi mesi potrebbe essere messa a frutto in modo più efficace, specialmente considerando il tuo interesse per investimenti che combinano sicurezza e potenziale di crescita.\\n\\nSarebbe possibile fissare un incontro il prossimo martedì per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio.\\n\\nCordiali saluti,"
       }
     }
   ]
@@ -387,16 +387,19 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
 
 3. PERSONALIZED EMAIL:
    - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità selezionata
+   - L'email deve seguire questa struttura precisa:
+     1. Saluto iniziale cordiale con nome del cliente (es. "Gentile Marco," o "Buongiorno Sig. Rossi,")
+     2. Osservazione dell'opportunità - presentazione chiara e diretta della proposta specifica
+     3. Motivazione - spiega perché questa proposta ha senso per il cliente specifico
+     4. Richiesta di disponibilità per una chiamata o un incontro
+     5. Saluto finale cordiale (es. "Cordiali saluti," o "A presto,") SENZA firma
+   - Assicurati che ci siano corretti spazi tra paragrafi per migliorare la leggibilità
+   - Ogni sezione dell'email dovrebbe essere separata da una riga vuota
    - L'email deve fare riferimento specifico all'opportunità e alle caratteristiche del cliente
-   - Inizia DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiega perché si adatta al cliente
-   - Non includere introduzioni formali, vai dritto al punto
-   - NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
-   - Utilizza un tono professionale, autorevole e diretto che rifletta l'esperienza di un consulente senior
-   - EVITA frasi troppo entusiaste come "Sono entusiasta di", "Non vedo l'ora di", o linguaggio emotivo
+   - Mantieni un tono professionale ma cordiale, evitando il linguaggio troppo formale o freddo
    - Utilizza uno stile di comunicazione conciso, pragmatico e orientato ai risultati
    - Includi dettagli specifici tratti dai dati del cliente che dimostrano un'analisi approfondita
    - L'email deve essere pronta all'uso, come se fosse scritta direttamente dal consulente
-   - Concludi chiedendo al cliente di farti sapere le sue disponibilità per una chiamata
 
 IMPORTANTE:
 - Seleziona SOLO le opportunità più rilevanti tra quelle già esistenti nei profili
@@ -439,7 +442,16 @@ export async function generateAdvisorSuggestions(
           Il tuo compito è selezionare le opportunità più tangibili e con potenziale di investimento immediato già identificate nei profili dei clienti.
           Concentrati su opportunità di investimento e prodotti finanziari, evitando di menzionare debito, entrate o uscite a meno che non sia strettamente necessario.
           Prioritizza opportunità che generano valore per il cliente e commissioni per il consulente.
-          Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso.
+          
+          Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso con questa struttura:
+          1. Saluto iniziale cordiale con nome del cliente
+          2. Osservazione dell'opportunità - presentazione chiara della proposta 
+          3. Motivazione - spiegazione del perché questa proposta è adatta al cliente
+          4. Richiesta di disponibilità per una chiamata o incontro
+          5. Saluto finale cordiale (senza firma)
+          
+          Assicurati che l'email abbia corretti spazi tra paragrafi e sia formattata in modo leggibile.
+          
           Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
         },
         {
