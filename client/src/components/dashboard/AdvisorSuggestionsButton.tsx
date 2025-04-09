@@ -79,8 +79,7 @@ function AdvisorSuggestionsButton() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Errore nell\'invio dell\'email');
+        throw new Error('Errore nell\'invio dell\'email');
       }
       
       return await response.json();

@@ -240,7 +240,7 @@ async function sendEmail({
       cc?: string;
       attachments?: any[];
     } = {
-      from: from || `${config.from}`,
+      from: from || `"Gervis" <${config.from}>`,
       to,
       subject,
       html,
@@ -393,9 +393,9 @@ export async function sendVerificationPin(
     // Crea transporter
     const transporter = nodemailer.createTransport(arubaConfig);
     
-    // Invia email con il pin
+    // Invia l'email
     await transporter.sendMail({
-      from: `${process.env.SMTP_FROM || 'registration@gervis.it'}`,
+      from: `"Gervis" <${process.env.SMTP_FROM || 'registration@gervis.it'}>`,
       to: userEmail,
       subject: content.subject,
       html
