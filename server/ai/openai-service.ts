@@ -55,7 +55,6 @@ export interface AdvisorSuggestions {
     clientId: number;
     clientName: string;
     suggestedAction: string;
-    priority: string;
     personalizedEmail?: {
       subject: string;
       body: string;
@@ -73,7 +72,6 @@ interface AdvisorRecommendation {
   clientId: number;
   clientName: string;
   suggestedAction: string;
-  priority: 'Alta' | 'Media' | 'Bassa';
   personalizedEmail: {
     subject: string;
     body: string;
@@ -151,6 +149,13 @@ Identifica 3-5 opportunità concrete basate sul profilo del cliente e sui log, c
 - Una descrizione dettagliata che spiega perché questa è un'opportunità
 - 2-3 azioni pratiche che il consulente potrebbe intraprendere
 
+Nella generazione delle opportunità:
+- Privilegia SEMPRE opportunità di business TANGIBILI, CONCRETE e REALI che possono portare a investimenti immediati
+- NON proporre opportunità relative a gestione del debito o ristrutturazione del debito, A MENO CHE il debito del cliente non sia superiore al 30% degli asset under management (AUM)
+- Dai priorità a opportunità che generano commissioni o aumenti di AUM a breve termine
+- Focalizzati su opportunità che richiedono azioni concrete e immediate da parte del cliente
+- Preferisci opportunità relative a investimenti, prodotti o servizi piuttosto che a ristrutturazioni o risparmi
+
 IMPORTANTE:
 - Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
 - Ogni opportunità deve essere specifica, realizzabile e rilevante per questo cliente specifico.
@@ -160,7 +165,7 @@ IMPORTANTE:
 Esempio di formato:
 {
   "profiloCliente": {
-    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica e la protezione del capitale a lungo termine. Preferisce un approccio cauto ma è aperto a considerare nuove opzioni se ben spiegate e supportate da dati. Ha una conoscenza base dei prodotti finanziari tradizionali ma una limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere sulle decisioni importanti e mostra segni di ansia quando si discute di volatilità di mercato."
+    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica e la protezione del capitale a lungo termine. Preferisce un approccio cauto ma è aperto a considerare nuove opzioni se ben spiegate e supportate da dati. Ha una conoscenza base dei prodotti finanziari tradizionali ma una limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere sulle decisioni importanti e mostra segni di ansia quando si discute di volatilità."
   },
   "opportunitaBusiness": [
     {
@@ -225,7 +230,14 @@ Ogni opportunità di business deve contenere:
 - descrizione: spiegazione dettagliata che motiva l'opportunità
 - azioni: array di 2-3 azioni concrete e specifiche che il consulente può intraprendere
 
-IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze, dai sempre priorità alle informazioni più recenti.
+IMPORTANTE per la generazione delle opportunità:
+- PRIVILEGIA opportunità di business TANGIBILI e CONCRETE che portano a investimenti immediati
+- NON generare opportunità relative al debito, a meno che il debito del cliente non sia >30% degli asset under management (AUM)
+- Dai priorità a opportunità che generano commissioni o aumenti di AUM a breve termine
+- Focalizzati su azioni immediate e concrete che il cliente può intraprendere
+- Preferisci opportunità relative a investimenti, prodotti o servizi piuttosto che a ristrutturazioni
+
+Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze, dai sempre priorità alle informazioni più recenti.
 
 NON includere campi di valutazione come "valore" o "valorePotenziale" nelle opportunità di business.
 
@@ -326,7 +338,7 @@ function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
 Analizzerai le opportunità di business già individuate nei profili dei clienti per selezionare quelle più rilevanti e prioritarie.
 
 ## Obiettivo
-Selezionare le opportunità di business più RILEVANTI e PRIORITARIE già identificate nei profili dei clienti, arricchirle con elementi di valore e creare email personalizzate specifiche.
+Selezionare le opportunità di business più TANGIBILI e con POTENZIALE DI INVESTIMENTO IMMEDIATO già identificate nei profili dei clienti, arricchirle e creare email personalizzate specifiche.
 
 ## Profili e Opportunità Esistenti dei Clienti
 
@@ -348,7 +360,6 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
       "clientId": 123,
       "clientName": "Marco Rossi",
       "suggestedAction": "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici e healthcare",
-      "priority": "Alta",
       "personalizedEmail": {
         "subject": "Proposta specifica per ottimizzare i rendimenti del tuo portafoglio",
         "body": "Ho preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità di circa €150.000 che hai accumulato negli ultimi mesi potrebbe essere messa a frutto in modo più efficace.\\n\\nVorresti fissare un incontro il prossimo martedì alle 15:00 per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio."
@@ -361,6 +372,9 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
 
 1. SELEZIONE DELLE OPPORTUNITÀ:
    - NON GENERARE nuove opportunità, ma SELEZIONA e MIGLIORA quelle già presenti nei profili dei clienti
+   - Seleziona le opportunità più TANGIBILI e CONCRETE che offrono un POTENZIALE DI INVESTIMENTO IMMEDIATO
+   - NON selezionare opportunità relative al debito, a meno che il debito del cliente non sia >30% degli asset under management (AUM)
+   - Prioritizza opportunità che permettono al cliente di fare azioni concrete a breve termine e che generano commissioni o aumenti di AUM
    - Scegli le 3-5 opportunità più rilevanti e promettenti tra tutte quelle disponibili nei profili
    - Adatta e arricchisci la descrizione dell'opportunità per renderla più chiara e convincente
    - Mantieni intatta l'essenza dell'opportunità originale
@@ -369,14 +383,9 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
    - Seleziona l'azione più efficace tra quelle suggerite nell'opportunità originale
    - Migliorala e rendila ancora più specifica e immediatamente attuabile
    - L'azione deve essere formulata come un'iniziativa proattiva del consulente
+   - Concentrati su azioni che portano a investimenti concreti o ribilanciamenti immediati
 
-3. PRIORITÀ:
-   - Alta: opportunità a elevato valore economico o con scadenza imminente (>€50.000 di asset potenziali o >€1.000 commissioni)
-   - Media: opportunità di valore medio o senza particolare urgenza (€10.000-50.000 di asset o €200-1.000 commissioni)
-   - Bassa: opportunità di valore più contenuto ma comunque meritevoli di attenzione
-   - Valuta in base al potenziale impatto economico e all'urgenza
-
-4. PERSONALIZED EMAIL:
+3. PERSONALIZED EMAIL:
    - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità selezionata
    - L'email deve fare riferimento specifico all'opportunità e alle caratteristiche del cliente
    - Inizia DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiega perché si adatta al cliente
@@ -392,8 +401,8 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
 IMPORTANTE:
 - Seleziona SOLO le opportunità più rilevanti tra quelle già esistenti nei profili
 - Ogni opportunità deve fare riferimento a un cliente reale specifico con ID e nome corretti
-- Ordina le opportunità dalla priorità più alta alla più bassa
-- La priorità deve riflettere sia il potenziale valore economico che l'urgenza
+- Ordinale in base a quanto sono tangibili e immediate in termini di potenziale di investimento
+- Dai priorità assoluta alle opportunità che prevedono un'azione immediata del cliente con potenziale investimento
 - Ogni opportunità DEVE includere una email completamente personalizzata e specifica
 - Concentrati sulla qualità delle opportunità selezionate piuttosto che sulla quantità
 `;
@@ -427,7 +436,9 @@ export async function generateAdvisorSuggestions(
         {
           role: 'system',
           content: `Sei un esperto consulente finanziario specializzato nell'analisi e nella prioritizzazione delle opportunità di business. 
-          Il tuo compito è selezionare, prioritizzare e migliorare le opportunità già identificate nei profili dei clienti.
+          Il tuo compito è selezionare le opportunità più tangibili e con potenziale di investimento immediato già identificate nei profili dei clienti.
+          NON selezionare opportunità relative al debito, a meno che il debito del cliente non sia >30% degli asset under management (AUM).
+          Prioritizza opportunità che generano commissioni o aumenti di AUM a breve termine.
           Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso.
           Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
         },
