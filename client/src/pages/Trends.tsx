@@ -44,7 +44,7 @@ import {
   Bar,
 } from "recharts";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 // Definizione delle interfacce per i tipi di dati
 type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
@@ -92,6 +92,7 @@ export default function Trends() {
   const [activeTab, setActiveTab] = useState<string>("overview");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const timeframe: TimeframePeriod = '1y'; // Keep fixed timeframe
+  const { toast } = useToast();
   
   // Fetch trend data from the server
   const { data: trendData, isLoading: isLoadingTrends, refetch } = useQuery({
