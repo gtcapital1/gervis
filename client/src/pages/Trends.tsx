@@ -43,6 +43,8 @@ import {
   BarChart as RechartsBarChart,
   Bar,
 } from "recharts";
+import { Button } from "@/components/ui/button";
+import { toast } from "@/components/ui/use-toast";
 
 // Definizione delle interfacce per i tipi di dati
 type TimeframePeriod = '1w' | '1m' | '3m' | '6m' | '1y';
@@ -88,10 +90,11 @@ export default function Trends() {
   const { t } = useTranslation();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<string>("overview");
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const timeframe: TimeframePeriod = '1y'; // Keep fixed timeframe
   
   // Fetch trend data from the server
-  const { data: trendData, isLoading: isLoadingTrends } = useQuery({
+  const { data: trendData, isLoading: isLoadingTrends, refetch } = useQuery({
     queryKey: ['trends', user?.id],
     queryFn: async () => {
       console.log('[Trends Frontend] Richiesta dati per user:', user?.id);
@@ -113,6 +116,38 @@ export default function Trends() {
       console.error('[Trends Frontend] Errore:', error);
     }
   });
+
+  // Funzione per forzare l'aggiornamento dei dati di trend
+  const refreshTrendData = async () => {
+    if (!user?.id || isRefreshing) return;
+    
+    setIsRefreshing(true);
+    try {
+      // Chiamata diretta per forzare la rigenerazione dei dati
+      await apiRequest(`/api/trends/${user.id}?refresh=true`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      // Ricarica i dati
+      await refetch();
+      
+      toast({
+        title: "Dati aggiornati",
+        description: "I dati di trend sono stati rigenerati con successo.",
+        variant: "default",
+      });
+    } catch (error) {
+      console.error('Errore durante l\'aggiornamento dei dati:', error);
+      toast({
+        title: "Errore nell'aggiornamento",
+        description: "Si è verificato un errore durante l'aggiornamento dei dati.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // Funzione per filtrare i dati di trend per tipo e timeframe
   const getTrendDataByType = (type: string, timeframe: string): TrendResponse | null => {
@@ -350,10 +385,32 @@ export default function Trends() {
   
   return (
     <div className="container mx-auto p-4 md:p-6">
-      <PageHeader
-        title={t("dashboard.trends")}
-        subtitle={t("dashboard.trends_description")}
-      />
+      <div className="flex flex-row justify-between items-center">
+        <PageHeader
+          title={t("dashboard.trends")}
+          subtitle={t("dashboard.trends_description")}
+        />
+        <Button 
+          onClick={refreshTrendData} 
+          disabled={isLoadingTrends || isRefreshing}
+          className="mr-4"
+        >
+          {isRefreshing ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Aggiornamento...
+            </>
+          ) : (
+            <>
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Aggiorna dati
+            </>
+          )}
+        </Button>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="mb-6 grid grid-cols-4 w-full max-w-[800px] mx-auto text-xs md:text-sm">
