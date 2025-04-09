@@ -84,10 +84,25 @@ export function UserManagement() {
     throwOnError: false,
     retry: 2,
     staleTime: 30000, // 30 secondi
+    onError: (err) => {
+      console.error("[UserManagement] Error fetching users:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const status = (err as any).status;
+      console.error("[UserManagement] Error details:", {
+        message: errorMessage,
+        status,
+        data: (err as any).data
+      });
+    }
   });
 
   // Log per debug
-  
+  console.log("[UserManagement] Query result:", {
+    isLoading,
+    isError,
+    errorMessage: error instanceof Error ? error.message : String(error || ""),
+    userCount: users?.users?.length || 0
+  });
   
   // Gestione degli utenti in base ai dati ricevuti
   const pendingUsers = users?.users?.filter(user => user.approvalStatus === "pending") || [];
@@ -249,20 +264,14 @@ export function UserManagement() {
             {t("admin.users_management_desc")}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col justify-center items-center h-64">
-            <div className="text-red-500 mb-4">
-              {t("error.loading_data")}
-              {error && `: ${error.message}`}
-            </div>
-            <Button 
-              onClick={() => refetch()} 
-              variant="outline"
-              className="mt-2"
-            >
-              {t("common.retry")}
-            </Button>
+        <CardContent className="p-6 text-center space-y-4">
+          <div className="text-red-500 mb-4">
+            {t("error.loading_data")}: {error instanceof Error ? error.message : String(error)}
+            {(error as any)?.status ? ` (Status: ${(error as any).status})` : ""}
           </div>
+          <Button onClick={() => refetch()}>
+            {t("common.retry")}
+          </Button>
         </CardContent>
       </Card>
     );

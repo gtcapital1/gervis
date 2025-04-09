@@ -15,10 +15,23 @@ export default function AdminPanel() {
 
   // Check if the user is authorized to access the admin panel
   const isAdmin = user?.email === "gianmarco.trapasso@gmail.com" || user?.role === "admin";
+  
+  // Debug log
+  console.log("[AdminPanel] User data:", {
+    email: user?.email,
+    role: user?.role,
+    isAdmin,
+    userObj: user ? {...user, password: "[HIDDEN]"} : null
+  });
 
   // Redirect unauthorized users
   useEffect(() => {
     if (user && !isAdmin) {
+      console.log("[AdminPanel] Unauthorized access attempt:", {
+        email: user?.email,
+        role: user?.role
+      });
+      
       toast({
         title: t("error.unauthorized"),
         description: t("error.admin_access_required"),

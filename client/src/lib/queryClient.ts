@@ -37,10 +37,17 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
     
     // Debug richiesta
-    
+    const isAdminRequest = url.includes('/api/admin');
+    if (isAdminRequest) {
+      console.log(`[ApiRequest] 🔐 Admin request: ${options?.method || 'GET'} ${url}`);
+    }
     
     // Log della presenza dei cookie
-    
+    if (isAdminRequest) {
+      const hasCookies = document.cookie.length > 0;
+      console.log(`[ApiRequest] Cookie present: ${hasCookies}, Cookie length: ${document.cookie.length}`);
+      console.log(`[ApiRequest] Session cookie present: ${document.cookie.includes('connect.sid')}`);
+    }
     
     // Opzioni della richiesta con anti-cache headers
     const requestOptions: RequestInit = {
@@ -66,6 +73,15 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     
     // Esecuzione della richiesta
     const res = await fetch(urlWithTimestamp, requestOptions);
+    
+    // Log dettagliato per richieste admin
+    if (isAdminRequest) {
+      console.log(`[ApiRequest] 🔐 Admin response: ${res.status} ${res.statusText}`);
+      console.log(`[ApiRequest] Response headers:`, {
+        contentType: res.headers.get('content-type'),
+        cacheControl: res.headers.get('cache-control')
+      });
+    }
     
     // Per richieste DELETE o PATCH, controlla prima se è text/html
     if (options?.method === 'DELETE' || options?.method === 'PATCH') {
@@ -117,7 +133,23 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
     }
   } catch (error) {
     // Log dettagliato dell'errore
-    
+    const isAdminRequest = url.includes('/api/admin');
+    if (isAdminRequest) {
+      console.error(`[ApiRequest] 🔐 Admin request failed: ${options?.method || 'GET'} ${url}`, error);
+      
+      if (error instanceof Error) {
+        console.error(`[ApiRequest] Error details: ${error.message}`);
+        console.error(`[ApiRequest] Error stack: ${error.stack}`);
+        
+        if ('status' in error) {
+          console.error(`[ApiRequest] HTTP Status: ${(error as any).status}`);
+        }
+        
+        if ('data' in error) {
+          console.error(`[ApiRequest] Error data:`, (error as any).data);
+        }
+      }
+    }
     
     // Aggiunta diagnostica speciale per errori di parsing HTML
     if (error instanceof Error && 

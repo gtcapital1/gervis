@@ -16,7 +16,7 @@ import {
   Clock,
   CheckCircle,
   Sparkles,
-  Lightbulb,
+  Lightbulb, 
   Send
 } from 'lucide-react';
 import { AdvisorRecommendation, AdvisorSuggestionsResponse } from '@/types/advisorSuggestions';
@@ -85,11 +85,11 @@ function AdvisorSuggestionsButton() {
       return await response.json();
     },
     onSuccess: () => {
-      toast({
+        toast({
         title: "Email inviata",
         description: "L'email è stata inviata con successo",
-        variant: "default",
-      });
+          variant: "default",
+        });
       setIsEmailDialogOpen(false);
     },
     onError: (error) => {
@@ -150,7 +150,7 @@ function AdvisorSuggestionsButton() {
         return 'outline';
     }
   };
-
+  
   return (
     <>
       <Button 
@@ -205,7 +205,7 @@ function AdvisorSuggestionsButton() {
                       <Badge variant={getPriorityVariant(suggestion.priority)} className="flex items-center gap-1">
                         {getPriorityIcon(suggestion.priority)}
                         <span className="ml-1 text-xs">{suggestion.priority}</span>
-                      </Badge>
+            </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="text-sm space-y-3 py-0">
@@ -238,10 +238,10 @@ function AdvisorSuggestionsButton() {
 
           <div className="mt-4 flex justify-end pt-3 border-t">
             <Button 
-              variant="outline"
+              variant="outline" 
               onClick={() => refreshMutation.mutate()}
               disabled={refreshMutation.isPending}
-              size="sm"
+              size="sm" 
               className="flex items-center gap-1"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${refreshMutation.isPending ? 'animate-spin' : ''}`} />
@@ -258,12 +258,12 @@ function AdvisorSuggestionsButton() {
             <DialogTitle className="flex items-center gap-2">
               <Mail className="h-5 w-5 text-blue-500" />
               <span>Email personalizzata</span>
-            </DialogTitle>
-            <DialogDescription>
+          </DialogTitle>
+          <DialogDescription>
               {currentSuggestion?.clientName ? `Per il cliente: ${currentSuggestion.clientName}` : 'Email pronta per l\'invio'}
-            </DialogDescription>
-          </DialogHeader>
-          
+          </DialogDescription>
+        </DialogHeader>
+        
           {currentSuggestion ? (
             <div className="py-2 space-y-4">
               <div className="space-y-2">
@@ -284,15 +284,15 @@ function AdvisorSuggestionsButton() {
                     className="w-full min-h-[300px] font-mono text-sm"
                     placeholder="Corpo dell'email"
                   />
-                </div>
-              </div>
+            </div>
+            </div>
             </div>
           ) : (
             <div className="py-8 text-center text-muted-foreground">
               Nessuna email disponibile per questa opportunità
-            </div>
-          )}
-          
+                </div>
+              )}
+              
           <DialogFooter className="mt-4">
             <Button 
               onClick={() => setIsEmailDialogOpen(false)} 
@@ -311,10 +311,10 @@ function AdvisorSuggestionsButton() {
               {isSendingEmail ? "Invio in corso..." : "Invia email"}
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </DialogContent>
+    </Dialog>
     </>
   );
-}
+} 
 
 export default AdvisorSuggestionsButton; 

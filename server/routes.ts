@@ -342,15 +342,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Middleware to check if user is admin
   async function isAdmin(req: Request, res: Response, next: Function) {
+    console.log("[Admin Middleware] Verifica accesso admin");
+    console.log("[Admin Middleware] isAuthenticated:", req.isAuthenticated());
+    console.log("[Admin Middleware] User:", req.user ? {
+      id: req.user.id,
+      email: req.user.email,
+      role: req.user.role,
+      isEmailVerified: req.user.isEmailVerified,
+      approvalStatus: req.user.approvalStatus
+    } : 'User not available');
+    
     if (!req.isAuthenticated()) {
+      console.log("[Admin Middleware] Utente non autenticato");
       return res.status(401).json({ success: false, message: 'Authentication required' });
     }
     
     // Check if user is admin
+    console.log("[Admin Middleware] Ruolo utente:", req.user?.role);
     if (req.user?.role !== 'admin') {
+      console.log("[Admin Middleware] Accesso negato - Ruolo non admin:", req.user?.role);
       return res.status(403).json({ success: false, message: 'Non sei autorizzato ad accedere a questa funzionalità' });
     }
     
+    console.log("[Admin Middleware] Accesso admin consentito per:", req.user.email);
     // Se l'utente è un amministratore, procedi
     next();
   }
