@@ -23,10 +23,48 @@ export async function hashPassword(password: string) {
 }
 
 export async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    console.log("[Auth] Verifica password iniziata");
+    
+    // Controllo che stored sia una stringa valida e contenga un punto
+    if (!stored || typeof stored !== 'string' || !stored.includes('.')) {
+      console.error("[Auth Error] Password stored non valida:", stored);
+      console.error(`[Auth DEBUG] Tipo di stored: ${typeof stored}, Lunghezza: ${stored ? stored.length : 0}`);
+      return false;
+    }
+    
+    const [hashed, salt] = stored.split(".");
+    
+    // Controllo che hashed e salt siano validi
+    if (!hashed || !salt) {
+      console.error("[Auth Error] Formato password non valido - hashed o salt mancanti");
+      console.error(`[Auth DEBUG] hashed: ${Boolean(hashed)}, salt: ${Boolean(salt)}`);
+      return false;
+    }
+    
+    console.log(`[Auth DEBUG] Verifica delle lunghezze - hashed: ${hashed.length}, salt: ${salt.length}`);
+    
+    try {
+      const hashedBuf = Buffer.from(hashed, "hex");
+      const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+      
+      const result = timingSafeEqual(hashedBuf, suppliedBuf);
+      console.log(`[Auth DEBUG] Risultato verifica password: ${result ? "Successo" : "Fallimento"}`);
+      
+      console.log("[Auth] Verifica password completata");
+      return result;
+    } catch (bufferError) {
+      console.error("[Auth Error] Errore durante la creazione o il confronto dei buffer:", bufferError);
+      return false;
+    }
+  } catch (error) {
+    console.error("[Auth Error] Errore durante verifica password:", error);
+    if (error instanceof Error) {
+      console.error(`[Auth DEBUG] Nome errore: ${error.name}, Messaggio: ${error.message}`);
+      console.error(`[Auth DEBUG] Stack trace: ${error.stack}`);
+    }
+    throw error; // Rilanciamo l'errore per gestirlo in passport
+  }
 }
 
 // Generate a verification token
@@ -59,7 +97,49 @@ export function setupAuth(app: Express) {
   const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
   const isHttps = baseUrl.startsWith('https://');
   
-  
+  // Middleware di debug per le richieste di autenticazione
+  app.use((req, res, next) => {
+    // Monitora solo le richieste di auth
+    if (req.path.startsWith('/api/login') || 
+        req.path.startsWith('/api/register') || 
+        req.path.startsWith('/api/verify-pin') ||
+        req.path === '/api/user') {
+      
+      const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
+      console.log(`[Auth Debug ${requestId}] ${req.method} ${req.path} iniziato`);
+      
+      // Traccia headers rilevanti per problemi di sessione/cookie
+      console.log(`[Auth Debug ${requestId}] Headers:`, {
+        cookie: req.headers.cookie,
+        'content-type': req.headers['content-type'],
+        'user-agent': req.headers['user-agent']
+      });
+      
+      // Traccia la sessione attuale
+      if (req.session) {
+        console.log(`[Auth Debug ${requestId}] Session ID:`, req.sessionID);
+        console.log(`[Auth Debug ${requestId}] isAuthenticated:`, req.isAuthenticated?.());
+      }
+      
+      // Override delle funzioni di risposta per tracciare l'output
+      const originalJson = res.json;
+      res.json = function(body) {
+        console.log(`[Auth Debug ${requestId}] Risposta:`, {
+          statusCode: res.statusCode,
+          body: body
+        });
+        return originalJson.apply(this, [body]);
+      };
+      
+      // Registra il tempo di risposta
+      const startTime = Date.now();
+      res.on('finish', () => {
+        const duration = Date.now() - startTime;
+        console.log(`[Auth Debug ${requestId}] ${req.method} ${req.path} completato in ${duration}ms con stato ${res.statusCode}`);
+      });
+    }
+    next();
+  });
   
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "top-secret-session-key",
@@ -78,8 +158,6 @@ export function setupAuth(app: Express) {
     }
   };
 
-  
-  
   // Importante per proxy in produzione
   app.set("trust proxy", 1);
   app.use(session(sessionSettings));
@@ -151,9 +229,12 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", async (req, res, next) => {
     try {
+      console.log("[Register] Tentativo di registrazione per:", req.body.email);
+      
       // Check if email already exists
       const existingUser = await storage.getUserByEmail(req.body.email);
       if (existingUser) {
+        console.log("[Register] Email già registrata:", req.body.email);
         return res.status(400).json({ 
           success: false, 
           message: "Email already registered" 
@@ -179,62 +260,122 @@ export function setupAuth(app: Express) {
       const verificationToken = generateVerificationToken(); // Manteniamo anche il token per sicurezza
       const verificationTokenExpires = getTokenExpiryTimestamp();
       
-      // Create user with verification data and pending approval status
-      const user = await storage.createUser({
+      console.log("[Register] Preparazione dati utente per creazione");
+      
+      // Hash password before storing
+      const hashedPassword = await hashPassword(req.body.password);
+      console.log("[Register] Password hashata con successo");
+      
+      // Log the user object being created (without password)
+      const userToCreate = {
         ...req.body,
         username,
         name,
         signature,
-        password: await hashPassword(req.body.password),
         verificationToken,
         verificationTokenExpires,
         verificationPin,
         isEmailVerified: false,
         registrationCompleted: false,
         approvalStatus: 'pending'
+      };
+      console.log("[Register] Dati utente preparati:", { 
+        ...userToCreate, 
+        password: "[HIDDEN]" 
       });
       
-      // Send verification PIN email
+      // Create user with verification data and pending approval status
       try {
-        // Default language is Italian per requirements
-        await sendVerificationPin(
-          user.email,
-          user.firstName && user.lastName ? ` ` : user.name || "",
-          verificationPin,
-          'italian',
-          user.id
-        );
-        
-      } catch (emailError) {
-        
-        // Continue with registration even if email fails
-      }
-
-      req.login(user, (err: any) => {
-        if (err) return next(err);
-        res.status(201).json({ 
-          success: true, 
-          user,
-          needsPinVerification: true,
-          message: "Ti abbiamo inviato un codice PIN di verifica. Per favore controlla la tua casella di posta e inserisci il codice per completare la registrazione."
+        console.log("[Register] Creazione utente nel database");
+        const user = await storage.createUser({
+          ...userToCreate,
+          password: hashedPassword
         });
+        console.log("[Register] Utente creato con successo:", user.id);
+        
+        // Send verification PIN email
+        try {
+          console.log("[Register] Invio email di verifica PIN a:", user.email);
+          // Default language is Italian per requirements
+          await sendVerificationPin(
+            user.email,
+            user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.name || "",
+            verificationPin,
+            'italian',
+            user.id
+          );
+          console.log("[Register] Email di verifica inviata con successo");
+        } catch (emailError) {
+          console.error("[Register Error] Errore nell'invio dell'email di verifica:", emailError);
+          // Continue with registration even if email fails
+        }
+
+        console.log("[Register] Login automatico dopo registrazione");
+        req.login(user, (err: any) => {
+          if (err) {
+            console.error("[Register Error] Errore durante login post-registrazione:", err);
+            return next(err);
+          }
+          console.log("[Register] Registrazione completata con successo");
+          res.status(201).json({ 
+            success: true, 
+            user,
+            needsPinVerification: true,
+            message: "Ti abbiamo inviato un codice PIN di verifica. Per favore controlla la tua casella di posta e inserisci il codice per completare la registrazione."
+          });
+        });
+      } catch (createError: unknown) {
+        console.error("[Register Error] Errore durante la creazione dell'utente:", createError);
+        const errorMessage = createError instanceof Error ? createError.message : 'Errore sconosciuto';
+        const errorStack = createError instanceof Error ? createError.stack : '';
+        console.error("[Register DEBUG] Stack trace:", errorStack);
+        
+        return res.status(500).json({
+          success: false,
+          message: "Errore durante la registrazione",
+          error: errorMessage,
+          stack: errorStack
+        });
+      }
+    } catch (err: unknown) {
+      console.error("[Register Error] Errore generale durante la registrazione:", err);
+      const errorMessage = err instanceof Error ? err.message : 'Errore sconosciuto';
+      const errorStack = err instanceof Error ? err.stack : '';
+      console.error("[Register DEBUG] Stack trace:", errorStack);
+      
+      return res.status(500).json({
+        success: false,
+        message: "Errore durante la registrazione",
+        error: errorMessage,
+        stack: errorStack
       });
-    } catch (err) {
-      next(err);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    
+    console.log("[Login] Tentativo di login per:", req.body.email);
     
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
+        console.error("[Login Error] Errore durante autenticazione:", err);
+        console.error("[Login DEBUG] Stack trace:", err.stack);
         
-        return next(err);
+        // Controlla se è un errore di connessione al DB o altro errore specifico
+        const errorType = err.code || err.name || 'Generic';
+        console.error(`[Login DEBUG] Tipo di errore: ${errorType}`);
+        
+        // Mostra dettagli dell'errore nella risposta
+        return res.status(500).json({ 
+          success: false, 
+          message: "Errore durante il login", 
+          error: err.message,
+          errorType: errorType,
+          stack: err.stack
+        });
       }
       
       if (!user) {
-        
+        console.log("[Login Failed] Utente non trovato o password errata");
         return res.status(401).json({ 
           success: false, 
           message: "Email o password non validi" 
@@ -274,8 +415,14 @@ export function setupAuth(app: Express) {
       
       req.login(user, (err: any) => {
         if (err) {
-          
-          return next(err);
+          console.error("[Login Error] Errore durante login.session:", err);
+          // Mostra dettagli dell'errore nella risposta
+          return res.status(500).json({ 
+            success: false, 
+            message: "Errore durante il login (sessione)", 
+            error: err.message,
+            stack: err.stack
+          });
         }
         
         // Verifica che il login sia avvenuto correttamente
@@ -327,29 +474,44 @@ export function setupAuth(app: Express) {
   });
 
   app.get("/api/user", (req, res) => {
-    
-    
-    // Log lo stato della sessione
-    
-    if (req.session) {
+    try {
+      console.log("[API] Richiesta /api/user");
+      console.log("[API] Session ID:", req.sessionID);
+      console.log("[API] isAuthenticated:", req.isAuthenticated());
       
+      // Log lo stato della sessione
+      if (req.session) {
+        console.log("[API] Session cookie:", req.session.cookie);
+        // Accedere in modo sicuro alla proprietà passport
+        const sessionData = req.session as any;
+        console.log("[API] Session user:", sessionData.passport?.user);
+      } else {
+        console.log("[API] Nessuna sessione trovata");
+      }
       
+      if (!req.isAuthenticated()) {
+        console.log("[API] Utente non autenticato");
+        return res.status(401).json({ 
+          success: false, 
+          message: "Not authenticated" 
+        });
+      }
       
+      console.log("[API] Utente autenticato:", req.user?.id);
+      res.json({ success: true, user: req.user });
+    } catch (error: unknown) {
+      console.error("[API Error] Errore durante /api/user:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
+      const errorStack = error instanceof Error ? error.stack : '';
+      console.error("[API DEBUG] Stack trace:", errorStack);
       
-      
-      
-    }
-    
-    if (!req.isAuthenticated()) {
-      
-      return res.status(401).json({ 
+      res.status(500).json({ 
         success: false, 
-        message: "Not authenticated" 
+        message: "Errore interno del server", 
+        error: errorMessage,
+        stack: errorStack
       });
     }
-    
-    
-    res.json({ success: true, user: req.user });
   });
 
   // Endpoint per la verifica del PIN

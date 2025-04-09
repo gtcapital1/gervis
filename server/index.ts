@@ -218,24 +218,26 @@ app.use((req, res, next) => {
     const errorId = `err-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
     
     // Log dettagliato per tutti gli errori
-    
-    
-    
+    console.error(`[ERROR ${errorId}] ${status} - ${message}`);
+    console.error(`[ERROR ${errorId}] Path: ${req.method} ${req.path}`);
+    console.error(`[ERROR ${errorId}] Query: ${JSON.stringify(req.query)}`);
+    console.error(`[ERROR ${errorId}] Body: ${JSON.stringify(req.body, null, 2)}`);
+    console.error(`[ERROR ${errorId}] User: ${req.user ? req.user.id : 'Not authenticated'}`);
     
     // Log stack trace quando disponibile
     if (err.stack) {
-      
+      console.error(`[ERROR ${errorId}] Stack trace:\n${err.stack}`);
     }
     
     // Log extra dettagliato per gli errori in operazioni di eliminazione client
     if (req.path.startsWith("/api/clients") && req.path.match(/\/api\/clients\/\d+$/) && req.method === "DELETE") {
-      
-      
+      const clientId = req.path.split('/').pop();
+      console.error(`[ERROR ${errorId}] Errore durante eliminazione cliente ID: ${clientId}`);
       
       if (req.user) {
-        
+        console.error(`[ERROR ${errorId}] Tentativo di eliminazione da parte dell'utente ID: ${req.user.id}, email: ${req.user.email}`);
       } else {
-        
+        console.error(`[ERROR ${errorId}] Tentativo di eliminazione da parte di utente non autenticato`);
       }
     }
     

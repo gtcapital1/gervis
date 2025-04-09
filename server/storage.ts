@@ -169,8 +169,49 @@ export class PostgresStorage implements IStorage {
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.email, email));
-    return result[0];
+    try {
+      console.log("[DB] Cercando utente con email:", email);
+      
+      // Aggiunta di timestamp per tracciare il tempo di esecuzione
+      const startTime = Date.now();
+      
+      // Verifica che l'input sia valido
+      if (!email || typeof email !== 'string') {
+        console.error(`[DB Error] Email non valida: ${email}, tipo: ${typeof email}`);
+        return undefined;
+      }
+      
+      // Log della query SQL che verrà eseguita
+      console.log(`[DB Debug] SQL query: SELECT * FROM users WHERE email = '${email}'`);
+      
+      const result = await db.select().from(users).where(eq(users.email, email));
+      
+      const endTime = Date.now();
+      console.log(`[DB] Tempo di esecuzione query: ${endTime - startTime}ms`);
+      
+      if (result.length > 0) {
+        console.log(`[DB] Utente trovato con ID: ${result[0].id}`);
+        console.log(`[DB] Stato email verificata: ${result[0].isEmailVerified}`);
+        console.log(`[DB] Stato approvazione: ${result[0].approvalStatus}`);
+      } else {
+        console.log("[DB] Nessun utente trovato con questa email");
+      }
+      
+      return result[0];
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
+      const errorStack = error instanceof Error ? error.stack : '';
+      console.error("[DB Error] Errore durante ricerca utente per email:", errorMessage);
+      console.error("[DB Debug] Stack trace:", errorStack);
+      
+      // Se c'è un errore nella connessione al DB o nella query, lo registriamo
+      if (error instanceof Error && 'code' in error) {
+        console.error(`[DB Error] Codice errore DB: ${(error as any).code}`);
+        console.error(`[DB Error] Dettagli: ${(error as any).detail || 'Nessun dettaglio'}`);
+      }
+      
+      throw error; // Rilanciamo l'errore per gestirlo in passport
+    }
   }
 
   async getUserByField(field: string, value: string): Promise<User | undefined> {
@@ -196,14 +237,36 @@ export class PostgresStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    // Imposta lo stato di approvazione come pending per tutti i nuovi utenti
-    const userWithApproval = {
-      ...insertUser,
-      approvalStatus: 'pending' as const
-    };
-    
-    const result = await db.insert(users).values(userWithApproval).returning();
-    return result[0];
+    try {
+      console.log("[DB] Creazione nuovo utente:", insertUser.email);
+      
+      // Controllo dei tipi di dati prima dell'inserimento
+      const validatedUser: any = {
+        ...insertUser,
+        approvalStatus: 'pending' as const
+      };
+
+      // Rimuovi campi undefined che potrebbero causare problemi
+      Object.keys(validatedUser).forEach(key => {
+        if (validatedUser[key] === undefined) {
+          delete validatedUser[key];
+        }
+      });
+      
+      console.log("[DB] Inserimento utente nel database");
+      const result = await db.insert(users).values(validatedUser).returning();
+      
+      if (!result || result.length === 0) {
+        console.error("[DB Error] Inserimento fallito - nessun risultato");
+        throw new Error("Inserimento utente fallito - nessun risultato");
+      }
+      
+      console.log("[DB] Utente creato con successo:", result[0].id);
+      return result[0];
+    } catch (error) {
+      console.error("[DB Error] Errore durante creazione utente:", error);
+      throw error;
+    }
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User> {
