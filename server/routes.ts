@@ -3593,6 +3593,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Invia l'email
       const userId = req.user?.id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Utente non autenticato'
+        });
+      }
+      
       await sendCustomEmail(
         emailTo,
         subject,

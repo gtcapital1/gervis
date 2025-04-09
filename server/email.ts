@@ -53,7 +53,7 @@ function getEmailConfig(userConfig: any = null) {
       secure: userConfig.smtpPort === 465, // Secure per porta 465
       user: userConfig.smtpUser,
       pass: userConfig.smtpPass,
-      from: userConfig.smtpFrom || userConfig.smtpUser, // Usa smtpFrom se disponibile, altrimenti fallback su smtpUser
+      from: userConfig.smtpUser, // Usa sempre l'username SMTP come mittente
     };
   }
   
@@ -104,7 +104,6 @@ async function getTransporter(userId: number | null) {
         smtpPort: user.smtp_port || 465,
         smtpUser: user.smtp_user,
         smtpPass: user.smtp_pass,
-        smtpFrom: user.smtp_from || user.email,
         customEmailEnabled: user.custom_email_enabled
       };
       
@@ -130,7 +129,7 @@ async function getTransporter(userId: number | null) {
         secure: process.env.SMTP_PORT === '465',
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASS || '',
-        from: user?.email || process.env.SMTP_USER || ''
+        from: process.env.SMTP_USER || ''
       };
       
       const transporter = createTransporter(defaultConfig);
