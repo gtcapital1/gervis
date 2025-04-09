@@ -299,11 +299,12 @@ function validateFile(file: UploadedFile, options: {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Aggiungi il middleware per gestire i file multipart
   app.use(fileUpload({
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB max file size
-    useTempFiles: false,
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max file size
+    useTempFiles: true, // Usa file temporanei invece di caricare in memoria
+    tempFileDir: '/tmp/',
     createParentPath: true,
     abortOnLimit: true,
-    responseOnLimit: "Il file è troppo grande (limite: 50MB)",
+    responseOnLimit: "Il file è troppo grande (limite: 100MB)",
     debug: false,
     parseNested: true
   }));

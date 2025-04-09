@@ -35,9 +35,9 @@ declare module "express-session" {
 
 
 const app = express();
-// Aumenta il limite per il payload JSON a 10MB per supportare upload di file più grandi
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: false, limit: '10mb' }));
+// Aumenta il limite per il payload JSON a 100MB per supportare upload di file più grandi
+app.use(express.json({ limit: '100mb' }));
+app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
 app.use((req, res, next) => {
   const start = Date.now();
