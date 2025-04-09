@@ -183,8 +183,12 @@ export function HtmlPdfGenerator({
       bonds: 'Obbligazioni',
       cash: 'Liquidità',
       crypto: 'Criptovalute',
+      cryptocurrencies: 'Criptovalute',
       commodities: 'Materie prime',
-      alternative: 'Investimenti alternativi'
+      alternative: 'Investimenti alternativi',
+      venture_capital: 'Venture Capital',
+      private_equity: 'Private Equity',
+      other: 'Altri investimenti'
     };
     
     return categories.map(cat => translations[cat] || cat).join(', ');
@@ -434,6 +438,25 @@ export function HtmlPdfGenerator({
     return translations[objective] || objective;
   };
 
+  // Funzione per tradurre le categorie di asset
+  const translateAssetCategory = (category: string): string => {
+    const translations: Record<string, string> = {
+      real_estate: 'Immobili',
+      equity: 'Azioni',
+      bonds: 'Obbligazioni',
+      cash: 'Liquidità',
+      crypto: 'Criptovalute',
+      cryptocurrencies: 'Criptovalute',
+      commodities: 'Materie prime',
+      alternative: 'Investimenti alternativi',
+      venture_capital: 'Venture Capital',
+      private_equity: 'Private Equity',
+      other: 'Altri investimenti'
+    };
+    
+    return translations[category] || category;
+  };
+
   // Funzione per generare un'anteprima HTML
   const generateHtmlPreview = (): void => {
     setIsGenerating(true);
@@ -533,16 +556,40 @@ export function HtmlPdfGenerator({
             </div>
             
             <div style="margin-top: 20px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; padding: 0; line-height: 1.2;">I tuoi asset principali</p>
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; box-sizing: border-box;">
-                ${Array.isArray(getClientProperty('assetCategories')) ? 
-                  getClientProperty('assetCategories', []).map((category: string) => 
-                  `<div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 4px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 8px; height: 8px; background-color: #003366; border-radius: 50%;"></div>
-                    ${translateAssetCategories([category])}
-                  </div>`
-                ).join('') : ''}
-              </div>
+              <p style="font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; padding: 0; line-height: 1.2;">I tuoi asset</p>
+              ${assets && assets.length > 0 ? `
+                <div style="overflow-x: auto; box-sizing: border-box; margin-bottom: 12px;">
+                  <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                    <thead>
+                      <tr style="background-color: #f0f2f5;">
+                        <th style="text-align: left; padding: 8px; border-bottom: 1px solid #e0e0e0;">Categoria</th>
+                        <th style="text-align: right; padding: 8px; border-bottom: 1px solid #e0e0e0;">Valore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${assets.map(asset => `
+                        <tr>
+                          <td style="text-align: left; padding: 8px; border-bottom: 1px solid #e0e0e0;">${translateAssetCategories([asset.category])}</td>
+                          <td style="text-align: right; padding: 8px; border-bottom: 1px solid #e0e0e0;">${formatCurrency(asset.value)}</td>
+                        </tr>
+                      `).join('')}
+                      <tr style="font-weight: 700; background-color: #f0f2f5;">
+                        <td style="text-align: left; padding: 8px; border-bottom: 1px solid #e0e0e0;">Totale</td>
+                        <td style="text-align: right; padding: 8px; border-bottom: 1px solid #e0e0e0;">${formatCurrency(assets.reduce((sum, asset) => sum + asset.value, 0))}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="margin-top: 16px; background-color: #f0f7ff; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #003366;">
+                  <p style="font-weight: 700; color: #333; margin: 0; font-size: 15px; padding: 0;">Patrimonio Netto Totale</p>
+                  <p style="font-weight: 700; color: #003366; margin: 0; font-size: 16px; padding: 0;">${formatCurrency(assets.reduce((sum, asset) => sum + asset.value, 0) - (getClientProperty('debts') || 0))}</p>
+                </div>
+              ` : `
+                <div style="padding: 12px; background-color: #f8f9fa; border-radius: 4px; text-align: center; color: #666;">
+                  Nessun asset registrato
+                </div>
+              `}
             </div>
           </div>
           
