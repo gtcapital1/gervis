@@ -18,16 +18,49 @@ interface ProfileItem {
   actions?: string[]; // Azioni specifiche che il consulente può intraprendere
 }
 
+// Nuova interfaccia per il profilo cliente arricchito
+interface ClienteProfilo {
+  descrizione: string;  // Campo unico con riassunto completo
+}
+
+// Nuova interfaccia per opportunità di business
+interface OpportunitaBusiness {
+  titolo: string;
+  descrizione: string;
+  azioni: string[];
+}
+
+/**
+ * Interfaccia per il profilo arricchito del cliente
+ */
 export interface AiClientProfile {
-  raccomandazioni: ProfileItem[] | string; // Nuovo formato unificato che include sia insight che azioni
-  
-  // Campi legacy per retrocompatibilità
-  approfondimenti?: ProfileItem[] | string;
-  suggerimenti?: ProfileItem[] | string;
-  
-  // Informazioni del cliente
-  clientId?: number;
-  clientName?: string;
+  clientId: number;
+  clientName: string;
+  // Nuovo formato con profilo cliente e opportunità
+  profiloCliente?: ClienteProfilo;
+  opportunitaBusiness?: OpportunitaBusiness[];
+  // Mantenuto per retrocompatibilità
+  raccomandazioni?: ProfileItem[] | OpportunitaBusiness[] | string;
+  // Campo per rilevare l'ultimo aggiornamento
+  lastUpdated?: string;
+}
+
+/**
+ * Interfaccia per i suggerimenti generati per il consulente
+ */
+export interface AdvisorSuggestions {
+  opportunities: {
+    title: string;
+    description: string;
+    clientId: number;
+    clientName: string;
+    suggestedAction: string;
+    priority: string;
+    personalizedEmail?: {
+      subject: string;
+      body: string;
+    };
+  }[];
 }
 
 /**
@@ -45,10 +78,6 @@ interface AdvisorRecommendation {
     subject: string;
     body: string;
   };
-}
-
-interface AdvisorSuggestions {
-  opportunities: AdvisorRecommendation[];
 }
 
 /**
@@ -98,32 +127,49 @@ ${mifid ? `
   // Aggiungi istruzioni specifiche per l'AI
   prompt += `
 # Istruzioni
-Analizza il profilo del cliente e la cronologia delle interazioni per creare delle raccomandazioni personalizzate.
+Analizza il profilo del cliente e la cronologia delle interazioni per creare DUE output distinti:
+1. Un profilo cliente sintetico basato sui dati forniti
+2. Una lista di opportunità di business deducibili dal profilo e dai log
 
-Ogni raccomandazione deve:
-1. Identificare un aspetto rilevante del profilo finanziario del cliente
-2. Fornire una spiegazione contestualizzata che mostri comprensione della situazione
-3. Proporre 2-3 azioni concrete e specifiche che il consulente dovrebbe intraprendere
+Rispondi in italiano usando un formato JSON con due campi principali:
+- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
+- "opportunitaBusiness": un array di opportunità di business rilevabili
 
-Rispondi in italiano usando un formato JSON con un campo principale:
-- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
+## Per il Profilo Cliente:
+Sintetizza tutte le informazioni da MIFID e interazioni nei log in UN UNICO PARAGRAFO DESCRITTIVO che catturi:
+- Caratteristiche psicologiche/comportamentali verso il rischio finanziario
+- Abitudini di investimento deducibili
+- Preoccupazioni principali o punti di interesse
+- Obiettivi finanziari a breve, medio e lungo termine
+- Pattern comportamentali nelle decisioni finanziarie
+- Livello di conoscenza finanziaria ed eventuali bias cognitivi
+Non spacchettare in campi separati ma crea un riassunto narrativo completo e coeso.
+
+## Per le Opportunità di Business:
+Identifica 3-5 opportunità concrete basate sul profilo del cliente e sui log, ciascuna con:
+- Un titolo chiaro e specifico
+- Una descrizione dettagliata che spiega perché questa è un'opportunità
+- 2-3 azioni pratiche che il consulente potrebbe intraprendere
 
 IMPORTANTE:
 - Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
-- Non separare approfondimenti e suggerimenti, ma integra analisi e azioni in un'unica raccomandazione.
-- Le azioni devono essere specifiche, realizzabili e rilevanti per questo cliente specifico.
-- Identifica 3-5 raccomandazioni significative.
+- Ogni opportunità deve essere specifica, realizzabile e rilevante per questo cliente specifico.
+- Basa le tue analisi SOLO sulle informazioni fornite, senza inventare dati.
+- NON includere alcun campo "valorePotenziale" o "valore" nelle opportunità.
 
 Esempio di formato:
 {
-  "raccomandazioni": [
+  "profiloCliente": {
+    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica e la protezione del capitale a lungo termine. Preferisce un approccio cauto ma è aperto a considerare nuove opzioni se ben spiegate e supportate da dati. Ha una conoscenza base dei prodotti finanziari tradizionali ma una limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere sulle decisioni importanti e mostra segni di ansia quando si discute di volatilità di mercato."
+  },
+  "opportunitaBusiness": [
     {
-      "title": "Ottimizzazione del portafoglio ad alto rischio",
-      "description": "Il cliente presenta un profilo di rischio aggressivo con concentrazione in azioni tech e immobili che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
-      "actions": [
-        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario",
-        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali",
-        "Presentare un'analisi di scenario comparativa tra portafoglio attuale e proposta diversificata"
+      "titolo": "Ottimizzazione del portafoglio per combinare sicurezza e crescita",
+      "descrizione": "Il cliente ha espresso preoccupazione per la crescita del capitale mantenendo sicurezza. L'attuale allocazione è troppo conservativa rispetto agli obiettivi dichiarati.",
+      "azioni": [
+        "Presentare uno scenario di ribilanciamento con allocazione 60% sicurezza / 40% crescita",
+        "Proporre un piano di investimento graduale per la liquidità in eccesso (€50.000)",
+        "Organizzare un incontro per discutere strategie di protezione del capitale con potenziale di crescita"
       ]
     }
   ]
@@ -150,13 +196,6 @@ export async function generateClientProfile(
     throw new Error("OpenAI API key not configured");
   }
 
-  // Debug: stampa i valori importanti di mifid
-  if (mifid) {
-    // Valori di mifid (debug log rimosso)
-  } else {
-    // Log omesso
-  }
-
   try {
     // Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
     const prompt = createClientProfilePrompt(client, mifid, logs);
@@ -172,36 +211,42 @@ export async function generateClientProfile(
       messages: [
         {
           role: 'system',
-          content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera raccomandazioni finanziarie utili.
+          content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo sintetico e opportunità di business concrete.
 
-Rispondi in italiano, in formato JSON con un campo principale:
-- "raccomandazioni": un array di oggetti con campi "title", "description" e "actions"
+Rispondi in italiano, in formato JSON con due campi principali:
+- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
+- "opportunitaBusiness": un array di opportunità di business rilevabili
 
-Ogni raccomandazione deve contenere:
-1. Un titolo chiaro che identifica un aspetto importante del profilo del cliente o un'opportunità
-2. Una descrizione approfondita che spiega il razionale e il contesto
-3. Un array "actions" con 2-3 azioni specifiche e concrete che il consulente dovrebbe intraprendere
+Il profiloCliente deve avere:
+- descrizione: un unico paragrafo descrittivo che sintetizzi tutte le caratteristiche rilevanti del cliente, includendo profilo di rischio, obiettivi, comportamento decisionale, conoscenze finanziarie e note psicologiche
 
-IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze del cliente nel tempo, dai sempre priorità alle informazioni più recenti.
+Ogni opportunità di business deve contenere:
+- titolo: nome chiaro dell'opportunità
+- descrizione: spiegazione dettagliata che motiva l'opportunità
+- azioni: array di 2-3 azioni concrete e specifiche che il consulente può intraprendere
 
-Ogni raccomandazione deve essere autosufficiente e completa. Non dividere le informazioni in "approfondimenti" e "suggerimenti" separati, ma integra l'analisi e le azioni consigliate in un'unica raccomandazione coerente.
+IMPORTANTE: Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti o cambiamenti nelle preferenze, dai sempre priorità alle informazioni più recenti.
+
+NON includere campi di valutazione come "valore" o "valorePotenziale" nelle opportunità di business.
 
 Le azioni devono essere:
-- Specifiche e pratiche (es. "Organizzare una sessione per discutere specifiche opzioni di diversificazione in ETF con esposizione ai mercati emergenti")
+- Specifiche e pratiche (es. "Organizzare una sessione per discutere specifiche opzioni di diversificazione in ETF")
 - Realizzabili (con dettagli concreti)
 - Rilevanti per il cliente in questione
 - Tempestive (quando possibile, indicare una sequenza o priorità)
 
 Esempio di formato di risposta:
 {
-  "raccomandazioni": [
+  "profiloCliente": {
+    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica. Preferisce un approccio cauto ma aperto a nuove opzioni se ben spiegate. Ha conoscenza base dei prodotti finanziari tradizionali ma limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere e mostra segni di ansia quando si discute di volatilità."
+  },
+  "opportunitaBusiness": [
     {
-      "title": "Ottimizzazione del portafoglio ad alto rischio",
-      "description": "Il cliente presenta un profilo di rischio aggressivo e attualmente ha una forte concentrazione in azioni tecnologiche USA (50.000€) e un immobile a Milano (120.000€). Questa allocazione mostra uno sbilanciamento geografico e settoriale che aumenta la volatilità senza necessariamente migliorare i rendimenti attesi.",
-      "actions": [
-        "Proporre l'introduzione di ETF su mercati emergenti per un 15% del portafoglio azionario, mantenendo l'esposizione al rischio ma migliorando la diversificazione geografica",
-        "Analizzare la possibilità di ridurre l'esposizione immobiliare diretta a favore di REIT globali per migliorare la liquidità e diversificazione del patrimonio reale",
-        "Presentare un'analisi di scenario che mostri la performance storica del portafoglio attuale vs. quello diversificato proposto"
+      "titolo": "Ottimizzazione del portafoglio per combinare sicurezza e crescita",
+      "descrizione": "Il cliente ha espresso preoccupazione per la crescita del capitale mantenendo sicurezza. L'attuale allocazione è troppo conservativa.",
+      "azioni": [
+        "Presentare uno scenario di ribilanciamento con allocazione 60% sicurezza / 40% crescita",
+        "Proporre un piano di investimento graduale per la liquidità in eccesso (€50.000)"
       ]
     }
   ]
@@ -213,7 +258,7 @@ Esempio di formato di risposta:
         }
       ],
       temperature: 0.3, // Bassa temperatura per risultati più prevedibili
-      max_tokens: 1000 // Limita la lunghezza della risposta
+      max_tokens: 1200 // Aumentato limite per contenere entrambe le sezioni
     });
 
     const content = completion.choices[0]?.message?.content;
@@ -223,7 +268,7 @@ Esempio di formato di risposta:
     }
     
     // Estrai il JSON dalla risposta (potrebbe essere avvolto in backtick o solo testo)
-    let parsedData: AiClientProfile;
+    let parsedData: any;
     try {
       // Prima prova a estrarre il JSON se è avvolto in backtick
       const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
@@ -234,135 +279,27 @@ Esempio di formato di risposta:
         // Altrimenti prova a parsare l'intero contenuto come JSON
         parsedData = JSON.parse(content);
       }
+      
+      // Costruisci l'oggetto AiClientProfile
+      const result: AiClientProfile = {
+        clientId: client.id,
+        clientName: `${client.firstName} ${client.lastName}`,
+        // Usa i nuovi campi se disponibili, altrimenti crea oggetti vuoti correttamente tipizzati
+        profiloCliente: parsedData.profiloCliente as ClienteProfilo || undefined,
+        opportunitaBusiness: parsedData.opportunitaBusiness as OpportunitaBusiness[] || [],
+        // Manteniamo retrocompatibilità con il vecchio formato
+        raccomandazioni: parsedData.opportunitaBusiness as OpportunitaBusiness[] || [],
+        lastUpdated: new Date().toISOString()
+      };
+      
+      return result;
     } catch (error) {
-      // Se non riesci a parsare il JSON, crea un oggetto formattato manualmente
-      // cercando di separare gli approfondimenti dai suggerimenti nel testo
-      const sections = content.split(/\n\s*#{1,3}\s*Suggerimenti|Raccomandazioni|Azioni/i);
-      
-      // Crea array di oggetti con title/description e actions
-      const formatTextToObjects = (text: string): ProfileItem[] => {
-        const lines = text.split(/\n+/).filter(line => line.trim());
-        const result: ProfileItem[] = [];
-        
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          // Se la riga sembra un titolo
-          if (line.startsWith('- ') || line.startsWith('* ') || /^\d+\./.test(line)) {
-            const title = line.replace(/^[-*\d.]\s+/, '');
-            let description = '';
-            let actions: string[] = [];
-            
-            // Raccogliamo le righe successive che sembrano essere descrizioni o azioni
-            let j = i + 1;
-            while (j < lines.length) {
-              const nextLine = lines[j].trim();
-              
-              // Se la linea inizia con un nuovo punto, abbiamo raggiunto un nuovo elemento
-              if (nextLine.startsWith('- ') || nextLine.startsWith('* ') || /^\d+\./.test(nextLine)) {
-                break;
-              }
-              
-              // Se la linea contiene "Azione:" o "Action:" o inizia con "→", la trattiamo come un'azione
-              if (nextLine.includes("Azione:") || nextLine.includes("Action:") || nextLine.startsWith("→") || nextLine.startsWith("->")) {
-                actions.push(nextLine.replace(/^(→|->|Azione:|Action:)\s*/, '').trim());
-              } else {
-                // Altrimenti, aggiungiamola alla descrizione
-                if (description) description += ' '; // Spazio tra paragrafi
-                description += nextLine;
-              }
-              
-              j++;
-            }
-            
-            // Aggiorniamo i per saltare le righe che abbiamo già analizzato
-            i = j - 1;
-            
-            result.push({ 
-              title, 
-              description,
-              actions: actions.length > 0 ? actions : undefined
-            });
-          }
-        }
-        
-        // Se non abbiamo trovato nulla con la struttura attesa, crea un elemento con tutto il testo
-        if (result.length === 0 && text.trim()) {
-          result.push({ 
-            title: "Informazione",
-            description: text.trim()
-          });
-        }
-        
-        return result;
-      };
-      
-      // Estrai il testo per le raccomandazioni/approfondimenti
-      const mainText = sections[0].replace(/\s*#{1,3}\s*(Approfondimenti|Raccomandazioni)\s*/i, '').trim();
-      
-      // Crea il nuovo formato unificato
-      parsedData = {
-        raccomandazioni: formatTextToObjects(mainText),
-        
-        // Manteniamo anche i vecchi campi per retrocompatibilità
-        approfondimenti: formatTextToObjects(mainText),
-        suggerimenti: sections.length > 1 
-          ? formatTextToObjects(sections[1].trim()) 
-          : [{ title: "Nota", description: "Nessun suggerimento specifico disponibile." }]
-      };
+      // Se non riesci a parsare il JSON, lancia un errore
+      console.error('Error parsing OpenAI response:', error, content);
+      throw new Error('Failed to parse OpenAI response');
     }
-    
-    // Usa solo il nuovo formato unificato (raccomandazioni)
-    
-    // Se i dati hanno raccomandazioni, usa solo quelle
-    if (parsedData.raccomandazioni) {
-      return {
-        raccomandazioni: parsedData.raccomandazioni
-      };
-    }
-    
-    // Se i dati hanno approfondimenti/suggerimenti, crea delle raccomandazioni
-    // combinando gli approfondimenti e i suggerimenti
-    if (parsedData.approfondimenti || parsedData.suggerimenti) {
-      // Converte i vecchi dati in un formato più semplice
-      const approfondimenti = Array.isArray(parsedData.approfondimenti) ? parsedData.approfondimenti : [];
-      const suggerimenti = Array.isArray(parsedData.suggerimenti) ? parsedData.suggerimenti : [];
-      
-      // Crea raccomandazioni dalla combinazione di approfondimenti e suggerimenti
-      const raccomandazioni = approfondimenti.map((item, index) => {
-        const suggerimento = suggerimenti[index % suggerimenti.length];
-        return {
-          title: item.title || "Raccomandazione",
-          description: item.description || "",
-          actions: suggerimento ? 
-            [(suggerimento.description || "").startsWith("Suggerisco di") ? 
-              (suggerimento.description || "") : 
-              `Suggerisco di ${suggerimento.description || ""}`] : 
-            undefined
-        };
-      });
-      
-      return {
-        raccomandazioni: raccomandazioni.length > 0 ? raccomandazioni : [
-          {
-            title: "Analisi profilo cliente",
-            description: "Genera un nuovo profilo utilizzando il pulsante 'Aggiorna' per ottenere raccomandazioni nel nuovo formato.",
-            actions: ["Clicca sul pulsante 'Aggiorna' in alto a destra per generare raccomandazioni nel nuovo formato."]
-          }
-        ]
-      };
-    }
-    
-    // Fallback: restituisci un oggetto con una singola raccomandazione vuota
-    return {
-      raccomandazioni: [
-        {
-          title: "Dati insufficienti",
-          description: "Non ci sono abbastanza dati per generare raccomandazioni complete. Prova ad aggiornare il profilo.",
-          actions: ["Clicca sul pulsante 'Aggiorna' in alto a destra per generare nuove raccomandazioni."]
-        }
-      ]
-    };
   } catch (error) {
+    console.error('Error in generateClientProfile:', error);
     throw error;
   }
 }
@@ -371,11 +308,12 @@ Esempio di formato di risposta:
  * Crea un prompt per generare suggerimenti per il consulente
  */
 function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
-  // Formatta i profili per includere le informazioni del cliente
+  // Formatta i profili per includere le informazioni del cliente e le opportunità già generate
   const formattedProfiles = aiProfiles.map(profile => ({
     clientId: profile.clientId,
     clientName: profile.clientName,
-    raccomandazioni: profile.raccomandazioni
+    profiloCliente: profile.profiloCliente,
+    opportunitaBusiness: profile.opportunitaBusiness || []
   }));
 
   // Estrai gli ID e i nomi dei clienti reali per riferimento esplicito
@@ -383,14 +321,14 @@ function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
   const realClientNames = aiProfiles.map(profile => profile.clientName);
 
   return `
-# Analisi di Opportunità di Business per Consulente Finanziario
+# Selezione e Prioritizzazione delle Opportunità di Business per Consulente Finanziario
 
-Analizzerai i profili dei clienti per identificare le opportunità di business più rilevanti, in base ai dati disponibili. 
+Analizzerai le opportunità di business già individuate nei profili dei clienti per selezionare quelle più rilevanti e prioritarie.
 
 ## Obiettivo
-Generare un elenco di opportunità di business CONCRETE e SPECIFICHE, ordinate per priorità in base al potenziale valore economico per il consulente.
+Selezionare le opportunità di business più RILEVANTI e PRIORITARIE già identificate nei profili dei clienti, arricchirle con elementi di valore e creare email personalizzate specifiche.
 
-## Profili AI dei Clienti
+## Profili e Opportunità Esistenti dei Clienti
 
 ${JSON.stringify(formattedProfiles, null, 2)}
 
@@ -401,7 +339,7 @@ Nomi: ${JSON.stringify(realClientNames)}
 
 ## Formato di Risposta
 
-Rispondi con un oggetto JSON strutturato come nel formato seguente (questo è SOLO un esempio di formato):
+Rispondi con un oggetto JSON strutturato come nel formato seguente:
 {
   "opportunities": [
     {
@@ -421,37 +359,43 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente (questo è SO
 
 ## Istruzioni Dettagliate
 
-1. SUGGESTED ACTION:
-   - Fornisci UNA SOLA azione chiara, specifica e immediatamente attuabile
-   - L'azione deve essere formulata come un'iniziativa proattiva del consulente
-   - Deve essere sufficientemente dettagliata da poter essere inserita in un'email di invito al cliente
+1. SELEZIONE DELLE OPPORTUNITÀ:
+   - NON GENERARE nuove opportunità, ma SELEZIONA e MIGLIORA quelle già presenti nei profili dei clienti
+   - Scegli le 3-5 opportunità più rilevanti e promettenti tra tutte quelle disponibili nei profili
+   - Adatta e arricchisci la descrizione dell'opportunità per renderla più chiara e convincente
+   - Mantieni intatta l'essenza dell'opportunità originale
 
-2. PRIORITÀ:
+2. SUGGESTED ACTION:
+   - Seleziona l'azione più efficace tra quelle suggerite nell'opportunità originale
+   - Migliorala e rendila ancora più specifica e immediatamente attuabile
+   - L'azione deve essere formulata come un'iniziativa proattiva del consulente
+
+3. PRIORITÀ:
    - Alta: opportunità a elevato valore economico o con scadenza imminente (>€50.000 di asset potenziali o >€1.000 commissioni)
    - Media: opportunità di valore medio o senza particolare urgenza (€10.000-50.000 di asset o €200-1.000 commissioni)
    - Bassa: opportunità di valore più contenuto ma comunque meritevoli di attenzione
+   - Valuta in base al potenziale impatto economico e all'urgenza
 
-3. PERSONALIZED EMAIL:
-   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità
-   - L'email deve iniziare DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiegare perché si adatta al cliente
-   - Non c'è bisogno di introduzioni troppo formali, vai dritto al punto
+4. PERSONALIZED EMAIL:
+   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità selezionata
+   - L'email deve fare riferimento specifico all'opportunità e alle caratteristiche del cliente
+   - Inizia DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiega perché si adatta al cliente
+   - Non includere introduzioni formali, vai dritto al punto
    - NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
    - Utilizza un tono professionale, autorevole e diretto che rifletta l'esperienza di un consulente senior
    - EVITA frasi troppo entusiaste come "Sono entusiasta di", "Non vedo l'ora di", o linguaggio emotivo
    - Utilizza uno stile di comunicazione conciso, pragmatico e orientato ai risultati
    - Includi dettagli specifici tratti dai dati del cliente che dimostrano un'analisi approfondita
    - L'email deve essere pronta all'uso, come se fosse scritta direttamente dal consulente
-   - Chiedi al cliente di farti sapere le sue disponibilità per una chiamata per discuterne
+   - Concludi chiedendo al cliente di farti sapere le sue disponibilità per una chiamata
 
 IMPORTANTE:
-- Identifica almeno 3-5 opportunità di business concrete
-- Basa le tue raccomandazioni SOLO sui dati presenti nei profili AI forniti
-- UTILIZZA SOLO i clientId e clientName forniti nei profili AI
-- In caso di dati insufficienti, NON inventare informazioni ma genera opportunità più generiche
+- Seleziona SOLO le opportunità più rilevanti tra quelle già esistenti nei profili
+- Ogni opportunità deve fare riferimento a un cliente reale specifico con ID e nome corretti
 - Ordina le opportunità dalla priorità più alta alla più bassa
-- Ogni opportunità deve avere una chiara motivazione di business e un'azione specifica
-- Ogni opportunità DEVE includere una email completamente personalizzata e specifica per quell'opportunità
-- NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
+- La priorità deve riflettere sia il potenziale valore economico che l'urgenza
+- Ogni opportunità DEVE includere una email completamente personalizzata e specifica
+- Concentrati sulla qualità delle opportunità selezionate piuttosto che sulla quantità
 `;
 }
 
@@ -482,8 +426,9 @@ export async function generateAdvisorSuggestions(
       messages: [
         {
           role: 'system',
-          content: `Sei un esperto consulente finanziario specializzato nell'analisi dei dati dei clienti. 
-          Il tuo compito è identificare opportunità, clienti da riattivare, e attività operative necessarie.
+          content: `Sei un esperto consulente finanziario specializzato nell'analisi e nella prioritizzazione delle opportunità di business. 
+          Il tuo compito è selezionare, prioritizzare e migliorare le opportunità già identificate nei profili dei clienti.
+          Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso.
           Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
         },
         {

@@ -22,10 +22,24 @@ interface ProfileItem {
   actions?: string[]; // Azioni consigliate (nuovo formato)
 }
 
+// Nuove interfacce per il formato aggiornato
+interface ClienteProfilo {
+  descrizione: string;  // Campo unico con riassunto completo
+}
+
+interface OpportunitaBusiness {
+  titolo: string;
+  descrizione: string;
+  azioni: string[];
+}
+
 // Interfaccia per i dati di profilo arricchito
 interface ProfileData {
-  // Solo formato unificato
-  raccomandazioni: ProfileItem[] | string;
+  // Nuovo formato con profilo cliente e opportunità
+  profiloCliente?: ClienteProfilo;
+  opportunitaBusiness?: OpportunitaBusiness[];
+  // Per retrocompatibilità
+  raccomandazioni?: ProfileItem[] | OpportunitaBusiness[] | string;
 }
 
 // Interfaccia per la risposta dell'API
@@ -497,12 +511,68 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           </div>
         )}
 
-        {/* Mostra le raccomandazioni unificate */}
-        <div className="space-y-4">
-          <div className="space-y-6">
-            {formatContent(data?.data?.raccomandazioni)}
+        {/* Mostra il profilo cliente se disponibile */}
+        {data?.data?.profiloCliente && (
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Profilo Cliente</h3>
+            <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
+              <p className="text-sm text-gray-800">{data.data.profiloCliente.descrizione}</p>
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Mostra le opportunità di business */}
+        {data?.data?.opportunitaBusiness && data.data.opportunitaBusiness.length > 0 && (
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Opportunità di Business</h3>
+            <div className="space-y-4">
+              {data.data.opportunitaBusiness.map((opportunita, index) => (
+                <div key={index} className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <h4 className="text-sm font-semibold text-blue-600 mb-2">{opportunita.titolo}</h4>
+                  <p className="text-sm text-gray-800 mt-2">{opportunita.descrizione}</p>
+                  
+                  {/* Mostra le azioni consigliate */}
+                  {opportunita.azioni && opportunita.azioni.length > 0 && (
+                    <div className="mt-3 pt-2 border-t border-gray-200">
+                      <h5 className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-2">Azioni consigliate</h5>
+                      <ul className="space-y-1">
+                        {opportunita.azioni.map((azione, azioneIndex) => (
+                          <li key={azioneIndex} className="text-sm flex items-start text-gray-800">
+                            <svg 
+                              xmlns="http://www.w3.org/2000/svg" 
+                              width="24" 
+                              height="24" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                              className="h-4 w-4 mr-2 text-blue-500 mt-0.5 shrink-0"
+                            >
+                              <path d="M5 12h14"/>
+                              <path d="m12 5 7 7-7 7"/>
+                            </svg>
+                            <span>{azione}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Fallback per il vecchio formato di raccomandazioni se non sono disponibili i nuovi dati */}
+        {!data?.data?.profiloCliente && !data?.data?.opportunitaBusiness && data?.data?.raccomandazioni && (
+          <div className="space-y-4">
+            <div className="space-y-6">
+              {formatContent(data?.data?.raccomandazioni)}
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
