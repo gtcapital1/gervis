@@ -567,11 +567,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
 
         {/* Fallback per il vecchio formato di raccomandazioni se non sono disponibili i nuovi dati */}
         {!data?.data?.profiloCliente && !data?.data?.opportunitaBusiness && data?.data?.raccomandazioni && (
-          <div className="space-y-4">
-            <div className="space-y-6">
-              {formatContent(data?.data?.raccomandazioni)}
-            </div>
+        <div className="space-y-4">
+          <div className="space-y-6">
+            {formatContent(data?.data?.raccomandazioni)}
           </div>
+        </div>
         )}
       </CardContent>
     </Card>

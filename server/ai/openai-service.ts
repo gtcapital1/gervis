@@ -136,47 +136,45 @@ Rispondi in italiano usando un formato JSON con due campi principali:
 ## Per il Profilo Cliente:
 Sintetizza tutte le informazioni da MIFID e interazioni nei log in UN UNICO PARAGRAFO DESCRITTIVO che catturi:
 - Caratteristiche psicologiche/comportamentali verso il rischio finanziario
-- Tendenze cognitive e bias decisionali 
-- Atteggiamento emotivo verso il denaro e gli investimenti
-- Modelli comportamentali ricorrenti nelle decisioni finanziarie
-- Motivazioni profonde e valori che guidano le scelte finanziarie
-- Punti di tensione o preoccupazioni implicite non dichiarate apertamente
-Non spacchettare in campi separati ma crea un riassunto narrativo completo e coeso che si concentri principalmente sugli aspetti psicologici e comportamentali.
+- Abitudini di investimento deducibili
+- Preoccupazioni principali o punti di interesse
+- Obiettivi finanziari a breve, medio e lungo termine
+- Pattern comportamentali nelle decisioni finanziarie
+- Livello di conoscenza finanziaria ed eventuali bias cognitivi
+Non spacchettare in campi separati ma crea un riassunto narrativo completo e coeso.
 
 ## Per le Opportunità di Business:
-Identifica 3-5 opportunità basate sul profilo psicologico del cliente e sui pattern comportamentali, ciascuna con:
+Identifica 3-5 opportunità concrete basate sul profilo del cliente e sui log, ciascuna con:
 - Un titolo chiaro e specifico
-- Una descrizione dettagliata che spiega l'insight psicologico non immediatamente visibile
+- Una descrizione dettagliata che spiega perché questa è un'opportunità
 - 2-3 azioni pratiche che il consulente potrebbe intraprendere
 
 Nella generazione delle opportunità:
-- Concentrati su INSIGHT PSICOLOGICI NON OVVI e opportunità basate sulla comprensione del profilo comportamentale
-- NON proporre MAI opportunità relative alla gestione del debito o alla ristrutturazione finanziaria
-- NON menzionare debiti, entrate o uscite a meno che non sia strettamente rilevante per un insight psicologico importante
-- Evita completamente di focalizzarti su aspetti puramente finanziari come rendimenti, allocazioni, ribilanciamenti
-- Concentrati invece su aspetti come: educazione finanziaria, supporto decisionale, gestione dell'ansia da investimento, fiducia nella relazione consulente-cliente
-- Le opportunità dovrebbero riguardare più la relazione consulente-cliente e la comprensione psicologica che i prodotti finanziari specifici
+- Privilegia SEMPRE opportunità di business TANGIBILI, CONCRETE e REALI che possano generare investimenti immediati
+- Focalizzati su opportunità di INVESTIMENTO e su nuovi prodotti o servizi finanziari adatti al cliente
+- Evita di menzionare debito, entrate o uscite a meno che non siano STRETTAMENTE rilevanti per un'opportunità specifica
+- Concentrati sulle opportunità che generano valore per il cliente e commissioni per il consulente
+- Focalizzati su opportunità che richiedono azioni concrete e immediate
 
 IMPORTANTE:
 - Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
-- Ogni opportunità deve essere basata su un insight psicologico non immediatamente visibile.
+- Ogni opportunità deve essere specifica, realizzabile e rilevante per questo cliente specifico.
 - Basa le tue analisi SOLO sulle informazioni fornite, senza inventare dati.
 - NON includere alcun campo "valorePotenziale" o "valore" nelle opportunità.
-- EVITA COMPLETAMENTE qualsiasi riferimento a ristrutturazione del debito.
 
 Esempio di formato:
 {
   "profiloCliente": {
-    "descrizione": "Il cliente mostra una marcata avversione al rischio che sembra radicata in esperienze passate non esplicitate. Sebbene affermi di comprendere la necessità di diversificazione, le sue scelte rivelano un forte bias di ancoraggio verso investimenti familiari. La sua relazione con il denaro è permeata da un conflitto tra il desiderio di sicurezza e il timore di perdere opportunità, creando una tensione decisionale che si manifesta in lunghi periodi di indecisione seguiti da scelte impulsive quando si sente sotto pressione. Nelle interazioni, emerge un pattern di ricerca costante di rassicurazione e la tendenza a rimandare decisioni significative."
+    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica e la protezione del capitale a lungo termine. Preferisce un approccio cauto ma è aperto a considerare nuove opzioni se ben spiegate e supportate da dati. Ha una conoscenza base dei prodotti finanziari tradizionali ma una limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere sulle decisioni importanti e mostra segni di ansia quando si discute di volatilità."
   },
   "opportunitaBusiness": [
     {
-      "titolo": "Superamento dell'avversione emotiva al rischio",
-      "descrizione": "Il cliente presenta un pattern di rifiuto emotivo verso il rischio che non è allineato con i suoi obiettivi dichiarati. Questo non deriva da una valutazione razionale ma da un meccanismo di protezione emotiva che limita la sua capacità di prendere decisioni equilibrate.",
+      "titolo": "Ottimizzazione del portafoglio per combinare sicurezza e crescita",
+      "descrizione": "Il cliente ha espresso preoccupazione per la crescita del capitale mantenendo sicurezza. L'attuale allocazione è troppo conservativa rispetto agli obiettivi dichiarati.",
       "azioni": [
-        "Proporre un esercizio di visualizzazione guidata con scenari ipotetici per separare le reazioni emotive dalle valutazioni razionali",
-        "Creare un piano educativo personalizzato sulla relazione rischio-rendimento con esempi storici concreti",
-        "Programmare incontri più frequenti ma brevi per costruire fiducia e ridurre l'ansia decisionale"
+        "Presentare uno scenario di ribilanciamento con allocazione 60% sicurezza / 40% crescita",
+        "Proporre un piano di investimento graduale per la liquidità in eccesso (€50.000)",
+        "Organizzare un incontro per discutere strategie di protezione del capitale con potenziale di crescita"
       ]
     }
   ]
@@ -218,52 +216,48 @@ export async function generateClientProfile(
       messages: [
         {
           role: 'system',
-          content: `Sei un esperto consulente finanziario con specializzazione in psicologia comportamentale. Analizza i dati del cliente e genera un profilo psicologico approfondito e insight comportamentali non ovvi.
+          content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo sintetico e opportunità di business concrete.
 
 Rispondi in italiano, in formato JSON con due campi principali:
-- "profiloCliente": un oggetto con un campo "descrizione" contenente un'analisi psicologica e comportamentale del cliente
-- "opportunitaBusiness": un array di opportunità basate su insight psicologici
+- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
+- "opportunitaBusiness": un array di opportunità di business rilevabili
 
-Il profiloCliente deve concentrarsi principalmente su:
-- Caratteristiche psicologiche e comportamentali verso il rischio e gli investimenti
-- Bias cognitivi e pattern decisionali ricorrenti
-- Motivazioni profonde e valori che guidano le scelte finanziarie
-- Tensioni emotive e preoccupazioni implicite non dichiarate apertamente
+Il profiloCliente deve avere:
+- descrizione: un unico paragrafo descrittivo che sintetizzi le caratteristiche rilevanti del cliente, includendo profilo di rischio, obiettivi, comportamento decisionale e conoscenze finanziarie
 
 Ogni opportunità di business deve contenere:
-- titolo: nome chiaro dell'opportunità basata su un insight psicologico
-- descrizione: spiegazione dell'insight psicologico non immediatamente visibile
-- azioni: array di 2-3 azioni concrete che il consulente può intraprendere
+- titolo: nome chiaro dell'opportunità
+- descrizione: spiegazione dettagliata che motiva l'opportunità
+- azioni: array di 2-3 azioni concrete e specifiche che il consulente può intraprendere
 
-IMPORTANTE:
-- CONCENTRATI ESCLUSIVAMENTE sugli aspetti psicologici e comportamentali, non su prodotti finanziari
-- NON MENZIONARE MAI il debito, la sua ristrutturazione o gestione in nessuna circostanza
-- EVITA di focalizzarti su dati finanziari come rendimenti, allocazioni, ribilanciamenti
-- NON PARLARE di entrate, uscite o bilanci a meno che non siano strettamente rilevanti per un insight psicologico
-- Le opportunità dovrebbero riguardare: educazione finanziaria, supporto decisionale, gestione dell'ansia da investimento, fiducia nella relazione
+IMPORTANTE per la generazione delle opportunità:
+- PRIVILEGIA opportunità di business TANGIBILI e CONCRETE che possano generare investimenti immediati
+- Focalizzati su opportunità di INVESTIMENTO e su nuovi prodotti o servizi finanziari adatti al cliente
+- Evita di menzionare debito, entrate o uscite a meno che non siano STRETTAMENTE rilevanti
+- Concentrati su opportunità che generano valore per il cliente e commissioni per il consulente
 
-Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti, dai sempre priorità alle informazioni più recenti.
+Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti, dai priorità alle informazioni più recenti.
 
 NON includere campi di valutazione come "valore" o "valorePotenziale" nelle opportunità di business.
 
-Le azioni suggerite devono:
-- Focalizzarsi sulla relazione consulente-cliente più che su prodotti finanziari specifici
-- Aiutare il cliente a superare bias cognitivi o blocchi psicologici
-- Migliorare la comprensione e la fiducia nel processo decisionale finanziario
+Le azioni devono essere:
+- Specifiche e pratiche (es. "Presentare opportunità di diversificazione in ETF globali")
+- Realizzabili e immediate
+- Rilevanti per il cliente in questione
+- Orientate a risultati concreti
 
 Esempio di formato di risposta:
 {
   "profiloCliente": {
-    "descrizione": "Il cliente mostra una marcata avversione al rischio che sembra radicata in esperienze passate non esplicitate. Sebbene affermi di comprendere la necessità di diversificazione, le sue scelte rivelano un forte bias di ancoraggio verso investimenti familiari. La sua relazione con il denaro è permeata da un conflitto tra il desiderio di sicurezza e il timore di perdere opportunità, creando una tensione decisionale che si manifesta in lunghi periodi di indecisione seguiti da scelte impulsive quando si sente sotto pressione. Nelle interazioni, emerge un pattern di ricerca costante di rassicurazione e la tendenza a rimandare decisioni significative."
+    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica. Preferisce un approccio cauto ma aperto a nuove opzioni se ben spiegate. Ha conoscenza base dei prodotti finanziari tradizionali ma limitata comprensione di strumenti complessi."
   },
   "opportunitaBusiness": [
     {
-      "titolo": "Superamento dell'avversione emotiva al rischio",
-      "descrizione": "Il cliente presenta un pattern di rifiuto emotivo verso il rischio che non è allineato con i suoi obiettivi dichiarati. Questo non deriva da una valutazione razionale ma da un meccanismo di protezione emotiva che limita la sua capacità di prendere decisioni equilibrate.",
+      "titolo": "Ottimizzazione del portafoglio per maggiore rendimento",
+      "descrizione": "Il cliente ha mostrato interesse per strategie che possano aumentare il rendimento mantenendo un rischio controllato.",
       "azioni": [
-        "Proporre un esercizio di visualizzazione guidata con scenari ipotetici per separare le reazioni emotive dalle valutazioni razionali",
-        "Creare un piano educativo personalizzato sulla relazione rischio-rendimento con esempi storici concreti",
-        "Programmare incontri più frequenti ma brevi per costruire fiducia e ridurre l'ansia decisionale"
+        "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici",
+        "Proporre un piano di investimento graduale per la liquidità disponibile"
       ]
     }
   ]
@@ -338,12 +332,12 @@ function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
   const realClientNames = aiProfiles.map(profile => profile.clientName);
 
   return `
-# Selezione e Prioritizzazione degli Insight Psicologici per Consulente Finanziario
+# Selezione e Prioritizzazione delle Opportunità di Business per Consulente Finanziario
 
-Analizzerai le opportunità basate su insight psicologici già individuate nei profili dei clienti per selezionare quelle più rilevanti.
+Analizzerai le opportunità di business già individuate nei profili dei clienti per selezionare quelle più rilevanti e prioritarie.
 
 ## Obiettivo
-Selezionare gli insight psicologici più SIGNIFICATIVI e PROFONDI già identificati nei profili dei clienti e creare email personalizzate che sfruttino questi insight per rafforzare la relazione consulente-cliente.
+Selezionare le opportunità di business più TANGIBILI e con POTENZIALE DI INVESTIMENTO immediato già identificate nei profili dei clienti, arricchirle e creare email personalizzate specifiche.
 
 ## Profili e Opportunità Esistenti dei Clienti
 
@@ -360,14 +354,14 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
 {
   "opportunities": [
     {
-      "title": "Superamento dell'avversione emotiva al rischio",
-      "description": "Il cliente presenta un pattern di rifiuto emotivo verso il rischio che non è allineato con i suoi obiettivi dichiarati. Questo sembra derivare da esperienze negative passate che hanno creato blocchi psicologici.",
+      "title": "Ottimizzazione portafoglio con rendimento maggiore",
+      "description": "Il cliente ha espresso insoddisfazione per il rendimento attuale e dispone di liquidità non investita",
       "clientId": 123,
       "clientName": "Marco Rossi",
-      "suggestedAction": "Proporre un esercizio di visualizzazione guidata con scenari ipotetici per separare le reazioni emotive dalle valutazioni razionali",
+      "suggestedAction": "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici e healthcare",
       "personalizedEmail": {
-        "subject": "Un approccio personalizzato per allineare le tue decisioni ai tuoi obiettivi reali",
-        "body": "Analizzando le nostre conversazioni recenti, ho notato come le decisioni di investimento sembrano essere influenzate più da reazioni emotive al rischio che dai tuoi obiettivi a lungo termine.\\n\\nPer aiutarti a separare queste reazioni emotive dalle valutazioni razionali, ho sviluppato un breve esercizio di visualizzazione che potremmo svolgere insieme nel nostro prossimo incontro.\\n\\nQuesto approccio ha aiutato molti dei miei clienti a prendere decisioni più allineate con i loro veri obiettivi, superando i blocchi emotivi che spesso ostacolano scelte finanziarie equilibrate.\\n\\nQuando saresti disponibile per un incontro di 30 minuti per esplorare insieme questo metodo?"
+        "subject": "Proposta specifica per ottimizzare i rendimenti del tuo portafoglio",
+        "body": "Ho preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità di circa €150.000 che hai accumulato negli ultimi mesi potrebbe essere messa a frutto in modo più efficace.\\n\\nVorresti fissare un incontro il prossimo martedì alle 15:00 per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio."
       }
     }
   ]
@@ -375,40 +369,42 @@ Rispondi con un oggetto JSON strutturato come nel formato seguente:
 
 ## Istruzioni Dettagliate
 
-1. SELEZIONE DEGLI INSIGHT:
-   - NON GENERARE nuovi insight, ma SELEZIONA e MIGLIORA quelli già presenti nei profili dei clienti
-   - Seleziona le opportunità basate su INSIGHT PSICOLOGICI PIÙ PROFONDI e meno ovvi
-   - NON selezionare MAI opportunità relative a prodotti finanziari specifici, debito, o ribilanciamenti
-   - Prioritizza opportunità che migliorano la comprensione del cliente, la fiducia nella relazione, e il processo decisionale
-   - Scegli 3-5 insight più significativi che rivelano aspetti non evidenti del comportamento finanziario dei clienti
-   - Adatta e arricchisci la descrizione dell'insight per renderla più profonda e illuminante
-   - Mantieni l'essenza dell'opportunità originale ma approfondisci l'analisi psicologica
+1. SELEZIONE DELLE OPPORTUNITÀ:
+   - NON GENERARE nuove opportunità, ma SELEZIONA e MIGLIORA quelle già presenti nei profili dei clienti
+   - Seleziona le opportunità più TANGIBILI e CONCRETE che offrono un POTENZIALE DI INVESTIMENTO immediato
+   - Concentrati su opportunità di INVESTIMENTO e PRODOTTI FINANZIARI adatti al cliente
+   - Evita di menzionare debito, entrate o uscite a meno che non siano strettamente necessari
+   - Prioritizza opportunità che permettono al cliente di fare azioni concrete e che generano commissioni
+   - Scegli le 3-5 opportunità più rilevanti e promettenti tra tutte quelle disponibili nei profili
+   - Adatta e arricchisci la descrizione dell'opportunità per renderla più chiara e convincente
+   - Mantieni intatta l'essenza dell'opportunità originale
 
 2. SUGGESTED ACTION:
-   - Seleziona l'azione più efficace tra quelle suggerite nell'opportunità originale che lavori sull'aspetto psicologico
-   - Migliorala e rendila più specifica e orientata a superare blocchi psicologici o bias cognitivi
-   - L'azione deve essere formulata come un'iniziativa che migliora la comprensione o il processo decisionale
-   - EVITA COMPLETAMENTE azioni relative a prodotti finanziari, investimenti o ribilanciamenti
+   - Seleziona l'azione più efficace tra quelle suggerite nell'opportunità originale
+   - Migliorala e rendila ancora più specifica e immediatamente attuabile
+   - L'azione deve essere formulata come un'iniziativa proattiva del consulente
+   - Concentrati su azioni che portano a investimenti concreti o nuovi prodotti
 
 3. PERSONALIZED EMAIL:
-   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni insight psicologico selezionato
-   - L'email deve rispecchiare una profonda comprensione psicologica del cliente
-   - Inizia riconoscendo il pattern psicologico identificato, poi spiega come può essere affrontato
+   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità selezionata
+   - L'email deve fare riferimento specifico all'opportunità e alle caratteristiche del cliente
+   - Inizia DIRETTAMENTE con la PROPOSTA SPECIFICA, poi spiega perché si adatta al cliente
    - Non includere introduzioni formali, vai dritto al punto
    - NON includere la firma o formule di chiusura come "Cordiali saluti", "A presto", ecc.
-   - Utilizza un tono empatico, comprensivo e non giudicante
-   - EVITA di menzionare specifici prodotti finanziari, rendimenti o allocazioni
-   - Focalizzati sul migliorare la consapevolezza del cliente e il suo processo decisionale
-   - L'email deve mostrare che hai compreso aspetti della personalità del cliente che forse lui stesso non riconosce
+   - Utilizza un tono professionale, autorevole e diretto che rifletta l'esperienza di un consulente senior
+   - EVITA frasi troppo entusiaste come "Sono entusiasta di", "Non vedo l'ora di", o linguaggio emotivo
+   - Utilizza uno stile di comunicazione conciso, pragmatico e orientato ai risultati
+   - Includi dettagli specifici tratti dai dati del cliente che dimostrano un'analisi approfondita
+   - L'email deve essere pronta all'uso, come se fosse scritta direttamente dal consulente
    - Concludi chiedendo al cliente di farti sapere le sue disponibilità per una chiamata
 
 IMPORTANTE:
-- Seleziona SOLO opportunità basate su insight psicologici profondi
+- Seleziona SOLO le opportunità più rilevanti tra quelle già esistenti nei profili
 - Ogni opportunità deve fare riferimento a un cliente reale specifico con ID e nome corretti
-- Ordinale in base alla profondità dell'insight e al potenziale impatto sulla relazione consulente-cliente
-- EVITA COMPLETAMENTE qualsiasi menzione di debito, rendimenti, allocazioni o prodotti specifici
-- Ogni opportunità DEVE includere una email personalizzata che dimostri una comprensione psicologica profonda
-- Concentrati sulla qualità degli insight selezionati piuttosto che sulla quantità
+- Ordinale in base a quanto sono tangibili e immediate in termini di potenziale di investimento
+- Dai priorità assoluta alle opportunità di investimento e prodotti finanziari che generano valore
+- Ogni opportunità DEVE includere una email completamente personalizzata e specifica
+- Concentrati sulla qualità delle opportunità selezionate piuttosto che sulla quantità
 `;
 }
 
@@ -439,11 +435,11 @@ export async function generateAdvisorSuggestions(
       messages: [
         {
           role: 'system',
-          content: `Sei un esperto consulente finanziario con specializzazione in psicologia comportamentale e finanza comportamentale.
-          Il tuo compito è selezionare gli insight psicologici più profondi e significativi già identificati nei profili dei clienti.
-          NON devi MAI menzionare debito, ristrutturazione del debito, entrate, uscite o prodotti finanziari specifici.
-          Focalizzati esclusivamente sugli aspetti psicologici, bias cognitivi e pattern comportamentali.
-          Per ogni insight selezionato, dovrai creare un'email personalizzata che mostri una profonda comprensione psicologica.
+          content: `Sei un esperto consulente finanziario specializzato nell'analisi e nella prioritizzazione delle opportunità di business. 
+          Il tuo compito è selezionare le opportunità più tangibili e con potenziale di investimento immediato già identificate nei profili dei clienti.
+          Concentrati su opportunità di investimento e prodotti finanziari, evitando di menzionare debito, entrate o uscite a meno che non sia strettamente necessario.
+          Prioritizza opportunità che generano valore per il cliente e commissioni per il consulente.
+          Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso.
           Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
         },
         {
