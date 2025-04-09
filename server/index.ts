@@ -197,8 +197,19 @@ app.use((req, res, next) => {
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   
+  // Crea la tabella trend_data se non esiste
+  try {
+    console.log('Verifica ed eventuale creazione della tabella trend_data...');
+    await autorunCreateTrendData();
+    console.log('Tabella trend_data verificata con successo');
+  } catch (error) {
+    console.error('Errore durante la verifica/creazione della tabella trend_data:', error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
   // Genera automaticamente i trend per tutti i consulenti all'avvio
   try {
+    console.log('Avvio generazione trend per tutti i consulenti...');
     // Generiamo i trend in modo asincrono senza attendere il completamento
     trendService.generateTrendsForAllAdvisors()
       .then(() => console.log('Successfully generated trends for all advisors'))

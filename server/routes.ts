@@ -314,7 +314,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   setupAuth(app);
   
   // Registra il router per le API trends
-  app.use('/api/trends', trendsRouter);
+  try {
+    console.log('[Routes] Registrazione del router per le API trends');
+    app.use('/api/trends', trendsRouter);
+    console.log('[Routes] Router API trends registrato con successo');
+  } catch (error) {
+    console.error('[Routes] Errore durante la registrazione del router API trends:', error);
+  }
   
   // ===== User Management Routes =====
   

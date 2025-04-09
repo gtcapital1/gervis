@@ -14,17 +14,21 @@ export class TrendService {
   async generateAndSaveTrendsForAdvisor(advisorId: number): Promise<void> {
     try {
       const now = new Date();
+      console.log(`[TrendService] Inizio generazione trend per advisor ${advisorId}`);
       
       // Ottieni l'utente per verificare la data di iscrizione
       const advisor = await db.select().from(schema.users).where(eq(schema.users.id, advisorId)).limit(1);
       if (!advisor || advisor.length === 0) {
-        throw new Error(`Advisor with ID ${advisorId} not found`);
+        console.log(`[TrendService] Advisor con ID ${advisorId} non trovato, skip generazione trend`);
+        return;
       }
       
       const userCreatedAt = advisor[0].createdAt || new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+      console.log(`[TrendService] Advisor ${advisorId} creato il ${userCreatedAt.toISOString()}`);
       
       // Ottieni tutti i clienti del consulente
       const clients = await db.select().from(schema.clients).where(eq(schema.clients.advisorId, advisorId));
+      console.log(`[TrendService] Advisor ${advisorId} ha ${clients.length} clienti`);
       
       // Ottieni tutti i log dei clienti del consulente
       const clientIds = clients.map(client => client.id);
@@ -34,6 +38,7 @@ export class TrendService {
             gte(schema.clientLogs.logDate, this.getOneYearAgo(now))
           ))
         : [];
+      console.log(`[TrendService] Trovati ${logs.length} log per i clienti dell'advisor ${advisorId}`);
         
       // Prima di generare nuovi dati, elimina tutte le statistiche precedenti per questo consulente
       await this.deleteAllTrendDataForAdvisor(advisorId);
@@ -42,9 +47,87 @@ export class TrendService {
       // Questo genererà tutti i dati di cui abbiamo bisogno
       await this.generateTimeframeTrends(advisorId, now, clients, logs, userCreatedAt);
       
-      console.log(`Successfully generated and saved trends for advisor ${advisorId}`);
+      // Generiamo alcuni trend di base anche se non ci sono dati sufficienti
+      if (clients.length === 0) {
+        console.log(`[TrendService] Advisor ${advisorId} non ha clienti, generazione trend di base con valori zero`);
+        // Genera trend di base con valori a zero
+        await this.generateBasicZeroTrends(advisorId, now);
+      }
+      
+      console.log(`[TrendService] Generazione trend completata per advisor ${advisorId}`);
     } catch (error) {
-      console.error(`Error generating trends for advisor ${advisorId}:`, error);
+      console.error(`[TrendService] Errore durante la generazione trend per advisor ${advisorId}:`, error);
+    }
+  }
+  
+  /**
+   * Genera trend di base con valori a zero per consulenti senza clienti
+   */
+  private async generateBasicZeroTrends(advisorId: number, date: Date): Promise<void> {
+    const timeframes = [
+      { code: '1w', days: 7, label: '1 Settimana' },
+      { code: '1m', days: 30, label: '1 Mese' },
+      { code: '3m', days: 90, label: '3 Mesi' },
+      { code: '6m', days: 180, label: '6 Mesi' },
+      { code: '1y', days: 365, label: '1 Anno' }
+    ];
+    
+    for (const timeframe of timeframes) {
+      // Periodo di tempo
+      const startDate = new Date(date);
+      startDate.setDate(startDate.getDate() - timeframe.days);
+      
+      // Trend di base
+      await storage.saveTrendData(
+        advisorId, 
+        `lead_count_${timeframe.code}`, 
+        date, 
+        0, 
+        "0",
+        { 
+          type: 'timeframe',
+          timeframe: timeframe.code,
+          timeframeLabel: timeframe.label,
+          startDate,
+          endDate: date,
+          originalType: 'lead_count',
+          count: 0
+        }
+      );
+      
+      await storage.saveTrendData(
+        advisorId, 
+        `prospect_count_${timeframe.code}`, 
+        date, 
+        0, 
+        "0",
+        { 
+          type: 'timeframe',
+          timeframe: timeframe.code,
+          timeframeLabel: timeframe.label,
+          startDate,
+          endDate: date,
+          originalType: 'prospect_count',
+          count: 0
+        }
+      );
+      
+      await storage.saveTrendData(
+        advisorId, 
+        `active_client_count_${timeframe.code}`, 
+        date, 
+        0, 
+        "0",
+        { 
+          type: 'timeframe',
+          timeframe: timeframe.code,
+          timeframeLabel: timeframe.label,
+          startDate,
+          endDate: date,
+          originalType: 'active_client_count',
+          count: 0
+        }
+      );
     }
   }
   
@@ -994,16 +1077,49 @@ export class TrendService {
    */
   async getTrendDataForAdvisor(advisorId: number): Promise<any[]> {
     try {
+      console.log(`[TrendService] Recupero dati trend per advisor ${advisorId}`);
+      
       // Importa direttamente dalla radice per evitare problemi di path
       const schema = await import('@shared/schema');
       
       // Ottieni tutti i dati di trend per questo consulente
-      const trendData = await db.select().from(schema.trendData)
+      const trends = await db.select()
+        .from(schema.trendData)
         .where(eq(schema.trendData.advisorId, advisorId))
-        .orderBy(schema.trendData.createdAt);
+        .orderBy(schema.trendData.type);
+      
+      console.log(`[TrendService] Trovati ${trends.length} record trend per advisor ${advisorId}`);
+      
+      // Se non ci sono dati, forzare la generazione di dati di base
+      if (trends.length === 0) {
+        console.log(`[TrendService] Nessun dato trend trovato, generazione automatica per advisor ${advisorId}`);
+        await this.generateAndSaveTrendsForAdvisor(advisorId);
+        
+        // Ritenta il recupero dopo la generazione
+        const newTrends = await db.select()
+          .from(schema.trendData)
+          .where(eq(schema.trendData.advisorId, advisorId))
+          .orderBy(schema.trendData.type);
+        
+        console.log(`[TrendService] Generati ${newTrends.length} nuovi record trend per advisor ${advisorId}`);
+        
+        // Formatta i dati per il frontend
+        return newTrends.map(data => {
+          const metadata = data.metadata || {};
+          return {
+            type: data.type,
+            value: data.value,
+            valueFloat: data.valueFloat,
+            metadata: {
+              ...metadata,
+              timeframe: metadata && typeof metadata === 'object' && 'timeframe' in metadata ? metadata.timeframe : '1y'
+            }
+          };
+        });
+      }
       
       // Formatta i dati per il frontend
-      return trendData.map(data => {
+      return trends.map(data => {
         const metadata = data.metadata || {};
         return {
           type: data.type,
@@ -1016,8 +1132,8 @@ export class TrendService {
         };
       });
     } catch (error) {
-      console.error(`Error fetching trend data for advisor ${advisorId}:`, error);
-      throw error;
+      console.error(`[TrendService] Errore durante il recupero dei dati trend per advisor ${advisorId}:`, error);
+      return [];
     }
   }
 
