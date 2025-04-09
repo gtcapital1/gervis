@@ -240,7 +240,7 @@ async function sendEmail({
       cc?: string;
       attachments?: any[];
     } = {
-      from: from || `"Gervis" <${config.from}>`,
+      from: from || `"${userData.firstName} ${userData.lastName}" <${config.from}>`,
       to,
       subject,
       html,
