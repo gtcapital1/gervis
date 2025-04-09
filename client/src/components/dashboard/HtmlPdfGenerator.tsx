@@ -184,7 +184,15 @@ export function HtmlPdfGenerator({
       cash: 'Liquidità',
       crypto: 'Criptovalute',
       commodities: 'Materie prime',
-      alternative: 'Investimenti alternativi'
+      alternative: 'Investimenti alternativi',
+      stocks: 'Azioni',
+      etf: 'ETF',
+      mutual_funds: 'Fondi comuni',
+      derivatives: 'Derivati',
+      options: 'Opzioni',
+      futures: 'Futures',
+      forex: 'Forex',
+      other: 'Altro'
     };
     
     return categories.map(cat => translations[cat] || cat).join(', ');
@@ -534,14 +542,32 @@ export function HtmlPdfGenerator({
             
             <div style="margin-top: 20px; box-sizing: border-box;">
               <p style="font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; padding: 0; line-height: 1.2;">I tuoi asset principali</p>
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; box-sizing: border-box;">
-                ${Array.isArray(getClientProperty('assetCategories')) ? 
-                  getClientProperty('assetCategories', []).map((category: string) => 
-                  `<div style="background-color: #f5f5f5; padding: 8px 12px; border-radius: 4px; font-size: 14px; display: flex; align-items: center; gap: 8px;">
-                    <div style="width: 8px; height: 8px; background-color: #003366; border-radius: 50%;"></div>
-                    ${translateAssetCategories([category])}
-                  </div>`
-                ).join('') : ''}
+              
+              <!-- Tabella degli asset e patrimonio netto -->
+              <div style="margin-top: 12px; box-sizing: border-box;">
+                <div style="overflow-x: auto; margin-bottom: 12px;">
+                  <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
+                    <thead>
+                      <tr style="background-color: #f5f8fa; border-bottom: 1px solid #e1e7eb;">
+                        <th style="padding: 10px; font-size: 13px; text-align: left; font-weight: 600; color: #334155;">Categoria</th>
+                        <th style="padding: 10px; font-size: 13px; text-align: right; font-weight: 600; color: #334155;">Valore</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${assets.filter(asset => asset.value > 0).map(asset => `
+                        <tr style="border-bottom: 1px solid #e1e7eb;">
+                          <td style="padding: 10px; font-size: 13px; color: #475569;">${translateAssetCategories([asset.category])}</td>
+                          <td style="padding: 10px; font-size: 13px; color: #475569; text-align: right;">${formatCurrency(asset.value)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div style="margin-top: 16px; background-color: #f0f7ff; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #003366;">
+                  <p style="font-weight: 700; color: #333; margin: 0; font-size: 15px; padding: 0;">Patrimonio Netto Totale</p>
+                  <p style="font-weight: 700; color: #003366; margin: 0; font-size: 16px; padding: 0;">${formatCurrency(assets.reduce((sum, asset) => sum + asset.value, 0) - (getClientProperty('debts') || 0))}</p>
+                </div>
               </div>
             </div>
           </div>
@@ -731,17 +757,11 @@ export function HtmlPdfGenerator({
           
           <!-- Firma -->
           <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); break-inside: avoid; page-break-inside: avoid;">
-            <div style="display: flex; justify-content: space-between; margin-top: 10px;">
-              <div style="width: 300px;">
+            <div style="display: flex; justify-content: flex-end; margin-top: 10px;">
+              <div style="width: 300px; text-align: right;">
                 <p style="font-weight: 500; color: #333; margin-bottom: 10px; font-size: 14px;">Data: ${formatDate(new Date())}</p>
                 <p style="font-weight: 500; color: #333; margin-bottom: 4px; font-size: 14px;">Firma cliente</p>
                 <div style="height: 60px; border-bottom: 1px solid #aaa;"></div>
-              </div>
-              <div style="width: 300px; text-align: right;">
-                <p style="font-weight: 500; color: #333; margin-bottom: 10px; font-size: 14px;">Data: ${formatDate(new Date())}</p>
-                <p style="font-weight: 500; color: #333; margin-bottom: 4px; font-size: 14px;">Firma consulente</p>
-                <div style="height: 60px; border-bottom: 1px solid #aaa;"></div>
-                <p style="font-weight: 500; color: #333; margin-top: 4px; font-size: 14px;">${advisorSignature || 'Il tuo consulente finanziario'}</p>
               </div>
             </div>
           </div>
@@ -898,27 +918,48 @@ export function HtmlPdfGenerator({
             useCORS: true,
             letterRendering: true,
             allowTaint: true,
-            backgroundColor: '#ffffff'
+            backgroundColor: '#ffffff',
+            logging: true,
+            onclone: (clonedDoc: Document) => {
+              // Ensure all images are loaded before PDF generation
+              const images = clonedDoc.getElementsByTagName('img');
+              return Promise.all(Array.from(images).map((img: HTMLImageElement) => {
+                if (!img.complete) {
+                  return new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve;
+                  });
+                }
+                return Promise.resolve();
+              }));
+            }
           },
           jsPDF: { 
             unit: 'mm', 
             format: 'a4', 
             orientation: 'portrait' as const,
-            compress: true
+            compress: false
           }
         };
         
         // Genera il PDF direttamente dall'elemento HTML
-        const pdfBlob = await html2pdf().from(element).set(opt).outputPdf('blob');
-        
-        console.log('PDF generato correttamente con html2pdf:', {
-          size: pdfBlob.size,
-          type: pdfBlob.type
-        });
+        const pdfBlob = await html2pdf()
+          .from(element)
+          .set(opt)
+          .outputPdf('blob')
+          .catch(error => {
+            console.error('Errore durante la generazione del PDF:', error);
+            throw new Error('Errore durante la generazione del PDF: ' + error.message);
+          });
         
         if (!pdfBlob || pdfBlob.size === 0) {
           throw new Error("Il PDF generato è vuoto");
         }
+        
+        console.log('PDF generato correttamente:', {
+          size: pdfBlob.size,
+          type: pdfBlob.type
+        });
         
         // Crea l'oggetto FormData per l'invio multipart
         const formData = new FormData();
