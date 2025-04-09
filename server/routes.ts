@@ -33,6 +33,7 @@ import fileUpload from 'express-fileupload';
 import { UploadedFile } from 'express-fileupload';
 import { trendService } from './trends-service';
 import { getAdvisorSuggestions } from './ai/advisor-suggestions-controller';
+import trendsRouter from './api/trends';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -311,6 +312,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Setup authentication
   setupAuth(app);
+  
+  // Registra il router per le API trends
+  app.use('/api/trends', trendsRouter);
   
   // ===== User Management Routes =====
   
