@@ -85,7 +85,7 @@ Ti fornisco un insieme di notizie finanziarie e profili essenziali di alcuni cli
 Il tuo compito è:
 1. Selezionare le 5 idee d'investimento più rilevanti basandoti sulle notizie.
 2. Per ogni idea, genera:
-   - Un titolo esplicativo (massimo 6-8 parole).
+   - Un titolo esplicativo (massimo 6-8 parole) basato sul titolo originale della notizia.
    - Una spiegazione dettagliata e strutturata dell'opportunità d'investimento (5-7 frasi) che includa:
       * Contesto macroeconomico e geopolitico dell'idea
       * Analisi delle tendenze del settore rilevanti
