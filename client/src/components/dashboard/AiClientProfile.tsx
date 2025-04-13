@@ -9,9 +9,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { RefreshCcw, Brain, Sparkles, Mail } from 'lucide-react';
-import { httpRequest } from '@/lib/queryClient';
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface AiClientProfileProps {
   clientId: number;
@@ -39,8 +43,11 @@ interface OpportunitaBusiness {
 
 // Interfaccia per i dati di profilo arricchito
 interface ProfileData {
+  clientId: number;
+  clientName: string;
   profiloCliente?: ClienteProfilo;
   opportunitaBusiness?: OpportunitaBusiness[];
+  lastUpdated?: string;
 }
 
 // Interfaccia per la risposta dell'API
@@ -85,20 +92,30 @@ function getPriorityText(priority: number) {
   }
 }
 
-// Funzione per gestire l'invio dell'email
-function handleSendEmail(email: { oggetto: string; corpo: string }) {
-  // Apri il client di posta predefinito con l'email precompilata
-  const mailtoLink = `mailto:?subject=${encodeURIComponent(email.oggetto)}&body=${encodeURIComponent(email.corpo)}`;
-  window.location.href = mailtoLink;
-  toast.success("Email aperta nel client di posta predefinito");
-}
-
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const { t } = useTranslation('client');
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [profileRequested, setProfileRequested] = useState(true); // Inizia con true per caricare automaticamente
+  const [profileRequested, setProfileRequested] = useState(false);
   const [isUpToDate, setIsUpToDate] = useState(false);
   const [upToDateMessage, setUpToDateMessage] = useState("");
+  const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [emailToSend, setEmailToSend] = useState<{ oggetto: string; corpo: string } | null>(null);
+  const { toast } = useToast();
+
+  // Effettua il caricamento iniziale del profilo
+  useEffect(() => {
+    setProfileRequested(true);
+  }, [clientId]);
+
+  // Funzione per gestire l'invio dell'email
+  const handleSendEmail = (email: { oggetto: string; corpo: string }) => {
+    setEmailToSend(email);
+    setEmailSubject(email.oggetto);
+    setEmailMessage(email.corpo);
+    setIsEmailDialogOpen(true);
+  };
 
   // Esegui la query per ottenere i dati del profilo arricchito solo quando richiesto
   const { data, isLoading, isError, error, refetch } = useQuery<ProfileResponse>({
@@ -185,6 +202,60 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
       setRefreshTrigger(prev => prev + 1);
       refetch();
     }
+  };
+
+  // Funzione per inviare l'email
+  const sendEmail = async () => {
+    if (!emailToSend) return;
+    
+    try {
+      // Show loading toast
+      toast({
+        title: t('common.sending'),
+        description: t('common.please_wait'),
+      });
+      
+      // Send the email via API
+      const response = await fetch(`/api/clients/${clientId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          subject: emailSubject,
+          message: emailMessage,
+          language: 'italian'
+        })
+      });
+      
+      if (response.ok) {
+        toast({
+          title: t('client.email_sent'),
+          description: t('client.email_sent_success'),
+        });
+        setIsEmailDialogOpen(false);
+      } else {
+        toast({
+          title: t('common.error'),
+          description: await response.text() || t('client.onboarding_email_error'),
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('dashboard.email_error'),
+        variant: 'destructive'
+      });
+    }
+  };
+
+  // Modifica la funzione che gestisce il click sul bottone email
+  const handleEmailButtonClick = (email: { oggetto: string; corpo: string }) => {
+    setEmailToSend(email);
+    setEmailSubject(email.oggetto);
+    setEmailMessage(email.corpo);
+    setIsEmailDialogOpen(true);
   };
 
   // Funzione per formattare il contenuto in base al tipo
@@ -461,7 +532,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                         >
                           <Mail className="h-4 w-4" />
                           Invia Email
-              </Button>
+                        </Button>
                       )}
                     </div>
                   </CardHeader>
@@ -493,6 +564,61 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               </p>
             </div>
           )}
+
+          {/* Email Dialog */}
+          <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>{t('dashboard.send_email')}</DialogTitle>
+                <DialogDescription>
+                  Invia email al cliente
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4 space-y-6">
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
+                    <div className="flex items-center space-x-2">
+                      <Mail className="h-4 w-4 text-accent" />
+                      <p className="text-sm text-muted-foreground">
+                        <strong>Destinatario: </strong>{data?.data?.clientName}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
+                    <Input 
+                      id="email-subject"
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="text-sm"
+                    />
+                  </div>
+                  
+                  <Textarea 
+                    id="email-content"
+                    value={emailMessage}
+                    onChange={(e) => setEmailMessage(e.target.value)}
+                    className="min-h-[300px] font-mono text-sm"
+                    placeholder="Scrivi il contenuto dell'email qui..."
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+                  {t('dashboard.cancel')}
+                </Button>
+                <Button 
+                  onClick={sendEmail}
+                  disabled={!emailSubject.trim() || !emailMessage.trim()}
+                >
+                  <Mail className="mr-2 h-4 w-4" />
+                  {t('dashboard.send_email')}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     );
@@ -681,9 +807,64 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                   )}
                 </div>
               ))}
+            </div>
           </div>
-        </div>
         )}
+
+        {/* Email Dialog */}
+        <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
+          <DialogContent className="sm:max-w-[600px]">
+            <DialogHeader>
+              <DialogTitle>{t('dashboard.send_email')}</DialogTitle>
+              <DialogDescription>
+                Invia email al cliente
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-6">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
+                  <div className="flex items-center space-x-2">
+                    <Mail className="h-4 w-4 text-accent" />
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Destinatario: </strong>{data?.data?.clientName}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="mb-4">
+                  <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
+                  <Input 
+                    id="email-subject"
+                    value={emailSubject}
+                    onChange={(e) => setEmailSubject(e.target.value)}
+                    className="text-sm"
+                  />
+                </div>
+                
+                <Textarea 
+                  id="email-content"
+                  value={emailMessage}
+                  onChange={(e) => setEmailMessage(e.target.value)}
+                  className="min-h-[300px] font-mono text-sm"
+                  placeholder="Scrivi il contenuto dell'email qui..."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
+                {t('dashboard.cancel')}
+              </Button>
+              <Button 
+                onClick={sendEmail}
+                disabled={!emailSubject.trim() || !emailMessage.trim()}
+              >
+                <Mail className="mr-2 h-4 w-4" />
+                {t('dashboard.send_email')}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );

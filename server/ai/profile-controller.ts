@@ -116,7 +116,8 @@ export async function getClientProfile(req: Request, res: Response) {
     let needsNewGeneration = forceRefresh || !cachedProfile;
     let isCacheValid = false;
     
-    if (cachedProfile && cachedProfile.lastGeneratedAt) {
+    // Solo se non è stato richiesto un refresh forzato, controlla la validità della cache
+    if (!forceRefresh && cachedProfile && cachedProfile.lastGeneratedAt) {
       const lastGeneratedAt = new Date(cachedProfile.lastGeneratedAt);
       const now = new Date();
       const cacheAge = now.getTime() - lastGeneratedAt.getTime();
@@ -127,7 +128,10 @@ export async function getClientProfile(req: Request, res: Response) {
         cacheAge < CACHE_VALIDITY_DURATION && 
         !hasClientDataChanged(client, clientLogs, lastGeneratedAt);
       
-      needsNewGeneration = !isCacheValid;
+      // Se la cache non è valida, dobbiamo generare un nuovo profilo
+      if (!isCacheValid) {
+        needsNewGeneration = true;
+      }
     }
     
     let profileData;
@@ -135,21 +139,6 @@ export async function getClientProfile(req: Request, res: Response) {
     if (needsNewGeneration) {
       // Recupera i dati MIFID del cliente
       const mifid = await storage.getMifidByClient(clientId);
-      
-      // Debug log per verificare i dati MIFID
-      
-      
-      
-      if (mifid) {
-        
-        
-        
-        
-        
-        
-        
-        
-      }
       
       // Genera un nuovo profilo arricchito utilizzando l'AI
       profileData = await generateClientProfile(client, mifid || null, clientLogs);
@@ -170,12 +159,12 @@ export async function getClientProfile(req: Request, res: Response) {
         data: profileData,
         cached: false
       });
-    } else if (cachedProfile) {
+    } else {
       // Utilizza il profilo memorizzato nella cache
       profileData = cachedProfile.profileData;
       
       // Controlla se il refresh è stato esplicitamente richiesto ma i dati sono già aggiornati
-      if (req.query.refresh === 'true') {
+      if (forceRefresh) {
         return res.json({
           success: true,
           data: profileData,
@@ -192,16 +181,8 @@ export async function getClientProfile(req: Request, res: Response) {
           lastGenerated: cachedProfile.lastGeneratedAt
         });
       }
-    } else {
-      // Questo caso non dovrebbe verificarsi, ma per sicurezza
-      return res.status(500).json({
-        success: false,
-        error: "Cache invalid but no profile found - inconsistent state"
-      });
     }
   } catch (error: any) {
-    
-    
     // Gestione degli errori specifici
     if (error.message && (
       error.message.includes("OpenAI API key not configured") ||
