@@ -929,7 +929,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         user.email,
         user.name || `${user.firstName} ${user.lastName}`,
         verificationUrl,
-        'italian'
+        'italian',
+        user.id,
+        true,
       );
 
       res.json({ 
@@ -1868,11 +1870,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: 'Utente non autenticato' });
       }
 
-      // Verifica che l'utente abbia accesso ai dati del consulente
-      if (userId !== advisorId && !req.user?.isAdmin) {
-        return res.status(403).json({ error: 'Non autorizzato ad accedere a questi dati' });
-      }
-
       console.log(`Fetching trend data for advisor ${advisorId}`);
       
       // Genera i trend per assicurarsi che i dati siano aggiornati
@@ -1899,6 +1896,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/ai/client-profile/:clientId', isAuthenticated, getClientProfile);
   app.post('/api/ai/client-profile/:clientId', isAuthenticated, updateClientProfile);
   app.get('/api/ai/advisor-suggestions', isAuthenticated, getAdvisorSuggestions);
+
+  // Endpoint per ottenere tutti i profili AI dei clienti dell'advisor
+  app.get('/api/ai-profiles', isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      // Verifica che l'utente sia autenticato
+      if (!req.user) {
+        return res.status(401).json({ error: 'Utente non autenticato' });
+      }
+      
+      const advisorId = req.user.id;
+      
+      // Recupera tutti i clienti dell'advisor
+      const clients = await storage.getClientsByAdvisor(advisorId);
+      
+      if (!clients || clients.length === 0) {
+        return res.json({ profiles: [] });
+      }
+      
+      // Recupera i profili AI per tutti i clienti
+      const aiProfiles = await Promise.all(
+        clients.map(client => storage.getAiProfile(client.id))
+      );
+      
+      // Filtra i profili nulli e prendi solo i dati del profilo
+      const validProfiles = aiProfiles
+        .filter((profile): profile is NonNullable<typeof profile> => !!profile)
+        .map((profile) => {
+          const client = clients.find(c => c.id === profile.clientId);
+          return {
+            ...(profile.profileData as Record<string, any>),
+            clientId: profile.clientId,
+            clientName: client ? (client.name || `${client.firstName} ${client.lastName}`) : `Cliente ${profile.clientId}`
+          };
+        });
+      
+      res.json({ profiles: validProfiles });
+    } catch (error: any) {
+      console.error('Error fetching AI profiles:', error);
+      res.status(500).json({ error: 'Errore nel recupero dei profili AI' });
+    }
+  });
 
   // ===== Spark API Routes =====
 
@@ -3274,7 +3312,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           onboardingLink,
           validatedData.language,
           validatedData.message,
-          advisor?.signature,
           req.user.email,
           validatedData.subject,
           client.id,

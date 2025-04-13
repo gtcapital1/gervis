@@ -273,7 +273,16 @@
     "average_assets_new_active_clients": "Asset Medi Nuovi Clienti Attivi",
     "new_prospects": "Nuovi Prospect",
     "new_active_clients": "Nuovi Clienti Attivi",
-    "average_assets_active_clients": "Asset Medi Clienti Attivi"
+    "average_assets_active_clients": "Asset Medi Clienti Attivi",
+    "view_opportunities": "Visualizza Opportunità",
+    "opportunities": "Opportunità",
+    "no_opportunities": "Nessuna opportunità disponibile",
+    "email_error": "Errore nell'invio dell'email",
+    "opportunity_value": "Valore Opportunità",
+    "opportunity_priority": "Priorità",
+    "opportunity_status": "Stato",
+    "opportunity_due_date": "Scadenza",
+    "send_email": "Invia Email"
   },
   "client": {
     "active_client": "Cliente Attivo",
@@ -447,7 +456,10 @@
     "email_config_error": "Configurazione email mancante",
     "email_config_error_desc": "È necessario configurare un server SMTP nelle impostazioni utente per inviare email",
     "ai_profile_processing": "Profilo AI in elaborazione",
-    "ai_profile_processing_description": "Stiamo analizzando le informazioni del cliente per generare raccomandazioni personalizzate..."
+    "ai_profile_processing_description": "Stiamo analizzando le informazioni del cliente per generare raccomandazioni personalizzate...",
+    "email_sent": "Email inviata",
+    "email_sent_success": "L'email è stata inviata con successo al cliente.",
+    "opportunity_email_sent_success": "L'email di opportunità è stata inviata con successo."
   },
   "client_edit": {
     "email": "Indirizzo Email",
@@ -540,6 +552,9 @@
     "link_copied": "Link copiato negli appunti",
     "success": "Operazione completata",
     "error": "Errore",
+    "view": "Visualizza",
+    "sending": "Invio in corso...",
+    "please_wait": "Attendere prego...",
     "error_details": {
       "unauthorized": "Accesso non autorizzato",
       "admin_access_required": "Questa pagina richiede privilegi di amministratore",

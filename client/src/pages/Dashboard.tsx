@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { 
   Users, 
@@ -37,7 +37,8 @@ import {
   UsersRound,
   BarChart,
   Users2,
-  CircleDollarSign
+  CircleDollarSign,
+  Eye
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -64,7 +65,8 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle, 
-  DialogClose 
+  DialogClose,
+  DialogDescription
 } from "@/components/ui/dialog";
 import { 
   XAxis, 
@@ -167,6 +169,72 @@ interface PortfolioData {
 // Interfaccia per i periodi di tempo
 type TimeframePeriod = '1w' | '1m';
 
+interface Opportunity {
+  id: number;
+  clientId: number;
+  clientName: string;
+  title: string;
+  priority: 'high' | 'medium' | 'low';
+  value: number;
+  status: string;
+  dueDate?: string;
+}
+
+interface AIProfile {
+  clientId: number;
+  clientName: string;
+  lastUpdated: string;
+  profiloCliente: {
+    descrizione: string;
+  };
+  opportunitaBusiness: Array<{
+    titolo: string;
+    descrizione: string;
+    priorita: number;
+    email: {
+      oggetto: string;
+      corpo: string;
+    };
+    azioni: string[];
+  }>;
+}
+
+type Priority = 'high' | 'medium' | 'low';
+
+const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 } as const;
+
+// Funzione per ottenere il colore del badge in base alla priorità
+function getPriorityBadgeColor(priority: number) {
+  switch(priority) {
+    case 1:
+      return "bg-red-500";
+    case 2:
+      return "bg-orange-500";
+    case 3:
+      return "bg-yellow-500";
+    case 4:
+      return "bg-blue-500";
+    default:
+      return "bg-gray-500";
+  }
+}
+
+// Funzione per ottenere il testo della priorità
+function getPriorityText(priority: number) {
+  switch(priority) {
+    case 1:
+      return "MASSIMA";
+    case 2:
+      return "ALTA";
+    case 3:
+      return "MEDIA";
+    case 4:
+      return "BASSA";
+    default:
+      return "MINIMA";
+  }
+}
+
 export default function Dashboard() {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -174,6 +242,9 @@ export default function Dashboard() {
   const [, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const [timeframe, setTimeframe] = useState<'1w' | '1m'>('1m'); // Default: 1 mese
+  const [showOpportunitiesDialog, setShowOpportunitiesDialog] = useState(false);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<any>(null);
+  const [showOpportunityDetailDialog, setShowOpportunityDetailDialog] = useState(false);
   
   // Funzione per calcolare la data di inizio in base al timeframe
   const getStartDateFromTimeframe = () => {
@@ -276,6 +347,14 @@ export default function Dashboard() {
       method: 'GET',
       headers: { 'Content-Type': 'application/json' }
     }),
+  });
+
+  // Fetch opportunities
+  const { data: aiProfilesData, isLoading: isLoadingAIProfiles } = useQuery<{profiles: AIProfile[]}>({
+    queryKey: ['/api/ai-profiles'],
+    retry: 2,
+    refetchOnWindowFocus: false,
+    staleTime: 30000,
   });
 
   // Prepare client data
@@ -1100,13 +1179,253 @@ export default function Dashboard() {
     return value.toFixed(0);
   };
 
+  // Estrai e ordina le opportunità da tutti i profili AI
+  const opportunities = useMemo(() => {
+    if (!aiProfilesData?.profiles) return [];
+    
+    const allOpportunities = aiProfilesData.profiles.flatMap(profile => 
+      profile.opportunitaBusiness.map(opp => ({
+        id: `${profile.clientId}-${opp.priorita}`,
+        clientId: profile.clientId,
+        clientName: profile.clientName,
+        title: opp.titolo,
+        description: opp.descrizione,
+        priority: opp.priorita,
+        email: opp.email,
+        azioni: opp.azioni
+      }))
+    );
+
+    // Ordina per priorità (1 = alta, 2 = media, 3 = bassa)
+    return allOpportunities.sort((a, b) => a.priority - b.priority);
+  }, [aiProfilesData]);
+
+  const handleSendEmail = async (clientId: number, emailData: { oggetto: string; corpo: string }) => {
+    try {
+      // Show loading toast
+      toast({
+        title: t('common.sending'),
+        description: t('common.please_wait'),
+      });
+      
+      // Send the email via API
+      const response = await apiRequest(`/api/clients/${clientId}/send-email`, {
+        method: 'POST',
+        body: JSON.stringify({
+          subject: emailData.oggetto,
+          message: emailData.corpo,
+          language: 'italian' // o 'english' in base alle preferenze
+        })
+      });
+      
+      if (response.success) {
+        toast({
+          title: t('client.email_sent'),
+          description: t('client.opportunity_email_sent_success'),
+        });
+        setShowOpportunityDetailDialog(false);
+      } else {
+        toast({
+          title: t('common.error'),
+          description: response.message || t('client.onboarding_email_error'),
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('dashboard.email_error'),
+        variant: 'destructive'
+      });
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 space-y-6">
-      <PageHeader 
-        title={t('dashboard.title')}
-        subtitle={t('dashboard.subtitle')}
-      >
-      </PageHeader>
+      <div className="flex justify-between items-center">
+        <PageHeader 
+          title={t('dashboard.title')}
+          subtitle={t('dashboard.subtitle')}
+        />
+        <Button
+          variant="outline"
+          className="gap-2"
+          onClick={() => setShowOpportunitiesDialog(true)}
+        >
+          <TrendingUp className="h-4 w-4" />
+          {t('dashboard.view_opportunities')}
+        </Button>
+      </div>
+
+      {/* Opportunities Dialog */}
+      <Dialog open={showOpportunitiesDialog} onOpenChange={setShowOpportunitiesDialog}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{t('dashboard.opportunities')}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {isLoadingAIProfiles ? (
+              <div className="py-6 text-center text-muted-foreground">
+                {t('dashboard.loading')}...
+              </div>
+            ) : opportunities.length === 0 ? (
+              <div className="py-6 text-center text-muted-foreground">
+                {t('dashboard.no_opportunities')}
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {opportunities.map((opportunity) => {
+                  const client = clients.find(c => c.id === opportunity.clientId);
+                  const clientAUM = client?.totalAssets || 0;
+                  
+                  return (
+                    <div 
+                      key={opportunity.id}
+                      className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedOpportunity(opportunity);
+                        setShowOpportunityDetailDialog(true);
+                      }}
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <div className={`w-2 h-2 rounded-full ${
+                          opportunity.priority === 1 ? 'bg-red-500' :
+                          opportunity.priority === 2 ? 'bg-orange-500' :
+                          opportunity.priority === 3 ? 'bg-yellow-500' :
+                          opportunity.priority === 4 ? 'bg-blue-500' :
+                          'bg-gray-500'
+                        }`} />
+                        <div className="min-w-[150px]">
+                          <div className="font-medium">{opportunity.clientName}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Priorità {
+                              opportunity.priority === 1 ? 'MASSIMA' :
+                              opportunity.priority === 2 ? 'ALTA' :
+                              opportunity.priority === 3 ? 'MEDIA' :
+                              opportunity.priority === 4 ? 'BASSA' :
+                              'MINIMA'
+                            }
+                          </div>
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{opportunity.title}</div>
+                          <div className="text-sm text-muted-foreground line-clamp-2">
+                            {opportunity.description}
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="ml-4"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOpportunity(opportunity);
+                          setShowOpportunityDetailDialog(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        {t('common.view')}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per visualizzare il dettaglio dell'opportunità */}
+      <Dialog open={showOpportunityDetailDialog} onOpenChange={setShowOpportunityDetailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{selectedOpportunity?.title}</DialogTitle>
+            <DialogDescription>
+              Cliente: {selectedOpportunity?.clientName} - Priorità {
+                selectedOpportunity?.priority === 1 ? 'MASSIMA' :
+                selectedOpportunity?.priority === 2 ? 'ALTA' :
+                selectedOpportunity?.priority === 3 ? 'MEDIA' :
+                selectedOpportunity?.priority === 4 ? 'BASSA' :
+                'MINIMA'
+              }
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold mb-1">Descrizione</h3>
+              <p className="text-sm">{selectedOpportunity?.description}</p>
+            </div>
+            
+            {selectedOpportunity?.azioni && selectedOpportunity.azioni.length > 0 && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Azioni consigliate</h3>
+                <ul className="list-disc list-inside text-sm space-y-1">
+                  {selectedOpportunity.azioni.map((azione: string, idx: number) => (
+                    <li key={idx}>{azione}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {selectedOpportunity?.email && (
+              <div>
+                <h3 className="text-sm font-semibold mb-1">Email consigliata</h3>
+                <Card className="p-4 bg-muted/50">
+                  <div className="space-y-3">
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground mb-1">Oggetto:</h4>
+                      <input 
+                        type="text" 
+                        className="w-full px-3 py-2 border rounded-md text-sm" 
+                        value={selectedOpportunity.email.oggetto} 
+                        onChange={(e) => {
+                          if (selectedOpportunity) {
+                            const updatedOpportunity = {...selectedOpportunity};
+                            updatedOpportunity.email.oggetto = e.target.value;
+                            setSelectedOpportunity(updatedOpportunity);
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-medium text-muted-foreground mb-1">Corpo:</h4>
+                      <textarea 
+                        className="w-full px-3 py-2 border rounded-md text-sm h-32" 
+                        value={selectedOpportunity.email.corpo} 
+                        onChange={(e) => {
+                          if (selectedOpportunity) {
+                            const updatedOpportunity = {...selectedOpportunity};
+                            updatedOpportunity.email.corpo = e.target.value;
+                            setSelectedOpportunity(updatedOpportunity);
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            )}
+          </div>
+          
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="default"
+              onClick={() => {
+                if (selectedOpportunity) {
+                  handleSendEmail(selectedOpportunity.clientId, selectedOpportunity.email);
+                  setShowOpportunityDetailDialog(false);
+                }
+              }}
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              {t('dashboard.send_email')}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* 🔷 Dashboard Overview (at-a-glance) */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
