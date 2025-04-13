@@ -6,7 +6,7 @@
 import { Request, Response } from 'express';
 import { storage } from '../storage';
 import { Client, ClientLog } from '@shared/schema';
-import { generateAdvisorSuggestions, AiClientProfile, generateClientProfile } from './openai-service';
+import { AiClientProfile, generateClientProfile } from './openai-service';
 
 // Validità cache: 12 ore
 const CACHE_VALIDITY_HOURS = 12;

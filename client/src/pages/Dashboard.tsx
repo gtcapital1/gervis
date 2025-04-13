@@ -89,7 +89,7 @@ import {
   HoverCardContent,
   HoverCardTrigger
 } from "@/components/ui/hover-card";
-import AdvisorSuggestionsButton from "@/components/dashboard/AdvisorSuggestionsButton";
+
 
 // Definizione delle interfacce per i tipi di dati
 interface Task {
@@ -1106,7 +1106,6 @@ export default function Dashboard() {
         title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
       >
-        <AdvisorSuggestionsButton />
       </PageHeader>
 
       {/* 🔷 Dashboard Overview (at-a-glance) */}

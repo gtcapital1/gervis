@@ -8,8 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Brain, Sparkles } from 'lucide-react';
+import { RefreshCcw, Brain, Sparkles, Mail } from 'lucide-react';
 import { httpRequest } from '@/lib/queryClient';
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 interface AiClientProfileProps {
   clientId: number;
@@ -19,10 +21,10 @@ interface AiClientProfileProps {
 interface ProfileItem {
   title: string;
   description: string;
-  actions?: string[]; // Azioni consigliate (nuovo formato)
+  actions?: string[]; // Azioni consigliate
 }
 
-// Nuove interfacce per il formato aggiornato
+// Interfacce per il formato aggiornato
 interface ClienteProfilo {
   descrizione: string;  // Campo unico con riassunto completo
 }
@@ -31,15 +33,14 @@ interface OpportunitaBusiness {
   titolo: string;
   descrizione: string;
   azioni: string[];
+  priorita: number;
+  email?: { oggetto: string; corpo: string };
 }
 
 // Interfaccia per i dati di profilo arricchito
 interface ProfileData {
-  // Nuovo formato con profilo cliente e opportunità
   profiloCliente?: ClienteProfilo;
   opportunitaBusiness?: OpportunitaBusiness[];
-  // Per retrocompatibilità
-  raccomandazioni?: ProfileItem[] | OpportunitaBusiness[] | string;
 }
 
 // Interfaccia per la risposta dell'API
@@ -50,6 +51,46 @@ interface ProfileResponse {
   lastGenerated?: string;
   upToDate?: boolean;
   message?: string;
+}
+
+// Funzione per ottenere il colore del badge in base alla priorità
+function getPriorityBadgeColor(priority: number) {
+  switch(priority) {
+    case 1:
+      return "bg-red-500 hover:bg-red-600";
+    case 2:
+      return "bg-orange-500 hover:bg-orange-600";
+    case 3:
+      return "bg-yellow-500 hover:bg-yellow-600";
+    case 4:
+      return "bg-blue-500 hover:bg-blue-600";
+    default:
+      return "bg-gray-500 hover:bg-gray-600";
+  }
+}
+
+// Funzione per ottenere il testo della priorità
+function getPriorityText(priority: number) {
+  switch(priority) {
+    case 1:
+      return "MASSIMA";
+    case 2:
+      return "ALTA";
+    case 3:
+      return "MEDIA";
+    case 4:
+      return "BASSA";
+    default:
+      return "MINIMA";
+  }
+}
+
+// Funzione per gestire l'invio dell'email
+function handleSendEmail(email: { oggetto: string; corpo: string }) {
+  // Apri il client di posta predefinito con l'email precompilata
+  const mailtoLink = `mailto:?subject=${encodeURIComponent(email.oggetto)}&body=${encodeURIComponent(email.corpo)}`;
+  window.location.href = mailtoLink;
+  toast.success("Email aperta nel client di posta predefinito");
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
@@ -336,10 +377,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
 
   // Se c'è un errore, mostra un messaggio di errore
   if (isError) {
-    // Estrai il messaggio di errore
-    const errorMessage = (error as Error)?.message || t('error_generating_profile');
-    const isQuotaError = errorMessage.includes("Credito OpenAI esaurito") || errorMessage.includes("quota");
-    
     return (
       <Card>
         <CardHeader>
@@ -350,27 +387,110 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         </CardHeader>
         <CardContent>
           <Alert variant="destructive">
-            <AlertTitle>{isQuotaError ? t('quota_error_title') : t('error')}</AlertTitle>
+            <AlertTitle>Errore</AlertTitle>
             <AlertDescription>
-              {isQuotaError ? t('quota_error_description') : errorMessage}
+              {error instanceof Error ? error.message : 'Si è verificato un errore durante la generazione del profilo AI'}
             </AlertDescription>
           </Alert>
-          {!isQuotaError && (
-            <div className="mt-4 text-right">
-              <Button onClick={handleGenerateProfile} variant="outline" size="sm">
+          <Button 
+            onClick={handleGenerateProfile} 
+            className="mt-4"
+            variant="outline"
+          >
                 <RefreshCcw className="mr-2 h-4 w-4" />
-                {t('refresh')}
-              </Button>
+            Riprova
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Se ci sono dati, mostra il profilo
+  if (data?.data) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle>Sigmund</CardTitle>
+            <CardDescription>
+              Analisi e raccomandazioni basate su intelligenza artificiale
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={handleGenerateProfile} 
+            variant="outline" 
+            size="icon"
+            title={t('refresh_profile')}
+          >
+            <RefreshCcw className="h-4 w-4" />
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {/* Profilo Cliente */}
+          {data.data.profiloCliente && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="text-lg font-semibold mb-2">Profilo Cliente</h3>
+                <div className="text-sm text-muted-foreground">
+                  {formatContent(data.data.profiloCliente.descrizione)}
+                </div>
+              </div>
             </div>
           )}
-          {isQuotaError && (
-            <div className="mt-4 text-xs text-muted-foreground bg-amber-50 p-2 rounded-md border border-amber-200">
-              <p className="font-semibold text-amber-700">{t('quota_error_help')}</p>
-              <ol className="list-decimal ml-4 mt-1 text-amber-700">
-                <li>Verifica il credito disponibile nel tuo account OpenAI</li>
-                <li>Aggiorna il piano di fatturazione se necessario</li>
-                <li>Oppure aggiorna la chiave API nelle impostazioni</li>
-              </ol>
+
+          {/* Opportunità di Business */}
+          {data.data.opportunitaBusiness && data.data.opportunitaBusiness.length > 0 && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-lg font-semibold">Opportunità di Business</h3>
+              {data.data.opportunitaBusiness.map((opportunita, index) => (
+                <Card key={index} className="bg-muted">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base">{opportunita.titolo}</CardTitle>
+                        <Badge className={getPriorityBadgeColor(opportunita.priorita)}>
+                          Priorità {getPriorityText(opportunita.priorita)}
+                        </Badge>
+                      </div>
+                      {opportunita.email && (
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          className="flex items-center gap-2"
+                          onClick={() => handleSendEmail(opportunita.email!)}
+                        >
+                          <Mail className="h-4 w-4" />
+                          Invia Email
+              </Button>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {opportunita.descrizione}
+                    </p>
+                    {opportunita.azioni && opportunita.azioni.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Azioni Suggerite:</h4>
+                        <ul className="list-disc list-inside text-sm text-muted-foreground">
+                          {opportunita.azioni.map((azione, idx) => (
+                            <li key={idx}>{azione}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {/* Messaggio se non ci sono dati */}
+          {(!data.data.profiloCliente && (!data.data.opportunitaBusiness || data.data.opportunitaBusiness.length === 0)) && (
+            <div className="text-center py-6">
+              <p className="text-muted-foreground">
+                Nessun dato disponibile. Prova a rigenerare il profilo.
+              </p>
             </div>
           )}
         </CardContent>
@@ -416,7 +536,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   }
 
   // Se non ci sono dati o i dati non sono formattati correttamente
-  if (!data?.data?.raccomandazioni) {
+  if (!data?.data?.profiloCliente && !data?.data?.opportunitaBusiness) {
     return (
       <Card>
         <CardHeader>
@@ -561,15 +681,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                   )}
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Fallback per il vecchio formato di raccomandazioni se non sono disponibili i nuovi dati */}
-        {!data?.data?.profiloCliente && !data?.data?.opportunitaBusiness && data?.data?.raccomandazioni && (
-        <div className="space-y-4">
-          <div className="space-y-6">
-            {formatContent(data?.data?.raccomandazioni)}
           </div>
         </div>
         )}

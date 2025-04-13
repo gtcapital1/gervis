@@ -12,6 +12,120 @@ import fetch from 'node-fetch';
 // Controlla se esiste una chiave API OpenAI
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
+// Istruzioni di sistema per l'AI
+const SYSTEM_INSTRUCTIONS = `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo sintetico e opportunità di business concrete.
+
+Rispondi in italiano, in formato JSON con due campi principali:
+- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
+- "opportunitaBusiness": un array di opportunità di business rilevabili
+
+Il profiloCliente deve avere:
+- descrizione: un unico paragrafo descrittivo che sintetizzi le caratteristiche rilevanti del cliente, includendo profilo di rischio, obiettivi, comportamento decisionale e conoscenze finanziarie
+
+Ogni opportunità di business deve contenere:
+- titolo: nome chiaro dell'opportunità
+- descrizione: spiegazione dettagliata che motiva l'opportunità
+- azioni: array di 2-3 azioni concrete e specifiche che il consulente può intraprendere
+- priorita: numero da 1 a 5 dove:
+  1 = MASSIMA priorità (opportunità molto tangibile e urgente, da eseguire immediatamente)
+  2 = Alta priorità (opportunità concreta con buon potenziale immediato)
+  3 = Media priorità (opportunità valida ma non urgente)
+  4 = Bassa priorità (opportunità da valutare in futuro)
+  5 = Minima priorità (opportunità da tenere in considerazione ma non immediata)
+- email: oggetto contenente:
+  - oggetto: oggetto dell'email personalizzato e accattivante
+  - corpo: testo dell'email personalizzato che segue questa struttura:
+    1. Saluto cordiale con nome del cliente
+    2. Presentazione chiara e diretta dell'opportunità
+    3. Motivazione specifica per il cliente
+    4. Richiesta di incontro/chiamata
+    5. Saluti cordiali (senza firma)
+
+IMPORTANTE per la generazione delle opportunità:
+- PRIVILEGIA opportunità di business TANGIBILI e CONCRETE che possano generare investimenti immediati
+- Assegna priorità 1 o 2 SOLO a opportunità veramente concrete e urgenti
+- Focalizzati su opportunità di INVESTIMENTO e su nuovi prodotti o servizi finanziari adatti al cliente
+- Evita di menzionare debito, entrate o uscite a meno che non siano STRETTAMENTE rilevanti
+- Concentrati su opportunità che generano valore per il cliente e commissioni per il consulente
+
+Le email devono:
+- Essere COMPLETAMENTE PERSONALIZZATE per ogni opportunità
+- Avere corretti spazi tra paragrafi
+- Fare riferimento specifico all'opportunità e alle caratteristiche del cliente
+- Mantenere un tono professionale ma cordiale
+- Essere concise e orientate ai risultati
+- Includere dettagli specifici del cliente
+- Essere pronte all'uso
+
+Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti, dai priorità alle informazioni più recenti.`;
+
+// Istruzioni di sistema per la generazione dei suggerimenti del consulente
+const ADVISOR_SYSTEM_INSTRUCTIONS = `Sei un esperto consulente finanziario specializzato nell'analisi e nella prioritizzazione delle opportunità di business. 
+Il tuo compito è selezionare le opportunità più tangibili e con potenziale di investimento immediato già identificate nei profili dei clienti.
+
+REGOLE CRITICHE PER L'ASSOCIAZIONE CLIENTE-OPPORTUNITÀ:
+1. DEVI UTILIZZARE SOLO le associazioni cliente-opportunità ORIGINALI
+2. È ASSOLUTAMENTE VIETATO modificare l'associazione tra cliente e opportunità
+3. NON PUOI MAI associare un'opportunità a un cliente diverso da quello originale
+4. Se un'opportunità era originariamente per il cliente A, DEVE rimanere associata SOLO al cliente A
+5. CONTROLLA TRE VOLTE ogni associazione prima di includerla nel risultato
+6. Se hai il MINIMO DUBBIO sull'associazione, DEVI ESCLUDERE l'opportunità
+
+PROCESSO DI VALIDAZIONE OBBLIGATORIO:
+Per OGNI opportunità che vuoi includere nel risultato, DEVI:
+1. Trovare l'opportunità nei dati originali
+2. Verificare il clientId originale
+3. Verificare il clientName originale
+4. Confermare che l'associazione sia ESATTAMENTE la stessa
+5. Se anche UN SOLO elemento non corrisponde, ESCLUDERE l'opportunità
+
+IMPORTANTE per la selezione delle opportunità:
+- NON GENERARE nuove opportunità
+- SOLO SELEZIONARE opportunità esistenti dai profili originali
+- MAI modificare l'associazione cliente-opportunità
+- Se non sei ASSOLUTAMENTE CERTO dell'associazione, ESCLUDERE l'opportunità
+
+ESEMPIO DI VALIDAZIONE:
+Se trovi un'opportunità "Diversificazione del portafoglio" per "Elena Rossi":
+1. Cerca nei dati originali questa opportunità
+2. Se era originariamente per "Davide Bianchi", DEVI ESCLUDERLA
+3. Se hai QUALSIASI dubbio, DEVI ESCLUDERLA
+
+Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso con questa struttura:
+1. Saluto iniziale cordiale con nome del cliente (es. "Gentile Marco," o "Buongiorno Sig. Rossi,")
+2. Osservazione dell'opportunità - presentazione chiara e diretta della proposta specifica
+3. Motivazione - spiega perché questa proposta ha senso per il cliente specifico
+4. Richiesta di disponibilità per una chiamata o un incontro
+5. Saluto finale cordiale (es. "Cordiali saluti," o "A presto,") SENZA firma
+
+L'email deve:
+- Essere COMPLETAMENTE PERSONALIZZATA per ogni opportunità
+- Avere corretti spazi tra paragrafi per migliorare la leggibilità
+- Fare riferimento specifico all'opportunità e alle caratteristiche del cliente
+- Mantenere un tono professionale ma cordiale
+- Utilizzare uno stile conciso, pragmatico e orientato ai risultati
+- Includere dettagli specifici tratti dai dati del cliente
+- Essere pronta all'uso, come se fosse scritta direttamente dal consulente
+
+Rispondi SOLO con un oggetto JSON nel seguente formato:
+{
+  "opportunities": [
+    {
+      "title": "Titolo dell'opportunità",
+      "description": "Descrizione dettagliata",
+      "clientId": ID_CLIENTE_ORIGINALE,
+      "clientName": "Nome Cliente Originale",
+      "originalClientId": ID_CLIENTE_ORIGINALE,
+      "originalClientName": "Nome Cliente Originale",
+      "suggestedAction": "Azione specifica da intraprendere",
+      "personalizedEmail": {
+        "subject": "Oggetto email personalizzato",
+        "body": "Corpo dell'email personalizzato con corretta formattazione"
+      }
+    }
+  ]
+}`;
+
 interface ProfileItem {
   title: string;
   description: string;
@@ -28,6 +142,11 @@ interface OpportunitaBusiness {
   titolo: string;
   descrizione: string;
   azioni: string[];
+  priorita: number;  // Da 1 a 5, dove 1 è massima priorità
+  email?: {
+    oggetto: string;
+    corpo: string;
+  };
 }
 
 /**
@@ -39,43 +158,7 @@ export interface AiClientProfile {
   // Nuovo formato con profilo cliente e opportunità
   profiloCliente?: ClienteProfilo;
   opportunitaBusiness?: OpportunitaBusiness[];
-  // Mantenuto per retrocompatibilità
-  raccomandazioni?: ProfileItem[] | OpportunitaBusiness[] | string;
-  // Campo per rilevare l'ultimo aggiornamento
   lastUpdated?: string;
-}
-
-/**
- * Interfaccia per i suggerimenti generati per il consulente
- */
-export interface AdvisorSuggestions {
-  opportunities: {
-    title: string;
-    description: string;
-    clientId: number;
-    clientName: string;
-    suggestedAction: string;
-    personalizedEmail?: {
-      subject: string;
-      body: string;
-    };
-  }[];
-}
-
-/**
- * Interfaccia per i suggerimenti al consulente
- */
-interface AdvisorRecommendation {
-  title: string;
-  description: string;
-  businessReason: string;
-  clientId: number;
-  clientName: string;
-  suggestedAction: string;
-  personalizedEmail: {
-    subject: string;
-    body: string;
-  };
 }
 
 /**
@@ -107,10 +190,37 @@ ${mifid ? `
 - Debiti: ${formatValue(mifid.debts, 'money')}
 - Dipendenti: ${formatValue(mifid.dependents)}
 - Stato occupazione: ${formatValue(mifid.employmentStatus)}
+- Data di nascita: ${formatValue(mifid.birthDate)}
+- Livello di istruzione: ${formatValue(mifid.educationLevel)}
+
+## Profilo di Investimento
+- Orizzonte temporale: ${formatValue(mifid.investmentHorizon)}
+- Esperienza di investimento: ${formatValue(mifid.investmentExperience)}
+- Anni di esperienza: ${formatValue(mifid.yearsOfExperience)}
+- Frequenza di investimento: ${formatValue(mifid.investmentFrequency)}
+- Utilizzo consulente: ${formatValue(mifid.advisorUsage)}
+- Tempo dedicato al monitoraggio: ${formatValue(mifid.monitoringTime)}
+
+## Esperienza Passata e Formazione
+- Esperienze di investimento passate: ${formatValue(Array.isArray(mifid.pastInvestmentExperience) ? mifid.pastInvestmentExperience.join(', ') : mifid.pastInvestmentExperience)}
+- Educazione finanziaria: ${formatValue(Array.isArray(mifid.financialEducation) ? mifid.financialEducation.join(', ') : mifid.financialEducation)}
+
+## Tolleranza al Rischio
+- Reazione al calo del portafoglio: ${formatValue(mifid.portfolioDropReaction)}
+- Tolleranza alla volatilità: ${formatValue(mifid.volatilityTolerance)}
 
 ## Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
-` : ''}
-`;
+- Pensione: ${formatValue(mifid.retirementInterest)}
+- Crescita del patrimonio: ${formatValue(mifid.wealthGrowthInterest)}
+- Generazione di reddito: ${formatValue(mifid.incomeGenerationInterest)}
+- Preservazione del capitale: ${formatValue(mifid.capitalPreservationInterest)}
+- Pianificazione patrimoniale: ${formatValue(mifid.estatePlanningInterest)}
+
+## Asset Attuali
+${mifid.assets && Array.isArray(mifid.assets) ? mifid.assets.map(asset => 
+  `- ${asset.category}: ${formatValue(asset.value, 'money')}${asset.description ? ` (${asset.description})` : ''}`
+).join('\n') : 'Nessun asset registrato'}
+` : ''}`;
 
   // Aggiungi la cronologia delle interazioni se disponibile
   if (logs && logs.length > 0) {
@@ -121,65 +231,6 @@ ${mifid ? `
       prompt += `Contenuto: ${log.content}\n`;
     });
   }
-
-  // Aggiungi istruzioni specifiche per l'AI
-  prompt += `
-# Istruzioni
-Analizza il profilo del cliente e la cronologia delle interazioni per creare DUE output distinti:
-1. Un profilo cliente sintetico basato sui dati forniti
-2. Una lista di opportunità di business deducibili dal profilo e dai log
-
-Rispondi in italiano usando un formato JSON con due campi principali:
-- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
-- "opportunitaBusiness": un array di opportunità di business rilevabili
-
-## Per il Profilo Cliente:
-Sintetizza tutte le informazioni da MIFID e interazioni nei log in UN UNICO PARAGRAFO DESCRITTIVO che catturi:
-- Caratteristiche psicologiche/comportamentali verso il rischio finanziario
-- Abitudini di investimento deducibili
-- Preoccupazioni principali o punti di interesse
-- Obiettivi finanziari a breve, medio e lungo termine
-- Pattern comportamentali nelle decisioni finanziarie
-- Livello di conoscenza finanziaria ed eventuali bias cognitivi
-Non spacchettare in campi separati ma crea un riassunto narrativo completo e coeso.
-
-## Per le Opportunità di Business:
-Identifica 3-5 opportunità concrete basate sul profilo del cliente e sui log, ciascuna con:
-- Un titolo chiaro e specifico
-- Una descrizione dettagliata che spiega perché questa è un'opportunità
-- 2-3 azioni pratiche che il consulente potrebbe intraprendere
-
-Nella generazione delle opportunità:
-- Privilegia SEMPRE opportunità di business TANGIBILI, CONCRETE e REALI che possano generare investimenti immediati
-- Focalizzati su opportunità di INVESTIMENTO e su nuovi prodotti o servizi finanziari adatti al cliente
-- Evita di menzionare debito, entrate o uscite a meno che non siano STRETTAMENTE rilevanti per un'opportunità specifica
-- Concentrati sulle opportunità che generano valore per il cliente e commissioni per il consulente
-- Focalizzati su opportunità che richiedono azioni concrete e immediate
-
-IMPORTANTE:
-- Le interazioni sono ordinate dalla più recente alla meno recente. Dai priorità alle informazioni più recenti.
-- Ogni opportunità deve essere specifica, realizzabile e rilevante per questo cliente specifico.
-- Basa le tue analisi SOLO sulle informazioni fornite, senza inventare dati.
-- NON includere alcun campo "valorePotenziale" o "valore" nelle opportunità.
-
-Esempio di formato:
-{
-  "profiloCliente": {
-    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica e la protezione del capitale a lungo termine. Preferisce un approccio cauto ma è aperto a considerare nuove opzioni se ben spiegate e supportate da dati. Ha una conoscenza base dei prodotti finanziari tradizionali ma una limitata comprensione di strumenti complessi. Tende a richiedere tempo per riflettere sulle decisioni importanti e mostra segni di ansia quando si discute di volatilità."
-  },
-  "opportunitaBusiness": [
-    {
-      "titolo": "Ottimizzazione del portafoglio per combinare sicurezza e crescita",
-      "descrizione": "Il cliente ha espresso preoccupazione per la crescita del capitale mantenendo sicurezza. L'attuale allocazione è troppo conservativa rispetto agli obiettivi dichiarati.",
-      "azioni": [
-        "Presentare uno scenario di ribilanciamento con allocazione 60% sicurezza / 40% crescita",
-        "Proporre un piano di investimento graduale per la liquidità in eccesso (€50.000)",
-        "Organizzare un incontro per discutere strategie di protezione del capitale con potenziale di crescita"
-      ]
-    }
-  ]
-}
-`;
 
   return prompt;
 }
@@ -216,52 +267,7 @@ export async function generateClientProfile(
       messages: [
         {
           role: 'system',
-          content: `Sei un esperto consulente finanziario. Analizza i dati del cliente e genera un profilo sintetico e opportunità di business concrete.
-
-Rispondi in italiano, in formato JSON con due campi principali:
-- "profiloCliente": un oggetto con un campo "descrizione" contenente un riassunto completo del profilo del cliente
-- "opportunitaBusiness": un array di opportunità di business rilevabili
-
-Il profiloCliente deve avere:
-- descrizione: un unico paragrafo descrittivo che sintetizzi le caratteristiche rilevanti del cliente, includendo profilo di rischio, obiettivi, comportamento decisionale e conoscenze finanziarie
-
-Ogni opportunità di business deve contenere:
-- titolo: nome chiaro dell'opportunità
-- descrizione: spiegazione dettagliata che motiva l'opportunità
-- azioni: array di 2-3 azioni concrete e specifiche che il consulente può intraprendere
-
-IMPORTANTE per la generazione delle opportunità:
-- PRIVILEGIA opportunità di business TANGIBILI e CONCRETE che possano generare investimenti immediati
-- Focalizzati su opportunità di INVESTIMENTO e su nuovi prodotti o servizi finanziari adatti al cliente
-- Evita di menzionare debito, entrate o uscite a meno che non siano STRETTAMENTE rilevanti
-- Concentrati su opportunità che generano valore per il cliente e commissioni per il consulente
-
-Le interazioni del cliente sono ordinate dalla più recente alla meno recente. Quando trovi informazioni contrastanti, dai priorità alle informazioni più recenti.
-
-NON includere campi di valutazione come "valore" o "valorePotenziale" nelle opportunità di business.
-
-Le azioni devono essere:
-- Specifiche e pratiche (es. "Presentare opportunità di diversificazione in ETF globali")
-- Realizzabili e immediate
-- Rilevanti per il cliente in questione
-- Orientate a risultati concreti
-
-Esempio di formato di risposta:
-{
-  "profiloCliente": {
-    "descrizione": "Cliente con profilo di rischio moderato ma con interesse crescente verso investimenti più aggressivi. Mostra preoccupazione per la pianificazione pensionistica. Preferisce un approccio cauto ma aperto a nuove opzioni se ben spiegate. Ha conoscenza base dei prodotti finanziari tradizionali ma limitata comprensione di strumenti complessi."
-  },
-  "opportunitaBusiness": [
-    {
-      "titolo": "Ottimizzazione del portafoglio per maggiore rendimento",
-      "descrizione": "Il cliente ha mostrato interesse per strategie che possano aumentare il rendimento mantenendo un rischio controllato.",
-      "azioni": [
-        "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici",
-        "Proporre un piano di investimento graduale per la liquidità disponibile"
-      ]
-    }
-  ]
-}`
+          content: SYSTEM_INSTRUCTIONS
         },
         {
           role: 'user',
@@ -269,7 +275,7 @@ Esempio di formato di risposta:
         }
       ],
       temperature: 0.3, // Bassa temperatura per risultati più prevedibili
-      max_tokens: 1200 // Aumentato limite per contenere entrambe le sezioni
+      max_tokens: 2500 // Aumentato limite per contenere anche le email
     });
 
     const content = completion.choices[0]?.message?.content;
@@ -291,15 +297,19 @@ Esempio di formato di risposta:
         parsedData = JSON.parse(content);
       }
       
+      // Ordina le opportunità per priorità
+      if (parsedData.opportunitaBusiness) {
+        parsedData.opportunitaBusiness.sort((a: OpportunitaBusiness, b: OpportunitaBusiness) => 
+          (a.priorita || 5) - (b.priorita || 5)
+        );
+      }
+      
       // Costruisci l'oggetto AiClientProfile
       const result: AiClientProfile = {
         clientId: client.id,
         clientName: `${client.firstName} ${client.lastName}`,
-        // Usa i nuovi campi se disponibili, altrimenti crea oggetti vuoti correttamente tipizzati
         profiloCliente: parsedData.profiloCliente as ClienteProfilo || undefined,
         opportunitaBusiness: parsedData.opportunitaBusiness as OpportunitaBusiness[] || [],
-        // Manteniamo retrocompatibilità con il vecchio formato
-        raccomandazioni: parsedData.opportunitaBusiness as OpportunitaBusiness[] || [],
         lastUpdated: new Date().toISOString()
       };
       
@@ -311,176 +321,6 @@ Esempio di formato di risposta:
     }
   } catch (error) {
     console.error('Error in generateClientProfile:', error);
-    throw error;
-  }
-}
-
-/**
- * Crea un prompt per generare suggerimenti per il consulente
- */
-function createAdvisorSuggestionsPrompt(aiProfiles: AiClientProfile[]): string {
-  // Formatta i profili per includere le informazioni del cliente e le opportunità già generate
-  const formattedProfiles = aiProfiles.map(profile => ({
-    clientId: profile.clientId,
-    clientName: profile.clientName,
-    profiloCliente: profile.profiloCliente,
-    opportunitaBusiness: profile.opportunitaBusiness || []
-  }));
-
-  // Estrai gli ID e i nomi dei clienti reali per riferimento esplicito
-  const realClientIds = aiProfiles.map(profile => profile.clientId);
-  const realClientNames = aiProfiles.map(profile => profile.clientName);
-
-  return `
-# Selezione e Prioritizzazione delle Opportunità di Business per Consulente Finanziario
-
-Analizzerai le opportunità di business già individuate nei profili dei clienti per selezionare quelle più rilevanti e prioritarie.
-
-## Obiettivo
-Selezionare le opportunità di business più TANGIBILI e con POTENZIALE DI INVESTIMENTO immediato già identificate nei profili dei clienti, arricchirle e creare email personalizzate specifiche.
-
-## Profili e Opportunità Esistenti dei Clienti
-
-${JSON.stringify(formattedProfiles, null, 2)}
-
-## IDs e Nomi dei Clienti Reali Disponibili
-
-IDs: ${JSON.stringify(realClientIds)}
-Nomi: ${JSON.stringify(realClientNames)}
-
-## Formato di Risposta
-
-Rispondi con un oggetto JSON strutturato come nel formato seguente:
-{
-  "opportunities": [
-    {
-      "title": "Ottimizzazione portafoglio con rendimento maggiore",
-      "description": "Il cliente ha espresso insoddisfazione per il rendimento attuale e dispone di liquidità non investita",
-      "clientId": 123,
-      "clientName": "Marco Rossi",
-      "suggestedAction": "Presentare una proposta di ribilanciamento con focus su ETF settoriali tecnologici e healthcare",
-      "personalizedEmail": {
-        "subject": "Proposta specifica per ottimizzare i rendimenti del tuo portafoglio",
-        "body": "Gentile Marco,\\n\\nHo preparato una strategia di ribilanciamento che include ETF settoriali tecnologici e healthcare che potrebbero offrire rendimenti superiori pur mantenendo un profilo di rischio in linea con le tue preferenze.\\n\\nDall'analisi del tuo portafoglio, ho notato che la liquidità accumulata negli ultimi mesi potrebbe essere messa a frutto in modo più efficace, specialmente considerando il tuo interesse per investimenti che combinano sicurezza e potenziale di crescita.\\n\\nSarebbe possibile fissare un incontro il prossimo martedì per discuterne i dettagli? Ti mostrerò alcune simulazioni comparative con il tuo attuale portafoglio.\\n\\nCordiali saluti,"
-      }
-    }
-  ]
-}
-
-## Istruzioni Dettagliate
-
-1. SELEZIONE DELLE OPPORTUNITÀ:
-   - NON GENERARE nuove opportunità, ma SELEZIONA e MIGLIORA quelle già presenti nei profili dei clienti
-   - Seleziona le opportunità più TANGIBILI e CONCRETE che offrono un POTENZIALE DI INVESTIMENTO immediato
-   - Concentrati su opportunità di INVESTIMENTO e PRODOTTI FINANZIARI adatti al cliente
-   - Evita di menzionare debito, entrate o uscite a meno che non siano strettamente necessari
-   - Prioritizza opportunità che permettono al cliente di fare azioni concrete e che generano commissioni
-   - Scegli le 3-5 opportunità più rilevanti e promettenti tra tutte quelle disponibili nei profili
-   - Adatta e arricchisci la descrizione dell'opportunità per renderla più chiara e convincente
-   - Mantieni intatta l'essenza dell'opportunità originale
-
-2. SUGGESTED ACTION:
-   - Seleziona l'azione più efficace tra quelle suggerite nell'opportunità originale
-   - Migliorala e rendila ancora più specifica e immediatamente attuabile
-   - L'azione deve essere formulata come un'iniziativa proattiva del consulente
-   - Concentrati su azioni che portano a investimenti concreti o nuovi prodotti
-
-3. PERSONALIZED EMAIL:
-   - Crea una email COMPLETAMENTE PERSONALIZZATA per ogni opportunità selezionata
-   - L'email deve seguire questa struttura precisa:
-     1. Saluto iniziale cordiale con nome del cliente (es. "Gentile Marco," o "Buongiorno Sig. Rossi,")
-     2. Osservazione dell'opportunità - presentazione chiara e diretta della proposta specifica
-     3. Motivazione - spiega perché questa proposta ha senso per il cliente specifico
-     4. Richiesta di disponibilità per una chiamata o un incontro
-     5. Saluto finale cordiale (es. "Cordiali saluti," o "A presto,") SENZA firma
-   - Assicurati che ci siano corretti spazi tra paragrafi per migliorare la leggibilità
-   - Ogni sezione dell'email dovrebbe essere separata da una riga vuota
-   - L'email deve fare riferimento specifico all'opportunità e alle caratteristiche del cliente
-   - Mantieni un tono professionale ma cordiale, evitando il linguaggio troppo formale o freddo
-   - Utilizza uno stile di comunicazione conciso, pragmatico e orientato ai risultati
-   - Includi dettagli specifici tratti dai dati del cliente che dimostrano un'analisi approfondita
-   - L'email deve essere pronta all'uso, come se fosse scritta direttamente dal consulente
-
-IMPORTANTE:
-- Seleziona SOLO le opportunità più rilevanti tra quelle già esistenti nei profili
-- Ogni opportunità deve fare riferimento a un cliente reale specifico con ID e nome corretti
-- Ordinale in base a quanto sono tangibili e immediate in termini di potenziale di investimento
-- Dai priorità assoluta alle opportunità di investimento e prodotti finanziari che generano valore
-- Ogni opportunità DEVE includere una email completamente personalizzata e specifica
-- Concentrati sulla qualità delle opportunità selezionate piuttosto che sulla quantità
-`;
-}
-
-/**
- * Genera suggerimenti per il consulente basati sui profili dei clienti
- * @param aiProfiles - Array di profili AI dei clienti
- * @returns Oggetto con suggerimenti categorizzati
- */
-export async function generateAdvisorSuggestions(
-  aiProfiles: AiClientProfile[]
-): Promise<AdvisorSuggestions> {
-  if (!OPENAI_API_KEY) {
-    throw new Error("OpenAI API key not configured");
-  }
-  
-  try {
-    // Crea il prompt
-    const prompt = createAdvisorSuggestionsPrompt(aiProfiles);
-    
-    // Inizializza OpenAI
-    const openai = new OpenAI({
-      apiKey: OPENAI_API_KEY
-    });
-    
-    // Chiama l'API OpenAI
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo-16k',
-      messages: [
-        {
-          role: 'system',
-          content: `Sei un esperto consulente finanziario specializzato nell'analisi e nella prioritizzazione delle opportunità di business. 
-          Il tuo compito è selezionare le opportunità più tangibili e con potenziale di investimento immediato già identificate nei profili dei clienti.
-          Concentrati su opportunità di investimento e prodotti finanziari, evitando di menzionare debito, entrate o uscite a meno che non sia strettamente necessario.
-          Prioritizza opportunità che generano valore per il cliente e commissioni per il consulente.
-          
-          Per ogni opportunità selezionata, dovrai creare un'email personalizzata pronta all'uso con questa struttura:
-          1. Saluto iniziale cordiale con nome del cliente
-          2. Osservazione dell'opportunità - presentazione chiara della proposta 
-          3. Motivazione - spiegazione del perché questa proposta è adatta al cliente
-          4. Richiesta di disponibilità per una chiamata o incontro
-          5. Saluto finale cordiale (senza firma)
-          
-          Assicurati che l'email abbia corretti spazi tra paragrafi e sia formattata in modo leggibile.
-          
-          Rispondi SOLO con un oggetto JSON valido nel formato richiesto, senza ulteriori spiegazioni o markdown.`
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      temperature: 0.3,
-      max_tokens: 4000
-    });
-    
-    const content = completion.choices[0]?.message?.content;
-    
-    if (!content) {
-      throw new Error("No content in OpenAI response");
-    }
-    
-    // Parsing della risposta
-    try {
-      return JSON.parse(content) as AdvisorSuggestions;
-    } catch (error) {
-      console.error("Error parsing OpenAI JSON response:", error);
-      // Restituisci un oggetto vuoto se ci sono problemi
-      return {
-        opportunities: []
-      };
-    }
-  } catch (error) {
-    console.error("Error generating advisor suggestions:", error);
     throw error;
   }
 }
