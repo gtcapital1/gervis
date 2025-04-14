@@ -100,9 +100,10 @@ Il tuo compito è:
            * Quali benefici specifici potrebbe ottenere il cliente da questa idea
 
 IMPORTANTE:
+- Usa il titolo originale della notizia
+- DEVI basare l'idea sulla notizia e non sui dati dei clienti. I dati dei clienti sono solo per fare il matching con le idee d'investimento. Non generare idee d'investimento che non sono presenti nelle notizie.
 - Per ogni cliente, il campo 'profile' contiene le raccomandazioni generate precedentemente sulla base di un'analisi approfondita dei dati del cliente
-- Utilizza queste raccomandazioni come principale criterio per determinare la rilevanza di un'idea d'investimento
-- Non è necessario menzionare esplicitamente la fonte di queste raccomandazioni nel testo
+- Utilizza queste raccomandazioni come principale criterio per determinare in match con l'idea di investimento
 
 Rispondi con un JSON valido e strutturato esattamente nel seguente formato:
 {
