@@ -7,6 +7,7 @@ import { promisify } from "util";
 import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { sendVerificationPin } from "./email";
+import nodemailer from "nodemailer";
 
 declare global {
   namespace Express {
@@ -557,6 +558,53 @@ export function setupAuth(app: Express) {
         registrationCompleted: true,
         verificationPin: null // Cancella il PIN dopo l'uso
       });
+
+      // Send notification email to registration@gervis.it
+      try {
+        const notificationHtml = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.5;">
+            <h2 style="color: #0066cc;">Nuova Registrazione Completata</h2>
+            <p>Un nuovo utente ha completato la registrazione su Gervis:</p>
+            <ul>
+              <li><strong>Nome:</strong> ${user.firstName} ${user.lastName}</li>
+              <li><strong>Email:</strong> ${user.email}</li>
+              <li><strong>Azienda:</strong> ${user.company || 'Non specificata'}</li>
+              <li><strong>Indipendente:</strong> ${user.isIndependent ? 'Sì' : 'No'}</li>
+              <li><strong>Telefono:</strong> ${user.phone || 'Non specificato'}</li>
+            </ul>
+            <p>L'utente ha verificato con successo il proprio indirizzo email.</p>
+          </div>
+        `;
+
+        // Use the same SMTP configuration as the verification email
+        const arubaConfig = {
+          host: process.env.SMTP_HOST || 'smtp.aruba.it',
+          port: 465,
+          secure: true,
+          auth: {
+            user: 'registration@gervis.it',
+            pass: process.env.SMTP_PASS || '',
+            method: 'LOGIN'
+          },
+          tls: {
+            rejectUnauthorized: process.env.NODE_ENV !== 'development'
+          }
+        };
+
+        const transporter = nodemailer.createTransport(arubaConfig);
+        
+        await transporter.sendMail({
+          from: '"Gervis" <registration@gervis.it>',
+          to: 'registration@gervis.it',
+          subject: 'Nuova Registrazione Completata - Gervis',
+          html: notificationHtml
+        });
+
+        console.log("[Verify PIN] Email di notifica inviata a registration@gervis.it");
+      } catch (notificationError) {
+        console.error("[Verify PIN Error] Errore nell'invio dell'email di notifica:", notificationError);
+        // Continue with verification even if notification email fails
+      }
       
       // Prepariamo la risposta in base allo stato di approvazione
       const isPending = updatedUser.approvalStatus === 'pending';
