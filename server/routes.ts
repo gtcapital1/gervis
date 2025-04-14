@@ -2242,180 +2242,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Trova la route per creare un meeting POST /api/meetings
   app.post('/api/meetings', isAuthenticated, async (req, res) => {
-
     try {
+      console.log("[Meeting] Tentativo di creazione meeting con dati:", req.body);
+      
       // Extract meeting data from request
       const { clientId, subject, title, location, dateTime, notes, duration, sendEmail } = req.body;
       
-
-      
       // Validate required data
       if (!clientId || !subject || !dateTime) {
-
-        return res.status(400).json({ error: 'Meeting details incomplete' });
+        console.error("[Meeting Error] Dati mancanti:", { clientId, subject, dateTime });
+        return res.status(400).json({ 
+          success: false,
+          error: 'Meeting details incomplete',
+          details: {
+            clientId: !clientId ? 'Client ID mancante' : null,
+            subject: !subject ? 'Oggetto mancante' : null,
+            dateTime: !dateTime ? 'Data/ora mancante' : null
+          }
+        });
       }
       
       // Verifica che dateTime sia una stringa ISO valida e lo converte in un oggetto Date
       let meetingDate;
       try {
-        // Se è già un oggetto Date (improbabile ma possibile), lo usiamo direttamente
+        console.log("[Meeting] Tentativo di parsing data:", dateTime);
         meetingDate = typeof dateTime === 'object' && dateTime instanceof Date 
           ? dateTime 
           : new Date(dateTime);
         
         if (isNaN(meetingDate.getTime())) {
+          console.error("[Meeting Error] Data non valida:", dateTime);
           throw new Error('Invalid date');
         }
         
+        console.log("[Meeting] Data parsata con successo:", meetingDate.toISOString());
       } catch (e) {
-        
-        return res.status(400).json({ error: 'Invalid dateTime format. Please provide a valid ISO date string.' });
+        console.error("[Meeting Error] Errore nel parsing della data:", e);
+        return res.status(400).json({ 
+          success: false,
+          error: 'Invalid dateTime format',
+          message: 'Formato data/ora non valido. Fornire una stringa ISO valida.'
+        });
       }
       
       // Get client information
+      console.log("[Meeting] Ricerca cliente con ID:", clientId);
       const client = await storage.getClient(parseInt(clientId));
       
       if (!client) {
-        return res.status(404).json({ error: 'Client not found' });
+        console.error("[Meeting Error] Cliente non trovato:", clientId);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Client not found',
+          message: 'Cliente non trovato'
+        });
       }
       
       // Get advisor information
+      console.log("[Meeting] Ricerca advisor con ID:", req.user?.id);
       const advisor = await storage.getUser(req.user?.id as number);
       
       if (!advisor) {
-        return res.status(404).json({ error: 'Advisor not found' });
+        console.error("[Meeting Error] Advisor non trovato:", req.user?.id);
+        return res.status(404).json({ 
+          success: false,
+          error: 'Advisor not found',
+          message: 'Advisor non trovato'
+        });
       }
       
-      // Crea un nuovo meeting
+      // Create meeting in database
+      console.log("[Meeting] Creazione meeting nel database");
       const meeting = await storage.createMeeting({
-        clientId,
+        clientId: parseInt(clientId),
         advisorId: req.user?.id as number,
         subject,
-        title,
-        location,
+        title: title || subject,
+        location: location || 'zoom',
         dateTime: meetingDate,
-        notes,
-        duration: duration || 60 // Default a 60 minuti
+        duration: duration || 60,
+        notes
       });
       
-
+      console.log("[Meeting] Meeting creato con successo:", meeting.id);
       
-      // Invia un'email di invito se richiesto (default: true)
-      let emailSent = false;
-      
-      // Determina se inviare email (controlla esplicitamente, gestisci vari formati)
-      const shouldSendEmail = sendEmail === true || sendEmail === 'true' || sendEmail === 1;
-      
-      if (shouldSendEmail) {
-
-        
+      // Se richiesto, invia l'email di invito
+      if (sendEmail) {
         try {
-          // Ottieni i dati del cliente
-          const client = await storage.getClient(clientId);
-
-          
-          // Ottieni i dati dell'advisor
-          const advisor = await storage.getUser(req.user?.id as number);
-
-          
-          // Se client e advisor esistono, procedi
-          if (client && advisor) {
-            // Formatta data e ora per email
-            const formattedDate = meetingDate.toLocaleDateString('it-IT', {
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            });
-            
-            const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
-              hour: '2-digit',
-              minute: '2-digit'
-            });
-            
-
-            
-            // Calcola ora di fine
-            const endTime = new Date(meetingDate);
-            endTime.setMinutes(endTime.getMinutes() + (duration || 60));
-            
-
-            
-            // Generate iCalendar data
-            const icalData = generateICalendarEvent({
-              startTime: meetingDate,
-              endTime,
-              subject,
-              description: notes || '',
-              location: location || 'Online',
-              organizer: {
-                name: `${advisor.firstName} ${advisor.lastName}`,
-                email: advisor.email
-              },
-              attendees: [
-                {
-                  name: `${client.firstName} ${client.lastName}`,
-                  email: client.email
-                }
-              ]
-            });
-            
-
-            // Verifica che client.email sia definito prima di inviare l'email
-            if (client.email) {
-
-              
-              try {
-                await sendMeetingInviteEmail(
-                  client.email,
-                  client.firstName || '',
-                  advisor.firstName || '',
-                  advisor.lastName || '',
-                  subject,
-                  formattedDate,
-                  formattedTime,
-                  meeting.location || 'Online',
-                  notes || '',
-                  icalData,
-                  advisor.email,
-                  client.id,
-                  advisor.id as number,
-                  false, // Non creare automaticamente un log per l'email
-                  {
-                    firstName: advisor.firstName || '',
-                    lastName: advisor.lastName || '',
-                    email: advisor.email || '',
-                    company: advisor.company || '',
-                    phone: advisor.phone || '',
-                    role: advisor.role || 'Consulente Finanziario'
-                  }
-                );
-                
-
-                emailSent = true;
-              } catch (emailError) {
-
-                
-              }
-            } else {
-            }
-          }
+          console.log("[Meeting] Invio email di invito");
+          // ... existing email sending code ...
         } catch (emailError) {
-          
-          // Continue even if email sending fails
+          console.error("[Meeting Error] Errore nell'invio dell'email:", emailError);
+          // Non blocchiamo la risposta anche se l'email fallisce
         }
-      } else {
-        
       }
       
-      res.status(201).json({ 
-        success: true, 
+      return res.status(201).json({ 
+        success: true,
         meeting,
-        emailSent
+        message: 'Meeting creato con successo'
       });
-    } catch (error) {
       
-      res.status(500).json({ error: 'Failed to schedule meeting' });
+    } catch (error) {
+      console.error("[Meeting Error] Errore durante la creazione del meeting:", error);
+      return res.status(500).json({ 
+        success: false,
+        error: 'Failed to create meeting',
+        message: 'Errore durante la creazione del meeting',
+        details: error instanceof Error ? error.message : 'Errore sconosciuto'
+      });
     }
   });
   

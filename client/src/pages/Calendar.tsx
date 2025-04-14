@@ -141,34 +141,34 @@ export default function CalendarPage() {
   
   // Mutation per aggiornare un meeting
   const updateMeetingMutation = useMutation({
-    mutationFn: (data: { id: number, title: string, location: string, dateTime: string, duration: number, notes?: string, sendEmail?: boolean }) => {
-      return apiRequest(`/api/meetings/${data.id}`, {
+    mutationFn: async (meeting: Meeting) => {
+      console.log("[Calendar] Tentativo di aggiornamento meeting:", meeting);
+      const response = await apiRequest(`/api/meetings/${meeting.id}`, {
         method: 'PUT',
-        body: JSON.stringify({
-          title: data.title,
-          location: data.location,
-          dateTime: data.dateTime,
-          duration: data.duration,
-          notes: data.notes,
-          sendEmail: data.sendEmail
-        }),
+        body: JSON.stringify(meeting),
       });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Errore durante l\'aggiornamento del meeting');
+      }
+      return response.data.meeting;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[Calendar] Meeting aggiornato con successo:", data);
       setIsEditDialogOpen(false);
       toast({
-        title: t('dashboard.meeting_updated'),
-        description: t('dashboard.meeting_updated_success'),
+        title: "Successo",
+        description: "Meeting aggiornato con successo",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     },
     onError: (error) => {
+      console.error("[Calendar Error] Errore nell\'aggiornamento del meeting:", error);
       toast({
-        title: "Error",
-        description: "Failed to update meeting. Please try again.",
+        title: "Errore",
+        description: error instanceof Error ? error.message : 'Errore durante l\'aggiornamento del meeting',
         variant: "destructive",
       });
-    },
+    }
   });
   
   // Mutation per eliminare un meeting
@@ -181,15 +181,15 @@ export default function CalendarPage() {
     onSuccess: () => {
       setIsDeleteDialogOpen(false);
       toast({
-        title: t('dashboard.meeting_deleted'),
-        description: t('dashboard.meeting_deleted_success'),
+        title: "Successo",
+        description: "Meeting eliminato con successo",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     },
     onError: (error) => {
       toast({
-        title: "Error",
-        description: "Failed to delete meeting. Please try again.",
+        title: "Errore",
+        description: error instanceof Error ? error.message : 'Errore durante la cancellazione del meeting',
         variant: "destructive",
       });
     },
@@ -197,33 +197,38 @@ export default function CalendarPage() {
   
   // Mutation per creare un nuovo meeting
   const createMeetingMutation = useMutation({
-    mutationFn: (data: { clientId: number, subject: string, dateTime: string, duration: number, location: string, notes: string }) => {
-      
-      return apiRequest('/api/meetings', {
+    mutationFn: async (meeting: Meeting) => {
+      console.log("[Calendar] Tentativo di creazione meeting:", meeting);
+      const response = await apiRequest('/api/meetings', {
         method: 'POST',
-        body: JSON.stringify(data),
+        body: JSON.stringify(meeting),
       });
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Errore durante la creazione del meeting');
+      }
+      return response.data.meeting;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("[Calendar] Meeting creato con successo:", data);
       setIsCreateDialogOpen(false);
       setNewEventClientId(null);
       setEventTitle("");
       setNewEventNotes("");
       setSelectedTimeSlot("");
       toast({
-        title: "Meeting creato",
-        description: "Il meeting è stato creato con successo.",
+        title: "Successo",
+        description: "Meeting creato con successo",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     },
     onError: (error) => {
-      
+      console.error("[Calendar Error] Errore nella creazione del meeting:", error);
       toast({
         title: "Errore",
-        description: "Impossibile creare il meeting. Riprova più tardi.",
+        description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
         variant: "destructive",
       });
-    },
+    }
   });
   
   // Funzioni per gestire l'editing di un evento
@@ -255,32 +260,28 @@ export default function CalendarPage() {
         const dateTime = new Date(eventDate);
         dateTime.setHours(hours, minutes, 0, 0);
         
-        // Verifica che dateTime sia un oggetto Date valido e converti a stringa ISO
-        
-        
-        // Converte la data in una stringa ISO standard
-        const dateTimeStr = dateTime.toISOString();
-        
         updateMeetingMutation.mutate({
           id: editingEvent.id,
+          advisorId: 1, // TODO: Sostituire con l'ID dell'advisor corretto
+          clientId: editingEvent.clientId,
           title: eventTitle,
-          location: eventLocation,
-          dateTime: dateTimeStr,
+          subject: eventTitle, // Usiamo il titolo come subject
+          dateTime: dateTime,
           duration: eventDuration,
+          location: eventLocation,
           notes: newEventNotes,
           sendEmail: sendMeetingUpdateEmail
         });
       } catch (error) {
-        
         toast({
-          title: "Errore data",
+          title: "Errore",
           description: "Si è verificato un errore con la data selezionata. Riprova.",
           variant: "destructive",
         });
       }
     } else {
       toast({
-        title: "Campi mancanti",
+        title: "Errore",
         description: "Compilare tutti i campi richiesti (titolo e data).",
         variant: "destructive",
       });
@@ -416,15 +417,15 @@ export default function CalendarPage() {
       setNewEventNotes("");
       setSelectedTimeSlot("");
       toast({
-        title: "Meeting creato",
-        description: "Il meeting è stato creato con successo.",
+        title: "Successo",
+        description: "Meeting creato con successo",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     }).catch((error) => {
       
       toast({
         title: "Errore",
-        description: "Impossibile creare il meeting. Riprova più tardi.",
+        description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
         variant: "destructive",
       });
     });
@@ -496,25 +497,32 @@ export default function CalendarPage() {
       
       // Formatta la data target in YYYY-MM-DD
       const targetDateStr = format(targetDate, 'yyyy-MM-dd');
-      const hourStr = hour.split(':')[0];
-      
-      
+      const [targetHour, targetMinute] = hour.split(':').map(Number);
       
       // Filtra gli eventi che hanno la stessa data e lo stesso orario
       const filteredEvents = events.filter(event => {
         const matchesDate = event.date === targetDateStr;
-        const matchesHour = event.startTime.startsWith(hourStr);
+        const [eventHour, eventMinute] = event.startTime.split(':').map(Number);
         
-        if (matchesDate && matchesHour) {
-          
-        }
+        // Confronta ora e minuti
+        const matchesHour = eventHour === targetHour;
+        
+        // Log per debug
+        console.log('Event check:', {
+          eventDate: event.date,
+          targetDate: targetDateStr,
+          eventTime: event.startTime,
+          targetHour,
+          matchesDate,
+          matchesHour
+        });
         
         return matchesDate && matchesHour;
       });
       
       return filteredEvents;
     } catch (e) {
-      
+      console.error('Error in getEventsForHourAndDay:', e);
       return [];
     }
   };

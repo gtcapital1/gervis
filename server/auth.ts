@@ -232,19 +232,56 @@ export function setupAuth(app: Express) {
     try {
       console.log("[Register] Tentativo di registrazione per:", req.body.email);
       
-      // Check if email already exists
-      const existingUser = await storage.getUserByEmail(req.body.email);
-      if (existingUser) {
-        console.log("[Register] Email già registrata:", req.body.email);
+      // Validazione dei campi obbligatori
+      const { email, password, firstName, lastName } = req.body;
+      
+      if (!email || !password || !firstName || !lastName) {
         return res.status(400).json({ 
           success: false, 
-          message: "Email already registered" 
+          message: "Tutti i campi obbligatori devono essere compilati",
+          error: "missing_required_fields",
+          details: {
+            email: !email ? "Email mancante" : null,
+            password: !password ? "Password mancante" : null,
+            firstName: !firstName ? "Nome mancante" : null,
+            lastName: !lastName ? "Cognome mancante" : null
+          }
+        });
+      }
+
+      // Validazione formato email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "Formato email non valido",
+          error: "invalid_email_format"
+        });
+      }
+
+      // Validazione lunghezza password
+      if (password.length < 8) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "La password deve essere di almeno 8 caratteri",
+          error: "password_too_short"
+        });
+      }
+      
+      // Check if email already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        console.log("[Register] Email già registrata:", email);
+        return res.status(400).json({ 
+          success: false, 
+          message: "Questa email è già registrata. Prova ad effettuare il login o recupera la password.",
+          error: "email_already_registered"
         });
       }
       
       // Format firstName and lastName with first letter uppercase and rest lowercase
-      const formattedFirstName = req.body.firstName.charAt(0).toUpperCase() + req.body.firstName.slice(1).toLowerCase();
-      const formattedLastName = req.body.lastName.charAt(0).toUpperCase() + req.body.lastName.slice(1).toLowerCase();
+      const formattedFirstName = firstName.charAt(0).toUpperCase() + firstName.slice(1).toLowerCase();
+      const formattedLastName = lastName.charAt(0).toUpperCase() + lastName.slice(1).toLowerCase();
       
       // Generate a username based on firstName and lastName with a random suffix to ensure uniqueness
       const randomSuffix = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
@@ -258,13 +295,13 @@ export function setupAuth(app: Express) {
       
       // Generate verification PIN and token for security
       const verificationPin = generateVerificationPin();
-      const verificationToken = generateVerificationToken(); // Manteniamo anche il token per sicurezza
+      const verificationToken = generateVerificationToken();
       const verificationTokenExpires = getTokenExpiryTimestamp();
       
       console.log("[Register] Preparazione dati utente per creazione");
       
       // Hash password before storing
-      const hashedPassword = await hashPassword(req.body.password);
+      const hashedPassword = await hashPassword(password);
       console.log("[Register] Password hashata con successo");
       
       // Log the user object being created (without password)
@@ -315,7 +352,12 @@ export function setupAuth(app: Express) {
         req.login(user, (err: any) => {
           if (err) {
             console.error("[Register Error] Errore durante login post-registrazione:", err);
-            return next(err);
+            return res.status(500).json({
+              success: false,
+              message: "Errore durante il login automatico dopo la registrazione",
+              error: "login_failed",
+              details: err.message
+            });
           }
           console.log("[Register] Registrazione completata con successo");
           res.status(201).json({ 
@@ -334,8 +376,8 @@ export function setupAuth(app: Express) {
         return res.status(500).json({
           success: false,
           message: "Errore durante la registrazione",
-          error: errorMessage,
-          stack: errorStack
+          error: "user_creation_failed",
+          details: errorMessage
         });
       }
     } catch (err: unknown) {
@@ -347,14 +389,39 @@ export function setupAuth(app: Express) {
       return res.status(500).json({
         success: false,
         message: "Errore durante la registrazione",
-        error: errorMessage,
-        stack: errorStack
+        error: "registration_failed",
+        details: errorMessage
       });
     }
   });
 
   app.post("/api/login", (req, res, next) => {
     console.log("[Login] Tentativo di login per:", req.body.email);
+    
+    // Validazione dei campi obbligatori
+    const { email, password } = req.body;
+    
+    if (!email || !password) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Email e password sono obbligatori",
+        error: "missing_credentials",
+        details: {
+          email: !email ? "Email mancante" : null,
+          password: !password ? "Password mancante" : null
+        }
+      });
+    }
+
+    // Validazione formato email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: "Formato email non valido",
+        error: "invalid_email_format"
+      });
+    }
     
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
@@ -369,9 +436,8 @@ export function setupAuth(app: Express) {
         return res.status(500).json({ 
           success: false, 
           message: "Errore durante il login", 
-          error: err.message,
-          errorType: errorType,
-          stack: err.stack
+          error: "authentication_error",
+          details: err.message
         });
       }
       
@@ -379,27 +445,18 @@ export function setupAuth(app: Express) {
         console.log("[Login Failed] Utente non trovato o password errata");
         return res.status(401).json({ 
           success: false, 
-          message: "Email o password non validi" 
+          message: "Email o password non validi",
+          error: "invalid_credentials"
         });
       }
-      
-      
       
       // Check if email is verified
       if (!user.isEmailVerified) {
         return res.status(403).json({
           success: false,
           message: "Email non verificata. Per favore controlla la tua casella di posta per completare la verifica.",
+          error: "email_not_verified",
           needsVerification: true
-        });
-      }
-      
-      // Check if user is approved
-      if (user.approvalStatus === 'pending') {
-        return res.status(403).json({
-          success: false,
-          message: "In attesa di approvazione da parte del management di Gervis",
-          pendingApproval: true
         });
       }
       
@@ -408,33 +465,37 @@ export function setupAuth(app: Express) {
         return res.status(403).json({
           success: false,
           message: "La tua registrazione è stata rifiutata. Per favore contatta l'amministratore per maggiori informazioni.",
+          error: "account_rejected",
           rejected: true
         });
       }
       
-      
-      
       req.login(user, (err: any) => {
         if (err) {
           console.error("[Login Error] Errore durante login.session:", err);
-          // Mostra dettagli dell'errore nella risposta
           return res.status(500).json({ 
             success: false, 
             message: "Errore durante il login (sessione)", 
-            error: err.message,
-            stack: err.stack
+            error: "session_error",
+            details: err.message
           });
         }
         
         // Verifica che il login sia avvenuto correttamente
         if (req.isAuthenticated()) {
-          
-          
+          return res.status(200).json({ 
+            success: true, 
+            user,
+            message: "Login effettuato con successo",
+            pendingApproval: user.approvalStatus === 'pending'
+          });
         } else {
-
+          return res.status(500).json({
+            success: false,
+            message: "Errore durante l'autenticazione della sessione",
+            error: "session_authentication_failed"
+          });
         }
-        
-        return res.status(200).json({ success: true, user });
       });
     })(req, res, next);
   });
