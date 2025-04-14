@@ -260,13 +260,23 @@ export default function CalendarPage() {
         const dateTime = new Date(eventDate);
         dateTime.setHours(hours, minutes, 0, 0);
         
+        // Converti la data in UTC mantenendo lo stesso orario locale
+        const utcDate = new Date(dateTime.getTime() - (dateTime.getTimezoneOffset() * 60000));
+        
+        // Log di debug
+        console.log('Updating meeting with date:', {
+          localDate: dateTime.toISOString(),
+          utcDate: utcDate.toISOString(),
+          timezoneOffset: dateTime.getTimezoneOffset()
+        });
+        
         updateMeetingMutation.mutate({
           id: editingEvent.id,
           advisorId: 1, // TODO: Sostituire con l'ID dell'advisor corretto
           clientId: editingEvent.clientId,
           title: eventTitle,
           subject: eventTitle, // Usiamo il titolo come subject
-          dateTime: dateTime,
+          dateTime: utcDate,
           duration: eventDuration,
           location: eventLocation,
           notes: newEventNotes,
@@ -392,11 +402,15 @@ export default function CalendarPage() {
     const [hours, minutes] = eventTime.split(':').map(Number);
     startDateTime.setHours(hours, minutes, 0, 0);
     
+    // Converti la data in UTC mantenendo lo stesso orario locale
+    const utcDate = new Date(startDateTime.getTime() - (startDateTime.getTimezoneOffset() * 60000));
+    
     // Log di debug
-    
-    
-    
-    
+    console.log('Creating meeting with date:', {
+      localDate: startDateTime.toISOString(),
+      utcDate: utcDate.toISOString(),
+      timezoneOffset: startDateTime.getTimezoneOffset()
+    });
     
     // Creazione evento tramite apiRequest
     apiRequest('/api/meetings', {
@@ -404,7 +418,7 @@ export default function CalendarPage() {
       body: JSON.stringify({
         clientId: newEventClientId,
         subject: eventTitle,
-        dateTime: startDateTime.toISOString(),
+        dateTime: utcDate.toISOString(),
         duration: eventDuration,
         location: eventLocation,
         notes: newEventNotes,
@@ -422,7 +436,6 @@ export default function CalendarPage() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
     }).catch((error) => {
-      
       toast({
         title: "Errore",
         description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
