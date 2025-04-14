@@ -914,7 +914,7 @@
     "title": "Account in Attesa di Approvazione",
     "description": "Il tuo account è in attesa di verifica da parte del team di gestione Gervis",
     "status": "Stato Account: In Attesa",
-    "status_message": "Il tuo account è stato creato ma richiede approvazione prima di poter utilizzare tutte le funzionalità. Questo processo richiede solitamente 1-2 giorni lavorativi.",
+    "status_message": "Il tuo account è stato creato ed è in fase di approvazione. Faremo in fretta.",
     "email_confirmation": "Verifica Completata",
     "email_sent_to": "Email verificata con successo per",
     "next_steps": "Riceverai una notifica via email quando il tuo account sarà approvato. Nel frattempo, puoi tornare alla pagina principale.",
