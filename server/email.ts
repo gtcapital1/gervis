@@ -89,16 +89,27 @@ const options: SMTPTransport.Options = {
 
 // Ottiene il transporter appropriato per un utente dato
 async function getTransporter(userId: number | null) {
+  console.log('[DEBUG] getTransporter - Start for userId:', userId);
+  
   if (!userId) {
+    console.error('[DEBUG] getTransporter - Error: userId is null or undefined');
     throw new Error("Impossibile inviare email: ID utente non specificato");
   }
   
   try {
+    console.log('[DEBUG] getTransporter - Getting user settings from storage');
     // Ottieni le impostazioni email dell'utente
     const user = await storage.getUser(userId);
+    console.log('[DEBUG] getTransporter - User retrieved:', { 
+      userFound: !!user,
+      hasCustomEmail: user?.custom_email_enabled,
+      hasSmtpHost: !!user?.smtp_host,
+      hasSmtpUser: !!user?.smtp_user
+    });
     
     // Se l'utente ha configurazioni email personalizzate e le ha abilitate
     if (user && user.custom_email_enabled && user.smtp_host && user.smtp_user) {
+      console.log('[DEBUG] getTransporter - Using custom SMTP settings');
       const userConfig = {
         smtpHost: user.smtp_host,
         smtpPort: user.smtp_port || 465,
@@ -107,22 +118,37 @@ async function getTransporter(userId: number | null) {
         customEmailEnabled: user.custom_email_enabled
       };
       
-      const emailConfig = getEmailConfig(userConfig);
-      const transporter = createTransporter(emailConfig);
-      
-      // Aggiungiamo i dati utente per generare la firma automaticamente
-      const userData = {
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        company: user.company || undefined,
-        phone: user.phone || undefined,
-        role: user.role || 'Consulente Finanziario'
-      };
-      
-      return { transporter, config: emailConfig, userData };
+      console.log('[DEBUG] getTransporter - Getting email config from user settings');
+      try {
+        const emailConfig = getEmailConfig(userConfig);
+        console.log('[DEBUG] getTransporter - Email config obtained:', { 
+          host: emailConfig.host,
+          port: emailConfig.port,
+          secure: emailConfig.secure
+        });
+        
+        console.log('[DEBUG] getTransporter - Creating custom transporter');
+        const transporter = createTransporter(emailConfig);
+        
+        // Aggiungiamo i dati utente per generare la firma automaticamente
+        const userData = {
+          firstName: user.firstName || '',
+          lastName: user.lastName || '',
+          email: user.email || '',
+          company: user.company || undefined,
+          phone: user.phone || undefined,
+          role: user.role || 'Consulente Finanziario'
+        };
+        
+        console.log('[DEBUG] getTransporter - Returning custom transporter with user data');
+        return { transporter, config: emailConfig, userData };
+      } catch (configError) {
+        console.error('[DEBUG] getTransporter - Error getting email config:', configError);
+        throw configError;
+      }
     } else {
       // Configurazione email di default per utenti senza configurazioni personalizzate
+      console.log('[DEBUG] getTransporter - Using default SMTP settings');
       const defaultConfig = {
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: parseInt(process.env.SMTP_PORT || '587', 10),
@@ -132,6 +158,15 @@ async function getTransporter(userId: number | null) {
         from: process.env.SMTP_USER || ''
       };
       
+      console.log('[DEBUG] getTransporter - Default config:', { 
+        host: defaultConfig.host,
+        port: defaultConfig.port,
+        secure: defaultConfig.secure,
+        hasUser: !!defaultConfig.user,
+        hasPass: !!defaultConfig.pass
+      });
+      
+      console.log('[DEBUG] getTransporter - Creating default transporter');
       const transporter = createTransporter(defaultConfig);
       
       // Dati utente per la firma
@@ -144,10 +179,12 @@ async function getTransporter(userId: number | null) {
         role: user?.role || 'Consulente Finanziario'
       };
       
+      console.log('[DEBUG] getTransporter - Returning default transporter with user data');
       return { transporter, config: defaultConfig, userData };
     }
   } catch (error) {
     // Rilancia l'errore per informare il chiamante del problema
+    console.error('[DEBUG] getTransporter - Error:', error);
     throw error;
   }
 }
@@ -191,12 +228,34 @@ async function sendEmail({
     role?: string;
   } | null;
 }) {
+  console.log('[DEBUG] sendEmail - Start', { 
+    userId, 
+    to: Array.isArray(to) ? `${to.length} recipients` : to,
+    subject,
+    hasFrom: !!from,
+    hasCc: !!cc, 
+    attachmentsCount: attachments?.length || 0,
+    clientId,
+    logEmail,
+    logType,
+    useSignature
+  });
+  
   try {
+    console.log('[DEBUG] sendEmail - Getting transporter for userId:', userId);
     // Ottieni il transporter appropriato
     const { transporter, config, userData } = await getTransporter(userId);
+    console.log('[DEBUG] sendEmail - Transporter obtained', { 
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      hasUser: !!config.user,
+      userDataPresent: !!userData
+    });
     
     // Modifica l'HTML per aggiungere la firma se richiesto e non è già inclusa
     if (useSignature && !html.includes('margin-top: 20px; color: #555; font-size: 14px; border-top: 1px solid #eee;')) {
+      console.log('[DEBUG] sendEmail - Adding signature to HTML');
       // Usa i dati firma personalizzati se forniti, altrimenti usa i dati utente
       const signatureSource = signatureData || {
         firstName: userData.firstName,
@@ -207,15 +266,22 @@ async function sendEmail({
         role: userData.role
       };
       
+      console.log('[DEBUG] sendEmail - Creating signature with data:', {
+        hasFirstName: !!signatureSource.firstName,
+        hasLastName: !!signatureSource.lastName,
+        hasEmail: !!signatureSource.email
+      });
       const signature = createSignature(signatureSource);
       
       // Verifica se esiste un marker per la firma
       if (html.includes('<!-- SIGNATURE_POSITION -->')) {
+        console.log('[DEBUG] sendEmail - Signature marker found, replacing');
         // Inserisci la firma al posto del marker
         html = html.replace('<!-- SIGNATURE_POSITION -->', signature);
       }
       // Altrimenti usiamo il comportamento precedente
       else if (html.includes('</div>')) {
+        console.log('[DEBUG] sendEmail - Adding signature before last div');
         // Trova l'ultima occorrenza di </div> nell'HTML
         const lastDivIndex = html.lastIndexOf('</div>');
         if (lastDivIndex !== -1) {
@@ -225,12 +291,15 @@ async function sendEmail({
           html += signature;
         }
       } else if (html.includes('</body>')) {
+        console.log('[DEBUG] sendEmail - Adding signature before body closing tag');
         html = html.replace('</body>', `${signature}</body>`);
       } else {
+        console.log('[DEBUG] sendEmail - Adding signature at the end of HTML');
         html += signature;
       }
     }
     
+    console.log('[DEBUG] sendEmail - Preparing mail options');
     // Prepara le opzioni email
     const mailOptions: {
       from: string;
@@ -249,14 +318,33 @@ async function sendEmail({
     
     // Aggiungi cc se fornito
     if (cc) {
+      console.log('[DEBUG] sendEmail - Adding CC:', cc);
       mailOptions.cc = cc;
     }
     
+    console.log('[DEBUG] sendEmail - Sending email with options:', {
+      from: mailOptions.from,
+      to: mailOptions.to,
+      subject: mailOptions.subject,
+      hasCC: !!mailOptions.cc,
+      attachmentsCount: mailOptions.attachments?.length || 0
+    });
+    
     // Invia l'email
-    const info = await transporter.sendMail(mailOptions);
+    try {
+      const info = await transporter.sendMail(mailOptions);
+      console.log('[DEBUG] sendEmail - Email sent successfully', { 
+        messageId: info.messageId,
+        response: info.response 
+      });
+    } catch (sendError) {
+      console.error('[DEBUG] sendEmail - Error sending email:', sendError);
+      throw sendError;
+    }
     
     // Registra l'email nei log se richiesto
     if (logEmail && clientId) {
+      console.log('[DEBUG] sendEmail - Logging email to client logs');
       try {
         await storage.createClientLog({
           clientId,
@@ -268,13 +356,17 @@ async function sendEmail({
           logDate: new Date(),
           createdBy: userId
         });
+        console.log('[DEBUG] sendEmail - Email logged successfully');
       } catch (logError) {
         // Non interrompiamo il flusso se la registrazione nel log fallisce
+        console.warn('[DEBUG] sendEmail - Error logging email:', logError);
       }
     }
     
+    console.log('[DEBUG] sendEmail - Complete');
     return true;
   } catch (error) {
+    console.error('[DEBUG] sendEmail - Critical error:', error);
     throw error;
   }
 }
@@ -493,19 +585,44 @@ export async function sendOnboardingEmail(
     role?: string;
   }
 ) {
+  console.log('[DEBUG] sendOnboardingEmail - Start', { 
+    clientEmail, 
+    firstName, 
+    lastName, 
+    language, 
+    hasCustomMessage: !!customMessage, 
+    hasAdvisorSignature: !!advisorSignature,
+    hasAdvisorEmail: !!advisorEmail,
+    hasCustomSubject: !!customSubject,
+    clientId,
+    userId,
+    logEmail,
+    hasSignatureData: !!signatureData
+  });
+  
   try {
     if (!userId) {
+      console.error('[DEBUG] sendOnboardingEmail - Error: userId not specified');
       throw new Error("Impossibile inviare email: ID utente non specificato");
     }
     
+    console.log('[DEBUG] sendOnboardingEmail - Selecting content based on language:', language);
     // Select content based on language
     const content = language === 'english' ? englishContent : italianContent;
+    console.log('[DEBUG] sendOnboardingEmail - Content selected:', { 
+      hasSubject: !!content.subject,
+      hasTitle: !!content.title,
+      hasGreeting: !!content.greeting,
+      hasInvitation: !!content.invitation
+    });
     
     // Format the message content with HTML paragraphs if provided
+    console.log('[DEBUG] sendOnboardingEmail - Formatting message content');
     const messageContent = customMessage 
       ? customMessage.split('\n').map(line => line.trim() ? `<p>${line}</p>` : '<br>').join('')
       : `<p>${content.invitation}</p>`;
     
+    console.log('[DEBUG] sendOnboardingEmail - Building HTML template');
     const html = `
       <!DOCTYPE html>
       <html>
@@ -522,7 +639,6 @@ export async function sendOnboardingEmail(
       <body>
         <div class="container">
         ${content.title ? `<h2 style="color: #0066cc;">${content.title}</h2>` : ''}
-        <p style="margin-bottom: 16px;">${content.greeting(firstName, lastName)}</p>
         ${customMessage ? messageContent : `<p>${content.invitation}</p>`}
         <p style="margin-top: 20px;">${content.callToAction}</p>
         <div style="margin: 30px 0;">
@@ -538,11 +654,15 @@ export async function sendOnboardingEmail(
       </html>
     `;
     
+    console.log('[DEBUG] sendOnboardingEmail - Setting email subject');
     // Utilizziamo prioritariamente il valore fornito dall'utente, con fallback solo se vuoto
-    const emailSubject = customSubject && customSubject.trim().length > 0 
+    const emailSubject = typeof customSubject === 'string' && customSubject.trim().length > 0 
       ? customSubject 
       : content.subject;
+      
+    console.log('[DEBUG] sendOnboardingEmail - Final email subject:', emailSubject);
     
+    console.log('[DEBUG] sendOnboardingEmail - Calling sendEmail function');
     return await sendEmail({
       userId,
       to: clientEmail,
@@ -557,6 +677,7 @@ export async function sendOnboardingEmail(
       signatureData: signatureData
     });
   } catch (error) {
+    console.error('[DEBUG] sendOnboardingEmail - Error:', error);
     throw error;
   }
 }
@@ -588,6 +709,23 @@ export async function sendMeetingInviteEmail(
     role?: string;
   }
 ) {
+  console.log('[DEBUG] sendMeetingInviteEmail - Start', { 
+    to, 
+    clientName, 
+    advisorName: `${advisorFirstName} ${advisorLastName}`,
+    subject,
+    date,
+    time,
+    location,
+    hasNotes: !!notes,
+    hasIcalData: !!icalData,
+    advisorEmail,
+    clientId,
+    advisorId,
+    logEmail,
+    hasSignatureData: !!signatureData
+  });
+  
   const emailTemplate = `
 <!DOCTYPE html>
 <html>
@@ -683,6 +821,7 @@ export async function sendMeetingInviteEmail(
 `;
 
   try {
+    console.log('[DEBUG] sendMeetingInviteEmail - Preparing attachments');
     const attachments = [
       {
         filename: 'meeting.ics',
@@ -690,6 +829,15 @@ export async function sendMeetingInviteEmail(
         contentType: 'text/calendar'
       }
     ];
+    
+    console.log('[DEBUG] sendMeetingInviteEmail - Calling sendEmail function with params', {
+      userId: advisorId,
+      recipient: to,
+      subject,
+      hasAttachments: !!attachments.length,
+      clientId,
+      logEmail
+    });
     
     return await sendEmail({
       userId: advisorId,
@@ -706,6 +854,7 @@ export async function sendMeetingInviteEmail(
       signatureData: signatureData
     });
   } catch (error) {
+    console.error('[DEBUG] sendMeetingInviteEmail - Error:', error);
     throw error;
   }
 }
@@ -739,6 +888,25 @@ export async function sendMeetingUpdateEmail(
     role?: string;
   }
 ) {
+  console.log('[DEBUG] sendMeetingUpdateEmail - Start', { 
+    to, 
+    clientName, 
+    advisorName: `${advisorFirstName} ${advisorLastName}`,
+    subject,
+    oldDate,
+    oldTime,
+    newDate,
+    newTime,
+    location,
+    hasNotes: !!notes,
+    hasIcalData: !!icalData,
+    advisorEmail,
+    clientId,
+    advisorId,
+    logEmail,
+    hasSignatureData: !!signatureData
+  });
+  
   const emailTemplate = `
 <!DOCTYPE html>
 <html>
@@ -849,6 +1017,7 @@ export async function sendMeetingUpdateEmail(
 </html>`;
 
   try {
+    console.log('[DEBUG] sendMeetingUpdateEmail - Preparing attachments');
     const attachments = [
       {
         filename: 'meeting.ics',
@@ -857,13 +1026,22 @@ export async function sendMeetingUpdateEmail(
       }
     ];
     
+    console.log('[DEBUG] sendMeetingUpdateEmail - Calling sendEmail function with params', {
+      userId: advisorId,
+      recipient: to,
+      subject: `Aggiornamento meeting: ${subject}`,
+      hasAttachments: !!attachments.length,
+      clientId,
+      logEmail
+    });
+    
     return await sendEmail({
       userId: advisorId,
       to: to,
       subject: `Aggiornamento meeting: ${subject}`,
       html: emailTemplate,
       attachments,
-        clientId,
+      clientId,
       logEmail,
       logType: "meeting_update",
       logTitle: "Aggiornamento meeting",
@@ -872,6 +1050,7 @@ export async function sendMeetingUpdateEmail(
       signatureData: signatureData
     });
   } catch (error) {
+    console.error('[DEBUG] sendMeetingUpdateEmail - Error:', error);
     throw error;
   }
 }

@@ -20,7 +20,7 @@ import {
   insertRecommendationSchema
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
-import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin } from "./email";
+import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
 import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
 import { getClientProfile, updateClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
@@ -1006,22 +1006,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         try {
           // Send the onboarding email
-          await sendOnboardingEmail(
-            client.email,
+          console.log('[DEBUG-ROUTES] Before sending onboarding email', {
+            clientEmail: client.email,
             firstName,
             lastName,
-            link,
-            language as 'english' | 'italian',
-            customMessage,
-            advisor?.signature || undefined,
-            advisor?.email,
-            customSubject,
-            client.id,        // ID del cliente per il log
-            req.user?.id,     // ID dell'advisor che ha richiesto l'invio
-            true              // Registra l'email nei log
-          );
-          // Se arriviamo qui, l'email è stata inviata con successo
-          emailSent = true;
+            linkLength: link.length,
+            language,
+            hasCustomMessage: !!customMessage,
+            hasAdvisorSignature: !!advisor?.signature,
+            hasAdvisorEmail: !!advisor?.email,
+            hasCustomSubject: !!customSubject,
+            clientId: client.id,
+            userId: req.user?.id
+          });
+          
+          try {
+            await sendOnboardingEmail(
+              client.email,
+              firstName,
+              lastName,
+              link,
+              language as 'english' | 'italian',
+              customMessage,
+              advisor?.signature || undefined,
+              advisor?.email,
+              customSubject,
+              client.id,        // ID del cliente per il log
+              req.user?.id,     // ID dell'advisor che ha richiesto l'invio
+              true              // Registra l'email nei log
+            );
+            console.log('[DEBUG-ROUTES] Onboarding email sent successfully');
+            // Se arriviamo qui, l'email è stata inviata con successo
+            emailSent = true;
+          } catch (innerEmailError) {
+            console.error('[DEBUG-ROUTES] Error sending onboarding email:', innerEmailError);
+            throw innerEmailError; // Rilanciamo per gestire nel catch esterno
+          }
           
           
           // Log dettagliati anche in caso di successo
@@ -2330,7 +2350,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (sendEmail) {
         try {
           console.log("[Meeting] Invio email di invito");
-          // ... existing email sending code ...
+          
+          // Calcola l'ora di fine basata sulla durata
+          const endTime = new Date(meetingDate);
+          endTime.setMinutes(endTime.getMinutes() + (duration || 60));
+          
+          // Formatta le date per l'email
+          const formattedDate = meetingDate.toLocaleDateString('it-IT', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+          
+          const formattedTime = meetingDate.toLocaleTimeString('it-IT', {
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+          
+          // Genera iCalendar data
+          const icalData = generateICalendarEvent({
+            startTime: meetingDate,
+            endTime,
+            subject,
+            description: notes || '',
+            location: location || 'Videoconferenza',
+            organizer: { 
+              name: advisor.name || advisor.username, 
+              email: advisor.email || '' 
+            },
+            attendees: [
+              { 
+                name: `${client.firstName} ${client.lastName}`, 
+                email: client.email 
+              }
+            ]
+          });
+          
+          // Separa il nome dell'advisor
+          const advisorName = advisor.name || advisor.username;
+          const advisorNameParts = advisorName.split(' ');
+          const advisorFirstName = advisorNameParts[0] || advisorName;
+          const advisorLastName = advisorNameParts.slice(1).join(' ') || '';
+
+          console.log("[Meeting] Invio email di invito a meeting", {
+            clientEmail: client.email,
+            clientName: client.firstName,
+            advisorName: `${advisorFirstName} ${advisorLastName}`,
+            subject,
+            date: formattedDate,
+            time: formattedTime
+          });
+          
+          await sendMeetingInviteEmail(
+            client.email,
+            client.firstName,
+            advisorFirstName,
+            advisorLastName,
+            subject,
+            formattedDate,
+            formattedTime,
+            location || "Videoconferenza",
+            notes || '',
+            icalData,
+            advisor.email || '',
+            client.id,
+            req.user?.id as number,
+            true, // log email
+            {
+              firstName: advisor.firstName || '',
+              lastName: advisor.lastName || '',
+              email: advisor.email || '',
+              company: advisor.company || '',
+              phone: advisor.phone || '',
+              role: advisor.role || 'Consulente Finanziario'
+            }
+          );
+          
+          console.log("[Meeting] Email di invito inviata con successo");
+          
         } catch (emailError) {
           console.error("[Meeting Error] Errore nell'invio dell'email:", emailError);
           // Non blocchiamo la risposta anche se l'email fallisce
@@ -3177,6 +3275,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Rotta per inviare email di onboarding al cliente
   app.post('/api/clients/:clientId/onboarding-email', isAuthenticated, async (req, res) => {
+    console.log('******************************');
+    console.log('ROTTA ONBOARDING EMAIL CHIAMATA');
+    console.log('Parametri:', {
+      clientId: req.params.clientId,
+      body: req.body,
+      userId: req.user?.id
+    });
+    console.log('******************************');
+    
     try {
       const clientId = parseInt(req.params.clientId);
       if (!req.user || !req.user.id) {
@@ -3187,12 +3294,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const emailSchema = z.object({
         message: z.string().optional(),
         subject: z.string().optional(),
+        customMessage: z.string().optional(),
+        customSubject: z.string().optional(),
+        token: z.string().optional(),
         language: z.enum(['english', 'italian']).default('italian')
       });
       
+      try {
+        const validatedData = emailSchema.parse(req.body);
+        console.log('Dati validati:', validatedData);
+      } catch (parseError) {
+        console.error('Errore di validazione dei dati:', parseError);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Invalid request data', 
+          error: String(parseError) 
+        });
+      }
+      
       const validatedData = emailSchema.parse(req.body);
       
+      console.log('Recupero cliente con ID:', clientId);
       const client = await storage.getClient(clientId);
+      console.log('Cliente recuperato:', client ? {
+        id: client.id,
+        firstName: client.firstName,
+        lastName: client.lastName,
+        email: client.email,
+        hasToken: !!client.onboardingToken
+      } : 'null');
+      
       if (!client) {
         return res.status(404).json({ success: false, message: 'Client not found' });
       }
@@ -3204,6 +3335,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Verifica se il token è valido
       if (!client.onboardingToken) {
+        console.log('Generazione nuovo token (non esistente)');
         // Se il token non esiste, ne generiamo uno nuovo
         const token = crypto.randomBytes(32).toString('hex');
         const tokenExpiry = new Date();
@@ -3217,6 +3349,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         client.onboardingToken = token;
         client.tokenExpiry = tokenExpiry;
       } else if (client.tokenExpiry && new Date(client.tokenExpiry) < new Date()) {
+        console.log('Generazione nuovo token (scaduto)');
         // Se il token è scaduto, ne generiamo uno nuovo
         const token = crypto.randomBytes(32).toString('hex');
         const tokenExpiry = new Date();
@@ -3234,34 +3367,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Costruisci il link di onboarding
       const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
       const onboardingLink = `${baseUrl}/onboarding/${client.onboardingToken}`;
+      console.log('Link onboarding generato:', onboardingLink);
       
       // Ottieni le informazioni dell'advisor
+      console.log('Recupero info advisor con ID:', req.user.id);
       const advisor = await storage.getUser(req.user.id);
+      console.log('Advisor recuperato:', advisor ? {
+        id: advisor.id,
+        name: advisor.name,
+        email: advisor.email,
+        hasCustomEmail: advisor.custom_email_enabled
+      } : 'null');
       
       try {
+        console.log('Preparazione invio email con parametri:', {
+          clientEmail: client.email,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          hasOnboardingLink: !!onboardingLink,
+          language: validatedData.language,
+          hasMessage: !!(validatedData.message || validatedData.customMessage),
+          hasSubject: !!(validatedData.subject || validatedData.customSubject),
+          advisorEmail: req.user.email,
+          clientId,
+          userId: req.user.id
+        });
+        
         // Invia email di onboarding al cliente
         await sendOnboardingEmail(
-          client.email || '',  // Assicura che l'email non sia mai null
-          client.firstName,
-          client.lastName,
-          onboardingLink,
-          validatedData.language,
-          validatedData.message,
-          req.user.email,
-          validatedData.subject,
-          client.id,
-          req.user.id,
-          true // log email
+          client.email || '',               // clientEmail
+          client.firstName,                 // firstName
+          client.lastName,                  // lastName
+          onboardingLink,                   // onboardingLink
+          validatedData.language,           // language
+          validatedData.message || validatedData.customMessage,  // customMessage
+          undefined,                       // advisorSignature (lasciato undefined)
+          req.user.email,                  // advisorEmail
+          validatedData.subject || validatedData.customSubject,  // customSubject
+          Number(clientId),                // clientId
+          Number(req.user.id),             // userId
+          true                            // logEmail
         );
         
+        console.log('Email inviata con successo');
         res.json({
           success: true,
           message: 'Onboarding email sent successfully',
           onboardingLink
         });
-      } catch (emailError) {
+      } catch (emailError: any) {
         // Cattura errori specifici dell'invio email
-        
+        console.error('ERRORE NELL\'INVIO EMAIL:', emailError);
+        console.error('Stack trace:', emailError.stack);
         
         let errorMessage = 'Failed to send onboarding email';
         
@@ -3280,7 +3437,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           configurationRequired: true
         });
       }
-    } catch (error) {
+    } catch (error: any) {
+      console.error('ERRORE GENERALE:', error);
+      console.error('Stack trace:', error.stack);
       safeLog('Errore durante la creazione del link di onboarding', error, 'error');
       handleErrorResponse(res, error, 'Impossibile creare il link di onboarding');
     }
@@ -3598,6 +3757,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       handleErrorResponse(res, error, 'Errore nell\'invio dell\'email');
     }
+  });
+  
+  // Semplice rotta di test per verificare che i console.log funzionino
+  app.get('/api/test-logs', (req, res) => {
+    console.log('TEST LOGS - Questa è una prova per verificare che i console.log funzionino');
+    res.json({ success: true, message: 'Test logs eseguito, controlla il terminale' });
   });
   
   // Create and return the server

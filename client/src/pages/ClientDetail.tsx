@@ -776,9 +776,13 @@ Grazie per la tua fiducia e collaborazione.`
     // Preveniamo il comportamento di default dell'evento
     if (e) e.preventDefault();
     
-    
+    console.log('[DEBUG-FE] handleSendOnboardingEmail - Start', { 
+      hasOnboardingLink: !!onboardingLink,
+      clientId
+    });
     
     if (!onboardingLink) {
+      console.error('[DEBUG-FE] handleSendOnboardingEmail - Error: No onboarding link available');
       toast({
         title: t('error') || "Errore",
         description: t('client.generate_link_first') || "Genera prima un link di onboarding",
@@ -794,7 +798,13 @@ Grazie per la tua fiducia e collaborazione.`
       const tokenMatch = onboardingLink.match(/token=([^&]+)/);
       const token = tokenMatch ? tokenMatch[1] : null;
       
+      console.log('[DEBUG-FE] handleSendOnboardingEmail - Token extracted:', { 
+        hasToken: !!token,
+        tokenLength: token?.length
+      });
+      
       if (!token) {
+        console.error('[DEBUG-FE] handleSendOnboardingEmail - Error: Token not found in link');
         throw new Error("Token non trovato nel link di onboarding");
       }
       
@@ -809,7 +819,13 @@ Grazie per la tua fiducia e collaborazione.`
         token: token
       };
       
-      
+      console.log('[DEBUG-FE] handleSendOnboardingEmail - Sending API request with payload:', { 
+        language: payload.language,
+        sendEmail: payload.sendEmail,
+        hasCustomMessage: !!payload.customMessage,
+        customSubject: payload.customSubject,
+        tokenLength: payload.token.length
+      });
       
       
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-email`, {
@@ -817,9 +833,11 @@ Grazie per la tua fiducia e collaborazione.`
         body: JSON.stringify(payload)
       });
       
+      console.log('[DEBUG-FE] handleSendOnboardingEmail - API response received:', response);
       
       
       if (response.success) {
+        console.log('[DEBUG-FE] handleSendOnboardingEmail - Email sent successfully');
         toast({
           title: t('client.email_sent') || "Email inviata",
           description: t('client.email_sent_success') || "L'email di onboarding è stata inviata con successo",
@@ -828,6 +846,7 @@ Grazie per la tua fiducia e collaborazione.`
       } else {
         // Verifica se è un errore di configurazione email
         if (response.configurationRequired) {
+          console.error('[DEBUG-FE] handleSendOnboardingEmail - Email configuration error:', response);
           toast({
             title: t('client.email_config_error') || "Configurazione email mancante",
             description: t('client.email_config_error_desc') || "È necessario configurare un server SMTP nelle impostazioni utente per inviare email",
@@ -835,6 +854,7 @@ Grazie per la tua fiducia e collaborazione.`
             duration: 10000
           });
         } else {
+          console.error('[DEBUG-FE] handleSendOnboardingEmail - API error:', response);
           toast({
             title: t('error') || "Errore",
             description: response.message || (t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding"),
@@ -843,7 +863,7 @@ Grazie per la tua fiducia e collaborazione.`
         }
       }
     } catch (error) {
-      
+      console.error('[DEBUG-FE] handleSendOnboardingEmail - Exception:', error);
       toast({
         title: t('error') || "Errore",
         description: t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding",
