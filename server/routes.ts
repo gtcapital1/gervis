@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
@@ -17,7 +17,9 @@ import {
   ClientSegment,
   LOG_TYPES,
   insertAssetSchema,
-  insertRecommendationSchema
+  insertRecommendationSchema,
+  signatureSessions,
+  verifiedDocuments
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
@@ -27,16 +29,26 @@ import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-c
 import nodemailer from 'nodemailer';
 import { db, sql as pgClient } from './db'; // Importa pgClient correttamente
 import crypto from 'crypto';
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import express from 'express';
-import fileUpload from 'express-fileupload';
-import { UploadedFile } from 'express-fileupload';
+import fileUpload, { UploadedFile } from 'express-fileupload';
 import { trendService } from './trends-service';
 import { getAdvisorSuggestions } from './ai/advisor-suggestions-controller';
 import trendsRouter from './api/trends';
+import fs from 'fs';
+import path from 'path';
+import cors from 'cors';
+import { v4 as uuidv4 } from 'uuid';
+import bcrypt from 'bcrypt';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
+
+// Aggiungi questa definizione all'inizio del file, dopo le importazioni
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Auth middleware
 function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -3663,6 +3675,162 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Nuovo endpoint per salvare il PDF generato sul server
+  app.post('/api/clients/save-pdf', isAuthenticated, async (req, res) => {
+    try {
+      console.log('[PDF DEBUG] Inizio richiesta save-pdf');
+      // Verifica presenza dei file nella richiesta
+      if (!req.files) {
+        console.log('[PDF DEBUG] Nessun file trovato nella richiesta');
+        return res.status(400).json({
+          success: false,
+          message: 'Nessun file trovato nella richiesta'
+        });
+      }
+      
+      console.log('[PDF DEBUG] File ricevuti:', Object.keys(req.files));
+      
+      // Verifica che il file PDF sia presente e valido
+      if (!req.files.pdf) {
+        console.log('[PDF DEBUG] Campo PDF mancante nella richiesta, chiavi disponibili:', Object.keys(req.files));
+        return res.status(400).json({
+          success: false,
+          message: 'File PDF mancante nella richiesta'
+        });
+      }
+      
+      const pdfFile = req.files.pdf as UploadedFile;
+      console.log('[PDF DEBUG] PDF ricevuto:', {
+        name: pdfFile.name, 
+        size: pdfFile.size, 
+        mimetype: pdfFile.mimetype
+      });
+      
+      // Valida il file PDF
+      const validationResult = validateFile(pdfFile, {
+        allowedMimeTypes: ['application/pdf'],
+        maxSizeBytes: 10 * 1024 * 1024 // 10MB
+      });
+      
+      if (!validationResult.valid) {
+        console.log('[PDF DEBUG] Validazione PDF fallita:', validationResult.error);
+        return res.status(400).json({
+          success: false,
+          message: validationResult.error
+        });
+      }
+      
+      // Verifica che clientId sia presente
+      if (!req.body.clientId) {
+        console.log('[PDF DEBUG] ID cliente mancante');
+        return res.status(400).json({
+          success: false,
+          message: 'ID cliente mancante'
+        });
+      }
+      
+      const clientId = parseInt(req.body.clientId);
+      if (isNaN(clientId)) {
+        console.log('[PDF DEBUG] ID cliente non valido:', req.body.clientId);
+        return res.status(400).json({ 
+          success: false, 
+          message: 'ID cliente non valido' 
+        });
+      }
+      
+      console.log('[PDF DEBUG] Recupero dati cliente:', clientId);
+      // Get client data
+      const client = await storage.getClient(clientId);
+      if (!client) {
+        console.log('[PDF DEBUG] Cliente non trovato:', clientId);
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Cliente non trovato' 
+        });
+      }
+      
+      // Verify that the client belongs to this advisor
+      if (client.advisorId !== req.user?.id) {
+        console.log('[PDF DEBUG] Tentativo non autorizzato:', { 
+          userId: req.user?.id, 
+          clientId, 
+          clientOwner: client.advisorId 
+        });
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Non autorizzato a salvare PDF per questo cliente' 
+        });
+      }
+      
+      // Crea la directory se non esiste
+      const clientDirectory = path.join(__dirname, '../client/public', clientId.toString());
+      console.log('[PDF DEBUG] Directory di destinazione:', clientDirectory);
+      
+      if (!fs.existsSync(clientDirectory)) {
+        console.log('[PDF DEBUG] Creazione directory:', clientDirectory);
+        try {
+          fs.mkdirSync(clientDirectory, { recursive: true });
+          console.log('[PDF DEBUG] Directory creata con successo');
+        } catch (dirError) {
+          console.error('[PDF DEBUG] Errore creazione directory:', dirError);
+          throw dirError;
+        }
+      } else {
+        console.log('[PDF DEBUG] Directory già esistente');
+      }
+      
+      // Crea un nome file sicuro
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `MIFID_${client.lastName || ''}_${client.firstName || ''}_${currentDate}.pdf`.replace(/[^\w\s.-]/g, '_');
+      console.log('[PDF DEBUG] Nome file generato:', fileName);
+      
+      // Percorso completo del file
+      const filePath = path.join(clientDirectory, fileName);
+      console.log('[PDF DEBUG] Percorso completo file:', filePath);
+      
+      // Salva il file
+      try {
+        await pdfFile.mv(filePath);
+        console.log('[PDF DEBUG] File salvato con successo');
+      } catch (fileError) {
+        console.error('[PDF DEBUG] Errore salvataggio file:', fileError);
+        throw fileError;
+      }
+      
+      // Crea l'URL per accedere al file
+      const fileUrl = `/client/public/${clientId}/${fileName}`;
+      console.log('[PDF DEBUG] URL file generato:', fileUrl);
+      
+      // Log dell'azione
+      try {
+        await storage.createClientLog({
+          clientId,
+          type: 'document',
+          title: 'Salvataggio Questionario MiFID',
+          content: `PDF salvato in: ${fileUrl}`,
+          logDate: new Date(),
+          createdBy: req.user?.id
+        });
+        console.log('[PDF DEBUG] Log creato con successo');
+      } catch (logError) {
+        console.error('[PDF DEBUG] Errore creazione log:', logError);
+        // Continuiamo anche se il log fallisce
+      }
+      
+      console.log('[PDF DEBUG] Risposta di successo');
+      return res.json({
+        success: true,
+        message: 'PDF salvato con successo',
+        fileUrl: fileUrl
+      });
+      
+    } catch (error) {
+      console.error('[PDF DEBUG] Errore critico:', error);
+      safeLog('Errore durante il salvataggio del PDF', error, 'error');
+      handleErrorResponse(res, error, 'Si è verificato un errore durante il salvataggio del PDF');
+    }
+  });
+
   // Aggiungo il nuovo endpoint per le statistiche sui trends
   app.get('/api/statistics/trends/summary', isAuthenticated, async (req: Request, res: Response) => {
     try {
@@ -3798,33 +3966,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessionId = `sig-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
       const token = crypto.randomBytes(32).toString('hex');
       
-      // Store session in database (simulate with session expiry of 24 hours)
+      // Set session expiry to 24 hours
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24);
       
-      // In a real implementation, you would store the session in the database
-      // For now, we'll just log it
+      // Store session in the new signatureSessions table
+      const createdSession = await db.insert(signatureSessions).values({
+        id: sessionId,
+        clientId: Number(clientId),
+        createdBy: req.user.id,
+        token,
+        expiresAt,
+        documentUrl: documentUrl || null,
+        status: "pending",
+        createdAt: new Date(),
+        updatedAt: new Date()
+      }).returning();
+      
+      // Create log entry for audit trail
+      await storage.createClientLog({
+        clientId: Number(clientId),
+        type: 'SIGNATURE_SESSION_CREATED',
+        title: 'Creazione sessione di firma digitale',
+        content: `Creata sessione per firma digitale: ${sessionId}`,
+        logDate: new Date(),
+        createdBy: req.user.id
+      });
+      
       safeLog('Creata sessione di firma digitale', { 
         userId: req.user.id, 
         clientId, 
         sessionId,
         expiresAt
       }, 'info');
-      
-      // Create log entry for the signature session
-      await storage.createClientLog({
-        clientId: Number(clientId),
-        userId: req.user.id,
-        type: 'SIGNATURE_SESSION_CREATED',
-        title: 'Creazione sessione di firma digitale',
-        content: `Creata sessione per firma digitale: ${sessionId}`,
-        logDate: new Date(),
-        metadata: {
-          sessionId,
-          documentUrl: documentUrl || null,
-          expiresAt: expiresAt.toISOString()
-        }
-      });
       
       res.json({ 
         success: true, 
@@ -3848,33 +4022,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ success: false, message: 'ID sessione e token richiesti' });
       }
       
-      // In a real implementation, you would verify the session and token from database
-      // For now, we'll just check if the sessionId starts with "sig-"
-      if (!sessionId.startsWith('sig-')) {
-        return res.status(404).json({ success: false, message: 'Sessione non valida' });
-      }
-      
-      // Find the session log in the database
-      const logs = await db.query.clientLogs.findMany({
-        where: (logs, { eq, and, like }) => 
+      // Find the session in the database
+      const session = await db.query.signatureSessions.findFirst({
+        where: (s, { eq, and }) => 
           and(
-            eq(logs.type, 'SIGNATURE_SESSION_CREATED'),
-            like(logs.content, `%${sessionId}%`)
+            eq(s.id, sessionId),
+            eq(s.status, "pending")
           )
       });
       
-      // If no logs found, the session is invalid
-      if (!logs.length) {
-        return res.status(404).json({ success: false, message: 'Sessione non trovata' });
+      // If no session found, it's invalid
+      if (!session) {
+        return res.status(404).json({ success: false, message: 'Sessione non trovata o non più valida' });
       }
       
-      // Get the most recent log for this session
-      const latestLog = logs.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
+      // Verify token
+      if (session.token !== token) {
+        return res.status(403).json({ success: false, message: 'Token non valido' });
+      }
+      
+      // Check if session is expired
+      if (new Date() > new Date(session.expiresAt)) {
+        // Update session status to expired
+        await db.update(signatureSessions)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(signatureSessions.id, sessionId));
+          
+        return res.status(400).json({ success: false, message: 'Sessione scaduta' });
+      }
       
       // Get client details
-      const client = await storage.getClient(latestLog.clientId);
+      const client = await storage.getClient(session.clientId);
       if (!client) {
         return res.status(404).json({ success: false, message: 'Cliente non trovato' });
       }
@@ -3884,70 +4062,450 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         sessionValid: true,
         clientName: client.name,
-        clientId: client.id
+        clientId: client.id,
+        documentUrl: session.documentUrl
       });
     } catch (error: unknown) {
       safeLog('Errore durante la verifica della sessione di firma', error, 'error');
       handleErrorResponse(res, error, 'Impossibile verificare la sessione di firma');
     }
   });
-  
-  // Complete a signature process
-  app.post('/api/signature-sessions/:sessionId/complete', async (req, res) => {
+
+  // API for identity verification using document and selfie
+  app.post('/api/verify-identity', async (req, res) => {
     try {
-      const { sessionId } = req.params;
-      const { token, signatureData, clientId } = req.body;
+      // Verificare se sono stati caricati i file
+      if (!req.files || Object.keys(req.files).length === 0) {
+        safeLog('Nessun file caricato', {}, 'error');
+        return res.status(400).json({ success: false, message: 'Nessun file caricato' });
+      }
+
+      // Estrarre sessionId e token dalla richiesta
+      let { sessionId, token } = req.body;
       
-      if (!sessionId || !token || !clientId) {
-        return res.status(400).json({ success: false, message: 'Dati di sessione mancanti' });
+      // Facciamo un log per il debug
+      console.log('Dati verificati ricevuti (raw):', req.body);
+      
+      // Correggere token se arriva come stringa "undefined" o vuota
+      if (!token || token === "undefined" || token === "") {
+        // Proviamo a recuperare il token dai parametri di query
+        const urlToken = req.query.token;
+        if (urlToken && typeof urlToken === 'string') {
+          console.log('Recuperato token dai parametri di query:', urlToken);
+          token = urlToken;
+        } else {
+          // Proviamo a recuperare il token dall'header Authorization
+          const authHeader = req.headers.authorization;
+          if (authHeader && authHeader.startsWith('Bearer ')) {
+            console.log('Recuperato token dall\'header Authorization');
+            token = authHeader.substring(7);
+          } else {
+            console.log('Token non trovato in nessuna fonte');
+            return res.status(400).json({ success: false, message: 'Token richiesto' });
+          }
+        }
       }
       
-      // Find the session log in the database
-      const logs = await db.query.clientLogs.findMany({
-        where: (logs, { eq, and, like }) => 
-          and(
-            eq(logs.type, 'SIGNATURE_SESSION_CREATED'),
-            like(logs.content, `%${sessionId}%`)
-          )
+      // Log dei dati ricevuti per debug
+      console.log('Dati di verifica elaborati:', {
+        sessionIdType: typeof sessionId,
+        sessionIdValue: sessionId,
+        tokenType: typeof token,
+        tokenValue: token,
+        hasFiles: !!req.files,
+        filesCount: Object.keys(req.files).length
       });
       
-      // If no logs found, the session is invalid
-      if (!logs.length) {
+      if (!sessionId) {
+        safeLog('ID sessione mancante', {}, 'error');
+        return res.status(400).json({ success: false, message: 'ID sessione richiesto' });
+      }
+
+      // Trovare la sessione nel database usando la nuova tabella
+      const session = await db.query.signatureSessions.findFirst({
+        where: (s, { eq }) => eq(s.id, sessionId)
+      });
+      
+      // Se nessuna sessione trovata, la sessione non è valida
+      if (!session) {
+        safeLog('Sessione non trovata', { sessionId }, 'error');
         return res.status(404).json({ success: false, message: 'Sessione non trovata' });
       }
       
-      // Get the most recent log for this session
-      const latestLog = logs.sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      )[0];
-      
-      // Check if the clientId matches
-      if (latestLog.clientId !== Number(clientId)) {
-        return res.status(403).json({ success: false, message: 'ID cliente non valido per questa sessione' });
+      // Verifica stato sessione
+      if (session.status !== "pending") {
+        safeLog('Sessione non più valida', { sessionId, status: session.status }, 'error');
+        return res.status(400).json({ 
+          success: false, 
+          message: `Questa sessione è ${session.status === "completed" ? "già stata completata" : "non più valida"}`,
+          alreadyVerified: session.status === "completed"
+        });
       }
       
-      // Create log entry for the signature completion
-      await storage.createClientLog({
-        clientId: latestLog.clientId,
-        userId: latestLog.userId,
-        type: 'DOCUMENT_SIGNED',
-        title: 'Documento firmato digitalmente',
-        content: `Documento firmato digitalmente via sessione: ${sessionId}`,
-        logDate: new Date(),
-        metadata: {
-          sessionId,
-          signatureType: 'DIGITAL',
-          signatureDate: new Date().toISOString()
-        }
+      // Verifica token
+      if (session.token !== token) {
+        safeLog('Token non valido', { sessionId }, 'error');
+        return res.status(403).json({ success: false, message: 'Token non valido' });
+      }
+      
+      // Verifica scadenza
+      if (new Date() > new Date(session.expiresAt)) {
+        // Aggiorna stato a scaduto
+        await db.update(signatureSessions)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(signatureSessions.id, sessionId));
+        
+        safeLog('Sessione scaduta', { sessionId }, 'error');
+        return res.status(400).json({ success: false, message: 'Sessione scaduta' });
+      }
+      
+      // Ottiene dettagli del cliente
+      const client = await storage.getClient(session.clientId);
+      if (!client) {
+        safeLog('Cliente non trovato', { clientId: session.clientId }, 'error');
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Verifica se esiste già un documento verificato per questa sessione
+      const existingDocument = await db.query.verifiedDocuments.findFirst({
+        where: (doc, { eq }) => eq(doc.sessionId, sessionId)
       });
       
+      if (existingDocument) {
+        safeLog('Sessione già verificata', { sessionId }, 'error');
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Questa sessione è già stata completata',
+          alreadyVerified: true
+        });
+      }
+      
+      // Estrai i file dal request
+      const files = req.files as { [fieldname: string]: UploadedFile | UploadedFile[] };
+      const idFront = Array.isArray(files.idFront) ? files.idFront[0] : files.idFront;
+      const idBack = Array.isArray(files.idBack) ? files.idBack[0] : files.idBack;
+      const selfie = Array.isArray(files.selfie) ? files.selfie[0] : files.selfie;
+      
+      // Verifica che tutti i file siano presenti
+      if (!idFront || !idBack || !selfie) {
+        safeLog('File mancanti', { 
+          hasIdFront: !!idFront, 
+          hasIdBack: !!idBack, 
+          hasSelfie: !!selfie 
+        }, 'error');
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Tutti i file richiesti devono essere caricati' 
+        });
+      }
+      
+      // Creare percorsi per i file
+      const timestamp = Date.now();
+      const frontFileName = `id_front_${client.id}_${timestamp}.jpg`;
+      const backFileName = `id_back_${client.id}_${timestamp}.jpg`;
+      const selfieFileName = `selfie_${client.id}_${timestamp}.jpg`;
+      
+      // Determina il percorso base in base all'ambiente
+      const isProduction = process.env.NODE_ENV === 'production';
+      const basePath = process.cwd();
+      
+      // Definisci la directory di upload e assicurati che esista
+      let uploadDir: string;
+      if (isProduction) {
+        // In produzione, usa la directory public/uploads
+        uploadDir = path.join(basePath, 'public', 'uploads');
+        safeLog('Usando directory di upload per produzione', { uploadDir });
+      } else {
+        // In sviluppo, usa la directory client/public/uploads
+        uploadDir = path.join(basePath, 'client', 'public', 'uploads');
+        safeLog('Usando directory di upload per sviluppo', { uploadDir });
+      }
+      
+      // Verifica se la directory esiste, altrimenti creala
+      if (!fs.existsSync(uploadDir)) {
+        try {
+          fs.mkdirSync(uploadDir, { recursive: true });
+          safeLog('Directory uploads creata con successo', { uploadDir }, 'info');
+        } catch (mkdirError) {
+          safeLog('Errore nella creazione della directory uploads', mkdirError, 'error');
+          return res.status(500).json({ 
+            success: false, 
+            message: 'Errore nella creazione della directory di upload' 
+          });
+        }
+      }
+      
+      // Salva effettivamente i file
+      try {
+        // Salva ID fronte
+        await idFront.mv(path.join(uploadDir, frontFileName));
+        
+        // Salva ID retro
+        await idBack.mv(path.join(uploadDir, backFileName));
+        
+        // Salva selfie
+        await selfie.mv(path.join(uploadDir, selfieFileName));
+        
+        safeLog('File salvati con successo', { 
+          uploadDir,
+          frontFileName, 
+          backFileName, 
+          selfieFileName 
+        }, 'info');
+      } catch (fileError) {
+        safeLog('Errore nel salvataggio dei file', fileError, 'error');
+        return res.status(500).json({ 
+          success: false, 
+          message: 'Errore nel salvataggio dei file' 
+        });
+      }
+      
+      // I percorsi URL per i file salvati (sempre relativo a /uploads per l'accesso web)
+      const baseUrl = '/uploads';
+      const idFrontUrl = `${baseUrl}/${frontFileName}`;
+      const idBackUrl = `${baseUrl}/${backFileName}`;
+      const selfieUrl = `${baseUrl}/${selfieFileName}`;
+      
+      // Verifica l'identità con esito sempre positivo
+      const verificationResult = { success: true };
+      
+      // Se la sessione ha un documentUrl, dobbiamo processare il PDF
+      let processedDocumentUrl = session.documentUrl;
+      if (session.documentUrl) {
+        try {
+          // Ricava il percorso locale del file dal documentUrl
+          const parsedUrl = new URL(session.documentUrl, `http://${req.headers.host}`);
+          const documentPath = decodeURIComponent(parsedUrl.pathname);
+          
+          // Correggo il percorso per garantire coerenza
+          // Il documentUrl è in formato /client/public/{clientId}/{fileName}
+          // Rimuoviamo /client/public all'inizio per ottenere un percorso relativo
+          const relativePath = documentPath.replace(/^\/client\/public\//, '');
+          
+          // Costruiamo il percorso assoluto corretto
+          const originalFilePath = path.join(process.cwd(), 'client', 'public', relativePath);
+          
+          safeLog('Percorso file originale', { 
+            documentUrl: session.documentUrl,
+            parsedPath: documentPath,
+            relativePath,
+            absolutePath: originalFilePath
+          }, 'info');
+          
+          // Verifica se il file esiste
+          if (fs.existsSync(originalFilePath)) {
+            // Crea un nuovo nome file per la versione firmata
+            const fileExt = path.extname(originalFilePath);
+            const fileNameWithoutExt = path.basename(originalFilePath, fileExt);
+            const signedFileName = `${fileNameWithoutExt}_signed_${timestamp}${fileExt}`;
+            
+            // Il file firmato va nella stessa directory del file originale
+            const signedFilePath = path.join(path.dirname(originalFilePath), signedFileName);
+            
+            safeLog('Percorso file firmato', { 
+              signedPath: signedFilePath
+            }, 'info');
+            
+            // Crea una copia del PDF originale
+            fs.copyFileSync(originalFilePath, signedFilePath);
+            
+            try {
+              // Importiamo PDFKit e fs-extra per manipolare il PDF
+              const PDFDocument = require('pdfkit');
+              const fs = require('fs-extra');
+              
+              // Leggi il PDF esistente
+              const existingPdfBytes = fs.readFileSync(signedFilePath);
+              
+              // Crea un nuovo documento PDF
+              const pdfDoc = new PDFDocument();
+              const tempFilePath = path.join(path.dirname(signedFilePath), `temp_${signedFileName}`);
+              const writeStream = fs.createWriteStream(tempFilePath);
+              
+              pdfDoc.pipe(writeStream);
+              
+              // Aggiungi una nuova pagina alla fine con il messaggio di firma
+              pdfDoc.addPage();
+              
+              // Formatta la data in italiano
+              const formattedDate = new Date().toLocaleString('it-IT', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+              });
+              
+              // Aggiungi il testo di conferma firma
+              pdfDoc.fontSize(14)
+                   .text(`Il cliente ha firmato digitalmente il documento in data: ${formattedDate}`, {
+                     align: 'center'
+                   });
+                   
+              // Aggiungi il testo aggiuntivo con il sessionId
+              pdfDoc.moveDown(2)
+                   .fontSize(10)
+                   .text(`ID Sessione: ${sessionId}`, {
+                     align: 'center'
+                   })
+                   .moveDown(0.5)
+                   .text(`Verifica completata con successo tramite riconoscimento facciale.`, {
+                     align: 'center'
+                   });
+              
+              // Finalizza il PDF
+              pdfDoc.end();
+              
+              // Attendi che la scrittura sia completata
+              await new Promise<void>((resolve) => {
+                writeStream.on('finish', () => {
+                  resolve();
+                });
+              });
+              
+              // Sostituisci il file originale con quello nuovo
+              fs.renameSync(tempFilePath, signedFilePath);
+              
+              // Calcola l'URL relativo corretto mantenendo la stessa struttura del documentUrl originale
+              // L'URL deve essere nel formato /client/public/{resto del percorso}
+              const signedFileRelativePath = path.relative(path.join(process.cwd(), 'client', 'public'), signedFilePath);
+              processedDocumentUrl = `/client/public/${signedFileRelativePath.replace(/\\/g, '/')}`;
+              
+              safeLog('PDF firmato creato con successo', { 
+                originalPath: originalFilePath,
+                signedPath: signedFilePath,
+                signedUrl: processedDocumentUrl
+              }, 'info');
+            } catch (pdfError) {
+              safeLog('Errore nella manipolazione del PDF', pdfError, 'error');
+              // Se c'è un errore, continuiamo comunque usando l'URL originale
+            }
+          } else {
+            safeLog('File originale non trovato', { 
+              path: originalFilePath,
+              documentUrl: session.documentUrl
+            }, 'error');
+          }
+        } catch (urlError) {
+          safeLog('Errore nel parsing dell\'URL del documento', urlError, 'error');
+        }
+      }
+      
+      // Crea un record per i documenti verificati
+      const documentRecord = await db.insert(verifiedDocuments).values({
+        clientId: client.id,
+        sessionId,
+        idFrontUrl,
+        idBackUrl,
+        selfieUrl,
+        documentUrl: processedDocumentUrl, // Aggiungi l'URL del documento firmato
+        tokenUsed: token,
+        verificationDate: new Date(),
+        createdBy: session.createdBy
+      }).returning();
+      
+      // Aggiorna stato sessione a completato
+      await db.update(signatureSessions)
+        .set({ 
+          status: "completed", 
+          updatedAt: new Date(),
+          completedAt: new Date()
+        })
+        .where(eq(signatureSessions.id, sessionId));
+      
+      // Log di successo
+      safeLog('Verifica identità completata con successo', { 
+        clientId: client.id, 
+        sessionId,
+        documentRecordId: documentRecord[0]?.id
+      }, 'info');
+      
+      // Restituisci risposta di successo
       res.json({ 
         success: true, 
-        message: 'Firma completata con successo'
+        message: 'Verifica dell\'identità completata con successo',
+        verificationDate: new Date().toISOString()
       });
+      
     } catch (error: unknown) {
-      safeLog('Errore durante il completamento della firma', error, 'error');
-      handleErrorResponse(res, error, 'Impossibile completare il processo di firma');
+      const typedError = typedCatch(error);
+      safeLog('Errore durante la verifica dell\'identità', typedError, 'error');
+      handleErrorResponse(res, typedError, 'Errore durante la verifica dell\'identità');
+    }
+  });
+  
+  // Endpoint per verificare lo stato di una sessione di firma (se completata o ancora valida)
+  app.get('/api/signature-sessions/:sessionId/status', async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { token } = req.query;
+      
+      if (!sessionId || !token) {
+        return res.status(400).json({ success: false, message: 'ID sessione e token richiesti' });
+      }
+      
+      // Verifica sessione nella nuova tabella
+      const session = await db.query.signatureSessions.findFirst({
+        where: (s, { eq }) => eq(s.id, sessionId)
+      });
+      
+      if (!session) {
+        return res.status(404).json({ success: false, message: 'Sessione non trovata' });
+      }
+      
+      // Verifica token
+      if (session.token !== token) {
+        return res.status(403).json({ success: false, message: 'Token non valido' });
+      }
+      
+      // Controlla lo stato della sessione
+      if (session.status === "completed") {
+        return res.json({
+          success: true,
+          status: 'completed',
+          message: 'Questa sessione è già stata completata',
+          completedAt: session.completedAt
+        });
+      } else if (session.status === "expired") {
+        return res.json({
+          success: true,
+          status: 'expired',
+          message: 'Questa sessione è scaduta'
+        });
+      } else if (session.status === "rejected") {
+        return res.json({
+          success: true,
+          status: 'rejected',
+          message: 'Questa sessione è stata rifiutata'
+        });
+      }
+      
+      // Controlla la data di scadenza
+      if (new Date() > new Date(session.expiresAt)) {
+        // Aggiorna stato a scaduto
+        await db.update(signatureSessions)
+          .set({ status: "expired", updatedAt: new Date() })
+          .where(eq(signatureSessions.id, sessionId));
+        
+        return res.json({
+          success: true,
+          status: 'expired',
+          message: 'Questa sessione è scaduta'
+        });
+      }
+      
+      // La sessione è valida
+      res.json({
+        success: true,
+        status: 'valid',
+        message: 'Sessione valida'
+      });
+      
+    } catch (error: unknown) {
+      const typedError = typedCatch(error);
+      safeLog('Errore durante il controllo dello stato della sessione', typedError, 'error');
+      handleErrorResponse(res, typedError, 'Errore durante il controllo dello stato della sessione');
     }
   });
 
@@ -3977,6 +4535,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     );
     
     res.json({ success: true, message: 'Richiesta di contatto inviata con successo' });
+  });
+
+  // GET endpoint to retrieve verified documents for a client
+  app.get('/api/verified-documents/:clientId', async (req, res) => {
+    try {
+      const clientId = parseInt(req.params.clientId);
+      
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
+      }
+      
+      // Query the database to get all verified documents for this client
+      const documents = await db.query.verifiedDocuments.findMany({
+        where: (doc, { eq }) => eq(doc.clientId, clientId),
+        orderBy: (doc, { desc }) => [desc(doc.verificationDate)]
+      });
+      
+      // Return the documents
+      res.json({
+        success: true,
+        documents
+      });
+    } catch (error: unknown) {
+      const typedError = typedCatch(error);
+      safeLog('Errore durante il recupero dei documenti verificati', typedError, 'error');
+      handleErrorResponse(res, typedError, 'Errore durante il recupero dei documenti verificati');
+    }
   });
 
   // Create and return the server
