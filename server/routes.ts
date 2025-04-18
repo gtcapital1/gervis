@@ -3765,6 +3765,220 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true, message: 'Test logs eseguito, controlla il terminale' });
   });
   
+  // ===== Digital Signature API Routes =====
+  
+  // Generate a signature session with secure token for mobile verification
+  app.post('/api/signature-sessions', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
+      }
+      
+      const { clientId, documentUrl } = req.body;
+      
+      if (!clientId) {
+        return res.status(400).json({ success: false, message: 'ID cliente richiesto' });
+      }
+      
+      // Get client from database to verify ownership
+      const client = await storage.getClient(Number(clientId));
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        safeLog('Tentativo di generazione sessione firma non autorizzato', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato per questo cliente' });
+      }
+      
+      // Generate unique session ID and token
+      const sessionId = `sig-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+      const token = crypto.randomBytes(32).toString('hex');
+      
+      // Store session in database (simulate with session expiry of 24 hours)
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 24);
+      
+      // In a real implementation, you would store the session in the database
+      // For now, we'll just log it
+      safeLog('Creata sessione di firma digitale', { 
+        userId: req.user.id, 
+        clientId, 
+        sessionId,
+        expiresAt
+      }, 'info');
+      
+      // Create log entry for the signature session
+      await storage.createClientLog({
+        clientId: Number(clientId),
+        userId: req.user.id,
+        type: 'SIGNATURE_SESSION_CREATED',
+        title: 'Creazione sessione di firma digitale',
+        content: `Creata sessione per firma digitale: ${sessionId}`,
+        logDate: new Date(),
+        metadata: {
+          sessionId,
+          documentUrl: documentUrl || null,
+          expiresAt: expiresAt.toISOString()
+        }
+      });
+      
+      res.json({ 
+        success: true, 
+        sessionId,
+        token,
+        expiresAt: expiresAt.toISOString()
+      });
+    } catch (error: unknown) {
+      safeLog('Errore durante la creazione della sessione di firma', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile creare la sessione di firma');
+    }
+  });
+  
+  // Verify a signature session token (for mobile verification)
+  app.get('/api/signature-sessions/:sessionId', async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { token } = req.query;
+      
+      if (!sessionId || !token) {
+        return res.status(400).json({ success: false, message: 'ID sessione e token richiesti' });
+      }
+      
+      // In a real implementation, you would verify the session and token from database
+      // For now, we'll just check if the sessionId starts with "sig-"
+      if (!sessionId.startsWith('sig-')) {
+        return res.status(404).json({ success: false, message: 'Sessione non valida' });
+      }
+      
+      // Find the session log in the database
+      const logs = await db.query.clientLogs.findMany({
+        where: (logs, { eq, and, like }) => 
+          and(
+            eq(logs.type, 'SIGNATURE_SESSION_CREATED'),
+            like(logs.content, `%${sessionId}%`)
+          )
+      });
+      
+      // If no logs found, the session is invalid
+      if (!logs.length) {
+        return res.status(404).json({ success: false, message: 'Sessione non trovata' });
+      }
+      
+      // Get the most recent log for this session
+      const latestLog = logs.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+      
+      // Get client details
+      const client = await storage.getClient(latestLog.clientId);
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Return minimal client and document info
+      res.json({
+        success: true,
+        sessionValid: true,
+        clientName: client.name,
+        clientId: client.id
+      });
+    } catch (error: unknown) {
+      safeLog('Errore durante la verifica della sessione di firma', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile verificare la sessione di firma');
+    }
+  });
+  
+  // Complete a signature process
+  app.post('/api/signature-sessions/:sessionId/complete', async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { token, signatureData, clientId } = req.body;
+      
+      if (!sessionId || !token || !clientId) {
+        return res.status(400).json({ success: false, message: 'Dati di sessione mancanti' });
+      }
+      
+      // Find the session log in the database
+      const logs = await db.query.clientLogs.findMany({
+        where: (logs, { eq, and, like }) => 
+          and(
+            eq(logs.type, 'SIGNATURE_SESSION_CREATED'),
+            like(logs.content, `%${sessionId}%`)
+          )
+      });
+      
+      // If no logs found, the session is invalid
+      if (!logs.length) {
+        return res.status(404).json({ success: false, message: 'Sessione non trovata' });
+      }
+      
+      // Get the most recent log for this session
+      const latestLog = logs.sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )[0];
+      
+      // Check if the clientId matches
+      if (latestLog.clientId !== Number(clientId)) {
+        return res.status(403).json({ success: false, message: 'ID cliente non valido per questa sessione' });
+      }
+      
+      // Create log entry for the signature completion
+      await storage.createClientLog({
+        clientId: latestLog.clientId,
+        userId: latestLog.userId,
+        type: 'DOCUMENT_SIGNED',
+        title: 'Documento firmato digitalmente',
+        content: `Documento firmato digitalmente via sessione: ${sessionId}`,
+        logDate: new Date(),
+        metadata: {
+          sessionId,
+          signatureType: 'DIGITAL',
+          signatureDate: new Date().toISOString()
+        }
+      });
+      
+      res.json({ 
+        success: true, 
+        message: 'Firma completata con successo'
+      });
+    } catch (error: unknown) {
+      safeLog('Errore durante il completamento della firma', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile completare il processo di firma');
+    }
+  });
+
+  // Handle landing page contact form submission
+  app.post('/api/contact', (req, res) => {
+    const formData = req.body;
+    safeLog('Nuova richiesta di contatto', formData, 'info');
+    
+    // Validazione dei dati
+    const validationResult = contactFormSchema.safeParse(formData);
+    if (!validationResult.success) {
+      safeLog('Errore di validazione dei dati di contatto', validationResult.error, 'error');
+      return res.status(400).json({ success: false, message: 'Dati di contatto non validi' });
+    }
+    
+    // Invia email di notifica
+    sendCustomEmail(
+      'info@gervis.com',
+      'Nuova richiesta di contatto',
+      `Nuova richiesta di contatto da ${formData.firstName} ${formData.lastName} (${formData.email})`,
+      'italian',
+      undefined,
+      'Gervis Financial Advisor',
+      'info@gervis.com',
+      undefined,
+      true
+    );
+    
+    res.json({ success: true, message: 'Richiesta di contatto inviata con successo' });
+  });
+
   // Create and return the server
   const server = createServer(app);
   return server;

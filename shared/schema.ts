@@ -187,7 +187,7 @@ export type InsertRecommendation = z.infer<typeof insertRecommendationSchema>;
 export type Recommendation = typeof recommendations.$inferSelect;
 
 // Tipi di log
-export const LOG_TYPES = ["email", "note", "call", "meeting"] as const;
+export const LOG_TYPES = ["email", "note", "call", "meeting", "SIGNATURE_SESSION_CREATED", "DOCUMENT_SIGNED"] as const;
 export type LogType = typeof LOG_TYPES[number];
 
 // Client Logs Schema
