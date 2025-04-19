@@ -1181,23 +1181,81 @@ export default function Dashboard() {
 
   // Estrai e ordina le opportunità da tutti i profili AI
   const opportunities = useMemo(() => {
-    if (!aiProfilesData?.profiles) return [];
+    console.log("DEBUG OPPS: aiProfilesData:", aiProfilesData);
     
-    const allOpportunities = aiProfilesData.profiles.flatMap(profile => 
-      profile.opportunitaBusiness.map(opp => ({
-        id: `${profile.clientId}-${opp.priorita}`,
-        clientId: profile.clientId,
-        clientName: profile.clientName,
-        title: opp.titolo,
-        description: opp.descrizione,
-        priority: opp.priorita,
-        email: opp.email,
-        azioni: opp.azioni
-      }))
-    );
-
-    // Ordina per priorità (1 = alta, 2 = media, 3 = bassa)
-    return allOpportunities.sort((a, b) => a.priority - b.priority);
+    if (!aiProfilesData) {
+      console.error("DEBUG OPPS: aiProfilesData è nullo o undefined");
+      return [];
+    }
+    
+    if (!aiProfilesData.profiles) {
+      console.error("DEBUG OPPS: aiProfilesData.profiles è nullo o undefined");
+      return [];
+    }
+    
+    console.log("DEBUG OPPS: numero di profili:", aiProfilesData.profiles.length);
+    
+    try {
+      // Esamina la struttura di ciascun profilo
+      aiProfilesData.profiles.forEach((profile, index) => {
+        console.log(`DEBUG OPPS: Profilo [${index}]:`, profile);
+        
+        if (!profile.opportunitaBusiness) {
+          console.error(`DEBUG OPPS: opportunitaBusiness mancante nel profilo [${index}]`);
+        } else if (!Array.isArray(profile.opportunitaBusiness)) {
+          console.error(`DEBUG OPPS: opportunitaBusiness non è un array nel profilo [${index}]:`, 
+                        typeof profile.opportunitaBusiness);
+        } else {
+          console.log(`DEBUG OPPS: profilo [${index}] ha ${profile.opportunitaBusiness.length} opportunità`);
+          
+          // Mostra i primi elementi dell'array opportunità
+          if (profile.opportunitaBusiness.length > 0) {
+            console.log(`DEBUG OPPS: esempio opportunità:`, profile.opportunitaBusiness[0]);
+          }
+        }
+      });
+      
+      const allOpportunities = aiProfilesData.profiles.flatMap((profile, profileIndex) => {
+        if (!profile.opportunitaBusiness) {
+          console.error(`DEBUG OPPS: Salto profilo [${profileIndex}] - opportunitaBusiness mancante`);
+          return [];
+        }
+        
+        if (!Array.isArray(profile.opportunitaBusiness)) {
+          console.error(`DEBUG OPPS: Salto profilo [${profileIndex}] - opportunitaBusiness non è un array`);
+          return [];
+        }
+        
+        return profile.opportunitaBusiness.map((opp, oppIndex) => {
+          console.log(`DEBUG OPPS: Mappo opportunità [${profileIndex}][${oppIndex}]:`, opp);
+          
+          const mappedOpp = {
+            id: `${profile.clientId}-${opp.priorita || 'unknown'}`,
+            clientId: profile.clientId,
+            clientName: profile.clientName || `Cliente #${profile.clientId}`,
+            title: opp.titolo,
+            description: opp.descrizione,
+            priority: opp.priorita,
+            email: opp.email,
+            azioni: opp.azioni
+          };
+          
+          console.log(`DEBUG OPPS: Opportunità mappata:`, mappedOpp);
+          return mappedOpp;
+        });
+      });
+      
+      console.log(`DEBUG OPPS: Totale opportunità create: ${allOpportunities.length}`);
+      
+      // Ordina per priorità (1 = alta, 2 = media, 3 = bassa)
+      const sortedOpportunities = allOpportunities.sort((a, b) => a.priority - b.priority);
+      console.log(`DEBUG OPPS: Opportunità ordinate:`, sortedOpportunities);
+      
+      return sortedOpportunities;
+    } catch (error) {
+      console.error("DEBUG OPPS: Errore durante la creazione delle opportunità:", error);
+      return [];
+    }
   }, [aiProfilesData]);
 
   const handleSendEmail = async (clientId: number, emailData: { oggetto: string; corpo: string }) => {
