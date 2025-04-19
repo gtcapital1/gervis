@@ -25,6 +25,9 @@ import Market from "@/pages/MarketUpdate";
 import Calendar from './pages/Calendar';
 import EditMifidForm from "@/pages/EditMifidForm";
 import MobileVerification from "@/pages/MobileVerification";
+import DashboardPage from "@/pages/Dashboard";
+import ClientsPage from "@/pages/Clients";
+import OpportunitiesPage from "@/pages/OpportunitiesPage";
 
 // Create ProtectedRoute component here until we can fix the imports
 function ProtectedRoute({ children, adminRequired = false }: { children: React.ReactNode, adminRequired?: boolean }) {
@@ -95,24 +98,7 @@ function App() {
                     </Layout>
                   </ProtectedRoute>
                 </Route>
-
-                {/* App routes for clients */}
-                <Route path="/app/clients/:id/edit-mifid">
-                  <ProtectedRoute>
-                    <Layout>
-                      <EditMifidForm />
-                    </Layout>
-                  </ProtectedRoute>
-                </Route>
                 
-                <Route path="/app/clients/add">
-                  <ProtectedRoute>
-                    <Layout>
-                      <ClientForm />
-                    </Layout>
-                  </ProtectedRoute>
-                </Route>
-
                 <Route path="/app/clients/:id">
                   <ProtectedRoute>
                     <Layout>
@@ -137,7 +123,7 @@ function App() {
                     </Layout>
                   </ProtectedRoute>
                 </Route>
-
+                
                 <Route path="/clients">
                   <ProtectedRoute>
                     <Layout>
@@ -222,6 +208,14 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Calendar />
+                    </Layout>
+                  </ProtectedRoute>
+                </Route>
+
+                <Route path="/opportunities">
+                  <ProtectedRoute>
+                    <Layout>
+                      <OpportunitiesPage />
                     </Layout>
                   </ProtectedRoute>
                 </Route>

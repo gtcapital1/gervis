@@ -1247,14 +1247,6 @@ export default function Dashboard() {
         title={t('dashboard.title')}
         subtitle={t('dashboard.subtitle')}
         />
-        <Button
-          variant="outline"
-          className="gap-2"
-          onClick={() => setShowOpportunitiesDialog(true)}
-        >
-          <TrendingUp className="h-4 w-4" />
-          {t('dashboard.view_opportunities')}
-        </Button>
       </div>
 
       {/* Opportunities Dialog */}
@@ -1427,77 +1419,43 @@ export default function Dashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* 🔷 Dashboard Overview (at-a-glance) */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('dashboard.total_aum')}
-            </CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(activeClientAUM)}</div>
-            <div className={`flex items-center text-xs ${portfolioStats.aumChangePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {portfolioStats.aumChangePercent >= 0 ? <ArrowUpRight className="mr-1 h-4 w-4" /> : <ArrowDownRight className="mr-1 h-4 w-4" />}
-              <span>{formatPercent(Math.abs(portfolioStats.aumChangePercent))}</span>
-              <span className="text-muted-foreground ml-1">{t('dashboard.from_previous_period')}</span>
-        </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('dashboard.active_clients')}
-            </CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatNumber(activeClients.length)}</div>
-            <p className="text-xs text-muted-foreground">
-              {newClientsThisMonth} {t('dashboard.new_this_month')}
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t('dashboard.tasks_due_today')}
-            </CardTitle>
-            <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-2xl font-bold">{tasksDueToday}</div>
-              <div className={`text-sm font-medium ${getCompletionColor(completionPercentage)}`}>
-                {Math.round(completionPercentage)}% {t('dashboard.completed')}
-              </div>
-            </div>
-            <div className="h-2 mb-4 w-full bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full ${
-                  completionPercentage < 30 ? 'bg-red-500' : 
-                  completionPercentage < 70 ? 'bg-amber-500' : 
-                  'bg-green-500'
-                }`} 
-                style={{ width: `${completionPercentage}%` }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Two column layout for main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left column - 2/3 width */}
-        <div className="lg:col-span-2 space-y-2">
-          {/* Overview card */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          
-          {/* Le card esistenti rimangono qui ... */}
-          
+        <div className="lg:col-span-2 space-y-6">
+          {/* 🔷 Dashboard Overview (at-a-glance) */}
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {t('dashboard.total_aum')}
+                </CardTitle>
+                <DollarSign className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(activeClientAUM)}</div>
+                <div className={`flex items-center text-xs ${portfolioStats.aumChangePercent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  {portfolioStats.aumChangePercent >= 0 ? <ArrowUpRight className="mr-1 h-4 w-4" /> : <ArrowDownRight className="mr-1 h-4 w-4" />}
+                  <span>{formatPercent(Math.abs(portfolioStats.aumChangePercent))}</span>
+                  <span className="text-muted-foreground ml-1">{t('dashboard.from_previous_period')}</span>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">
+                  {t('dashboard.active_clients')}
+                </CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(activeClients.length)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {newClientsThisMonth} {t('dashboard.new_this_month')}
+                </p>
+              </CardContent>
+            </Card>
           </div>
           
           {/* Task Manager */}
@@ -1566,7 +1524,8 @@ export default function Dashboard() {
             </CardFooter>
           </Card>
 
-          {/* Client Pipeline Snapshot */}
+          {/* Client Pipeline Snapshot - Temporarily disabled but kept for future use */}
+          {false && (
           <Card>
             <CardHeader>
               <CardTitle>{t('dashboard.client_pipeline')}</CardTitle>
@@ -1732,122 +1691,68 @@ export default function Dashboard() {
                 </Button>
             </CardFooter>
           </Card>
-                </div>
+          )}
+        </div>
         
         {/* Right column - 1/3 width */}
         <div className="space-y-6">
-          {/* Client Interactions */}
+          {/* Top Opportunità - Allungata fino in alto */}
           <Card className="h-full flex flex-col">
-            <CardHeader className="pb-2">
-                  <div>
-                <CardTitle>{t('dashboard.client_engagement')}</CardTitle>
-                          </div>
-              <div className="flex border rounded-md overflow-hidden mt-4 w-fit ml-auto">
-                <button 
-                  onClick={() => setInteractionsTimeframe('1w')} 
-                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1w' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
-                >
-                  {t('dashboard.timeframe_1w')}
-                </button>
-                <button 
-                  onClick={() => setInteractionsTimeframe('1m')} 
-                  className={`px-1.5 py-0.5 text-xs ${interactionsTimeframe === '1m' ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-muted'}`}
-                >
-                  {t('dashboard.timeframe_1m')}
-                </button>
-              </div>
+            <CardHeader>
+              <CardTitle>{t('dashboard.opportunities')}</CardTitle>
+              <CardDescription>Top opportunità prioritarie</CardDescription>
             </CardHeader>
-            <CardContent className="flex-1 flex flex-col">
-              {/* Media di interazioni per cliente */}
-              <div className="grid grid-cols-3 gap-2 mb-2 py-1 px-2 bg-muted/10">
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_emails')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.emails.toFixed(1)}</div>
-                      </div>
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_calls')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.calls.toFixed(1)}</div>
-            </div>
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">{t('dashboard.avg_meetings')}</div>
-                  <div className="text-lg font-semibold">{averageInteractions.meetings.toFixed(1)}</div>
-                    </div>
-                  </div>
-
-              <div className="space-y-4 flex-1 flex flex-col">
-                {isLoadingClientLogs ? (
+            <CardContent className="flex-1">
+              {isLoadingAIProfiles ? (
                 <div className="py-6 text-center text-muted-foreground">
                   {t('dashboard.loading')}...
-                    </div>
-                ) : clientInteractions.length === 0 ? (
+                </div>
+              ) : opportunities.length === 0 ? (
                 <div className="py-6 text-center text-muted-foreground">
-                    {t('dashboard.no_recent_activity')}
-                      </div>
+                  {t('dashboard.no_opportunities')}
+                </div>
               ) : (
-                  <>
-                    <div className="mt-4 mb-3 flex justify-between items-center text-sm font-medium">
-                      <div>{t('dashboard.clients')}</div>
-                      <div className="text-center w-7">{t('dashboard.total_interactions')}</div>
-                      </div>
-                    <div className="flex-1 overflow-y-auto pr-2">
-                      {clientInteractions.slice(0, 10).map((client) => (
-                        <div key={client.id} className="flex items-center mb-3">
-                          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-primary mr-3">
-                            {client.name.charAt(0)}
-                      </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{client.name}</p>
-                            <div className="flex gap-2 text-xs text-muted-foreground">
-                              <div className={`px-1.5 py-0.5 rounded ${
-                                client.emails > 5 ? 'bg-green-800 text-green-100 dark:bg-green-900 dark:text-green-50' : 
-                                client.emails > 3 ? 'bg-green-600 text-green-100 dark:bg-green-800 dark:text-green-100' : 
-                                client.emails > 1 ? 'bg-green-400 text-green-800 dark:bg-green-600 dark:text-green-200' : 
-                                client.emails > 0 ? 'bg-green-200 text-green-800 dark:bg-green-400 dark:text-green-900' : 
-                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                              }`}>
-                                <Mail className="h-3 w-3 inline mr-0.5" /> {client.emails}
-                    </div>
-                              <div className={`px-1.5 py-0.5 rounded ${
-                                client.calls > 5 ? 'bg-blue-800 text-blue-100 dark:bg-blue-900 dark:text-blue-50' : 
-                                client.calls > 3 ? 'bg-blue-600 text-blue-100 dark:bg-blue-800 dark:text-blue-100' : 
-                                client.calls > 1 ? 'bg-blue-400 text-blue-800 dark:bg-blue-600 dark:text-blue-200' : 
-                                client.calls > 0 ? 'bg-blue-200 text-blue-800 dark:bg-blue-400 dark:text-blue-900' : 
-                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                              }`}>
-                                <Phone className="h-3 w-3 inline mr-0.5" /> {client.calls}
-                  </div>
-                              <div className={`px-1.5 py-0.5 rounded ${
-                                client.meetings > 5 ? 'bg-purple-800 text-purple-100 dark:bg-purple-900 dark:text-purple-50' : 
-                                client.meetings > 3 ? 'bg-purple-600 text-purple-100 dark:bg-purple-800 dark:text-purple-100' : 
-                                client.meetings > 1 ? 'bg-purple-400 text-purple-800 dark:bg-purple-600 dark:text-purple-200' : 
-                                client.meetings > 0 ? 'bg-purple-200 text-purple-800 dark:bg-purple-400 dark:text-purple-900' : 
-                                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
-                              }`}>
-                                <CalendarClock className="h-3 w-3 inline mr-0.5" /> {client.meetings}
+                <div className="space-y-4">
+                  {opportunities.slice(0, 8).map((opportunity) => (
+                    <div 
+                      key={opportunity.id}
+                      className="flex items-start gap-3 p-2 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedOpportunity(opportunity);
+                        setShowOpportunityDetailDialog(true);
+                      }}
+                    >
+                      <div className={`w-2 h-full rounded-full ${
+                        opportunity.priority === 1 ? 'bg-red-500' :
+                        opportunity.priority === 2 ? 'bg-orange-500' :
+                        opportunity.priority === 3 ? 'bg-yellow-500' :
+                        opportunity.priority === 4 ? 'bg-blue-500' :
+                        'bg-gray-500'
+                      }`} />
+                      <div className="flex-1">
+                        <div className="font-medium text-sm line-clamp-1">{opportunity.title}</div>
+                        <div className="text-xs text-muted-foreground mb-1">
+                          Cliente: {opportunity.clientName}
                         </div>
-                      </div>
+                        <div className="text-xs text-muted-foreground line-clamp-2">
+                          {opportunity.description}
                         </div>
-                          <div className="text-sm font-medium text-center w-7">
-                            {client.total}
                       </div>
                     </div>
                   ))}
-              </div>
-                </>
-            )}
-              </div>
-              
+                </div>
+              )}
+            </CardContent>
+            <CardFooter className="border-t px-6 py-4 mt-auto">
               <Button 
-                variant="outline" 
-                className="w-full mt-4" 
-                onClick={() => {
-                  setLocation('/trends');
-                }}
+                variant="ghost" 
+                className="w-full"
+                onClick={() => setShowOpportunitiesDialog(true)}
               >
-                {t('dashboard.view_trends')}
+                {t('dashboard.view_opportunities')}
               </Button>
-          </CardContent>
-        </Card>
+            </CardFooter>
+          </Card>
         </div>
       </div>
       

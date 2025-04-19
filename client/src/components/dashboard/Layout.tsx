@@ -2,7 +2,7 @@
 // It includes the structure and styling for the advisor's dashboard and other related pages.
 
 import { ReactNode, useState, useEffect } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useRoute } from "wouter";
 import {
   LayoutDashboard,
   Users,
@@ -16,6 +16,11 @@ import {
   Zap,
   Calendar,
   TrendingUp,
+  Home,
+  Activity,
+  Info,
+  Server,
+  AlertTriangle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,15 +33,23 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslation } from "react-i18next";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ApprovalPendingOverlay } from "@/components/ApprovalPendingOverlay";
+import { useTheme } from "@/hooks/use-theme";
+import { useToast } from "@/hooks/use-toast";
+import { ProfileAvatar } from "@/components/ProfileAvatar";
+import { ModeToggle } from "@/components/ui/mode-toggle";
+import { Search } from "@/components/ui/search";
+import { Badge } from "@/components/ui/badge";
+import { MainNav } from "@/components/MainNav";
+import { UserNav } from "@/components/UserNav";
+import { apiRequest } from "@/lib/queryClient";
 
 // Utility function to get initials from name
-function getInitials(name: string): string {
+export function getInitials(name: string) {
   return name
-    .split(' ')
-    .map(part => part[0])
-    .join('')
+    .split(" ")
+    .map(part => part.charAt(0))
+    .join("")
     .toUpperCase();
 }
 
@@ -45,35 +58,25 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [location] = useLocation();
+  const { theme, setTheme } = useTheme();
+  const [match, params] = useRoute("/client/:id");
+  const [location, setLocation] = useLocation();
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isApprovalPending, setIsApprovalPending] = useState(false);
   const isMobile = useIsMobile();
   const { user, logoutMutation } = useAuth();
-  const { t, i18n } = useTranslation();
-  
-  // Keep track of current language - update when i18n.language changes
-  const [currentLanguage, setCurrentLanguage] = useState<string>(i18n.language || "it");
-  
-  // Update currentLanguage when i18n.language changes
-  useEffect(() => {
-    setCurrentLanguage(i18n.language);
-  }, [i18n.language]);
   
   // Check if the user is an admin
   const isAdmin = user?.email === "gianmarco.trapasso@gmail.com" || user?.role === "admin";
   
-  // Handle language change
-  const toggleLanguage = () => {
-    const newLang = currentLanguage === "en" ? "it" : "en";
-    i18n.changeLanguage(newLang);
-    // Save language preference to localStorage for persistence
-    localStorage.setItem('preferredLanguage', newLang);
-    
-  };
-  
   // Handle logout
-  function handleLogout() {
-    logoutMutation.mutate();
-  }
+  const handleLogout = () => {
+    if (confirm(t('dashboard.confirm_logout'))) {
+      logoutMutation.mutate();
+    }
+  };
 
   // Define base navigation items
   const baseNavigation = [
@@ -88,6 +91,13 @@ export function Layout({ children }: LayoutProps) {
       href: "/app/clients",
       icon: Users,
       current: location === "/app/clients" || location.startsWith("/app/clients/"),
+    },
+    {
+      name: "Opportunities",
+      href: "/opportunities",
+      icon: TrendingUp,
+      current: location === "/opportunities",
+      disabled: false,
     },
     {
       name: "Calendar",
@@ -179,8 +189,6 @@ export function Layout({ children }: LayoutProps) {
           </div>
           
           <div className="flex justify-between items-center">
-            <LanguageSwitcher inSidebar={true} />
-            
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-5 w-5" />
             </Button>

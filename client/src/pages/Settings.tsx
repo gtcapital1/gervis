@@ -92,6 +92,7 @@ export default function Settings() {
   const { user } = useAuth();
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [previewLogo, setPreviewLogo] = useState<string | null>(null);
+  const [forceShowSmtpFields, setForceShowSmtpFields] = useState(false);
   
   // Form setup with default values
   const form = useForm<PasswordFormValues>({
@@ -139,6 +140,16 @@ export default function Settings() {
     }
   });
   
+  // Log quando customEmailEnabled cambia di valore
+  useEffect(() => {
+    const subscription = emailSettingsForm.watch((value, { name }) => {
+      if (name === 'customEmailEnabled') {
+        console.log("customEmailEnabled changed:", value.customEmailEnabled);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [emailSettingsForm]);
+
   // Update signature form when user data changes
   useEffect(() => {
     if (user) {
@@ -162,82 +173,84 @@ export default function Settings() {
     if (user?.id) {
       const fetchEmailSettings = async () => {
         try {
-          const response = await apiRequest(`/api/users/${user.id}/email-settings`);
-          if (response.success && response.emailSettings) {
-            emailSettingsForm.reset({
-              smtpHost: response.emailSettings.smtpHost,
-              smtpPort: response.emailSettings.smtpPort,
-              smtpUser: response.emailSettings.smtpUser,
-              smtpPass: '', // Non mostriamo mai la password per sicurezza
-              customEmailEnabled: response.emailSettings.customEmailEnabled
+          console.log("Fetching email settings for user:", user.id);
+          
+          // Utilizziamo solo l'endpoint API corretto
+          const response = await apiRequest('/api/user/email-settings');
+          console.log("Email settings response:", response);
+          
+          if (response && response.success && response.emailSettings) {
+            console.log("Extracted email settings:", response.emailSettings);
+            
+            // Estrai valori considerando il formato snake_case
+            const smtpHost = response.emailSettings.smtp_host || '';
+            const smtpPort = response.emailSettings.smtp_port || 465;
+            const smtpUser = response.emailSettings.smtp_user || '';
+            const customEmailEnabled = response.emailSettings.custom_email_enabled || false;
+            
+            console.log("Extracted values:", {
+              smtpHost,
+              smtpPort,
+              smtpUser,
+              customEmailEnabled
             });
+            
+            // Prepara i dati per il form
+            const formValues = {
+              smtpHost,
+              smtpPort: Number(smtpPort),
+              smtpUser,
+              smtpPass: '', // Per sicurezza, non mostriamo mai la password
+              customEmailEnabled: Boolean(customEmailEnabled)
+            };
+            
+            console.log("Setting form values:", formValues);
+            
+            // Imposta i valori nel form
+            emailSettingsForm.reset(formValues);
+          } else {
+            console.log("No valid email settings found in response");
           }
         } catch (error) {
-          
+          console.error("Errore nel caricamento delle impostazioni email:", error);
         }
       };
+      
       fetchEmailSettings();
     }
   }, [user?.id]);
 
-  // Test SMTP connection
-  const [testingConnection, setTestingConnection] = useState(false);
-  
-  const testSmtpConnection = async (data: EmailSettingsFormValues) => {
-    setTestingConnection(true);
-    console.log("DEBUG - Dati da inviare per test SMTP:", {
-      host: data.smtpHost,
-      port: data.smtpPort.toString(),
-      user: data.smtpUser,
-      password: data.smtpPass?.substring(0, 3) + "..." // Mascherata per sicurezza
-    });
-    
-    try {
-      const response = await apiRequest(`/api/users/${user?.id}/smtp-test`, {
-        method: 'POST',
-        body: JSON.stringify({
-          host: data.smtpHost,
-          port: data.smtpPort.toString(),
-          user: data.smtpUser,
-          password: data.smtpPass,
-          from: data.smtpUser // Aggiungo il campo from usando lo stesso indirizzo email dell'utente
-        })
-      });
-      
-      if (response.success) {
-        toast({
-          title: "Connessione SMTP riuscita",
-          description: "Le impostazioni SMTP sono corrette e funzionanti.",
-        });
-      } else {
-        
-        toast({
-          title: "Errore connessione SMTP",
-          description: response.message || "Impossibile connettersi al server SMTP",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      
-      toast({
-        title: "Errore",
-        description: error.message || "Si è verificato un errore durante il test della connessione SMTP",
-        variant: "destructive",
-      });
-    } finally {
-      setTestingConnection(false);
-    }
-  };
-  
   // Email settings update mutation
   const emailSettingsMutation = useMutation({
-    mutationFn: (data: EmailSettingsFormValues) => {
-      return apiRequest(`/api/users/${user?.id}/email-settings`, {
-        method: "POST",
-        body: JSON.stringify(data)
-      });
+    mutationFn: async (data: EmailSettingsFormValues) => {
+      console.log("Saving email settings:", data);
+      
+      // Converti i nomi dei campi da camelCase a snake_case per il server
+      const serverData = {
+        smtp_host: data.smtpHost,
+        smtp_port: data.smtpPort,
+        smtp_user: data.smtpUser,
+        smtp_pass: data.smtpPass,
+        custom_email_enabled: data.customEmailEnabled
+      };
+      
+      console.log("Converted data for server:", serverData);
+      
+      // Utilizziamo solo l'endpoint API corretto
+      try {
+        const response = await apiRequest('/api/user/email-settings', {
+          method: "POST",
+          body: JSON.stringify(serverData)
+        });
+        console.log("Response from email settings endpoint:", response);
+        return response;
+      } catch (error) {
+        console.error("Error saving email settings:", error);
+        throw new Error(error instanceof Error ? error.message : "Impossibile salvare le impostazioni email");
+      }
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log("Email settings saved successfully:", data);
       toast({
         title: "Impostazioni email aggiornate",
         description: "Le impostazioni email sono state aggiornate con successo",
@@ -246,6 +259,7 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ['/api/user'] });
     },
     onError: (error: Error) => {
+      console.error("Error saving email settings:", error);
       toast({
         title: "Errore",
         description: error.message || "Impossibile aggiornare le impostazioni email",
@@ -255,6 +269,7 @@ export default function Settings() {
   });
   
   function onEmailSettingsSubmit(data: EmailSettingsFormValues) {
+    console.log("Submitting email settings:", data);
     emailSettingsMutation.mutate(data);
   }
 
@@ -475,9 +490,6 @@ export default function Settings() {
         <Tabs defaultValue="account" className="space-y-4">
           <TabsList>
             <TabsTrigger value="account">{t('settings.account', 'Account')}</TabsTrigger>
-            <TabsTrigger value="notifications">{t('settings.notifications', 'Notifications')}</TabsTrigger>
-            <TabsTrigger value="company">{t('settings.company', 'Company')}</TabsTrigger>
-            <TabsTrigger value="subscription">{t('settings.subscription', 'Subscription')}</TabsTrigger>
             <TabsTrigger value="email">{t('settings.email', 'Email')}</TabsTrigger>
           </TabsList>
           
@@ -744,11 +756,15 @@ export default function Settings() {
                       control={emailSettingsForm.control}
                       name="customEmailEnabled"
                       render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-white">
                           <FormControl>
                             <Checkbox
                               checked={field.value}
-                              onCheckedChange={field.onChange}
+                              onCheckedChange={(checked) => {
+                                console.log("Checkbox changed to:", checked);
+                                field.onChange(checked);
+                                setForceShowSmtpFields(true);
+                              }}
                             />
                           </FormControl>
                           <div className="space-y-1 leading-none">
@@ -761,91 +777,87 @@ export default function Settings() {
                       )}
                     />
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={emailSettingsForm.control}
-                        name="smtpHost"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Host SMTP</FormLabel>
-                            <FormControl>
-                              <Input placeholder="es. smtp.example.com" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              L'indirizzo del server SMTP (es. smtp.gmail.com)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                    {/* SMTP Configuration - Always shown */}
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-4">Configurazione Server SMTP</h3>
                       
-                      <FormField
-                        control={emailSettingsForm.control}
-                        name="smtpPort"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Porta SMTP</FormLabel>
-                            <FormControl>
-                              <Input type="number" placeholder="465" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              La porta del server SMTP (es. 465, 587, 25)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpHost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Host SMTP</FormLabel>
+                              <FormControl>
+                                <Input placeholder="es. smtp.example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                L'indirizzo del server SMTP (es. smtp.gmail.com)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpPort"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Porta SMTP</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="465" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                La porta del server SMTP (es. 465, 587, 25)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Username SMTP</FormLabel>
+                              <FormControl>
+                                <Input placeholder="es. info@example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                L'username/email per accedere al server SMTP
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpPass"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Password SMTP</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Password" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                La password per accedere al server SMTP
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={emailSettingsForm.control}
-                        name="smtpUser"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Username SMTP</FormLabel>
-                            <FormControl>
-                              <Input placeholder="es. info@example.com" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              L'username/email per accedere al server SMTP
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      
-                      <FormField
-                        control={emailSettingsForm.control}
-                        name="smtpPass"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Password SMTP</FormLabel>
-                            <FormControl>
-                              <Input type="password" placeholder="Password" {...field} />
-                            </FormControl>
-                            <FormDescription>
-                              La password per accedere al server SMTP
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                    
-                    <div className="flex flex-col sm:flex-row gap-3">
-                      <Button 
-                        type="button" 
-                        variant="outline"
-                        disabled={testingConnection || emailSettingsMutation.isPending}
-                        onClick={() => testSmtpConnection(emailSettingsForm.getValues())}
-                      >
-                        {testingConnection ? "Test in corso..." : "Testa connessione"}
-                      </Button>
-                      
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
                       <Button 
                         type="submit"
-                        disabled={testingConnection || emailSettingsMutation.isPending}
+                        disabled={emailSettingsMutation.isPending}
                       >
                         {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
                       </Button>
@@ -1002,14 +1014,6 @@ function AppSettings() {
       <div>
         <h3 className="text-lg font-medium">{t('settings.app_settings')}</h3>
         <p className="text-sm text-muted-foreground">{t('settings.app_settings_description')}</p>
-      </div>
-      {/* Rimuovo il selettore del tema */}
-      <div>
-        <h4 className="text-sm font-medium leading-none">{t('settings.language')}</h4>
-        <p className="text-sm text-muted-foreground mt-2">
-          {t('settings.language_description')}
-        </p>
-        <LanguageSelector />
       </div>
     </div>
   );

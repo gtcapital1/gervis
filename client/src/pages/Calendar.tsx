@@ -127,8 +127,17 @@ export default function CalendarPage() {
   // Giorni della settimana
   const weekDays = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
   
-  // Ore del giorno (dalle 8 alle 18)
-  const dayHours = Array.from({ length: 11 }, (_, i) => `${i + 8}:00`);
+  // Aggiungiamo il passo di 30 minuti nelle ore mostrate nel calendario per più precisione
+  const dayHours = [];
+  for (let i = 8; i < 19; i++) {
+    // Assicuriamoci che le ore vengano sempre formattate con due cifre (08:00 invece di 8:00)
+    const formattedHour = i.toString().padStart(2, "0");
+    dayHours.push(`${formattedHour}:00`);
+    dayHours.push(`${formattedHour}:30`);
+  }
+  
+  // Aggiungiamo l'ultima ora senza i 30 minuti
+  dayHours.push('19:00');
   
   // Fetch dei clienti per il dropdown
   const { data: clientsData } = useQuery<{clients: any[]} | null>({
@@ -462,12 +471,27 @@ export default function CalendarPage() {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Lunedì
       const targetDate = addDays(weekStart, dayIndex);
       
+      // Assicuriamoci che l'ora sia formattata correttamente
+      let formattedHour = hour;
+      if (hour.includes(':')) {
+        const [h, m] = hour.split(':');
+        // Aggiungiamo lo zero iniziale se necessario
+        formattedHour = `${h.padStart(2, '0')}:${m}`;
+      }
+      
+      console.log('Cella cliccata:', {
+        originalHour: hour,
+        formattedHour,
+        dayIndex,
+        targetDate: format(targetDate, 'yyyy-MM-dd'),
+      });
+      
       // Imposta sia eventDate che selectedDate in modo che la data sia coerente in tutto il componente
       setEventDate(targetDate);
       setSelectedDate(targetDate); // Aggiorna anche selectedDate per assicurarsi che il dialogo mostri la data corretta
       
-      // Imposta l'ora selezionata
-      setEventTime(hour);
+      // Mantieni esattamente l'ora cliccata nella cella, con formattazione corretta
+      setEventTime(formattedHour);
       
       // Reset other fields for a new meeting
       setEventTitle("");
@@ -475,6 +499,9 @@ export default function CalendarPage() {
       setEventLocation("zoom");
       setEventDuration(60);
       setSendMeetingEmail(false);
+      
+      // Log per debug
+      console.log(`Apertura dialog creazione per: ${format(targetDate, 'yyyy-MM-dd')} alle ${formattedHour}`);
       
       // Apri il dialog
       setIsCreateDialogOpen(true);
@@ -512,23 +539,16 @@ export default function CalendarPage() {
       const targetDateStr = format(targetDate, 'yyyy-MM-dd');
       const [targetHour, targetMinute] = hour.split(':').map(Number);
       
+      // Aggiungiamo log per vedere i dati esatti delle celle e degli eventi
+      console.log(`Controllo eventi per la cella: ${hour} - giorno ${dayIndex} - data ${targetDateStr}`);
+      
       // Filtra gli eventi che hanno la stessa data e lo stesso orario
       const filteredEvents = events.filter(event => {
         const matchesDate = event.date === targetDateStr;
         const [eventHour, eventMinute] = event.startTime.split(':').map(Number);
         
-        // Confronta ora e minuti
-        const matchesHour = eventHour === targetHour;
-        
-        // Log per debug
-        console.log('Event check:', {
-          eventDate: event.date,
-          targetDate: targetDateStr,
-          eventTime: event.startTime,
-          targetHour,
-          matchesDate,
-          matchesHour
-        });
+        // Confronta ora e minuti esattamente come mostrati nella griglia
+        const matchesHour = eventHour === targetHour && (targetMinute === 0 ? eventMinute < 30 : eventMinute >= 30);
         
         return matchesDate && matchesHour;
       });
@@ -679,14 +699,14 @@ export default function CalendarPage() {
                         {weekDaysWithDates.map((day, dayIndex) => (
                           <td 
                             key={dayIndex} 
-                            className="w-1/5 border-b border-r border-gray-100 relative p-0"
+                            className="group w-1/5 border-b border-r border-gray-100 relative p-0 hover:bg-blue-50 active:bg-blue-100 cursor-pointer transition-colors"
                             onClick={() => handleWeeklyTimeSlotClick(dayIndex, hour)}
                           >
                             {/* Pulsante per aggiungere evento in questa cella */}
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="absolute top-0 right-0 opacity-0 hover:opacity-100 text-gray-400 hover:text-gray-600 h-3 w-3 p-0 m-0"
+                              className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 hover:opacity-100 text-gray-400 hover:text-gray-600 h-3 w-3 p-0 m-0"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleWeeklyTimeSlotClick(dayIndex, hour);

@@ -12,11 +12,11 @@ i18n.use(initReactI18next).init({
       translation: itTranslations
     }
   },
-  lng: "en", // Default language
-  fallbackLng: "en",
-    interpolation: {
-      escapeValue: false
-    }
-  });
+  lng: "it", // Italian as default language
+  fallbackLng: "it",
+  interpolation: {
+    escapeValue: false
+  }
+});
 
 export default i18n;

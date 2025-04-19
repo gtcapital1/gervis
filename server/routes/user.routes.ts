@@ -227,4 +227,83 @@ export function registerUserRoutes(app: Express) {
       }
     }
   });
+  
+  // Update email settings
+  app.post('/api/user/email-settings', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(403).json({ message: 'Not authenticated' });
+      }
+      
+      // Email settings schema
+      const emailSettingsSchema = z.object({
+        smtp_host: z.string().optional(),
+        smtp_port: z.number().optional(),
+        smtp_user: z.string().optional(),
+        smtp_pass: z.string().optional(),
+        custom_email_enabled: z.boolean().optional(),
+      });
+      
+      const validatedData = emailSettingsSchema.parse(req.body);
+      
+      // Log the request for debugging
+      console.log('Email settings update request:', {
+        userId,
+        data: { ...validatedData, smtp_pass: validatedData.smtp_pass ? '******' : undefined }
+      });
+      
+      // Update the user's email settings
+      await storage.updateUser(userId, {
+        smtp_host: validatedData.smtp_host,
+        smtp_port: validatedData.smtp_port,
+        smtp_user: validatedData.smtp_user,
+        smtp_pass: validatedData.smtp_pass,
+        custom_email_enabled: validatedData.custom_email_enabled
+      });
+      
+      res.json({ 
+        success: true,
+        message: 'Email settings updated successfully'
+      });
+    } catch (error) {
+      console.error('Error updating email settings:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ errors: error.errors });
+      } else {
+        res.status(500).json({ message: 'Failed to update email settings' });
+      }
+    }
+  });
+  
+  // Get email settings
+  app.get('/api/user/email-settings', isAuthenticated, async (req, res) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(403).json({ message: 'Not authenticated' });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      
+      // Return only email-related settings
+      const emailSettings = {
+        smtp_host: user.smtp_host,
+        smtp_port: user.smtp_port,
+        smtp_user: user.smtp_user,
+        custom_email_enabled: user.custom_email_enabled
+      };
+      
+      res.json({ 
+        success: true,
+        emailSettings
+      });
+    } catch (error) {
+      console.error('Error getting email settings:', error);
+      res.status(500).json({ message: 'Failed to retrieve email settings' });
+    }
+  });
 } 

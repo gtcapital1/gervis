@@ -125,6 +125,43 @@ export default function MobileVerification() {
       }
       
       try {
+        // Prima controlliamo lo stato della sessione per gestire situazioni come completed, expired
+        console.log('[DEBUG URGENTE] Controllo stato della sessione:', `/api/signature-sessions/${sessionId}/status?token=${token}`);
+        const statusResponse = await fetch(`/api/signature-sessions/${sessionId}/status?token=${token}`);
+        
+        if (statusResponse.ok) {
+          const statusData = await statusResponse.json();
+          console.log('[DEBUG URGENTE] Stato sessione:', statusData);
+          
+          if (statusData.status === "completed") {
+            console.log('[DEBUG URGENTE] Sessione già completata');
+            toast({
+              title: "Processo completato",
+              description: "Questa sessione è già stata completata con successo.",
+              variant: "default"
+            });
+            setVerificationStatus('success');
+            return; // Usciamo dalla funzione
+          } else if (statusData.status === "expired") {
+            console.log('[DEBUG URGENTE] Sessione scaduta');
+            toast({
+              title: "Sessione scaduta",
+              description: "Questa sessione è scaduta. Richiedi un nuovo link.",
+              variant: "destructive"
+            });
+            return; // Usciamo dalla funzione
+          } else if (statusData.status === "rejected") {
+            console.log('[DEBUG URGENTE] Sessione rifiutata');
+            toast({
+              title: "Sessione rifiutata",
+              description: "Questa sessione è stata rifiutata. Richiedi un nuovo link.",
+              variant: "destructive"
+            });
+            return; // Usciamo dalla funzione
+          }
+        }
+        
+        // Se arriviamo qui, la sessione è valida e non ancora completata
         console.log('[DEBUG URGENTE] Eseguo richiesta a:', `/api/signature-sessions/${sessionId}?token=${token}`);
         const response = await fetch(`/api/signature-sessions/${sessionId}?token=${token}`);
         if (!response.ok) {

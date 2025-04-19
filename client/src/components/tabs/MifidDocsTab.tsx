@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, Fingerprint, PenLine, Download, FileCheck, Upload, Check, ShieldCheck, AlertCircle } from 'lucide-react';
+import { FileText, Fingerprint, PenLine, Download, FileCheck, Upload, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { VerifiedDocumentsTable } from '@/components/VerifiedDocumentsTable';
 import { TabsContent } from '@/components/ui/tabs';
 import { apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useRouter, useSearchParams } from 'next/navigation';
 
 interface MifidDocsTabProps {
   clientId: number;
@@ -34,73 +32,12 @@ export function MifidDocsTab({
 }: MifidDocsTabProps) {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const [pdfGenerated, setPdfGenerated] = useState(false);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [verificationStatus, setVerificationStatus] = useState<'completed' | 'expired' | 'none'>('none');
-  
-  // Controlla lo stato della verifica dal token nell'URL
-  useEffect(() => {
-    const token = searchParams.get('token');
-    const status = searchParams.get('status');
-    
-    if (status === 'completed' && token) {
-      // Verifica che il token sia valido
-      validateToken(token);
-    }
-  }, [searchParams]);
-  
-  // Funzione per validare il token
-  const validateToken = async (token: string) => {
-    try {
-      const response = await apiRequest('/api/validate-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token }),
-      });
-      
-      if (response.success) {
-        setVerificationStatus('completed');
-        // Mostra notifica di successo
-        toast({
-          title: "Verifica completata",
-          description: "La procedura di firma è stata completata con successo.",
-          variant: "default",
-        });
-        
-        // Rimuovi i parametri dall'URL senza ricaricare la pagina
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-      } else {
-        // Il token non è valido o è scaduto
-        setVerificationStatus('expired');
-        
-        // Rimuovi i parametri dall'URL senza ricaricare la pagina
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
-        
-        toast({
-          title: "Errore di verifica",
-          description: "Il token di verifica è scaduto o non valido.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Errore nella validazione del token:", error);
-      setVerificationStatus('expired');
-      
-      // Rimuovi i parametri dall'URL senza ricaricare la pagina
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
-  };
   
   // Controlla se esiste già un PDF per questo cliente
   useEffect(() => {
@@ -257,34 +194,8 @@ export function MifidDocsTab({
     }
   };
   
-  // Se il token è scaduto, mostra solo un messaggio di errore invece dell'interfaccia
-  if (verificationStatus === 'expired') {
-    return (
-      <TabsContent value="mifid-docs" className="space-y-6">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Verifica non valida</AlertTitle>
-          <AlertDescription>
-            Il link di verifica è scaduto o non valido. Per favore richiedi una nuova procedura di firma.
-          </AlertDescription>
-        </Alert>
-      </TabsContent>
-    );
-  }
-  
   return (
     <TabsContent value="mifid-docs" className="space-y-6">
-      {/* Mostra il messaggio di completamento se la verifica è stata completata */}
-      {verificationStatus === 'completed' && (
-        <Alert variant="default" className="bg-green-50 border-green-500 text-green-900 mb-4">
-          <ShieldCheck className="h-4 w-4 text-green-500" />
-          <AlertTitle>Verifica completata</AlertTitle>
-          <AlertDescription>
-            La procedura di firma del documento MIFID è stata completata con successo.
-          </AlertDescription>
-        </Alert>
-      )}
-      
       <Card>
         <CardHeader>
           <CardTitle className="text-xl flex items-center gap-2">
