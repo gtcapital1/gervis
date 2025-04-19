@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, useLocation } from "wouter";
 import { useTranslation } from "react-i18next";
 import { 
@@ -36,7 +36,16 @@ import {
   Landmark, // Per commodities
   BriefcaseIcon, // Per alternative
   Banknote, // Per other
-  Power
+  Power,
+  AlertCircle, 
+  CalendarClock,
+  UploadCloud,
+  Download,
+  ExternalLink,
+  PenSquare,
+  PenLine,
+  Fingerprint,
+  ChevronDown
 } from "lucide-react";
 import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { ClientEditDialog } from "@/components/dashboard/ClientEditDialog";
@@ -79,6 +88,37 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { PageHeader } from "@/components/ui/page-header";
+import ClientLogList from "@/components/ClientLogList";
+import { 
+  Form, 
+  FormControl, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormMessage 
+} from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as DatePicker } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { it } from "date-fns/locale";
+import AddLogDialog from "@/components/AddLogDialog";
+import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@/components/ui/table";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DigitalSignatureDialog } from "@/components/dashboard/DigitalSignatureDialog";
+import { TraditionalSignatureDialog } from "@/components/dashboard/TraditionalSignatureDialog";
+import { VerifiedDocumentsTable } from "@/components/VerifiedDocumentsTable";
+import { MifidTab } from "@/components/dashboard/MifidTab";
+
+// Importa il componente AiProfileTab
+import { AiProfileTab } from "@/components/tabs/AiProfileTab";
+// Importa il componente ClientInfoTab
+import { ClientInfoTab } from "@/components/tabs/ClientInfoTab";
+// Importa il componente ClientInteractionsTab
+import { ClientInteractionsTab } from "@/components/tabs/ClientInteractionsTab";
+// Importa il componente MifidDocsTab
+import { MifidDocsTab } from "@/components/tabs/MifidDocsTab";
+// Importa il componente MifidEditForm
+import { MifidEditForm, MifidFormValues, MifidType as FormMifidType } from "@/components/forms/MifidEditForm";
 
 // Form schema for editing client information
 const clientFormSchema = z.object({
@@ -130,7 +170,6 @@ const mifidFormSchema = z.object({
 });
 
 type ClientFormValues = z.infer<typeof clientFormSchema>;
-type MifidFormValues = z.infer<typeof mifidFormSchema>;
 
 // Definizione dell'interfaccia per i parametri di onboarding
 interface OnboardingParams {
@@ -163,40 +202,7 @@ type AssetType = {
 };
 
 // Define the MIFID type
-type MifidType = {
-  id: string;
-  clientId: number;
-  createdAt: string;
-  updatedAt: string;
-  address: string;
-  phone: string;
-  birthDate: string;
-  maritalStatus: string;
-  employmentStatus: string;
-  educationLevel: string;
-  annualIncome: number;
-  monthlyExpenses: number;
-  debts: number;
-  dependents: number;
-  assets: AssetType[];
-  investmentHorizon: string;
-  retirementInterest: number;
-  wealthGrowthInterest: number;
-  incomeGenerationInterest: number;
-  capitalPreservationInterest: number;
-  estatePlanningInterest: number;
-  investmentExperience: string;
-  pastInvestmentExperience: string[];
-  financialEducation: string[];
-  riskProfile: string;
-  portfolioDropReaction: string;
-  volatilityTolerance: string;
-  yearsOfExperience: string;
-  investmentFrequency: string;
-  advisorUsage: string;
-  monitoringTime: string;
-  specificQuestions: string | null;
-};
+type MifidType = FormMifidType;
 
 // Define the query response type
 type ClientQueryResponse = {
@@ -259,21 +265,139 @@ const InvestmentGoals = ({ mifid }: { mifid: MifidType | null }) => {
   );
 };
 
+// Form schema per la creazione di log
+const logFormSchema = z.object({
+  type: z.enum(["email", "note", "call", "meeting"]),
+  title: z.string().min(1, { message: "Il titolo è obbligatorio" }),
+  content: z.string().min(1, { message: "Il contenuto è obbligatorio" }),
+  emailSubject: z.string().optional(),
+  emailRecipients: z.string().optional(),
+  logDate: z.date().default(() => new Date()),
+  clientId: z.number(),
+  createdBy: z.number().optional(),
+});
+
+type LogFormValues = z.infer<typeof logFormSchema>;
+
 export default function ClientDetail() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
-  const clientId = parseInt(id || "0");
   const { toast } = useToast();
-  const { user, isLoading: isAuthLoading } = useAuth();
   const { t } = useTranslation();
+  const clientId = !isNaN(Number(id)) ? Number(id) : 0;
+  const { user, isLoading: isAuthLoading } = useAuth();
+  const queryClient = useQueryClient();
+  
+  // Client detail states
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
+  const [isAddLogDialogOpen, setIsAddLogDialogOpen] = useState(false);
   const [isConfirmActiveDialogOpen, setIsConfirmActiveDialogOpen] = useState(false);
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
-  const [isMifidEditDialogOpen, setIsMifidEditDialogOpen] = useState(false);
+  const [isLinkLoading, setIsLinkLoading] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
   
-  // Solo stato per l'onboarding link e indicatore di caricamento
-  const [isLinkLoading, setIsLoading] = useState(false);
+  // State per ricordare il tab attivo
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    // Recupera il tab attivo dal localStorage se disponibile, altrimenti usa il default
+    return localStorage.getItem(`activeTab_${clientId}`) || "ai-profile";
+  });
+
+  // Funzione per gestire il cambio di tab
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    // Salva il tab attivo nel localStorage
+    localStorage.setItem(`activeTab_${clientId}`, value);
+  };
+  
+  // New states for the signature dialogs
+  const [isDigitalSignatureDialogOpen, setIsDigitalSignatureDialogOpen] = useState(false);
+  const [isTraditionalSignatureDialogOpen, setIsTraditionalSignatureDialogOpen] = useState(false);
+  
+  // Variable to track if a document was generated and ready for sending
+  const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
+  
+  // Query to fetch client logs
+  const clientLogsQuery = useQuery({
+    queryKey: ["/api/client-logs", clientId],
+    queryFn: () => apiRequest(`/api/client-logs/${clientId}`),
+    enabled: !!clientId
+  });
+  
+  // Query per recuperare i documenti verificati
+  const verifiedDocsQuery = useQuery({
+    queryKey: ["/api/verified-documents", clientId],
+    queryFn: () => apiRequest(`/api/verified-documents/${clientId}`),
+    enabled: !!clientId
+  });
+  
+  // Form per la creazione di log
+  const logForm = useForm<LogFormValues>({
+    resolver: zodResolver(logFormSchema),
+    defaultValues: {
+      type: "call",
+      title: "",
+      content: "",
+      emailSubject: "",
+      emailRecipients: "",
+      logDate: new Date(),
+      clientId: clientId,
+      createdBy: undefined,
+    },
+  });
+
+  // Mutazione per creare un nuovo log
+  const createLogMutation = useMutation({
+    mutationFn: (data: LogFormValues) => {
+      return apiRequest("/api/client-logs", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...data,
+          logDate: data.logDate.toISOString()
+        }),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/client-logs", clientId] });
+      toast({
+        title: t('Log creato'),
+        description: t('Il log è stato creato con successo'),
+      });
+      logForm.reset();
+      setIsAddLogDialogOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: t('Errore'),
+        description: (error as Error).message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Funzione per gestire la sottomissione del form di log
+  function onSubmitLog(data: LogFormValues) {
+    createLogMutation.mutate(data);
+  }
+
+  // Reinizializzare il form quando si apre il dialog
+  React.useEffect(() => {
+    if (isAddLogDialogOpen) {
+      logForm.reset({
+        type: "call",
+        title: "",
+        content: "",
+        emailSubject: "",
+        emailRecipients: "",
+        logDate: new Date(),
+        clientId: clientId,
+        createdBy: undefined,
+      });
+    }
+  }, [isAddLogDialogOpen, clientId, logForm]);
   
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -445,10 +569,10 @@ Grazie per la tua fiducia e collaborazione.`
       form.reset({
         name: client.name,
         email: client.email,
-        phone: client.phone || "",
-        address: client.address || "",
+        phone: (client as any).phone || "",
+        address: (client as any).address || "",
         taxCode: client.taxCode || "",
-        riskProfile: client.riskProfile as any,
+        riskProfile: (client as any).riskProfile as any,
       });
     }
   }, [client, form]);
@@ -683,7 +807,7 @@ Grazie per la tua fiducia e collaborazione.`
     // Se è un evento, previeni il comportamento default
     if (e && e.preventDefault) e.preventDefault();
     
-    setIsLoading(true);
+    setIsLinkLoading(true);
     try {
       const payload = {
         language: 'italian' // Hardcoded per ora, ma puoi rendere parametrizzabile
@@ -767,7 +891,7 @@ Grazie per la tua fiducia e collaborazione.`
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsLinkLoading(false);
     }
   };
   
@@ -792,7 +916,7 @@ Grazie per la tua fiducia e collaborazione.`
     }
     
     // Invia direttamente l'email con il messaggio predefinito italiano
-    setIsLoading(true);
+    setIsLinkLoading(true);
     try {
       // Assicurati che abbiamo il token di onboarding, non il link completo
       const tokenMatch = onboardingLink.match(/token=([^&]+)/);
@@ -870,7 +994,7 @@ Grazie per la tua fiducia e collaborazione.`
         variant: "destructive"
       });
     } finally {
-      setIsLoading(false);
+      setIsLinkLoading(false);
     }
   };
   
@@ -923,9 +1047,18 @@ Grazie per la tua fiducia e collaborazione.`
               </Button>
               <h1 className="text-2xl font-bold">{client.name}</h1>
             </div>
-            {/* Rimuoviamo i bottoni da qui, li avremo solo nel container principale */}
           </div>
 
+          {/* Tabs structure for consistency with the onboarded view */}
+          <Tabs defaultValue="onboarding" className="w-full">
+            <TabsList className="grid grid-cols-1 mb-6">
+              <TabsTrigger value="onboarding">
+                <Link2 className="h-4 w-4 mr-2" />
+                {t('client.onboarding') || "Onboarding Richiesto"}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="onboarding" className="space-y-6">
           {/* Onboarding Required Message */}
           <Card>
             <CardHeader>
@@ -942,16 +1075,28 @@ Grazie per la tua fiducia e collaborazione.`
                   {t('client.onboard_first')}
                 </p>
                 <div className="flex space-x-4">
-                  <Button 
-                    variant="default" 
-                    size="lg"
-                    onClick={handleGenerateOnboardingLink}
-                    disabled={isLinkLoading}
-                    className="bg-accent hover:bg-accent/90"
-                  >
-                    <Link2 className="mr-2 h-4 w-4" />
-                    {isLinkLoading ? t('common.generating') : t('client.generate_link')}
-                  </Button>
+                  {!onboardingLink ? (
+                    <Button 
+                      variant="default" 
+                      size="lg"
+                      onClick={handleGenerateOnboardingLink}
+                      disabled={isLinkLoading}
+                      className="bg-accent hover:bg-accent/90"
+                    >
+                      <Link2 className="mr-2 h-4 w-4" />
+                      {isLinkLoading ? t('common.generating') : t('client.generate_link')}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="default" 
+                      size="lg"
+                      onClick={() => window.open(onboardingLink, '_blank')}
+                      className="bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <ExternalLink className="mr-2 h-4 w-4" />
+                      {t('client.visit_onboarding_page')}
+                    </Button>
+                  )}
                   {onboardingLink && (
                     <Button 
                       variant="default" 
@@ -1014,6 +1159,8 @@ Grazie per la tua fiducia e collaborazione.`
               </CardContent>
             </Card>
           )}
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     );
@@ -1023,22 +1170,24 @@ Grazie per la tua fiducia e collaborazione.`
     <div className="container mx-auto px-4 py-8">
       <div className="flex flex-col space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between py-4 border-b">
           <div className="flex items-center space-x-4">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setLocation("/dashboard")}
+              className="hover:bg-gray-100"
             >
-              <ArrowLeft className="h-4 w-4" />
+              <ArrowLeft className="h-4 w-4 text-gray-600" />
             </Button>
-            <h1 className="text-2xl font-bold">{client?.name}</h1>
+            <h1 className="text-2xl font-semibold text-gray-800">{client?.name}</h1>
             {client?.isOnboarded && (
               <>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
+                  className="ml-4 bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
                 >
                   <Edit className="h-4 w-4 mr-2" />
                   {t('common.edit')}
@@ -1046,7 +1195,7 @@ Grazie per la tua fiducia e collaborazione.`
                 <div className="flex items-center ml-2">
                   <Badge 
                     variant={client?.active ? "default" : "destructive"}
-                    className="flex items-center pl-2 pr-1 py-0.5 h-8"
+                    className={`flex items-center pl-2 pr-1 py-0.5 h-8 ${client?.active ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'}`}
                   >
                     <span className="mr-2">
                       {client?.active ? 
@@ -1068,382 +1217,55 @@ Grazie per la tua fiducia e collaborazione.`
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {client?.isOnboarded ? (
-              <>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setLocation(`/clients/${clientId}/logs`)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  {t('client.logs')}
-                </Button>
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowPdfDialog(true)}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
-                >
-                  <FileText className="h-4 w-4 mr-2" />
-                  {t('client.generate_pdf')}
-                </Button>
-              </>
-            ) : null}
-            {/* Rimuoviamo i bottoni da qui */}
+            {/* Redundant PDF button removed */}
           </div>
         </div>
 
-        {/* Main Content */}
-        <div className="grid grid-cols-1 gap-6">
-          {/* Personal Information and Financial Situation */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Left column: Personal Information */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl">{t('client.personal_info')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {mifid && (
-                    <>
-                      <div className="flex items-center">
-                        <MapPin className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.address')}:</span>
-                        <span>{mifid.address}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Phone className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.phone')}:</span>
-                        <span>{mifid.phone}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Calendar className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.birth_date')}:</span>
-                        <span>{mifid.birthDate}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <User className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.marital_status')}:</span>
-                        <span>{t(`marital_status.${mifid.maritalStatus}`)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <Briefcase className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.employment_status')}:</span>
-                        <span>{t(`employment_status.${mifid.employmentStatus}`)}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <FileText className="h-4 w-4 mr-2 opacity-70" />
-                        <span className="text-sm text-muted-foreground mr-2">{t('client.education_level')}:</span>
-                        <span>{t(`education_levels.${mifid.educationLevel}`)}</span>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+        {/* Main Navigation Tabs */}
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+          <TabsList className="grid grid-cols-4 mb-6 bg-gray-100">
+            <TabsTrigger value="ai-profile" className="data-[state=active]:bg-white data-[state=active]:text-gray-800 data-[state=active]:shadow-sm">
+              <Brain className="h-4 w-4 mr-2" />
+              {t('client.ai_profile') || "Profilo AI"}
+            </TabsTrigger>
+            <TabsTrigger value="client-info" className="data-[state=active]:bg-white data-[state=active]:text-gray-800 data-[state=active]:shadow-sm">
+              <User className="h-4 w-4 mr-2" />
+              {t('client.information') || "Informazioni Cliente"}
+            </TabsTrigger>
+            <TabsTrigger value="client-interactions" className="data-[state=active]:bg-white data-[state=active]:text-gray-800 data-[state=active]:shadow-sm">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              {t('client.interactions') || "Interazioni Cliente"}
+            </TabsTrigger>
+            <TabsTrigger value="mifid-docs" className="data-[state=active]:bg-white data-[state=active]:text-gray-800 data-[state=active]:shadow-sm">
+              <FileText className="h-4 w-4 mr-2" />
+              {t('client.mifid_documentation') || "Documentazione MIFID"}
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Right column: Financial Situation */}
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl">{t('client.current_financial_situation')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {mifid && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Left column - Income & Expenses */}
-                      <div className="space-y-4">
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.annual_income')}:</span>
-                          <span className="text-lg font-medium">€{mifid.annualIncome.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.monthly_expenses')}:</span>
-                          <span className="text-lg font-medium">€{mifid.monthlyExpenses.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.dependents')}:</span>
-                          <span className="text-lg font-medium">{mifid.dependents}</span>
-                        </div>
-                      </div>
+          {/* Tab Content for AI Profile */}
+          <AiProfileTab clientId={clientId} />
 
-                      {/* Right column - Assets & Net Worth */}
-                      <div className="space-y-4">
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.total_assets')}:</span>
-                          <span className="text-lg font-medium">€{client.totalAssets?.toLocaleString() || '0'}</span>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.debts')}:</span>
-                          <span className="text-lg font-medium">€{mifid.debts.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-sm text-muted-foreground block">{t('client.net_worth')}:</span>
-                          <span className="text-lg font-medium">€{client.netWorth?.toLocaleString() || '0'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Client Segment - Centered below */}
-                    <div className="flex flex-col items-center pt-4 border-t">
-                      <span className="text-sm text-muted-foreground mb-2">{t('client.segment')}:</span>
-                      <Badge 
-                        variant="outline" 
-                        className="capitalize px-4 py-1.5 text-base"
-                        style={{
-                          backgroundColor: 
-                            client.clientSegment === "mass_market" ? "#93c5fd" : // Light blue
-                            client.clientSegment === "affluent" ? "#60a5fa" : // Medium light blue
-                            client.clientSegment === "hnw" ? "#3b82f6" : // Medium blue
-                            client.clientSegment === "vhnw" ? "#2563eb" : // Medium dark blue
-                            client.clientSegment === "uhnw" ? "#1e40af" : // Dark blue
-                            "#6b7280", // Gray default
-                          color: "#ffffff"
-                        }}
-                      >
-                        {client.clientSegment ? t(`client.segments.${client.clientSegment}`) : t('client.not_specified')}
-                      </Badge>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          {/* Tab Content for Client Information */}
+          <ClientInfoTab 
+            client={client} 
+            mifid={mifid || null} 
+            assets={assets} 
+          />
           
-          {/* Investment Profile */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xl">{t('client.investment_profile')}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Left column: Risk Profile and Investment Horizon */}
-                <div className="space-y-4">
-                  {mifid && (
-                    <>
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.risk_profile')}:</span>
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              mifid.riskProfile === "conservative" ? "#93c5fd" : // Light blue
-                              mifid.riskProfile === "moderate" ? "#60a5fa" : // Medium light blue
-                              mifid.riskProfile === "balanced" ? "#3b82f6" : // Medium blue
-                              mifid.riskProfile === "growth" ? "#2563eb" : // Medium dark blue
-                              mifid.riskProfile === "aggressive" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: "#ffffff"
-                          }}
-                        >
-                          {t(`risk_profiles.${mifid.riskProfile}`)}
-                        </Badge>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_experience')}:</span>
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              mifid.investmentExperience === "none" ? "#93c5fd" : // Light blue
-                              mifid.investmentExperience === "beginner" ? "#60a5fa" : // Medium light blue
-                              mifid.investmentExperience === "intermediate" ? "#3b82f6" : // Medium blue
-                              mifid.investmentExperience === "advanced" ? "#2563eb" : // Medium dark blue
-                              mifid.investmentExperience === "expert" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: "#ffffff"
-                          }}
-                        >
-                          {t(`experience_levels.${mifid.investmentExperience}`)}
-                        </Badge>
-                      </div>
-                      
-                      <div>
-                        <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_horizon')}:</span>
-                        <Badge 
-                          className="capitalize"
-                          style={{
-                            backgroundColor: 
-                              mifid.investmentHorizon === "short_term" ? "#93c5fd" : // Light blue
-                              mifid.investmentHorizon === "medium_term" ? "#3b82f6" : // Medium blue
-                              mifid.investmentHorizon === "long_term" ? "#1e40af" : // Dark blue
-                              "#6b7280", // Gray default
-                            color: mifid.investmentHorizon === "short_term" ? "#1e3a8a" : "#ffffff"
-                          }}
-                        >
-                          {t(`investment_horizons.${mifid.investmentHorizon}`)}
-                        </Badge>
-                      </div>
-                    </>
-                  )}
-                </div>
-                
-                {/* Right column: Investment Goals */}
-                <div className="space-y-4">
-                  <span className="text-sm text-muted-foreground block mb-2">{t('client.investment_goals')}:</span>
-                  <InvestmentGoals mifid={mifid} />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          
-          {/* Asset Allocation */}
-          {assets.length > 0 ? (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-xl">{t('client.asset_allocation')}</CardTitle>
-                <CardDescription>
-                  {t('client.portfolio_snapshot')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Left side: Asset list */}
-                  <div>
-                    <h3 className="text-lg font-medium mb-3">{t('client.asset_details')}</h3>
-                    <div className="space-y-2">
-                      {assets.map((asset) => {
-                        // Funzione per ottenere l'icona appropriata in base alla categoria
-                        const getAssetIcon = (category: string) => {
-                          switch (category.toLowerCase()) {
-                            case 'real_estate':
-                              return <Building2 className="h-4 w-4 mr-2" />;
-                            case 'equity':
-                              return <LineChart className="h-4 w-4 mr-2" />;
-                            case 'bonds':
-                              return <Wallet className="h-4 w-4 mr-2" />;
-                            case 'cash':
-                              return <Coins className="h-4 w-4 mr-2" />;
-                            case 'crypto':
-                              return <PiggyBank className="h-4 w-4 mr-2" />;
-                            case 'commodities':
-                              return <Landmark className="h-4 w-4 mr-2" />;
-                            case 'alternative':
-                              return <BriefcaseIcon className="h-4 w-4 mr-2" />;
-                            default:
-                              return <Banknote className="h-4 w-4 mr-2" />;
-                          }
-                        };
+          {/* Client Interactions Tab Content */}
+          <ClientInteractionsTab 
+                      clientId={clientId} 
+                      onAddLog={() => setIsAddLogDialogOpen(true)}
+                    />
 
-                        return (
-                          <div key={asset.id} className="flex items-center justify-between p-2 border rounded bg-white">
-                            <div className="flex items-center">
-                              {getAssetIcon(asset.category)}
-                              <span className="font-medium capitalize">{t(`asset_categories.${asset.category}`)}</span>
-                            </div>
-                            <div className="font-semibold">€{asset.value.toLocaleString()}</div>
-                          </div>
-                        );
-                      })}
-                      <div className="flex items-center justify-between p-2 border-t pt-3 mt-3">
-                        <div className="font-semibold">{t('client.total')}</div>
-                        <div className="font-bold">€{totalValue.toLocaleString()}</div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Right side: Pie chart */}
-                  <div className="h-[250px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={assets}
-                          dataKey="value"
-                          nameKey="category"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label={({ name, value }) => {
-                            // Formatta il valore in formato compatto (es. 100k, 1.1m)
-                            const formatValue = (val: number) => {
-                              if (val >= 1000000) {
-                                return `${(val / 1000000).toFixed(1)}m`;
-                              } else if (val >= 1000) {
-                                return `${(val / 1000).toFixed(0)}k`;
-                              }
-                              return val.toString();
-                            };
-                            return `${t(`asset_categories.${name}`)} (${formatValue(value)})`;
-                          }}
-                        >
-                          {assets.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip 
-                          formatter={(value: number) => `€${value.toLocaleString()}`}
-                          labelFormatter={(label) => t(`asset_categories.${label}`)}
-                        />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
-          
-          {/* Contenitore per Sigmund */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>
-                {t('client.ai_analysis_center') || "Centro Analisi AI"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {/* Sigmund (ex AI Profile) */}
-              <div className="space-y-4">
-                {client?.isOnboarded ? (
-                  <AiClientProfile clientId={clientId} />
-                ) : (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Sigmund</CardTitle>
-                      <CardDescription>
-                        {t('client.profile_incomplete_description')}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-col items-center justify-center py-6 space-y-4">
-                        <AlertTriangle className="h-12 w-12 text-amber-500" />
-                        <p className="text-center text-muted-foreground">
-                          {t('client.onboard_first') || "Il cliente deve prima completare il processo di onboarding per poter generare un profilo IA."}
-                        </p>
-                        {!client?.onboardingToken && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={handleGenerateOnboardingLink}
-                            disabled={isLinkLoading}
-                          >
-                            <Link2 className="mr-2 h-4 w-4" />
-                            {isLinkLoading ? t('common.generating') : t('client.generate_onboarding_link')}
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-              {recommendations.map((rec, index) => (
-                <div key={index} className="p-4 border rounded-lg bg-white">
-                  <div className="flex items-start space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-accent/10 flex items-center justify-center">
-                        <Brain className="h-4 w-4 text-accent" />
-                      </div>
-                    </div>
-                    <div className="flex-1 space-y-2">
-                      <h4 className="font-medium">{rec.title}</h4>
-                      <p className="text-sm text-muted-foreground">{rec.description}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
+          {/* MIFID Documentation Tab Content */}
+          <MifidDocsTab 
+            clientId={clientId}
+            onShowPdfDialog={() => setShowPdfDialog(true)}
+            onDigitalSignature={() => setIsDigitalSignatureDialogOpen(true)}
+            onTraditionalSignature={() => setIsTraditionalSignatureDialogOpen(true)}
+          />
+        </Tabs>
       </div>
       
       {/* Edit Client Information Dialog */}
@@ -1473,383 +1295,13 @@ Grazie per la tua fiducia e collaborazione.`
       )}
 
       {/* Dialog per la modifica dei dati MIFID */}
-      <Dialog open={isMifidEditDialogOpen} onOpenChange={setIsMifidEditDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{t('client.edit_mifid_data')}</DialogTitle>
-            <DialogDescription>
-              {t('client.edit_mifid_description')}
-            </DialogDescription>
-          </DialogHeader>
-          
-          <form onSubmit={mifidForm.handleSubmit(onSubmitMifid)} className="space-y-6">
-            {/* Personal Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{t('client.personal_info')}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="address">{t('client.address')}</Label>
-                  <Input
-                    id="address"
-                    {...mifidForm.register("address")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone">{t('client.phone')}</Label>
-                  <Input
-                    id="phone"
-                    {...mifidForm.register("phone")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birthDate">{t('client.birth_date')}</Label>
-                  <Input
-                    id="birthDate"
-                    type="date"
-                    {...mifidForm.register("birthDate")}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="maritalStatus">{t('client.marital_status')}</Label>
-                  <Select 
-                    value={mifidForm.watch("maritalStatus")} 
-                    onValueChange={(value) => mifidForm.setValue("maritalStatus", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_marital_status')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="single">{t('marital_status.single')}</SelectItem>
-                      <SelectItem value="married">{t('marital_status.married')}</SelectItem>
-                      <SelectItem value="divorced">{t('marital_status.divorced')}</SelectItem>
-                      <SelectItem value="widowed">{t('marital_status.widowed')}</SelectItem>
-                      <SelectItem value="separated">{t('marital_status.separated')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="employmentStatus">{t('client.employment_status')}</Label>
-                  <Select 
-                    value={mifidForm.watch("employmentStatus")} 
-                    onValueChange={(value) => mifidForm.setValue("employmentStatus", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_employment_status')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="employed">{t('employment_status.employed')}</SelectItem>
-                      <SelectItem value="unemployed">{t('employment_status.unemployed')}</SelectItem>
-                      <SelectItem value="self_employed">{t('employment_status.self_employed')}</SelectItem>
-                      <SelectItem value="retired">{t('employment_status.retired')}</SelectItem>
-                      <SelectItem value="student">{t('employment_status.student')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="educationLevel">{t('client.education_level')}</Label>
-                  <Select 
-                    value={mifidForm.watch("educationLevel")} 
-                    onValueChange={(value) => mifidForm.setValue("educationLevel", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_education_level')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="high_school">{t('education_levels.high_school')}</SelectItem>
-                      <SelectItem value="bachelor">{t('education_levels.bachelor')}</SelectItem>
-                      <SelectItem value="master">{t('education_levels.master')}</SelectItem>
-                      <SelectItem value="phd">{t('education_levels.phd')}</SelectItem>
-                      <SelectItem value="other">{t('education_levels.other')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Financial Situation */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{t('client.current_financial_situation')}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="annualIncome">{t('client.annual_income')}</Label>
-                  <Input
-                    id="annualIncome"
-                    type="number"
-                    {...mifidForm.register("annualIncome", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="monthlyExpenses">{t('client.monthly_expenses')}</Label>
-                  <Input
-                    id="monthlyExpenses"
-                    type="number"
-                    {...mifidForm.register("monthlyExpenses", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="debts">{t('client.debts')}</Label>
-                  <Input
-                    id="debts"
-                    type="number"
-                    {...mifidForm.register("debts", { valueAsNumber: true })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dependents">{t('client.dependents')}</Label>
-                  <Input
-                    id="dependents"
-                    type="number"
-                    {...mifidForm.register("dependents", { valueAsNumber: true })}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Investment Profile */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{t('client.investment_profile')}</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="riskProfile">{t('client.risk_profile')}</Label>
-                  <Select 
-                    value={mifidForm.watch("riskProfile")} 
-                    onValueChange={(value) => mifidForm.setValue("riskProfile", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_risk_profile')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="conservative">{t('risk_profiles.conservative')}</SelectItem>
-                      <SelectItem value="moderate">{t('risk_profiles.moderate')}</SelectItem>
-                      <SelectItem value="balanced">{t('risk_profiles.balanced')}</SelectItem>
-                      <SelectItem value="growth">{t('risk_profiles.growth')}</SelectItem>
-                      <SelectItem value="aggressive">{t('risk_profiles.aggressive')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="investmentHorizon">{t('client.investment_horizon')}</Label>
-                  <Select 
-                    value={mifidForm.watch("investmentHorizon")} 
-                    onValueChange={(value) => mifidForm.setValue("investmentHorizon", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_investment_horizon')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="short_term">{t('investment_horizons.short_term')}</SelectItem>
-                      <SelectItem value="medium_term">{t('investment_horizons.medium_term')}</SelectItem>
-                      <SelectItem value="long_term">{t('investment_horizons.long_term')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Investment Goals */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{t('client.investment_goals')}</h3>
-              <InvestmentGoals mifid={mifid} />
-            </div>
-
-            {/* Investment Experience */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{t('client.investment_experience')}</h3>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="investmentExperience">{t('client.investment_experience_level')}</Label>
-                  <Select 
-                    value={mifidForm.watch("investmentExperience")} 
-                    onValueChange={(value) => mifidForm.setValue("investmentExperience", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_investment_experience')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('investment_experience.none')}</SelectItem>
-                      <SelectItem value="limited">{t('investment_experience.limited')}</SelectItem>
-                      <SelectItem value="good">{t('investment_experience.good')}</SelectItem>
-                      <SelectItem value="extensive">{t('investment_experience.extensive')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>{t('client.past_investment_experience')}</Label>
-                  <div className="space-y-2">
-                    {['stocks', 'bonds', 'mutual_funds', 'etfs', 'real_estate', 'crypto'].map((type) => (
-                      <div key={type} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={type}
-                          checked={mifidForm.watch("pastInvestmentExperience")?.includes(type)}
-                          onChange={(e) => {
-                            const current = mifidForm.watch("pastInvestmentExperience") || [];
-                            if (e.target.checked) {
-                              mifidForm.setValue("pastInvestmentExperience", [...current, type]);
-                            } else {
-                              mifidForm.setValue("pastInvestmentExperience", current.filter(t => t !== type));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={type}>{t(`investment_types.${type}`)}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>{t('client.financial_education')}</Label>
-                  <div className="space-y-2">
-                    {['courses', 'books', 'seminars', 'online_resources', 'professional_advice'].map((type) => (
-                      <div key={type} className="flex items-center space-x-2">
-                        <input
-                          type="checkbox"
-                          id={type}
-                          checked={mifidForm.watch("financialEducation")?.includes(type)}
-                          onChange={(e) => {
-                            const current = mifidForm.watch("financialEducation") || [];
-                            if (e.target.checked) {
-                              mifidForm.setValue("financialEducation", [...current, type]);
-                            } else {
-                              mifidForm.setValue("financialEducation", current.filter(t => t !== type));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={type}>{t(`education_types.${type}`)}</Label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="portfolioDropReaction">{t('client.portfolio_drop_reaction')}</Label>
-                  <Select 
-                    value={mifidForm.watch("portfolioDropReaction")} 
-                    onValueChange={(value) => mifidForm.setValue("portfolioDropReaction", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_portfolio_drop_reaction')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="sell">{t('portfolio_reactions.sell')}</SelectItem>
-                      <SelectItem value="hold">{t('portfolio_reactions.hold')}</SelectItem>
-                      <SelectItem value="buy">{t('portfolio_reactions.buy')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="volatilityTolerance">{t('client.volatility_tolerance')}</Label>
-                  <Select 
-                    value={mifidForm.watch("volatilityTolerance")} 
-                    onValueChange={(value) => mifidForm.setValue("volatilityTolerance", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_volatility_tolerance')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">{t('volatility_tolerance.low')}</SelectItem>
-                      <SelectItem value="medium">{t('volatility_tolerance.medium')}</SelectItem>
-                      <SelectItem value="high">{t('volatility_tolerance.high')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="yearsOfExperience">{t('client.years_of_experience')}</Label>
-                  <Select 
-                    value={mifidForm.watch("yearsOfExperience")} 
-                    onValueChange={(value) => mifidForm.setValue("yearsOfExperience", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_years_of_experience')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">{t('years_experience.none')}</SelectItem>
-                      <SelectItem value="less_than_1">{t('years_experience.less_than_1')}</SelectItem>
-                      <SelectItem value="1_to_3">{t('years_experience.1_to_3')}</SelectItem>
-                      <SelectItem value="3_to_5">{t('years_experience.3_to_5')}</SelectItem>
-                      <SelectItem value="more_than_5">{t('years_experience.more_than_5')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="investmentFrequency">{t('client.investment_frequency')}</Label>
-                  <Select 
-                    value={mifidForm.watch("investmentFrequency")} 
-                    onValueChange={(value) => mifidForm.setValue("investmentFrequency", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_investment_frequency')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">{t('investment_frequency.monthly')}</SelectItem>
-                      <SelectItem value="quarterly">{t('investment_frequency.quarterly')}</SelectItem>
-                      <SelectItem value="annually">{t('investment_frequency.annually')}</SelectItem>
-                      <SelectItem value="irregular">{t('investment_frequency.irregular')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="advisorUsage">{t('client.advisor_usage')}</Label>
-                  <Select 
-                    value={mifidForm.watch("advisorUsage")} 
-                    onValueChange={(value) => mifidForm.setValue("advisorUsage", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_advisor_usage')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="full_service">{t('advisor_usage.full_service')}</SelectItem>
-                      <SelectItem value="partial_service">{t('advisor_usage.partial_service')}</SelectItem>
-                      <SelectItem value="self_managed">{t('advisor_usage.self_managed')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="monitoringTime">{t('client.monitoring_time')}</Label>
-                  <Select 
-                    value={mifidForm.watch("monitoringTime")} 
-                    onValueChange={(value) => mifidForm.setValue("monitoringTime", value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('client.select_monitoring_time')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="daily">{t('monitoring_time.daily')}</SelectItem>
-                      <SelectItem value="weekly">{t('monitoring_time.weekly')}</SelectItem>
-                      <SelectItem value="monthly">{t('monitoring_time.monthly')}</SelectItem>
-                      <SelectItem value="quarterly">{t('monitoring_time.quarterly')}</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="specificQuestions">{t('client.specific_questions')}</Label>
-                  <Textarea
-                    id="specificQuestions"
-                    {...mifidForm.register("specificQuestions")}
-                    placeholder={t('client.specific_questions_placeholder')}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsMifidEditDialogOpen(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button type="submit" disabled={updateMifidMutation.isPending}>
-                {updateMifidMutation.isPending ? t('common.saving') : t('common.save')}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <MifidEditForm
+        mifid={mifid}
+        open={isMifidEditDialogOpen}
+        onOpenChange={setIsMifidEditDialogOpen}
+        onSubmit={onSubmitMifid}
+        isPending={updateMifidMutation.isPending}
+      />
 
       {/* PDF Dialog */}
       {showPdfDialog && (
@@ -1857,6 +1309,32 @@ Grazie per la tua fiducia e collaborazione.`
           clientId={clientId}
           open={showPdfDialog}
           onOpenChange={setShowPdfDialog}
+          onDigitalSignature={(pdfUrl) => {
+            // Aggiorna lo stato con l'URL ricevuto se disponibile
+            if (pdfUrl) {
+              console.log('[DEBUG ClientDetail] Ricevuto URL PDF per firma digitale:', pdfUrl);
+              setGeneratedPdfUrl(pdfUrl);
+            } else {
+              console.log('[DEBUG ClientDetail] URL PDF per firma digitale non disponibile');
+            }
+            
+            // Apre il dialogo di firma digitale
+            console.log('[DEBUG ClientDetail] Apertura dialogo firma digitale con URL:', pdfUrl || generatedPdfUrl);
+            setIsDigitalSignatureDialogOpen(true);
+          }}
+          onTraditionalSignature={(pdfUrl) => {
+            // Aggiorna lo stato con l'URL ricevuto se disponibile
+            if (pdfUrl) {
+              console.log('[DEBUG ClientDetail] Ricevuto URL PDF per firma tradizionale:', pdfUrl);
+              setGeneratedPdfUrl(pdfUrl);
+            } else {
+              console.log('[DEBUG ClientDetail] URL PDF per firma tradizionale non disponibile');
+            }
+            
+            // Apre il dialogo di firma tradizionale
+            console.log('[DEBUG ClientDetail] Apertura dialogo firma tradizionale con URL:', pdfUrl || generatedPdfUrl);
+            setIsTraditionalSignatureDialogOpen(true);
+          }}
         />
       )}
 
@@ -1897,6 +1375,36 @@ Grazie per la tua fiducia e collaborazione.`
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Dialog per l'aggiunta di log */}
+      <AddLogDialog 
+        open={isAddLogDialogOpen} 
+        onOpenChange={setIsAddLogDialogOpen} 
+        clientId={Number(clientId)}
+      />
+
+      {/* Signature Dialogs */}
+      {client && (
+        <>
+          <DigitalSignatureDialog
+            open={isDigitalSignatureDialogOpen}
+            onOpenChange={setIsDigitalSignatureDialogOpen}
+            clientName={client.name}
+            clientId={clientId}
+            clientEmail={client.email}
+            documentUrl={generatedPdfUrl || undefined}
+          />
+          <TraditionalSignatureDialog
+            open={isTraditionalSignatureDialogOpen}
+            onOpenChange={setIsTraditionalSignatureDialogOpen}
+            clientName={client.name}
+            clientEmail={client.email}
+            clientId={clientId}
+            documentUrl={generatedPdfUrl || undefined}
+          />
+        </>
+      )}
+
     </div>
   );
 }

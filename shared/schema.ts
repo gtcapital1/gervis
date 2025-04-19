@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, numeric, varchar } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { createId } from "@paralleldrive/cuid2";
@@ -204,6 +204,14 @@ export const clientLogs = pgTable("client_logs", {
   createdBy: integer("created_by").references(() => users.id), // Utente che ha creato il log
 });
 
+// Define relations for clientLogs
+export const clientLogsRelations = relations(clientLogs, ({ one }) => ({
+  client: one(clients, {
+    fields: [clientLogs.clientId],
+    references: [clients.id],
+  })
+}));
+
 export const insertClientLogSchema = createInsertSchema(clientLogs).pick({
   clientId: true,
   type: true,
@@ -350,23 +358,85 @@ export type Mifid = typeof mifid.$inferSelect;
 // Trend Data Schema
 export const trendData = pgTable("trend_data", {
   id: serial("id").primaryKey(),
-  advisorId: integer("advisor_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  type: text("type").notNull(),
-  date: timestamp("date").notNull(),
-  value: integer("value"),
-  valueFloat: text("value_float"),
-  metadata: jsonb("metadata"),
-  createdAt: timestamp("created_at").defaultNow(),
+  clientId: integer("client_id").references(() => clients.id),
+  date: timestamp("date", { mode: "date" }).defaultNow(),
+  portfolioValue: numeric("portfolio_value"),
+  roi: numeric("roi"),
+  risk: numeric("risk"),
 });
 
+export const signedDocuments = pgTable("signed_documents", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id),
+  documentName: varchar("document_name", { length: 255 }).notNull(),
+  documentType: varchar("document_type", { length: 100 }).notNull(),
+  signatureDate: timestamp("signature_date", { mode: "date" }).defaultNow(),
+  signatureType: varchar("signature_type", { length: 50 }).notNull(), // "digital" o "traditional"
+  documentUrl: varchar("document_url", { length: 1000 }),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow(),
+});
+
+// Tabella per i documenti di identità verificati
+export const verifiedDocuments = pgTable("verified_documents", {
+  id: serial("id").primaryKey(),
+  clientId: integer("client_id").references(() => clients.id),
+  sessionId: text("session_id").notNull(),
+  idFrontUrl: text("id_front_url").notNull(),
+  idBackUrl: text("id_back_url").notNull(),
+  selfieUrl: text("selfie_url").notNull(),
+  documentUrl: text("document_url"),  // URL al PDF firmato
+  verificationDate: timestamp("verification_date").defaultNow(),
+  verificationStatus: text("verification_status").notNull().default("verified"),
+  tokenUsed: text("token_used").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+export const insertVerifiedDocumentSchema = createInsertSchema(verifiedDocuments).pick({
+  clientId: true,
+  sessionId: true,
+  idFrontUrl: true,
+  idBackUrl: true,
+  selfieUrl: true,
+  documentUrl: true,
+  tokenUsed: true,
+  createdBy: true,
+});
+
+export type VerifiedDocument = typeof verifiedDocuments.$inferSelect;
+export type InsertVerifiedDocument = z.infer<typeof insertVerifiedDocumentSchema>;
+
 export const insertTrendDataSchema = createInsertSchema(trendData).pick({
-  advisorId: true,
-  type: true,
+  clientId: true,
   date: true,
-  value: true,
-  valueFloat: true,
-  metadata: true,
+  portfolioValue: true,
+  roi: true,
+  risk: true,
 });
 
 export type InsertTrendData = z.infer<typeof insertTrendDataSchema>;
 export type TrendData = typeof trendData.$inferSelect;
+
+// Signature Sessions table
+export const signatureSessions = pgTable("signature_sessions", {
+  id: varchar("id").primaryKey(), // Using the unique sessionId as primary key
+  clientId: integer("client_id").references(() => clients.id).notNull(),
+  createdBy: integer("created_by").references(() => users.id).notNull(),
+  token: varchar("token").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  documentUrl: varchar("document_url"),
+  status: varchar("status", { enum: ["pending", "completed", "expired", "rejected"] }).default("pending").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+// Type definitions for TypeScript
+export type SignatureSession = typeof signatureSessions.$inferSelect;
+export type InsertSignatureSession = typeof signatureSessions.$inferInsert;
+
+// Insert schema for signature sessions
+export const insertSignatureSessionSchema = createInsertSchema(signatureSessions);
+export type InsertSignatureSessionSchema = z.infer<typeof insertSignatureSessionSchema>;

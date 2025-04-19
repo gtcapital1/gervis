@@ -327,6 +327,67 @@ export function registerSignatureRoutes(app: Express) {
     }
   });
 
+  // Validate a token for the MifidDocsTab component
+  app.post('/api/validate-token', async (req, res) => {
+    try {
+      const { token } = req.body;
+      
+      if (!token) {
+        return res.status(400).json({ success: false, message: 'Token richiesto' });
+      }
+      
+      // Find the session in the database
+      const session = await db.query.signatureSessions.findFirst({
+        where: (s, { eq }) => eq(s.token, token)
+      });
+      
+      // If no session found with this token, it's invalid
+      if (!session) {
+        return res.status(404).json({ success: false, message: 'Token non valido' });
+      }
+      
+      // Check if session is completed
+      if (session.status === 'completed') {
+        return res.json({ 
+          success: true, 
+          valid: true,
+          status: 'completed',
+          sessionId: session.id,
+          completedAt: session.completedAt
+        });
+      }
+      
+      // Check if session is expired
+      if (session.status === 'expired' || new Date() > new Date(session.expiresAt)) {
+        // Update status to expired if not already expired
+        if (session.status !== 'expired') {
+          await db.update(signatureSessions)
+            .set({ status: "expired", updatedAt: new Date() })
+            .where(eq(signatureSessions.id, session.id));
+        }
+          
+        return res.json({ 
+          success: false, 
+          valid: false,
+          status: 'expired',
+          message: 'Token scaduto'
+        });
+      }
+      
+      // Token is valid but not completed (pending)
+      return res.json({ 
+        success: true, 
+        valid: true,
+        status: 'pending',
+        sessionId: session.id
+      });
+      
+    } catch (error: unknown) {
+      safeLog('Errore durante la validazione del token', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile validare il token');
+    }
+  });
+
   // API for identity verification using document and selfie
   app.post('/api/verify-identity', async (req, res) => {
     try {

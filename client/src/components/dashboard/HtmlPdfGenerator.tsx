@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { jsPDF } from "jspdf";
 import { saveAs } from "file-saver";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, Send } from "lucide-react";
+import { Loader2, Download, Send, FileSignature } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import autoTable from 'jspdf-autotable';
 import html2pdf from 'html2pdf.js';
@@ -16,7 +16,7 @@ interface HtmlPdfGeneratorProps {
   advisorSignature?: string;
   companyLogo?: string;
   companyInfo?: string;
-  onGenerated?: () => void;
+  onGenerated?: (url?: string) => void;
 }
 
 export function HtmlPdfGenerator({
@@ -37,12 +37,19 @@ export function HtmlPdfGenerator({
   const [emailBody, setEmailBody] = useState<string>("");
   const [emailSubject, setEmailSubject] = useState<string>("Questionario MiFID");
   const [previewHtml, setPreviewHtml] = useState<string>("");
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Ref per tracciare se il PDF è già stato salvato
+  const pdfSavedRef = useRef(false);
   
   // Inizializza l'email predefinita e genera l'anteprima HTML
   useEffect(() => {
     if (client) {
       setEmailBody(`Gentile ${client.firstName || client.name},\n\nÈ un vero piacere darle il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirle un servizio di consulenza altamente personalizzato, progettato per aiutarla a gestire i suoi asset in modo strategico ed efficiente, con un approccio attento ai costi e in piena conformità con le normative vigenti.\n\nAttraverso analisi approfondite e strumenti avanzati, lavoreremo insieme per:\n\n1. Ottimizzare la composizione del suo portafoglio in base ai suoi obiettivi e al suo profilo di rischio.\n2. Identificare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo.\n3. Garantire una consulenza trasparente in linea con le migliori pratiche del settore.\n4. Fornire aggiornamenti e adeguamenti regolari in base ai cambiamenti del mercato e all'evoluzione delle sue esigenze.\n\nCome discusso, per completare il processo di onboarding, la invito a verificare e restituire i documenti allegati firmati. Questo passaggio è necessario per formalizzare la nostra collaborazione e procedere con le attività pianificate.\n\nRimango a disposizione per qualsiasi chiarimento o necessità. Grazie per la sua fiducia, sono fiducioso che questo sarà l'inizio di un percorso prezioso.\n\nCordiali saluti,`);
       generateHtmlPreview();
+      
+      // Reset del flag quando cambia il cliente
+      pdfSavedRef.current = false;
     }
   }, [client]);
 
@@ -461,7 +468,6 @@ export function HtmlPdfGenerator({
             <h2 style="color: #003366; font-size: 18px; margin-bottom: 12px; margin-top: 0; padding: 0;">Gentile Cliente,</h2>
             <p style="margin-bottom: 10px; line-height: 1.6; color: #333; padding: 0;">La compilazione di questo questionario è un requisito stabilito dalla normativa MiFID (Markets in Financial Instruments Directive) per garantire che i servizi e i prodotti finanziari offerti siano adeguati al Suo profilo di investitore.</p>
             <p style="margin-bottom: 10px; line-height: 1.6; color: #333; padding: 0;">La invitiamo a rileggere con attenzione tutte le informazioni fornite e verificare che rispecchino correttamente la Sua situazione attuale, le Sue conoscenze, la Sua propensione al rischio e i Suoi obiettivi di investimento.</p>
-            <p style="margin-bottom: 10px; line-height: 1.6; color: #333; padding: 0;">Le chiediamo di restituire il questionario debitamente compilato e firmato al Suo consulente di fiducia. Questo ci consentirà di offrirLe un servizio personalizzato e conforme alle normative vigenti.</p>
             <p style="font-weight: 500; color: #333; margin-bottom: 0; padding: 0;">Le informazioni raccolte saranno trattate con la massima riservatezza e utilizzate esclusivamente per offrirLe una consulenza adeguata.</p>
           </div>
           
@@ -789,7 +795,7 @@ export function HtmlPdfGenerator({
   };
 
   // Funzione per scaricare il PDF
-  const downloadPdf = (): void => {
+  const downloadPdf = useCallback(async (): Promise<void> => {
     try {
       // Ottieni l'elemento HTML da convertire in PDF
       const element = previewContainerRef.current;
@@ -825,21 +831,33 @@ export function HtmlPdfGenerator({
         }
       };
       
-      // Genera il PDF direttamente dall'elemento HTML originale
-      html2pdf()
+      // Genera il PDF e ottieni il blob
+      const pdfBlob = await html2pdf()
         .from(element)
         .set(opt)
-        .save()
-        .then(() => {
-          toast({
-            title: "PDF Scaricato",
-            description: "Il PDF è stato scaricato con successo."
-          });
-        })
-        .catch(error => {
-          
-          throw error;
-        });
+        .outputPdf('blob');
+      
+      // Salva il file tramite FileSaver.js
+      saveAs(pdfBlob, fileName);
+
+      // Genera un URL temporaneo per il blob
+      const pdfUrl = URL.createObjectURL(pdfBlob);
+
+      // Notifica il successo
+      toast({
+        title: "PDF Scaricato",
+        description: "Il PDF è stato scaricato con successo."
+      });
+
+      // Se c'è un callback onGenerated, invocalo con l'URL del PDF
+      if (onGenerated) {
+        onGenerated(pdfUrl);
+      }
+
+      // Programma la revoca dell'URL dopo 5 minuti per evitare memory leaks
+      setTimeout(() => {
+        URL.revokeObjectURL(pdfUrl);
+      }, 300000); // 5 minuti
       
     } catch (error) {
       
@@ -849,44 +867,13 @@ export function HtmlPdfGenerator({
         variant: "destructive"
       });
     }
-  };
+  }, [client, onGenerated, toast]);
 
-  // Funzione per inviare email con PDF allegato
-  const sendEmailWithPdf = async (): Promise<void> => {
-    setIsSending(true);
-    
+  // Nuova funzione per salvare il PDF sul server
+  const savePdfToServer = useCallback(async (): Promise<void> => {
     try {
-      // Verifica che tutti i parametri richiesti siano presenti
-      if (!client?.id) {
-        toast({
-          title: "Errore",
-          description: "ID cliente non disponibile",
-          variant: "destructive"
-        });
-        setIsSending(false);
-        return;
-      }
-
-      if (!emailSubject) {
-        toast({
-          title: "Errore",
-          description: "L'oggetto dell'email è obbligatorio",
-          variant: "destructive"
-        });
-        setIsSending(false);
-        return;
-      }
-
-      if (!emailBody) {
-        toast({
-          title: "Errore",
-          description: "Il corpo dell'email è obbligatorio",
-          variant: "destructive"
-        });
-        setIsSending(false);
-        return;
-      }
-
+      setIsSaving(true);
+      
       // Ottieni l'elemento HTML da convertire in PDF
       const element = previewContainerRef.current;
       if (!element) {
@@ -895,7 +882,6 @@ export function HtmlPdfGenerator({
           description: "Impossibile generare il PDF: contenuto non disponibile",
           variant: "destructive"
         });
-        setIsSending(false);
         return;
       }
       
@@ -905,155 +891,233 @@ export function HtmlPdfGenerator({
       const currentDate = new Date().toISOString().split('T')[0];
       const fileName = `MIFID_${sanitizedLastName}_${sanitizedFirstName}_${currentDate}.pdf`;
       
-      try {
-        
-        
-        // Configurazione per html2pdf
-        const opt = {
-          margin: 10,
-          filename: fileName,
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { 
-            scale: 2,
-            useCORS: true,
-            letterRendering: true,
-            allowTaint: true,
-            backgroundColor: '#ffffff',
-            logging: true,
-            onclone: (clonedDoc: Document) => {
-              // Ensure all images are loaded before PDF generation
-              const images = clonedDoc.getElementsByTagName('img');
-              return Promise.all(Array.from(images).map((img: HTMLImageElement) => {
-                if (!img.complete) {
-                  return new Promise((resolve) => {
-                    img.onload = resolve;
-                    img.onerror = resolve;
-                  });
-                }
-                return Promise.resolve();
-              }));
-            }
-          },
-          jsPDF: { 
-            unit: 'mm', 
-            format: 'a4', 
-            orientation: 'portrait' as const,
-            compress: false
-          }
-        };
-        
-        // Genera il PDF direttamente dall'elemento HTML
-        const pdfBlob = await html2pdf()
-          .from(element)
-          .set(opt)
-          .outputPdf('blob')
-          .catch(error => {
-            console.error('Errore durante la generazione del PDF:', error);
-            throw new Error('Errore durante la generazione del PDF: ' + error.message);
-          });
-        
-        if (!pdfBlob || pdfBlob.size === 0) {
-          throw new Error("Il PDF generato è vuoto");
+      // Configurazione semplificata per html2pdf
+      const opt = {
+        margin: 10, 
+        filename: fileName,
+        image: { type: 'jpeg', quality: 1 },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true,
+          letterRendering: true
+        },
+        jsPDF: { 
+          unit: 'mm', 
+          format: 'a4', 
+          orientation: 'portrait' as const
         }
-        
-        console.log('PDF generato correttamente:', {
-          size: pdfBlob.size,
-          type: pdfBlob.type
-        });
-        
-        // Crea l'oggetto FormData per l'invio multipart
-        const formData = new FormData();
-        formData.append('pdf', pdfBlob, fileName);
-        formData.append('clientId', client.id.toString());
-        formData.append('emailSubject', emailSubject);
-        formData.append('emailBody', emailBody);
-        
-        // Log per debug
-        
-        
-        // Invia la richiesta al server
-        const response = await fetch('/api/clients/send-pdf', {
-          method: 'POST',
-          body: formData,
-          credentials: 'include'
-        });
-        
-        // Controlla se la risposta è ok
-        if (!response.ok) {
-          const errorText = await response.text();
-          
-          throw new Error(`Errore dal server: ${response.status} ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        
-        
+      };
+      
+      // Genera il PDF e ottieni il blob
+      const pdfBlob = await html2pdf()
+        .from(element)
+        .set(opt)
+        .outputPdf('blob');
+      
+      // Crea un oggetto FormData per l'invio multipart
+      const formData = new FormData();
+      
+      // Aggiungi il PDF come file
+      formData.append('pdf', pdfBlob, fileName);
+      
+      // Aggiungi l'ID del cliente
+      formData.append('clientId', client.id.toString());
+      
+      // Invia la richiesta al server
+      const response = await fetch('/api/clients/save-pdf', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok) {
         toast({
-          title: "Email inviata",
-          description: "Il PDF è stato inviato via email con successo."
+          title: "PDF Salvato",
+          description: "Il PDF è stato salvato sul server con successo."
         });
         
-        // Chiudi il dialog
-        if (onGenerated) {
-          onGenerated();
+        // Se c'è un callback onGenerated, invocalo con l'URL del file sul server
+        if (onGenerated && result.fileUrl) {
+          onGenerated(result.fileUrl);
         }
-      } catch (error) {
-        
+      } else {
         toast({
           title: "Errore",
-          description: "Si è verificato un errore durante la generazione o l'invio del PDF. Riprova più tardi.",
+          description: result.message || "Si è verificato un errore durante il salvataggio del PDF.",
           variant: "destructive"
         });
-      } finally {
-        setIsSending(false);
       }
     } catch (error) {
-      
       toast({
         title: "Errore",
-        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        description: "Si è verificato un errore durante il salvataggio del PDF.",
         variant: "destructive"
       });
-      setIsSending(false);
+    } finally {
+      setIsSaving(false);
     }
-  };
+  }, [client, onGenerated, toast]);
+  
+  // Effetto per gestire i messaggi postMessage provenienti dal dialogo principale
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data && event.data.action === 'downloadPdf') {
+        // Scarica il PDF quando richiesto
+        downloadPdf();
+      } else if (event.data && event.data.action === 'savePdfToServer') {
+        // Salva il PDF sul server quando richiesto e invia un messaggio con l'URL
+        try {
+          setIsSaving(true);
+          
+          // Ottieni l'elemento HTML da convertire in PDF
+          const element = previewContainerRef.current;
+          if (!element) {
+            throw new Error("Contenuto non disponibile");
+          }
+          
+          // Crea un nome file sicuro senza caratteri speciali
+          const sanitizedFirstName = (client.firstName || '').replace(/[^\w\s]/g, '');
+          const sanitizedLastName = (client.lastName || '').replace(/[^\w\s]/g, '');
+          const currentDate = new Date().toISOString().split('T')[0];
+          const fileName = `MIFID_${sanitizedLastName}_${sanitizedFirstName}_${currentDate}.pdf`;
+          
+          // Configurazione semplificata per html2pdf
+          const opt = {
+            margin: 10, 
+            filename: fileName,
+            image: { type: 'jpeg', quality: 1 },
+            html2canvas: { 
+              scale: 2, 
+              useCORS: true,
+              letterRendering: true
+            },
+            jsPDF: { 
+              unit: 'mm', 
+              format: 'a4', 
+              orientation: 'portrait' as const
+            }
+          };
+          
+          // Genera il PDF e ottieni il blob
+          const pdfBlob = await html2pdf()
+            .from(element)
+            .set(opt)
+            .outputPdf('blob');
+          
+          // Crea un oggetto FormData per l'invio multipart
+          const formData = new FormData();
+          
+          // Aggiungi il PDF come file
+          formData.append('pdf', pdfBlob, fileName);
+          
+          // Aggiungi l'ID del cliente
+          formData.append('clientId', client.id.toString());
+          
+          // Invia la richiesta al server
+          const response = await fetch('/api/clients/save-pdf', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+          
+          const result = await response.json();
+          
+          if (response.ok && result.fileUrl) {
+            console.log('[DEBUG HtmlPdfGenerator] PDF salvato sul server con URL:', result.fileUrl);
+            
+            // Notifica il successo
+            toast({
+              title: "PDF Salvato",
+              description: "Il PDF è stato salvato sul server con successo."
+            });
+            
+            // Invia un messaggio che il PDF è stato salvato, includendo l'URL del file sul server
+            window.parent.postMessage({ 
+              pdfSavedToServer: true, 
+              serverFileUrl: result.fileUrl 
+            }, '*');
+            
+            // Se c'è un callback onGenerated, invocalo con l'URL del file sul server
+            if (onGenerated && result.fileUrl) {
+              onGenerated(result.fileUrl);
+            }
+          } else {
+            throw new Error(result.message || "Errore durante il salvataggio del PDF");
+          }
+        } catch (error) {
+          console.error("Errore nel salvataggio del PDF:", error);
+          
+          // Invia comunque un messaggio di errore
+          window.parent.postMessage({ 
+            pdfSavedToServer: false, 
+            error: error instanceof Error ? error.message : "Errore sconosciuto" 
+          }, '*');
+          
+          toast({
+            title: "Errore",
+            description: "Si è verificato un errore durante il salvataggio del PDF.",
+            variant: "destructive"
+          });
+        } finally {
+          setIsSaving(false);
+        }
+      } else if (event.data && event.data.action === 'prepareForSignature') {
+        // Manteniamo questo per compatibilità, ma ora utilizziamo savePdfToServer per la firma
+        savePdfToServer();
+      }
+    };
+    
+    // Aggiungi il listener per i messaggi
+    window.addEventListener('message', handleMessage);
+    
+    // Cleanup del listener quando il componente viene smontato
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [client, downloadPdf, onGenerated, toast, savePdfToServer]);
 
-  // Funzione per annullare e chiudere il dialogo
-  const handleCancel = () => {
-    // Chiudi il dialogo
-    if (onGenerated) {
-      onGenerated();
+  // Aggiungi un effect che salva automaticamente il PDF una sola volta dopo la generazione
+  useEffect(() => {
+    // Verifica che il contenuto HTML esista, che l'elemento di riferimento esista,
+    // che non sia già in corso un salvataggio e che non sia già stato salvato
+    if (previewHtml && previewContainerRef.current && !isSaving && !pdfSavedRef.current) {
+      pdfSavedRef.current = true; // Marca come salvato per evitare loop
+      
+      // Piccolo ritardo per assicurarsi che il contenuto sia completamente renderizzato
+      const timer = setTimeout(() => {
+        savePdfToServer();
+      }, 300);
+      
+      return () => clearTimeout(timer); // Pulizia in caso di unmount
     }
-  };
+  }, [previewHtml, savePdfToServer, isSaving]);
 
   // Interfaccia utente con layout side by side
   return (
-    <div className="flex flex-col h-full max-h-[calc(100vh-130px)]">
-      {/* Header con bordo e ombra */}
-      <div className="flex justify-between items-center mb-4 pb-3 border-b">
-        <h2 className="text-xl font-semibold text-slate-800">Questionario MiFID: {client.firstName} {client.lastName}</h2>
-      </div>
-      
-      {/* Contenuto principale - layout side by side */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 overflow-hidden min-h-0">
+    <div className="flex flex-col h-full">
+      {/* Contenuto principale - solo anteprima */}
+      <div className="flex-1 min-h-0">
         {/* Anteprima HTML */}
-        <div className="flex flex-col h-full min-h-0">
-          <h3 className="text-lg font-medium mb-2 text-slate-700">Anteprima documento</h3>
-          <div className="border-2 border-slate-200 rounded-lg flex-1 overflow-hidden bg-slate-50 shadow-md p-4 min-h-0">
-            <div className="h-full overflow-y-auto bg-white rounded-md shadow-inner p-2" style={{ maxHeight: "100%" }}>
-              {isGenerating ? (
+        <div className="flex flex-col h-full">
+          <h3 className="text-lg font-medium mb-2 text-slate-700">Anteprima questionario MIFID</h3>
+          <div className="border-2 border-slate-200 rounded-lg flex-1 overflow-hidden bg-slate-50 shadow-md p-2 min-h-0">
+            <div className="h-full overflow-y-auto bg-white rounded-md shadow-inner px-1 pb-8" 
+                 style={{ maxHeight: "100%", WebkitOverflowScrolling: "touch" }}>
+              {isGenerating || isSaving ? (
                 <div className="flex items-center justify-center h-full">
                   <div className="flex flex-col items-center space-y-4">
                     <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-                    <p>Generazione anteprima in corso...</p>
+                    <p>{isSaving ? "Salvataggio PDF in corso..." : "Generazione anteprima in corso..."}</p>
                   </div>
                 </div>
               ) : previewHtml ? (
                 <div 
                   ref={previewContainerRef}
-                  className="p-3 h-auto"
+                  className="p-3 h-auto relative mx-auto"
                   dangerouslySetInnerHTML={{ __html: previewHtml }}
-                  style={{ height: 'auto' }}
+                  style={{ height: 'auto', maxWidth: '90%' }}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -1062,85 +1126,6 @@ export function HtmlPdfGenerator({
               )}
             </div>
           </div>
-        </div>
-        
-        {/* Form per l'email */}
-        <div className="flex flex-col h-full min-h-0">
-          <h3 className="text-lg font-medium mb-2 text-slate-700">Email di accompagnamento</h3>
-          <div className="border-2 border-slate-200 rounded-lg p-5 flex-1 overflow-hidden bg-slate-50 shadow-md min-h-0">
-            <div className="h-full overflow-y-auto bg-white rounded-md shadow-inner p-3">
-              <div className="space-y-4">
-                <div>
-                  <label htmlFor="emailSubject" className="block text-sm font-medium mb-1 text-slate-700">
-                    Oggetto
-                  </label>
-                  <input
-                    id="emailSubject"
-                    type="text"
-                    value={emailSubject}
-                    onChange={(e) => setEmailSubject(e.target.value)}
-                    className="w-full p-2 border rounded-md"
-                  />
-                </div>
-                <div className="flex-1">
-                  <label htmlFor="emailBody" className="block text-sm font-medium mb-1 text-slate-700">
-                    Testo email
-                  </label>
-                  <textarea
-                    id="emailBody"
-                    value={emailBody}
-                    onChange={(e) => setEmailBody(e.target.value)}
-                    rows={9}
-                    className="w-full p-2 border rounded-md resize-vertical"
-                  />
-                </div>
-                <div className="text-sm text-slate-500 mt-2 bg-slate-50 p-3 rounded-md border border-slate-200">
-                  <p>Il PDF sarà allegato automaticamente all'email.</p>
-                  <p className="font-medium">Destinatario: {client.email}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* Pulsanti azione in fondo */}
-      <div className="mt-4 py-3 border-t bg-slate-50 sticky bottom-0 flex justify-between items-center">
-        <Button 
-          variant="outline" 
-          onClick={handleCancel}
-          disabled={isSending}
-          className="px-5"
-        >
-          Annulla
-        </Button>
-        <div className="flex space-x-3">
-          <Button 
-            variant="outline"
-            onClick={downloadPdf}
-            disabled={isGenerating || isSending}
-            className="bg-white hover:bg-slate-100"
-          >
-            <Download className="h-4 w-4 mr-2" />
-            Scarica PDF
-          </Button>
-          <Button 
-            onClick={sendEmailWithPdf} 
-            disabled={isGenerating || isSending}
-            className="px-5 bg-blue-600 hover:bg-blue-700"
-          >
-            {isSending ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Invio in corso...
-              </>
-            ) : (
-              <>
-                <Send className="h-4 w-4 mr-2" />
-                Invia Email
-              </>
-            )}
-          </Button>
         </div>
       </div>
     </div>

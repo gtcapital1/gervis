@@ -79,15 +79,15 @@ export function Layout({ children }: LayoutProps) {
   const baseNavigation = [
     {
       name: "Dashboard",
-      href: "/app",
+      href: "/dashboard",
       icon: LayoutDashboard,
-      current: location === "/app",
+      current: location === "/dashboard",
     },
     {
       name: "Clients",
-      href: "/clients",
+      href: "/app/clients",
       icon: Users,
-      current: location === "/clients" || location.startsWith("/clients/"),
+      current: location === "/app/clients" || location.startsWith("/app/clients/"),
     },
     {
       name: "Calendar",
@@ -97,31 +97,24 @@ export function Layout({ children }: LayoutProps) {
       disabled: false,
     },
     {
-      name: "Trends",
-      href: "/trends",
-      icon: TrendingUp,
-      current: location === "/trends",
-      disabled: false,
-    },
-    {
       name: "Market",
-      href: "/market",
+      href: "/app/market",
       icon: BarChart3,
-      current: location === "/market",
+      current: location === "/app/market",
       disabled: false,
     },
     {
       name: "Spark",
-      href: "/spark",
+      href: "/app/spark",
       icon: Zap,
-      current: location === "/spark",
+      current: location === "/app/spark",
       disabled: false,
     },
     {
       name: "Settings",
-      href: "/settings",
+      href: "/app/settings",
       icon: Settings,
-      current: location === "/settings",
+      current: location === "/app/settings",
       disabled: false,
     },
   ];
@@ -132,9 +125,9 @@ export function Layout({ children }: LayoutProps) {
         ...baseNavigation,
         {
           name: "Admin",
-          href: "/admin",
+          href: "/admin-panel",
           icon: ShieldAlert,
-          current: location === "/admin",
+          current: location === "/admin-panel",
           disabled: false,
         }
       ] 

@@ -466,7 +466,7 @@ export default function Settings() {
   }
 
   return (
-    <Layout>
+    <div className="container p-4 md:p-8 max-w-6xl mx-auto">
       <div className="space-y-6">
         <PageHeader 
           title={t('dashboard.settings')}
@@ -990,7 +990,7 @@ export default function Settings() {
           userId={user.id}
         />
       )}
-    </Layout>
+    </div>
   );
 }
 

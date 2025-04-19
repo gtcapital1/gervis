@@ -1,8 +1,23 @@
-import React, { useState, useEffect } from "react";
-import { Dialog } from "@/components/ui/dialog";
+import React, { useState, useEffect, useRef } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileSignature, User, Download } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipTrigger,
+  TooltipProvider 
+} from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 
 // Componente di caricamento con animazione
 const Loading = () => (
@@ -111,14 +126,30 @@ interface ClientPdfDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | number;
+  onDigitalSignature?: (pdfUrl?: string) => void;
+  onTraditionalSignature?: (pdfUrl?: string) => void;
 }
 
-export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialogProps) {
+export function ClientPdfDialog({ 
+  open, 
+  onOpenChange, 
+  clientId,
+  onDigitalSignature,
+  onTraditionalSignature
+}: ClientPdfDialogProps) {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
   const [clientData, setClientData] = useState<ClientSchema | null>(null);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [generatedPdfUrl, setGeneratedPdfUrl] = useState<string | null>(null);
   
+  // Stato per la modale di scelta firma
+  const [signatureOptionsOpen, setSignatureOptionsOpen] = useState(false);
+
+  // Riferimento al componente HtmlPdfGenerator
+  const htmlPdfGeneratorRef = useRef<HTMLDivElement>(null);
+
   // Carica i dati del cliente quando il modale è aperto
   useEffect(() => {
     if (open && clientId) {
@@ -206,13 +237,68 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
     enabled: open
   });
 
+  // Handler per l'opzione firma digitale
+  const handleDigitalSignature = () => {
+    // Chiude la modale delle opzioni di firma
+    setSignatureOptionsOpen(false);
+    
+    // Invece di preparare un nuovo PDF, utilizziamo l'URL già salvato sul server
+    // Prima, assicuriamoci che il PDF sia già stato salvato sul server
+    window.postMessage({ action: 'savePdfToServer' }, '*');
+    
+    // La risposta arriverà tramite un evento di messaggio, quindi aggiungiamo un listener
+    const messageHandler = (event: MessageEvent) => {
+      if (event.data && event.data.pdfSavedToServer) {
+        // Rimuovi il listener dopo aver ricevuto la risposta
+        window.removeEventListener('message', messageHandler);
+        
+        const serverFileUrl = event.data.serverFileUrl;
+        console.log('[DEBUG ClientPdfDialog] PDF salvato sul server con URL:', serverFileUrl);
+        
+        // Se l'URL del server è disponibile nell'evento, aggiorna lo stato
+        if (serverFileUrl) {
+          setGeneratedPdfUrl(serverFileUrl);
+          
+          // Chiama la funzione per la firma digitale passando l'URL del server
+          if (onDigitalSignature) {
+            onDigitalSignature(serverFileUrl);
+          }
+        } else {
+          // Fallback se l'URL non è disponibile
+          toast({
+            title: "Errore",
+            description: "Non è stato possibile ottenere l'URL del file salvato",
+            variant: "destructive"
+          });
+        }
+        
+        onOpenChange(false); // Chiude il dialogo del PDF
+      }
+    };
+    window.addEventListener('message', messageHandler);
+  };
+
+  // Handler per l'opzione firma tradizionale
+  const handleTraditionalSignature = () => {
+    // Chiude la modale delle opzioni di firma
+    setSignatureOptionsOpen(false);
+    
+    if (onTraditionalSignature) {
+      onTraditionalSignature(generatedPdfUrl || undefined);
+    }
+    onOpenChange(false); // Chiude il dialogo del PDF
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <div className="fixed inset-0 bg-background/80 backdrop-blur-sm p-4 flex items-center justify-center z-50">
-        <div className="bg-card rounded-lg shadow-lg w-full max-w-screen-xl max-h-[90vh] overflow-hidden">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl p-0 h-[85vh] max-h-[85vh] overflow-hidden flex flex-col">
           {isLoading ? (
             <div className="flex justify-center items-center h-64">
-              <Loading />
+              <div className="flex flex-col items-center space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <p className="text-muted-foreground">Caricamento dati in corso...</p>
+              </div>
             </div>
           ) : error ? (
             <div className="text-center text-destructive p-6">
@@ -220,22 +306,91 @@ export function ClientPdfDialog({ open, onOpenChange, clientId }: ClientPdfDialo
               <p className="text-sm text-muted-foreground">Controlla la connessione e riprova</p>
             </div>
           ) : clientData ? (
-            <HtmlPdfGenerator 
-              client={clientData} 
-              assets={assets}
-              advisorSignature={advisorSignature || undefined}
-              companyLogo={companyLogo || undefined}
-              companyInfo={companyInfo || undefined}
-              onGenerated={() => onOpenChange(false)}
-            />
+            <>
+              <div className="flex justify-between items-center p-4 border-b">
+                <h2 className="text-xl font-semibold">
+                  {t('client.document_preview')}: {clientData.name}
+                </h2>
+              </div>
+              
+              <div className="flex-1 overflow-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+                <div ref={htmlPdfGeneratorRef}>
+                  <HtmlPdfGenerator 
+                    client={clientData} 
+                    assets={assets}
+                    advisorSignature={advisorSignature || undefined}
+                    companyLogo={companyLogo || undefined}
+                    companyInfo={companyInfo || undefined}
+                    onGenerated={(url) => {
+                      if (url) setGeneratedPdfUrl(url);
+                    }}
+                  />
+                </div>
+              </div>
+              
+              <div className="p-4 border-t bg-slate-50 flex justify-between items-center shadow-[0_-2px_4px_rgba(0,0,0,0.05)]">
+                <Button 
+                  variant="outline" 
+                  onClick={() => onOpenChange(false)}
+                >
+                  Annulla
+                </Button>
+                
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                  onClick={() => setSignatureOptionsOpen(true)}
+                >
+                  <FileSignature className="h-4 w-4 mr-2" />
+                  {t('client.send_for_signature')}
+                </Button>
+              </div>
+            </>
           ) : (
             <div className="text-center text-destructive p-6">
               <p className="mb-2 font-medium">Dati cliente non disponibili</p>
               <p className="text-sm text-muted-foreground">Verifica che il cliente abbia completato il processo di onboarding</p>
             </div>
           )}
-        </div>
-      </div>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modale per le opzioni di firma */}
+      <Dialog open={signatureOptionsOpen} onOpenChange={setSignatureOptionsOpen}>
+        <DialogContent className="sm:max-w-md flex flex-col items-center p-6">
+          <div className="w-full">
+            <h2 className="text-xl font-semibold text-center mb-6">Scegli il metodo di firma</h2>
+            
+            <div className="flex flex-col space-y-4 w-full">
+              {/* Pulsante firma digitale (evidenziato) */}
+              <Button 
+                onClick={handleDigitalSignature}
+                className="w-full h-16 bg-blue-600 hover:bg-blue-700 text-white text-lg font-medium"
+                size="lg"
+              >
+                <User className="h-5 w-5 mr-3" />
+                <div className="flex flex-col items-start">
+                  <span>{t('client.digital_signature')}</span>
+                  <span className="text-xs font-normal text-blue-100">Consigliato - Verifica con riconoscimento facciale</span>
+                </div>
+              </Button>
+              
+              {/* Pulsante firma tradizionale */}
+              <Button 
+                onClick={handleTraditionalSignature}
+                variant="outline"
+                className="w-full h-16 text-lg border-gray-300"
+                size="lg"
+              >
+                <FileSignature className="h-5 w-5 mr-3" />
+                <div className="flex flex-col items-start">
+                  <span>{t('client.traditional_signature')}</span>
+                  <span className="text-xs font-normal text-gray-500">Richiede scansione del documento firmato</span>
+                </div>
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 } 
