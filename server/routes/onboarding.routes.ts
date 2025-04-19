@@ -1,16 +1,13 @@
-import { Router } from "express";
-import { db } from "@/db";
-import { mifid } from "@/db/schema/mifid";
-import { clients } from "@/db/schema/clients";
+import type { Express, Request, Response } from "express";
+import { db } from "../db";
+import { mifid, clients } from "@shared/schema";
 import { eq } from "drizzle-orm";
-
-const router = Router();
+import { safeLog, handleErrorResponse, typedCatch } from "../routes";
 
 // Funzione per salvare i dati dell'onboarding
 async function saveOnboardingData(clientId: number, data: any) {
   try {
-    
-    
+    safeLog('Salvataggio dati onboarding', { clientId }, 'info');
 
     // Verifica che il cliente esista
     const client = await db.query.clients.findFirst({
@@ -18,7 +15,7 @@ async function saveOnboardingData(clientId: number, data: any) {
     });
 
     if (!client) {
-      
+      safeLog('Cliente non trovato', { clientId }, 'error');
       throw new Error("Client not found");
     }
 
@@ -32,7 +29,7 @@ async function saveOnboardingData(clientId: number, data: any) {
 
     const missingFields = requiredFields.filter(field => !data[field]);
     if (missingFields.length > 0) {
-      
+      safeLog('Campi obbligatori mancanti', { missingFields }, 'error');
       throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
     }
 
@@ -82,23 +79,23 @@ async function saveOnboardingData(clientId: number, data: any) {
       specificQuestions: data.specificQuestions || null,
     };
 
-    
+    safeLog('Dati MIFID preparati', { clientId }, 'debug');
 
     // Inserisci i dati nella tabella mifid
     const result = await db.insert(mifid).values(mifidData);
-    
+    safeLog('Dati MIFID inseriti', { clientId }, 'info');
 
     // Aggiorna lo stato di onboarding del cliente
     await db
       .update(clients)
       .set({ 
         isOnboarded: true,
-        onboarded_at: new Date(),
+        onboardedAt: new Date(),
         active: false // Set default to inactive
       })
       .where(eq(clients.id, clientId));
     
-    
+    safeLog('Stato cliente aggiornato', { clientId, isOnboarded: true }, 'info');
 
     // Calculate net worth and update client segment
     const totalAssets = data.assets.reduce((sum: number, asset: any) => sum + (parseInt(asset.value) || 0), 0);
@@ -118,87 +115,95 @@ async function saveOnboardingData(clientId: number, data: any) {
       .set({ 
         totalAssets,
         netWorth,
-        clientSegment
+        clientSegment: clientSegment as "mass_market" | "affluent" | "hnw" | "vhnw" | "uhnw"
       })
       .where(eq(clients.id, clientId));
 
+    safeLog('Patrimonio netto e segmento cliente aggiornati', { clientId, netWorth, clientSegment }, 'info');
+    
     return { success: true };
-  } catch (error: any) {
-    
-    
-    throw error;
+  } catch (error: unknown) {
+    const typedError = typedCatch(error);
+    safeLog('Errore nel salvataggio dati onboarding', typedError, 'error');
+    throw typedError;
   }
 }
 
-// Endpoint per salvare i dati dell'onboarding
-router.post("/", async (req, res) => {
-  try {
-    const { token } = req.query;
-    
-    
-    if (!token) {
-      return res.status(400).json({ error: "Token is required" });
+export function registerOnboardingRoutes(app: Express) {
+  // Endpoint per salvare i dati dell'onboarding
+  app.post('/onboarding', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+      
+      safeLog('Richiesta onboarding ricevuta', { hasToken: !!token }, 'info');
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      // Verifica il token e ottieni l'ID del cliente
+      const client = await db.query.clients.findFirst({
+        where: eq(clients.onboardingToken, token as string),
+      });
+
+      safeLog('Verifica token onboarding', { tokenValid: !!client }, 'debug');
+
+      if (!client) {
+        return res.status(404).json({ error: "Invalid or expired token" });
+      }
+
+      safeLog('Cliente trovato, procedo con onboarding', { clientId: client.id }, 'info');
+
+      // Salva i dati dell'onboarding
+      await saveOnboardingData(client.id, req.body);
+
+      res.json({ success: true });
+    } catch (error: unknown) {
+      const typedError = typedCatch(error);
+      safeLog('Errore durante onboarding', typedError, 'error');
+      res.status(500).json({ 
+        error: typedError.message || "Failed to save onboarding data",
+        details: typedError.message
+      });
     }
+  });
 
-    // Verifica il token e ottieni l'ID del cliente
-    const client = await db.query.clients.findFirst({
-      where: eq(clients.onboardingToken, token as string),
-    });
+  // Endpoint per verificare il completamento dell'onboarding
+  app.get('/onboarding/success', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+      
+      safeLog('Verifica completamento onboarding', { hasToken: !!token }, 'info');
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
 
-    
+      // Verifica il token e ottieni l'ID del cliente
+      const client = await db.query.clients.findFirst({
+        where: eq(clients.onboardingToken, token as string),
+      });
 
-    if (!client) {
-      return res.status(404).json({ error: "Invalid or expired token" });
+      if (!client) {
+        safeLog('Token onboarding non valido', { token }, 'error');
+        return res.status(404).json({ error: "Invalid or expired token" });
+      }
+
+      // Verifica se il cliente ha completato l'onboarding
+      if (!client.isOnboarded) {
+        safeLog('Onboarding non completato', { clientId: client.id }, 'error');
+        return res.status(404).json({ error: "Onboarding not completed" });
+      }
+
+      safeLog('Verifica onboarding completata con successo', { clientId: client.id }, 'info');
+      res.json({ success: true });
+    } catch (error: unknown) {
+      const typedError = typedCatch(error);
+      safeLog('Errore nella verifica del completamento onboarding', typedError, 'error');
+      res.status(500).json({ 
+        error: typedError.message || "Failed to verify onboarding completion",
+        details: typedError.message
+      });
     }
-
-    
-
-    // Salva i dati dell'onboarding
-    await saveOnboardingData(client.id, req.body);
-
-    res.json({ success: true });
-  } catch (error: any) {
-    
-    
-    res.status(500).json({ 
-      error: error.message || "Failed to save onboarding data",
-      details: error.message // Includiamo il messaggio di errore specifico
-    });
-  }
-});
-
-// Endpoint per verificare il completamento dell'onboarding
-router.get("/success", async (req, res) => {
-  try {
-    const { token } = req.query;
-    
-    if (!token) {
-      return res.status(400).json({ error: "Token is required" });
-    }
-
-    // Verifica il token e ottieni l'ID del cliente
-    const client = await db.query.clients.findFirst({
-      where: eq(clients.onboardingToken, token as string),
-    });
-
-    if (!client) {
-      return res.status(404).json({ error: "Invalid or expired token" });
-    }
-
-    // Verifica se il cliente ha completato l'onboarding
-    if (!client.isOnboarded) {
-      return res.status(404).json({ error: "Onboarding not completed" });
-    }
-
-    res.json({ success: true });
-  } catch (error: any) {
-    
-    
-    res.status(500).json({ 
-      error: error.message || "Failed to verify onboarding completion",
-      details: error.message
-    });
-  }
-});
-
-export default router; 
+  });
+} 
