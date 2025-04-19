@@ -403,10 +403,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerUserRoutes(app);
   registerClientRoutes(app);
   registerAdminRoutes(app);
-  registerMeetingRoutes(app);
   registerLogRoutes(app);
-  registerAssetRoutes(app);
-  registerRecommendationRoutes(app);
+
   registerDocumentRoutes(app);
   registerSignatureRoutes(app);
   registerMarketRoutes(app);
