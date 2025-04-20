@@ -1,60 +1,14 @@
 /**
  * Controller per le funzionalità AI relative al profilo cliente
  * Gestisce l'endpoint per la generazione del profilo arricchito
- * Implementa un sistema di cache per evitare chiamate ridondanti all'API OpenAI
  */
 
 import { Request, Response } from 'express';
-import { generateClientProfile } from './openai-service';
+import { generateClientProfile, AiClientProfile } from './openai-service';
 import { storage } from '../storage';
 import { Client, ClientLog, Mifid } from '@shared/schema';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-
-// Tipo per un item del profilo AI
-interface ProfileItem {
-  title: string;
-  description: string;
-  actions?: string[];
-}
-
-// Tipo per il profilo AI del cliente
-export interface AiClientProfile {
-  raccomandazioni: ProfileItem[] | string;
-  approfondimenti?: ProfileItem[] | string;
-  suggerimenti?: ProfileItem[] | string;
-}
-
-// Intervallo in millisecondi (24 ore) prima di considerare i dati "obsoleti"
-const CACHE_VALIDITY_DURATION = 24 * 60 * 60 * 1000;
-
-/**
- * Confronta i dati client e i log per determinare se sono cambiati
- * rispetto all'ultima generazione del profilo
- */
-function hasClientDataChanged(
-  client: Client,
-  logs: ClientLog[],
-  cachedProfileDate: Date
-): boolean {
-  // Se il cliente è stato modificato dopo l'ultima generazione del profilo
-  if (client.createdAt && new Date(client.createdAt) > cachedProfileDate) {
-    return true;
-  }
-  
-  // Controlla se ci sono nuovi log o se log esistenti sono stati modificati
-  // dopo l'ultima generazione del profilo
-  if (logs.some(log => {
-    if (!log.createdAt) return false;
-    const logDate = new Date(log.createdAt);
-    return logDate > cachedProfileDate;
-  })) {
-    return true;
-  }
-  
-  // Nessun cambiamento rilevante
-  return false;
-}
 
 /**
  * Genera il profilo arricchito per un cliente
@@ -64,6 +18,7 @@ export async function getClientProfile(req: Request, res: Response) {
   try {
     const clientId = parseInt(req.params.clientId);
     const forceRefresh = req.query.refresh === 'true';
+    const checkOnly = req.query.checkOnly === 'true';
     
     if (isNaN(clientId)) {
       return res.status(400).json({ 
@@ -105,46 +60,30 @@ export async function getClientProfile(req: Request, res: Response) {
         message: "Client has not completed onboarding"
       });
     }
-    
-    // Recupera i log del cliente (interazioni passate)
-    const clientLogs = await storage.getClientLogs(clientId);
-    
+
     // Verifica se esiste già un profilo AI memorizzato
-    const cachedProfile = await storage.getAiProfile(clientId);
+    const existingProfile = await storage.getAiProfile(clientId);
     
-    // Determina se è necessario generare un nuovo profilo
-    let needsNewGeneration = forceRefresh || !cachedProfile;
-    let isCacheValid = false;
-    
-    // Solo se non è stato richiesto un refresh forzato, controlla la validità della cache
-    if (!forceRefresh && cachedProfile && cachedProfile.lastGeneratedAt) {
-      const lastGeneratedAt = new Date(cachedProfile.lastGeneratedAt);
-      const now = new Date();
-      const cacheAge = now.getTime() - lastGeneratedAt.getTime();
-      
-      // La cache è considerata valida se è stata generata nelle ultime 24 ore
-      // e se i dati del cliente non sono cambiati da allora
-      isCacheValid = 
-        cacheAge < CACHE_VALIDITY_DURATION && 
-        !hasClientDataChanged(client, clientLogs, lastGeneratedAt);
-      
-      // Se la cache non è valida, dobbiamo generare un nuovo profilo
-      if (!isCacheValid) {
-        needsNewGeneration = true;
-      }
+    // Se è richiesto solo un controllo dell'esistenza del profilo, restituisci i dati esistenti
+    if (checkOnly) {
+      return res.json({
+        success: true,
+        data: existingProfile?.profileData || null,
+        lastGenerated: existingProfile?.lastGeneratedAt || null
+      });
     }
     
-    let profileData;
-    
-    if (needsNewGeneration) {
-      // Recupera i dati MIFID del cliente
+    // Se è richiesto un refresh forzato o non esiste un profilo, genera un nuovo profilo
+    if (forceRefresh || !existingProfile) {
+      // Recupera i dati necessari per generare il profilo
+      const clientLogs = await storage.getClientLogs(clientId);
       const mifid = await storage.getMifidByClient(clientId);
       
       // Genera un nuovo profilo arricchito utilizzando l'AI
-      profileData = await generateClientProfile(client, mifid || null, clientLogs);
+      const profileData = await generateClientProfile(client, mifid || null, clientLogs);
       
-      // Salva il profilo generato nella cache
-      if (cachedProfile) {
+      // Salva o aggiorna il profilo generato
+      if (existingProfile) {
         await storage.updateAiProfile(clientId, profileData);
       } else {
         await storage.createAiProfile({
@@ -160,27 +99,13 @@ export async function getClientProfile(req: Request, res: Response) {
         cached: false
       });
     } else {
-      // Utilizza il profilo memorizzato nella cache
-      profileData = cachedProfile.profileData;
-      
-      // Controlla se il refresh è stato esplicitamente richiesto ma i dati sono già aggiornati
-      if (forceRefresh) {
-        return res.json({
-          success: true,
-          data: profileData,
-          cached: true,
-          lastGenerated: cachedProfile.lastGeneratedAt,
-          upToDate: true, // Indica che i dati sono già aggiornati
-          message: "Profilo AI è già aggiornato con tutte le informazioni raccolte"
-        });
-      } else {
-        return res.json({
-          success: true,
-          data: profileData,
-          cached: true,
-          lastGenerated: cachedProfile.lastGeneratedAt
-        });
-      }
+      // Se c'è un profilo esistente e non è richiesto un refresh, restituisci il profilo esistente
+      return res.json({
+        success: true,
+        data: existingProfile.profileData,
+        cached: true,
+        lastGenerated: existingProfile.lastGeneratedAt
+      });
     }
   } catch (error: any) {
     // Gestione degli errori specifici
@@ -201,6 +126,9 @@ export async function getClientProfile(req: Request, res: Response) {
   }
 }
 
+/**
+ * Genera il profilo arricchito per un cliente (funzione riutilizzabile)
+ */
 export async function generateEnrichedProfile(clientId: number, advisorId: number): Promise<AiClientProfile> {
   try {
     // Get client data
@@ -303,6 +231,66 @@ export async function updateClientProfile(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       error: "Failed to update client profile: " + (error.message || "Unknown error")
+    });
+  }
+}
+
+/**
+ * Recupera tutti i profili AI dei clienti per l'advisor corrente
+ * GET /api/ai-profiles
+ */
+export async function getAllClientProfiles(req: Request, res: Response) {
+  try {
+    // Verifica se l'utente è autenticato
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Not authenticated"
+      });
+    }
+    
+    const advisorId = req.user.id;
+    
+    // Recupera tutti i clienti dell'advisor
+    const clients = await storage.getClientsByAdvisor(advisorId);
+    
+    if (!clients || clients.length === 0) {
+      return res.json({
+        success: true,
+        profiles: []
+      });
+    }
+    
+    // Raccogli tutti i profili AI per questi clienti
+    const profiles = [];
+    
+    for (const client of clients) {
+      // Salta i clienti che non hanno completato l'onboarding
+      if (!client.isOnboarded) continue;
+      
+      const aiProfile = await storage.getAiProfile(client.id);
+      
+      if (aiProfile && aiProfile.profileData) {
+        // Aggiungi informazioni sul cliente al profilo AI
+        const profileWithClientInfo = {
+          clientId: client.id,
+          clientName: client.name,
+          lastUpdated: aiProfile.lastGeneratedAt || new Date(),
+          ...aiProfile.profileData
+        };
+        
+        profiles.push(profileWithClientInfo);
+      }
+    }
+    
+    return res.json({
+      success: true,
+      profiles
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      error: "Failed to retrieve client profiles: " + (error.message || "Unknown error")
     });
   }
 }

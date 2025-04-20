@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { safeLog, handleErrorResponse, isAuthenticated } from "../routes";
-import { getClientProfile, updateClientProfile } from "../ai/profile-controller";
+import { getClientProfile, updateClientProfile, getAllClientProfiles } from "../ai/profile-controller";
 import { getAdvisorSuggestions } from "../ai/advisor-suggestions-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from "../investment-ideas-controller";
 
@@ -21,6 +21,16 @@ export function registerAiRoutes(app: Express) {
     } catch (error) {
       safeLog('Errore nell\'aggiornamento del profilo AI del cliente', error, 'error');
       handleErrorResponse(res, error, 'Impossibile aggiornare il profilo AI del cliente');
+    }
+  });
+  
+  // Rotta per recuperare tutti i profili AI
+  app.get('/api/ai-profiles', isAuthenticated, async (req, res) => {
+    try {
+      await getAllClientProfiles(req, res);
+    } catch (error) {
+      safeLog('Errore nel recupero di tutti i profili AI', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile recuperare i profili AI');
     }
   });
   

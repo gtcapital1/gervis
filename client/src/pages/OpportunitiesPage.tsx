@@ -57,12 +57,48 @@ interface Opportunity {
 
 // Hook personalizzati
 const useAIProfiles = () => {
+  const { toast } = useToast();
+  
   return useQuery<AIProfilesData>({
     queryKey: ['ai-profiles'],
     queryFn: async () => {
-      const response = await apiRequest('/api/ai-profiles');
-      return response as AIProfilesData;
-    }
+      try {
+        console.log("[DEBUG] Fetching AI profiles...");
+        const response = await apiRequest('/api/ai-profiles');
+        console.log("[DEBUG] AI profiles response:", response);
+        
+        // Verifica che la risposta abbia la struttura corretta
+        if (!response || typeof response !== 'object') {
+          console.error("[DEBUG] Invalid response from /api/ai-profiles:", response);
+          throw new Error("Invalid response from server");
+        }
+        
+        // Se la risposta non ha un campo 'profiles', ma ha 'success' e 'data',
+        // potrebbe essere che la struttura è diversa da quella attesa
+        if (!response.profiles && response.success && response.data) {
+          console.log("[DEBUG] Converting response format");
+          return { profiles: response.data };
+        }
+        
+        // Se la risposta non ha un campo 'profiles', crea un array vuoto
+        if (!response.profiles) {
+          console.error("[DEBUG] Response missing 'profiles' array:", response);
+          return { profiles: [] };
+        }
+        
+        return response as AIProfilesData;
+      } catch (error) {
+        console.error("[DEBUG] Error fetching AI profiles:", error);
+        toast({
+          title: "Errore nel caricamento delle opportunità",
+          description: error instanceof Error ? error.message : "Si è verificato un errore imprevisto",
+          variant: "destructive"
+        });
+        throw error;
+      }
+    },
+    retry: 1,
+    refetchOnWindowFocus: false
   });
 };
 
@@ -80,30 +116,87 @@ export default function OpportunitiesPage() {
   const { t } = useTranslation();
   const [location, setLocation] = useLocation();
   const { toast } = useToast();
-  const { data: aiProfilesData, isLoading: isLoadingAIProfiles } = useAIProfiles();
+  const { data: aiProfilesData, isLoading: isLoadingAIProfiles, isError: isProfilesError, error: profilesError, refetch: refetchProfiles } = useAIProfiles();
   const { data: clients = [] as Client[] } = useClients();
   const [showOpportunityDetailDialog, setShowOpportunityDetailDialog] = useState(false);
   const [selectedOpportunity, setSelectedOpportunity] = useState<Opportunity | null>(null);
 
   // Estrai e ordina le opportunità da tutti i profili AI
   const opportunities = useMemo(() => {
-    if (!aiProfilesData?.profiles) return [] as Opportunity[];
+    console.log("[DEBUG] Building opportunities from AI profiles:", aiProfilesData);
     
-    const allOpportunities: Opportunity[] = aiProfilesData.profiles.flatMap((profile: AIProfile) => 
-      profile.opportunitaBusiness.map((opp) => ({
-        id: `${profile.clientId}-${opp.priorita}`,
-        clientId: profile.clientId,
-        clientName: profile.clientName,
-        title: opp.titolo,
-        description: opp.descrizione,
-        priority: opp.priorita,
-        email: opp.email,
-        azioni: opp.azioni
-      }))
-    );
-
-    // Ordina per priorità (1 = alta, 2 = media, 3 = bassa)
-    return allOpportunities.sort((a: Opportunity, b: Opportunity) => a.priority - b.priority);
+    if (!aiProfilesData?.profiles) {
+      console.log("[DEBUG] No profiles available");
+      return [] as Opportunity[];
+    }
+    
+    try {
+      // Verifica che profiles sia un array
+      if (!Array.isArray(aiProfilesData.profiles)) {
+        console.error("[DEBUG] profiles is not an array:", aiProfilesData.profiles);
+        return [] as Opportunity[];
+      }
+      
+      // Logga il numero di profili
+      console.log(`[DEBUG] Processing ${aiProfilesData.profiles.length} profiles`);
+      
+      // Inizializza un array vuoto per le opportunità
+      const allOpportunities: Opportunity[] = [];
+      
+      // Itera su ciascun profilo
+      for (const profile of aiProfilesData.profiles) {
+        // Verifica che il profilo sia un oggetto valido
+        if (!profile || typeof profile !== 'object') {
+          console.log("[DEBUG] Invalid profile:", profile);
+          continue;
+        }
+        
+        // Verifica che il profilo abbia clientId e clientName
+        if (!profile.clientId || !profile.clientName) {
+          console.log("[DEBUG] Profile missing required fields:", profile);
+          continue;
+        }
+        
+        // Verifica che opportunitaBusiness sia un array
+        if (!profile.opportunitaBusiness || !Array.isArray(profile.opportunitaBusiness)) {
+          console.log("[DEBUG] Profile has no opportunities:", profile);
+          continue;
+        }
+        
+        // Itera su ciascuna opportunità
+        for (const opp of profile.opportunitaBusiness) {
+          try {
+            // Verifica che l'opportunità abbia titolo, descrizione e priorità
+            if (!opp.titolo || !opp.descrizione || opp.priorita === undefined) {
+              console.log("[DEBUG] Invalid opportunity:", opp);
+              continue;
+            }
+            
+            // Aggiungi l'opportunità all'array
+            allOpportunities.push({
+              id: `${profile.clientId}-${opp.priorita}-${Math.random().toString(36).substring(2)}`,
+              clientId: profile.clientId,
+              clientName: profile.clientName,
+              title: opp.titolo,
+              description: opp.descrizione,
+              priority: opp.priorita,
+              email: opp.email,
+              azioni: opp.azioni
+            });
+          } catch (oppError) {
+            console.error("[DEBUG] Error processing opportunity:", oppError, opp);
+          }
+        }
+      }
+      
+      console.log(`[DEBUG] Found ${allOpportunities.length} total opportunities`);
+      
+      // Ordina per priorità (1 = alta, 2 = media, 3 = bassa)
+      return allOpportunities.sort((a: Opportunity, b: Opportunity) => a.priority - b.priority);
+    } catch (error) {
+      console.error("[DEBUG] Error building opportunities:", error);
+      return [] as Opportunity[];
+    }
   }, [aiProfilesData]);
 
   const handleSendEmail = async (clientId: number, emailData: { oggetto: string; corpo: string }) => {
@@ -150,7 +243,7 @@ export default function OpportunitiesPage() {
     <div className="p-4 sm:p-6 space-y-6">
       <PageHeader 
         title={t('dashboard.opportunities')}
-        subtitle="Opportunità di business per i tuoi clienti"
+        subtitle="Opportunità di business basate sui profili AI dei tuoi clienti"
       />
 
       <div className="space-y-4">
@@ -162,16 +255,34 @@ export default function OpportunitiesPage() {
               </div>
             </CardContent>
           </Card>
+        ) : isProfilesError ? (
+          <Card>
+            <CardContent className="py-10">
+              <div className="flex flex-col items-center justify-center py-6 space-y-4">
+                <div className="text-center text-muted-foreground">
+                  {t('dashboard.error_loading_opportunities')}
+                </div>
+                <Button onClick={() => refetchProfiles()}>
+                  {t('common.retry')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : opportunities.length === 0 ? (
           <Card>
             <CardContent className="py-10">
               <div className="py-6 text-center text-muted-foreground">
                 {t('dashboard.no_opportunities')}
               </div>
+              <div className="text-center mt-2">
+                <Button onClick={() => refetchProfiles()} variant="outline">
+                  {t('common.refresh')}
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="flex flex-col space-y-4">
             {opportunities.map((opportunity: Opportunity) => {
               const client = clients.find((c: Client) => c.id === opportunity.clientId);
               const clientAUM = client?.totalAssets || 0;
@@ -179,7 +290,7 @@ export default function OpportunitiesPage() {
               return (
                 <Card 
                   key={opportunity.id}
-                  className="hover:shadow-md transition-shadow cursor-pointer"
+                  className="hover:shadow-md transition-shadow cursor-pointer w-full"
                   onClick={() => {
                     setSelectedOpportunity(opportunity);
                     setShowOpportunityDetailDialog(true);

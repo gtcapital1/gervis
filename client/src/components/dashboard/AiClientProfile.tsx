@@ -93,15 +93,24 @@ function getPriorityText(priority: number) {
 }
 
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
-  const { t } = useTranslation('client');
+  const { t } = useTranslation();
+  // Debug: controlliamo i valori delle traduzioni
+  console.log('DEBUG TRANSLATE:', {
+    title: t('client.generate_profile_title'),
+    description: t('client.generate_profile_description'),
+    token: t('client.token_usage_estimate'),
+    button: t('client.generate_profile')
+  });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [profileRequested, setProfileRequested] = useState(false);
   const [isUpToDate, setIsUpToDate] = useState(false);
   const [upToDateMessage, setUpToDateMessage] = useState("");
   const [isEmailDialogOpen, setIsEmailDialogOpen] = useState(false);
   const [emailSubject, setEmailSubject] = useState("");
   const [emailMessage, setEmailMessage] = useState("");
   const [emailToSend, setEmailToSend] = useState<{ oggetto: string; corpo: string } | null>(null);
+  const [profileExists, setProfileExists] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<string | null>(null);
+  const [refreshConfirmed, setRefreshConfirmed] = useState(false);
   const { toast } = useToast();
 
   // Funzione per gestire l'invio dell'email
@@ -112,44 +121,98 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     setIsEmailDialogOpen(true);
   };
 
-  // Modifica: Esegui sempre la query per ottenere i dati del profilo
-  // ma senza forzare l'aggiornamento del profilo
-  const { data, isLoading, isError, error, refetch } = useQuery<ProfileResponse>({
+  // Query per recuperare o generare il profilo AI
+  const profileQuery = useQuery<ProfileResponse>({
     queryKey: ['/api/ai/client-profile', clientId, refreshTrigger],
     queryFn: async () => {
-      // Reset stato "up to date" quando iniziamo una nuova richiesta
+      // Se è una richiesta di aggiornamento forzato, non eseguiamo il controllo
       if (refreshTrigger > 0) {
         setIsUpToDate(false);
         setUpToDateMessage("");
+        
+        // Se l'aggiornamento è stato confermato, mostra toast di richiesta in corso
+        if (refreshConfirmed) {
+          toast({
+            title: "Aggiornamento in corso",
+            description: "Sto generando il nuovo profilo AI, potrebbe richiedere qualche momento."
+          });
+        }
+        
+        const response = await fetch(`/api/ai/client-profile/${clientId}?refresh=true`);
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        const result = await response.json();
+        
+        if (result.upToDate) {
+          setIsUpToDate(true);
+          toast({
+            title: "Profilo già aggiornato",
+            description: result.message || "Il profilo AI è già aggiornato con i dati più recenti",
+          });
+          setUpToDateMessage(result.message || "Profilo AI è già aggiornato con tutte le informazioni raccolte");
+        } else if (result.data) {
+          // Notifica che il profilo è stato aggiornato con successo
+          toast({
+            title: "Profilo aggiornato",
+            description: "Il profilo AI è stato aggiornato con successo",
+          });
+        }
+        
+        return result;
+      } else {
+        // Questa è la richiesta iniziale: verifica se il profilo esiste
+        const response = await fetch(`/api/ai/client-profile/${clientId}?checkOnly=true`);
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        
+        // Aggiorna lo stato in base ai dati ricevuti
+        if (result.data) {
+          setProfileExists(true);
+          if (result.lastGenerated) {
+            setLastUpdated(result.lastGenerated);
+          }
+        } else {
+          setProfileExists(false);
+        }
+        
+        return result;
       }
-      
-      // Determina se è una richiesta di refresh o una richiesta iniziale
-      const isRefreshRequest = refreshTrigger > 0;
-      const url = isRefreshRequest 
-        ? `/api/ai/client-profile/${clientId}?refresh=true`
-        : `/api/ai/client-profile/${clientId}`;
-      
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      const result = await response.json();
-      
-      // Verifica se i dati sono già aggiornati
-      if (result.upToDate) {
-        setIsUpToDate(true);
-        setUpToDateMessage(result.message || "Profilo AI è già aggiornato con tutte le informazioni raccolte");
-      }
-      
-      return result;
     },
-    retry: 1
+    retry: 1,
+    refetchOnWindowFocus: false,
   });
+
+  // Estrai i dati e le funzioni dalla query
+  const { data, isLoading, isError, error, refetch } = profileQuery;
+
+  // Aggiorna lastUpdated quando un profilo viene generato
+  useEffect(() => {
+    if (data?.data && data.lastGenerated) {
+      setLastUpdated(data.lastGenerated);
+      setProfileExists(true);
+    }
+  }, [data]);
 
   // Funzione per generare o aggiornare il profilo manualmente
   const handleGenerateProfile = () => {
+    // Mostra un dialog di conferma all'utente se il profilo esiste già
+    if (profileExists) {
+      if (!window.confirm("Il profilo AI esiste già. Vuoi davvero rigenerarlo? Questa operazione potrebbe richiedere tempo e consumare token.")) {
+        return;
+      }
+      setRefreshConfirmed(true);
+    } else {
+      toast({
+        title: "Generazione profilo",
+        description: "Sto generando il profilo AI, potrebbe richiedere qualche momento."
+      });
+    }
+    
     setRefreshTrigger(prev => prev + 1);
-    setProfileRequested(true);
     refetch();
   };
 
@@ -349,10 +412,10 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             </div>
             <div className="space-y-2">
               <h3 className="text-lg font-semibold text-gray-800">
-                {t('ai_profile_processing', { ns: 'client' })}
+                {t('client.ai_profile_processing')}
               </h3>
               <p className="text-gray-600 max-w-md">
-                {t('ai_profile_processing_description', { ns: 'client' })}
+                {t('client.ai_profile_processing_description')}
               </p>
             </div>
           </div>
@@ -409,18 +472,36 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             </CardTitle>
             <CardDescription className="text-gray-500">
               Analisi e raccomandazioni basate su intelligenza artificiale
+              {lastUpdated && <span className="block text-xs mt-1">Ultimo aggiornamento: {new Date(lastUpdated).toLocaleString('it-IT')}</span>}
             </CardDescription>
           </div>
           <Button 
             onClick={handleGenerateProfile} 
             variant="outline" 
             size="icon"
-            title={t('refresh_profile')}
+            title={t('client.refresh_profile')}
             className="bg-white hover:bg-gray-50 border-gray-200"
           >
             <RefreshCcw className="h-4 w-4 text-gray-700" />
           </Button>
         </CardHeader>
+        
+        {/* Mostra un avviso se il profilo è up-to-date dopo un tentativo di aggiornamento */}
+        {isUpToDate && (
+          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mx-4 mt-4 rounded-md">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <LucideCheckCircle className="h-5 w-5 text-blue-500" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-blue-700">
+                  {upToDateMessage}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <CardContent className="pt-6">
           {/* Profilo Cliente */}
           {data.data.profiloCliente && (
@@ -507,7 +588,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
             <DialogContent className="sm:max-w-[600px]">
               <DialogHeader>
-                <DialogTitle>{t('dashboard.send_email')}</DialogTitle>
+                <DialogTitle>{t('client.send_email')}</DialogTitle>
                 <DialogDescription>
                   Invia email al cliente
                 </DialogDescription>
@@ -545,7 +626,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-                  {t('dashboard.cancel')}
+                  {t('client.cancel')}
                 </Button>
                 <Button 
                   onClick={sendEmail}
@@ -553,7 +634,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                   className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  {t('dashboard.send_email')}
+                  {t('client.send_email')}
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -573,6 +654,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         </CardTitle>
         <CardDescription className="text-gray-500">
           Analisi e raccomandazioni basate su intelligenza artificiale
+          {lastUpdated && <span className="block text-xs mt-1">Ultimo aggiornamento: {new Date(lastUpdated).toLocaleString('it-IT')}</span>}
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-6">
@@ -582,22 +664,34 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           </div>
           <div className="space-y-2 max-w-lg">
             <h3 className="text-xl font-semibold text-gray-800">
-              {t('generate_profile_title')}
+              {profileExists 
+                ? t('client.regenerate_profile_title', 'Rigenera profilo AI') 
+                : t('client.generate_profile_title')}
             </h3>
             <p className="text-gray-600">
-              {t('generate_profile_description')}
+              {profileExists 
+                ? "Il profilo AI esiste ma non è stato caricato. Puoi rigenerarlo per ottenere nuove analisi e raccomandazioni."
+                : t('client.generate_profile_description')}
             </p>
+            {profileExists && (
+              <div className="mt-2 text-sm bg-blue-50 p-3 rounded-md text-blue-700 inline-block">
+                <div className="flex items-center">
+                  <LucideCheckCircle className="h-4 w-4 mr-2 text-blue-600" />
+                  <span>Profilo AI già esistente{lastUpdated ? ` (${new Date(lastUpdated).toLocaleDateString('it-IT')})` : ''}</span>
+                </div>
+              </div>
+            )}
             <p className="text-xs text-gray-500 mt-4 italic">
-              {t('token_usage_estimate')}
+              {t('client.token_usage_estimate')}
             </p>
           </div>
           <Button 
             onClick={handleGenerateProfile} 
-            className="mt-4 bg-gray-800 hover:bg-gray-900 text-white shadow-sm hover:shadow-md transition-all px-6 py-5"
+            className={`mt-4 ${profileExists ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-800 hover:bg-gray-900'} text-white shadow-sm hover:shadow-md transition-all px-6 py-5`}
             size="lg"
           >
             <Sparkles className="mr-2 h-5 w-5" />
-            {t('generate_profile')}
+            {profileExists ? 'Rigenera profilo AI' : t('client.generate_profile')}
           </Button>
         </div>
       </CardContent>

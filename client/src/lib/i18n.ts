@@ -6,14 +6,18 @@ import itTranslations from "../i18n/locales/it.json";
 i18n.use(initReactI18next).init({
   resources: {
     en: {
-      translation: enTranslations
+      translation: enTranslations,
+      client: enTranslations.client || {}
     },
     it: {
-      translation: itTranslations
+      translation: itTranslations,
+      client: itTranslations.client || {}
     }
   },
-  lng: "it", // Italian as default language
+  lng: "it", // Default language
   fallbackLng: "it",
+  ns: ['translation', 'client'],
+  defaultNS: 'translation',
   interpolation: {
     escapeValue: false
   }

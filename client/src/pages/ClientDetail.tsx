@@ -1022,9 +1022,9 @@ Grazie per la tua fiducia e collaborazione.`
     return (
       <div className="flex flex-col justify-center items-center h-full space-y-4">
         <p className="text-destructive">{t('client.error_loading')}</p>
-        <Button variant="outline" onClick={() => setLocation("/app")}>
+        <Button variant="outline" onClick={() => setLocation("/clients")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          {t('client.back_to_dashboard')}
+          {t('client.back_to_clients')}
         </Button>
       </div>
     );
@@ -1041,7 +1041,7 @@ Grazie per la tua fiducia e collaborazione.`
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setLocation("/dashboard")}
+                onClick={() => setLocation("/clients")}
               >
                 <ArrowLeft className="h-4 w-4" />
               </Button>
@@ -1175,7 +1175,7 @@ Grazie per la tua fiducia e collaborazione.`
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => setLocation("/dashboard")}
+              onClick={() => setLocation("/clients")}
               className="hover:bg-gray-100"
             >
               <ArrowLeft className="h-4 w-4 text-gray-600" />
