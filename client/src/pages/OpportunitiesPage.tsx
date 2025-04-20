@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { Eye, TrendingUp } from "lucide-react";
+import { Eye, TrendingUp, LucideCheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { PageHeader } from "@/components/ui/page-header";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
+import { Badge } from "@/components/ui/badge";
 
 // Definizione delle interfacce per i tipi di dati
 interface AIProfile {
@@ -290,53 +291,55 @@ export default function OpportunitiesPage() {
               return (
                 <Card 
                   key={opportunity.id}
-                  className="hover:shadow-md transition-shadow cursor-pointer w-full"
+                  className="overflow-hidden border shadow-sm hover:shadow-md transition-all bg-white cursor-pointer"
                   onClick={() => {
                     setSelectedOpportunity(opportunity);
                     setShowOpportunityDetailDialog(true);
                   }}
                 >
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded-full ${
-                        opportunity.priority === 1 ? 'bg-red-500' :
-                        opportunity.priority === 2 ? 'bg-orange-500' :
-                        opportunity.priority === 3 ? 'bg-yellow-500' :
-                        opportunity.priority === 4 ? 'bg-blue-500' :
-                        'bg-gray-500'
-                      }`} />
-                      <CardTitle className="text-lg">{opportunity.title}</CardTitle>
+                  <CardHeader className="pb-2 border-b bg-white">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-base text-gray-800">{opportunity.title}</CardTitle>
+                        <Badge className={`${
+                          opportunity.priority === 1 ? 'bg-blue-800 text-white' :
+                          opportunity.priority === 2 ? 'bg-blue-600 text-white' :
+                          opportunity.priority === 3 ? 'bg-blue-500 text-white' :
+                          opportunity.priority === 4 ? 'bg-blue-400 text-white' :
+                          'bg-blue-300 text-white'
+                        }`}>
+                          Priorità {
+                            opportunity.priority === 1 ? 'MASSIMA' :
+                            opportunity.priority === 2 ? 'ALTA' :
+                            opportunity.priority === 3 ? 'MEDIA' :
+                            opportunity.priority === 4 ? 'BASSA' :
+                            'MINIMA'
+                          }
+                        </Badge>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOpportunity(opportunity);
+                          setShowOpportunityDetailDialog(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        Visualizza
+                      </Button>
                     </div>
-                    <CardDescription className="flex justify-between">
-                      <span>Cliente: {opportunity.clientName}</span>
-                      <span>Priorità {
-                        opportunity.priority === 1 ? 'MASSIMA' :
-                        opportunity.priority === 2 ? 'ALTA' :
-                        opportunity.priority === 3 ? 'MEDIA' :
-                        opportunity.priority === 4 ? 'BASSA' :
-                        'MINIMA'
-                      }</span>
-                    </CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-3">
+                  <CardContent className="pt-4">
+                    <p className="text-sm text-gray-700 mb-4">
                       {opportunity.description}
                     </p>
+                    <div className="flex items-center text-sm text-gray-500">
+                      <span>Cliente: {opportunity.clientName}</span>
+                    </div>
                   </CardContent>
-                  <CardFooter className="border-t pt-3 flex justify-end">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedOpportunity(opportunity);
-                        setShowOpportunityDetailDialog(true);
-                      }}
-                    >
-                      <Eye className="h-4 w-4 mr-1" />
-                      {t('common.view')}
-                    </Button>
-                  </CardFooter>
                 </Card>
               );
             })}
@@ -379,19 +382,7 @@ export default function OpportunitiesPage() {
             
             {selectedOpportunity?.email && (
               <div>
-                <div className="flex justify-between items-start">
-                  <h3 className="text-sm font-semibold mb-1">Email suggerita</h3>
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      if (selectedOpportunity?.clientId && selectedOpportunity?.email) {
-                        handleSendEmail(selectedOpportunity.clientId, selectedOpportunity.email);
-                      }
-                    }}
-                  >
-                    Invia email
-                  </Button>
-                </div>
+                <h3 className="text-sm font-semibold mb-1">Email suggerita</h3>
                 <div className="border rounded-md p-3 text-sm space-y-2">
                   <div className="pb-2 border-b">
                     <span className="font-semibold">Oggetto:</span> {selectedOpportunity?.email.oggetto}
@@ -403,6 +394,22 @@ export default function OpportunitiesPage() {
               </div>
             )}
           </div>
+          
+          {selectedOpportunity?.email && (
+            <div className="flex justify-end mt-6">
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  if (selectedOpportunity?.clientId && selectedOpportunity?.email) {
+                    handleSendEmail(selectedOpportunity.clientId, selectedOpportunity.email);
+                  }
+                }}
+              >
+                Invia email
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

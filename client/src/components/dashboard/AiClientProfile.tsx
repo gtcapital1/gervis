@@ -536,6 +536,17 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                             Priorità {getPriorityText(opportunita.priorita)}
                           </Badge>
                         </div>
+                        {opportunita.email && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                            onClick={() => handleSendEmail(opportunita.email!)}
+                          >
+                            <Mail className="h-4 w-4 mr-1" />
+                            Invia Email
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                     <CardContent className="pt-4">
@@ -556,19 +567,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                         </div>
                       )}
                     </CardContent>
-                    {opportunita.email && (
-                      <CardFooter className="bg-gray-50 border-t pt-3 pb-3">
-                        <Button 
-                          variant="secondary" 
-                          size="sm"
-                          className="ml-auto flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                          onClick={() => handleSendEmail(opportunita.email!)}
-                        >
-                          <Mail className="h-4 w-4" />
-                          Invia Email
-                        </Button>
-                      </CardFooter>
-                    )}
                   </Card>
                 ))}
               </div>

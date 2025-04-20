@@ -1183,16 +1183,7 @@ Grazie per la tua fiducia e collaborazione.`
             <h1 className="text-2xl font-semibold text-gray-800">{client?.name}</h1>
             {client?.isOnboarded && (
               <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
-                  className="ml-4 bg-white hover:bg-gray-50 text-gray-700 border-gray-300"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  {t('common.edit')}
-                </Button>
-                <div className="flex items-center ml-2">
+                <div className="flex items-center ml-4">
                   <Badge 
                     variant={client?.active ? "default" : "destructive"}
                     className={`flex items-center pl-2 pr-1 py-0.5 h-8 ${client?.active ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'}`}
@@ -1213,11 +1204,37 @@ Grazie per la tua fiducia e collaborazione.`
                     </Button>
                   </Badge>
                 </div>
+                <Button
+                  variant="ghost" 
+                  size="sm"
+                  className="ml-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 flex items-center"
+                  onClick={() => setLocation(`/app/clients/${clientId}/edit-mifid`)}
+                >
+                  <Edit className="h-4 w-4 mr-1" />
+                  {t('common.edit')}
+                </Button>
               </>
             )}
           </div>
           <div className="flex items-center space-x-2">
-            {/* Redundant PDF button removed */}
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 flex items-center"
+              onClick={() => setIsAddLogDialogOpen(true)}
+            >
+              <Mail className="h-4 w-4 mr-1" />
+              Invia email
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 flex items-center"
+              onClick={() => setLocation(`/app/calendar?client=${clientId}`)}
+            >
+              <Calendar className="h-4 w-4 mr-1" />
+              Programma incontro
+            </Button>
           </div>
         </div>
 

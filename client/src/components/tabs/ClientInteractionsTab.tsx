@@ -62,30 +62,7 @@ export function ClientInteractionsTab({ clientId, onAddLog }: ClientInteractions
           <div className="space-y-6">
             {/* Action buttons first */}
             <div className="flex space-x-4">
-              <Button 
-                className="bg-blue-500 hover:bg-blue-600 text-white"
-                onClick={() => {
-                  toast({
-                    title: t('client.email_feature') || "Email Feature",
-                    description: t('client.feature_coming_soon') || "Coming soon",
-                  });
-                }}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                {t('client.send_email') || "Invia Email"}
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => {
-                  toast({
-                    title: t('client.meeting_feature') || "Meeting Feature",
-                    description: t('client.feature_coming_soon') || "Coming soon",
-                  });
-                }}
-              >
-                <Calendar className="h-4 w-4 mr-2" />
-                {t('client.schedule_meeting') || "Programma Incontro"}
-              </Button>
+
             </div>
             
             {/* Fetch and display logs directly */}

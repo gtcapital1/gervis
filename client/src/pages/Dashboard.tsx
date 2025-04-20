@@ -38,7 +38,9 @@ import {
   BarChart,
   Users2,
   CircleDollarSign,
-  Eye
+  Eye,
+  Sparkles,
+  BarChart as RechartsBarChart
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -79,7 +81,7 @@ import {
   Area,
   LineChart as RechartsLineChart,
   Line,
-  BarChart as RechartsBarChart,
+  BarChart as RechartsBarchart,
   Bar,
   PieChart,
   Pie,
@@ -1422,58 +1424,34 @@ export default function Dashboard() {
             
             {selectedOpportunity?.email && (
               <div>
-                <h3 className="text-sm font-semibold mb-1">Email consigliata</h3>
-                <Card className="p-4 bg-muted/50">
-                  <div className="space-y-3">
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground mb-1">Oggetto:</h4>
-                      <input 
-                        type="text" 
-                        className="w-full px-3 py-2 border rounded-md text-sm" 
-                        value={selectedOpportunity.email.oggetto} 
-                        onChange={(e) => {
-                          if (selectedOpportunity) {
-                            const updatedOpportunity = {...selectedOpportunity};
-                            updatedOpportunity.email.oggetto = e.target.value;
-                            setSelectedOpportunity(updatedOpportunity);
-                          }
-                        }}
-                      />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-medium text-muted-foreground mb-1">Corpo:</h4>
-                      <textarea 
-                        className="w-full px-3 py-2 border rounded-md text-sm h-32" 
-                        value={selectedOpportunity.email.corpo} 
-                        onChange={(e) => {
-                          if (selectedOpportunity) {
-                            const updatedOpportunity = {...selectedOpportunity};
-                            updatedOpportunity.email.corpo = e.target.value;
-                            setSelectedOpportunity(updatedOpportunity);
-                          }
-                        }}
-                      />
-                    </div>
+                <h3 className="text-sm font-semibold mb-1">Email suggerita</h3>
+                <div className="border rounded-md p-3 text-sm space-y-2">
+                  <div className="pb-2 border-b">
+                    <span className="font-semibold">Oggetto:</span> {selectedOpportunity?.email.oggetto}
                   </div>
-                </Card>
+                  <div className="whitespace-pre-line">
+                    {selectedOpportunity?.email.corpo}
+                  </div>
+                </div>
               </div>
             )}
           </div>
           
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="default"
-              onClick={() => {
-                if (selectedOpportunity) {
-                  handleSendEmail(selectedOpportunity.clientId, selectedOpportunity.email);
-                  setShowOpportunityDetailDialog(false);
-                }
-              }}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              {t('dashboard.send_email')}
-            </Button>
-          </div>
+          {selectedOpportunity?.email && (
+            <div className="flex justify-end mt-6">
+              <Button
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={() => {
+                  if (selectedOpportunity?.clientId && selectedOpportunity?.email) {
+                    handleSendEmail(selectedOpportunity.clientId, selectedOpportunity.email);
+                  }
+                }}
+              >
+                Invia email
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1485,10 +1463,10 @@ export default function Dashboard() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <DollarSign className="h-4 w-4 mr-2 text-blue-600" />
                   {t('dashboard.total_aum')}
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatCurrency(activeClientAUM)}</div>
@@ -1502,10 +1480,10 @@ export default function Dashboard() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium flex items-center">
+                  <Users className="h-4 w-4 mr-2 text-blue-600" />
                   {t('dashboard.active_clients')}
-                </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                </CardTitle> 
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatNumber(activeClients.length)}</div>
@@ -1519,7 +1497,10 @@ export default function Dashboard() {
           {/* Task Manager */}
           <Card>
             <CardHeader>
-              <CardTitle>{t('dashboard.todays_agenda')}</CardTitle>
+              <CardTitle className="flex items-center">
+                <CalendarClock className="h-5 w-5 mr-2 text-blue-600" />
+                {t('dashboard.todays_agenda')}
+              </CardTitle>
               <CardDescription>{t('dashboard.scheduled_events')}</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1586,7 +1567,10 @@ export default function Dashboard() {
           {false && (
           <Card>
             <CardHeader>
-              <CardTitle>{t('dashboard.client_pipeline')}</CardTitle>
+              <CardTitle className="flex items-center">
+                <BarChart className="h-5 w-5 mr-2 text-blue-600" />
+                {t('dashboard.client_pipeline')}
+              </CardTitle>
               <CardDescription className="flex justify-between items-center">
                 <span>{t('dashboard.conversion_funnel')}</span>
                 <div className="flex border rounded-md overflow-hidden">
@@ -1757,8 +1741,11 @@ export default function Dashboard() {
           {/* Top Opportunità - Allungata fino in alto */}
           <Card className="h-full flex flex-col">
             <CardHeader>
-              <CardTitle>{t('dashboard.opportunities')}</CardTitle>
-              <CardDescription>Top opportunità prioritarie</CardDescription>
+              <CardTitle className="flex items-center">
+                <Sparkles className="h-5 w-5 mr-2 text-blue-600" />
+                {t('dashboard.opportunities')}
+              </CardTitle>
+              <CardDescription>Top 5 opportunità prioritarie</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               {isLoadingAIProfiles ? (
@@ -1770,32 +1757,41 @@ export default function Dashboard() {
                   {t('dashboard.no_opportunities')}
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {opportunities.slice(0, 8).map((opportunity) => (
+                <div className="space-y-2">
+                  {opportunities.slice(0, 5).map((opportunity) => (
                     <div 
                       key={opportunity.id}
-                      className="flex items-start gap-3 p-2 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                      className="flex items-center gap-3 p-2 border rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
                       onClick={() => {
                         setSelectedOpportunity(opportunity);
                         setShowOpportunityDetailDialog(true);
                       }}
                     >
                       <div className={`w-2 h-full rounded-full ${
-                        opportunity.priority === 1 ? 'bg-red-500' :
-                        opportunity.priority === 2 ? 'bg-orange-500' :
-                        opportunity.priority === 3 ? 'bg-yellow-500' :
-                        opportunity.priority === 4 ? 'bg-blue-500' :
-                        'bg-gray-500'
+                        opportunity.priority === 1 ? 'bg-blue-800' :
+                        opportunity.priority === 2 ? 'bg-blue-600' :
+                        opportunity.priority === 3 ? 'bg-blue-500' :
+                        opportunity.priority === 4 ? 'bg-blue-400' :
+                        'bg-blue-300'
                       }`} />
                       <div className="flex-1">
-                        <div className="font-medium text-sm line-clamp-1">{opportunity.title}</div>
-                        <div className="text-xs text-muted-foreground mb-1">
+                        <div className="font-medium text-sm">{opportunity.title}</div>
+                        <div className="text-xs text-muted-foreground">
                           Cliente: {opportunity.clientName}
                         </div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">
-                          {opportunity.description}
-                        </div>
                       </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-7 w-7 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOpportunity(opportunity);
+                          setShowOpportunityDetailDialog(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1817,7 +1813,10 @@ export default function Dashboard() {
       {/* 📊 Client Portfolio Insights - a tutta larghezza */}
       <Card className="col-span-full">
             <CardHeader>
-          <CardTitle>{t('dashboard.client_insights')}</CardTitle>
+          <CardTitle className="flex items-center">
+            <LucidePieChart className="h-5 w-5 mr-2 text-blue-600" />
+            {t('dashboard.client_insights')}
+          </CardTitle>
           <CardDescription>{t('dashboard.active_clients_overview')}</CardDescription>
             </CardHeader>
         <CardContent className="space-y-6">

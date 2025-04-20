@@ -36,7 +36,8 @@ import {
   Landmark,
   BriefcaseIcon,
   Banknote,
-  PieChart
+  PieChart,
+  Mail
 } from "lucide-react";
 
 // Define colors for the pie chart
@@ -192,6 +193,11 @@ export function ClientInfoTab({ client, mifid, assets }: ClientInfoTabProps) {
                     <Phone className="h-4 w-4 mr-2 text-gray-500" />
                     <span className="text-sm text-gray-500 mr-2">{t('client.phone')}:</span>
                     <span className="text-sm text-gray-800">{mifid.phone}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Mail className="h-4 w-4 mr-2 text-gray-500" />
+                    <span className="text-sm text-gray-500 mr-2">Email:</span>
+                    <span className="text-sm text-gray-800">{client.email}</span>
                   </div>
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2 text-gray-500" />

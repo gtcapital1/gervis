@@ -592,7 +592,7 @@ export default function Clients() {
         <Card>
           <CardHeader className="pb-2">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-              <CardTitle>{t('dashboard.clients')}</CardTitle>
+              <CardTitle>{t('dashboard.clients_list')}</CardTitle>
               <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
                 <div className="relative w-full sm:w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
