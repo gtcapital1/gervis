@@ -16,6 +16,25 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ClientDialog } from "@/components/dashboard/ClientDialog";
+import { Dialog } from "@/components/ui/dialog";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useParams, useRouter } from "next/navigation";
+import { formatDate } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { SendIcon } from "lucide-react";
+import { z } from "zod";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Definisci le interfacce per i tipi di dati che gestiremo
 interface Client {
@@ -59,6 +78,169 @@ interface Conversation {
   title: string;
   createdAt: string;
   updatedAt: string;
+}
+
+// Form embedded per creare clienti dentro la chat
+function EmbeddedClientForm({ initialData, onSuccess }: { 
+  initialData: any; 
+  onSuccess: (createdClient: Client) => void 
+}) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Validiamo i dati del form
+  const formSchema = z.object({
+    firstName: z.string().min(2, "Il nome deve avere almeno 2 caratteri"),
+    lastName: z.string().min(2, "Il cognome deve avere almeno 2 caratteri"),
+    email: z.string().email("Inserisci un indirizzo email valido"),
+    phone: z.string().optional()
+  });
+  
+  // Inizializziamo il form
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      firstName: initialData?.firstName || "",
+      lastName: initialData?.lastName || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || ""
+    }
+  });
+  
+  // Quando i dati iniziali cambiano, aggiorniamo il form
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        firstName: initialData.firstName || "",
+        lastName: initialData.lastName || "",
+        email: initialData.email || "",
+        phone: initialData.phone || ""
+      });
+    }
+  }, [initialData, form]);
+  
+  // Funzione per creare il cliente
+  async function handleSubmit(data: any) {
+    setIsSubmitting(true);
+    
+    try {
+      // Prepariamo i dati per l'API
+      const payload = {
+        ...data,
+        name: `${data.firstName} ${data.lastName}`,
+        active: false
+      };
+      
+      // Chiamata API
+      const response = await apiRequest('/api/clients', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Cliente creato",
+          description: `${data.firstName} ${data.lastName} è stato aggiunto con successo`
+        });
+        
+        // Resettiamo il form e indichiamo successo
+        form.reset();
+        onSuccess(response.client);
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante la creazione del cliente",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Errore nella creazione del cliente:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Mario" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cognome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Rossi" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input 
+                  type="email" 
+                  placeholder="mario.rossi@example.com" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Telefono (Opzionale)</FormLabel>
+              <FormControl>
+                <Input placeholder="+39 123 456 7890" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end gap-2">
+          <Button 
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Creazione in corso..." : "Crea Cliente"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
 }
 
 // Componente per mostrare un singolo cliente in una card
@@ -355,6 +537,18 @@ export default function AgentPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   
+  // Stati per i dialoghi - rimuoviamo i flag per i dialog esterni
+  // const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
+  // const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
+  const [clientData, setClientData] = useState<any>(null);
+  const [meetingData, setMeetingData] = useState<any>(null);
+  
+  // Traccia quali form sono stati completati
+  const [completedForms, setCompletedForms] = useState<{[key: string]: boolean}>({});
+  
+  // Stato per il checkbox dell'invio email
+  const [sendEmailChecked, setSendEmailChecked] = useState(true);
+  
   // Esempio di capabilities dell'agente
   const capabilities = [
     { 
@@ -381,12 +575,12 @@ export default function AgentPage() {
       const initialMessages: Message[] = [
         {
           role: 'system',
-          content: 'BENVENUTO IN GERVIS',
+          content: 'Ciao. Sono Gervis',
           id: 1
         },
         {
           role: 'system',
-          content: "L'UNICO AI AGENT DEDICATO AI CONSULENTI FINANZIARI",
+          content: "Il primo agent AI per consulenti finanziari.",
           id: 2
         }
       ];
@@ -506,15 +700,33 @@ export default function AgentPage() {
           setCurrentConversationId(response.conversationId);
         }
         
-        // Aggiungi la risposta dell'assistente
+        // Verifica se la risposta contiene funzioni per la creazione di appuntamenti o clienti
+        const shouldOnlyShowEmbeddedForm = false; // Sempre mostra il messaggio di testo
+        
+        // Aggiungi la risposta dell'assistente, mostrando solo text se non è un form embedded
         const assistantMessage: Message = {
-          content: response.response,
+          content: shouldOnlyShowEmbeddedForm ? '' : response.response,
           role: 'assistant',
           functionCalls: response.functionCalls,
           functionResults: response.functionResults
         };
         
         setMessages((prev) => [...prev, assistantMessage]);
+        
+        // Gestisci i dialog, se presenti nella risposta
+        if (response.dialog) {
+          console.log('Dialog ricevuto:', response.dialog);
+          
+          // Solo imposta i dati per i form embedded
+          if (response.dialog.showClientDialog) {
+            setClientData(response.dialog.clientData);
+          }
+          
+          // Solo imposta i dati per i form embedded
+          if (response.dialog.showMeetingDialog) {
+            setMeetingData(response.dialog.meetingData);
+          }
+        }
         
         // Aggiorna la lista delle conversazioni
         fetchConversations();
@@ -716,6 +928,8 @@ export default function AgentPage() {
     const hasMeetingResults = functionResult && 'meetings' in functionResult && Array.isArray(functionResult.meetings) && functionResult.meetings.length > 0;
     const hasCreatedClient = functionResult && 'success' in functionResult && functionResult.success && 'client' in functionResult && functionResult.client;
     const hasCreatedMeeting = functionResult && 'success' in functionResult && functionResult.success && 'meeting' in functionResult && functionResult.meeting;
+    const showClientForm = functionResult && functionResult.showClientDialog && functionResult.clientData;
+    const showMeetingForm = functionResult && functionResult.showMeetingDialog && functionResult.meetingData;
     
     return (
       <motion.div
@@ -739,7 +953,7 @@ export default function AgentPage() {
                 ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white' 
                 : 'bg-black/5 dark:bg-white/5 backdrop-blur-sm border border-blue-200/20'}
             `}>
-              <div className="text-base whitespace-pre-wrap break-words">{message.content}</div>
+              {message.content && <div className="text-base whitespace-pre-wrap break-words">{message.content}</div>}
               
               {message.createdAt && (
                 <div className="text-xs opacity-70 mt-1 text-right">
@@ -755,6 +969,262 @@ export default function AgentPage() {
                 </div>
               )}
             </div>
+            
+            {/* Form embedded per la creazione del cliente */}
+            {showClientForm && !completedForms[`client-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <User className="h-4 w-4 mr-2 text-blue-600" />
+                      Crea Nuovo Cliente
+                    </CardTitle>
+                    <CardDescription>
+                      Completa i dati e conferma per aggiungere il cliente
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <EmbeddedClientForm 
+                      initialData={functionResult.clientData}
+                      onSuccess={(createdClient) => {
+                        // Nascondi il form
+                        setCompletedForms(prev => ({
+                          ...prev,
+                          [`client-${index}`]: true
+                        }));
+                        
+                        // Aggiungi un messaggio di conferma nella chat
+                        const confirmationMessage: Message = {
+                          content: `Ho creato il cliente ${createdClient.firstName} ${createdClient.lastName} con successo.`,
+                          role: 'assistant',
+                          functionResults: [{
+                            success: true,
+                            client: createdClient,
+                            message: 'Cliente creato con successo'
+                          }]
+                        };
+                        
+                        setMessages((prev) => [...prev, confirmationMessage]);
+                        
+                        // Aggiorna la lista delle conversazioni
+                        fetchConversations();
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            {/* Form per la creazione dell'appuntamento */}
+            {showMeetingForm && !completedForms[`meeting-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+                      Crea Nuovo Appuntamento
+                    </CardTitle>
+                    <CardDescription>
+                      Conferma i dettagli dell'appuntamento
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid gap-4 py-2">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="client" className="text-right">
+                          Cliente
+                        </Label>
+                        <div className="col-span-3 font-medium">
+                          {functionResult.meetingData?.clientInfo?.name}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="subject" className="text-right">
+                          Oggetto
+                        </Label>
+                        <Input
+                          id="subject"
+                          defaultValue={functionResult.meetingData?.subject || ""}
+                          className="col-span-3"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="location" className="text-right">
+                          Luogo
+                        </Label>
+                        <Select
+                          defaultValue={functionResult.meetingData?.location || "incontro"}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="zoom">Zoom</SelectItem>
+                            <SelectItem value="office">Ufficio</SelectItem>
+                            <SelectItem value="phone">Telefono</SelectItem>
+                            <SelectItem value="incontro">Incontro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="time" className="text-right">
+                          Orario
+                        </Label>
+                        <div className="col-span-3 font-medium">
+                          {functionResult.meetingData?.formattedDate} alle {functionResult.meetingData?.formattedTime}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="duration" className="text-right">
+                          Durata (min)
+                        </Label>
+                        <Select
+                          defaultValue={functionResult.meetingData?.duration?.toString() || "60"}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="15">15 minuti</SelectItem>
+                            <SelectItem value="30">30 minuti</SelectItem>
+                            <SelectItem value="45">45 minuti</SelectItem>
+                            <SelectItem value="60">1 ora</SelectItem>
+                            <SelectItem value="90">1 ora e 30 minuti</SelectItem>
+                            <SelectItem value="120">2 ore</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="notes" className="text-right align-top mt-2">
+                          Note
+                        </Label>
+                        <Textarea
+                          id="notes"
+                          defaultValue={functionResult.meetingData?.notes || ""}
+                          className="col-span-3"
+                          rows={2}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <div className="col-span-4 flex items-center space-x-2 justify-end">
+                          <Checkbox 
+                            id="sendEmail" 
+                            defaultChecked 
+                            onCheckedChange={(checked) => setSendEmailChecked(checked === true)}
+                          />
+                          <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
+                            Invia email di invito al cliente
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCompletedForms(prev => ({
+                          ...prev,
+                          [`meeting-${index}`]: true
+                        }))}
+                      >
+                        Annulla
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => {
+                          // Ottieni i valori dal form
+                          const subjectElement = document.getElementById('subject') as HTMLInputElement;
+                          const notesElement = document.getElementById('notes') as HTMLTextAreaElement;
+                          
+                          const subject = subjectElement?.value || functionResult.meetingData?.subject || "";
+                          const notes = notesElement?.value || functionResult.meetingData?.notes || "";
+                          
+                          // Crea un oggetto con i dati dell'appuntamento
+                          const meetingData = {
+                            ...functionResult.meetingData,
+                            subject,
+                            notes,
+                            sendEmail: sendEmailChecked
+                          };
+                          
+                          // Aggiungi messaggio di conferma
+                          const confirmationMessage: Message = {
+                            content: `Ho creato l'appuntamento con ${functionResult.meetingData?.clientInfo?.name} per il ${functionResult.meetingData?.formattedDate} alle ${functionResult.meetingData?.formattedTime}.`,
+                            role: 'assistant',
+                            functionResults: [{
+                              success: true,
+                              meeting: {
+                                ...meetingData,
+                                id: Date.now(), // ID temporaneo
+                                client: {
+                                  id: parseInt(functionResult.meetingData?.clientInfo?.id) || 0,
+                                  name: functionResult.meetingData?.clientInfo?.name || "",
+                                  email: functionResult.meetingData?.clientInfo?.email || ""
+                                }
+                              }
+                            }]
+                          };
+                          
+                          // Invia i dati all'API (implementazione semplificata)
+                          const apiData = {
+                            clientId: parseInt(functionResult.meetingData?.clientInfo?.id) || 0,
+                            subject,
+                            dateTime: functionResult.meetingData?.dateTime,
+                            duration: parseInt(functionResult.meetingData?.duration) || 60,
+                            location: functionResult.meetingData?.location || "incontro",
+                            notes,
+                            sendEmail: sendEmailChecked
+                          };
+                          
+                          // Chiamata all'API
+                          apiRequest('/api/meetings', {
+                            method: 'POST',
+                            body: JSON.stringify(apiData)
+                          }).then(() => {
+                            toast({
+                              title: "Appuntamento creato",
+                              description: `Appuntamento con ${functionResult.meetingData?.clientInfo?.name} creato con successo.`,
+                            });
+                          }).catch(error => {
+                            console.error("Errore nella creazione dell'appuntamento:", error);
+                            toast({
+                              title: "Errore",
+                              description: "Si è verificato un errore durante la creazione dell'appuntamento.",
+                              variant: "destructive"
+                            });
+                          });
+                          
+                          setMessages((prev) => [...prev, confirmationMessage]);
+                          setCompletedForms(prev => ({
+                            ...prev,
+                            [`meeting-${index}`]: true
+                          }));
+                        }}
+                      >
+                        Crea Appuntamento
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
             
             {/* Visualizzazione dei risultati della ricerca di clienti */}
             {hasClientResults && (

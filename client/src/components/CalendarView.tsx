@@ -12,6 +12,7 @@ import { format, addHours, parseISO, isSameDay, getHours, setHours, startOfDay, 
 import { it } from 'date-fns/locale';
 import api from '@/lib/api';
 import { useAuth } from '@/hooks/use-auth';
+import { ConfirmationDialog } from '@/components/ConfirmationDialog';
 
 // Define meeting interface
 interface Meeting {
@@ -52,6 +53,8 @@ const CalendarView = () => {
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [meetingsForSelectedDate, setMeetingsForSelectedDate] = useState<Meeting[]>([]);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [meetingToDelete, setMeetingToDelete] = useState<number | null>(null);
 
   // Fetch meetings and clients on component mount
   useEffect(() => {
@@ -266,13 +269,16 @@ const CalendarView = () => {
   };
 
   // Handle meeting deletion
-  const handleDeleteMeeting = async (meetingId: number) => {
-    if (!confirm('Sei sicuro di voler eliminare questo appuntamento?')) {
-      return;
-    }
+  const handleDeleteMeeting = (meetingId: number) => {
+    setMeetingToDelete(meetingId);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteMeeting = async () => {
+    if (!meetingToDelete) return;
 
     try {
-      const response = await api.delete(`/api/meetings/${meetingId}`);
+      const response = await api.delete(`/api/meetings/${meetingToDelete}`);
       if (response.data.success) {
         fetchMeetings();
         toast({
@@ -287,6 +293,9 @@ const CalendarView = () => {
         description: 'Impossibile eliminare l\'appuntamento',
         variant: 'destructive',
       });
+    } finally {
+      setIsDeleteDialogOpen(false);
+      setMeetingToDelete(null);
     }
   };
 
@@ -622,6 +631,17 @@ const CalendarView = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Conferma cancellazione"
+        description="Sei sicuro di voler cancellare questo appuntamento? Questa operazione non può essere annullata."
+        confirmLabel="Cancella appuntamento"
+        onConfirm={confirmDeleteMeeting}
+        confirmVariant="destructive"
+        showWarningIcon={true}
+      />
     </div>
   );
 };

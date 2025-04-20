@@ -2,7 +2,8 @@
  * GERVIS AGENT FUNCTIONS
  * 
  * Questo file contiene tutte le funzioni che l'agente AI può utilizzare.
- * Per aggiungere/rimuovere permessi all'agente, è sufficiente modificare questo file.
+ * Ogni funzione deve preparare dialoghi di conferma anziché eseguire direttamente azioni finali.
+ * L'utente ha sempre l'ultima parola attraverso i dialoghi di conferma.
  */
 
 import { db } from '../db';
@@ -52,33 +53,21 @@ export const searchClients: AgentFunction = {
     const { query, limit = 10, includeArchived = false } = params;
     
     try {
-      console.log('==== DEBUG RICERCA CLIENTI ====');
       console.log('[Agent] userId:', userId);
       console.log('[Agent] Parametri ricerca:', JSON.stringify(params));
-      console.log('[Agent] Query originale:', query);
       
-      // Limitiamo a 50 per motivi di performance
+      // Limitiamo a 1000 per un'ampia copertura
       const allUserClients = await db.select()
         .from(clients)
         .where(eq(clients.advisorId, userId))
-        .limit(50);
+        .limit(1000);
       
-      console.log('[Agent] Numero di clienti recuperati per debug:', allUserClients.length);
-      
-      // Mostriamo solo i primi 10 per non sovraccaricare i log
-      console.log('[Agent] Primi 10 clienti dell\'utente:');
-      allUserClients.slice(0, 10).forEach((client, index) => {
-        console.log(`[Agent] Cliente ${index + 1}: ${client.firstName} ${client.lastName} (${client.email})`);
-      });
+      console.log('[Agent] Numero di clienti recuperati:', allUserClients.length);
       
       // Separa la query in parole per la ricerca
       const queryWords = query.toLowerCase().split(/\s+/);
-      console.log('[Agent] Parole query:', queryWords);
       
       // Implementiamo una ricerca manuale ottimizzata
-      console.log('[Agent] Esecuzione ricerca ottimizzata');
-      
-      // Filtriamo direttamente dalla lista completa di clienti che abbiamo già recuperato
       const matchedManually = allUserClients.filter(client => {
         // Se il cliente è archiviato e non dobbiamo includerlo, lo saltiamo subito
         if (client.isArchived && !includeArchived) {
@@ -92,11 +81,11 @@ export const searchClients: AgentFunction = {
         const clientEmail = (client.email || '').toLowerCase();
         const searchQuery = query.toLowerCase();
         
-        // Controlli rapidi prima (sono più veloci)
+        // Controlli rapidi
         if (clientEmail.includes(searchQuery)) return true;
         if (clientFullName.includes(searchQuery)) return true;
         
-        // Ricerca parola per parola come ultima opzione
+        // Ricerca parola per parola
         for (const word of queryWords) {
           if (word.length < 3) continue; // Ignora parole troppo corte
           if (clientFirstName.includes(word) || clientLastName.includes(word)) {
@@ -107,32 +96,29 @@ export const searchClients: AgentFunction = {
         return false;
       }).slice(0, limit);
       
-      console.log('[Agent] Risultati ricerca manuale:', matchedManually.length);
+      // Restituiamo i risultati con formato più orientato all'utente
+      const formattedClients = matchedManually.map(client => ({
+        id: client.id,
+        name: `${client.firstName} ${client.lastName}`,
+        email: client.email,
+        isArchived: client.isArchived
+      }));
       
-      if (matchedManually.length > 0) {
-        console.log('[Agent] Clienti trovati nella ricerca manuale:');
-        matchedManually.forEach((client, index) => {
-          console.log(`[Agent] Risultato ${index + 1}: ${client.firstName} ${client.lastName} (${client.email})`);
-        });
-      }
-      
-      console.log('==== FINE DEBUG RICERCA CLIENTI ====');
-      
-      // Restituiamo i risultati indipendentemente da quanti ne abbiamo trovati
       return {
         success: true,
-        clients: matchedManually,
-        count: matchedManually.length,
-        note: matchedManually.length > 0 ? 'Clienti trovati' : 'Nessun cliente trovato'
+        clients: formattedClients,
+        count: formattedClients.length,
+        message: formattedClients.length > 0 
+          ? `Ho trovato ${formattedClients.length} client${formattedClients.length === 1 ? 'e' : 'i'} che corrispond${formattedClients.length === 1 ? 'e' : 'ono'} alla tua ricerca.` 
+          : 'Non ho trovato clienti che corrispondono alla tua ricerca.'
       };
     } catch (error) {
       console.error('[Agent] Error searching clients:', error);
-      // Assicuriamoci di restituire sempre una risposta, anche in caso di errore
       return {
         success: false,
         message: 'Errore nella ricerca dei clienti',
         error: String(error),
-        clients: [], // Aggiungiamo un array vuoto per evitare errori nel frontend
+        clients: [],
         count: 0
       };
     }
@@ -167,9 +153,20 @@ export const getClientById: AgentFunction = {
         };
       }
       
+      const client = result[0];
+      
       return {
         success: true,
-        client: result[0]
+        client: {
+          id: client.id,
+          name: `${client.firstName} ${client.lastName}`,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
+          isArchived: client.isArchived,
+          isOnboarded: client.isOnboarded
+        },
+        message: `Ho trovato il cliente ${client.firstName} ${client.lastName}.`
       };
     } catch (error) {
       console.error('[Agent] Error getting client by ID:', error);
@@ -183,10 +180,10 @@ export const getClientById: AgentFunction = {
   requiresAuth: true
 };
 
-// Crea nuovo cliente
+// Crea nuovo cliente (prepara dialogo)
 export const createClient: AgentFunction = {
   name: 'createClient',
-  description: 'Crea un nuovo cliente',
+  description: 'Prepara i dati per la creazione di un nuovo cliente',
   parameters: {
     firstName: 'string',
     lastName: 'string',
@@ -194,72 +191,44 @@ export const createClient: AgentFunction = {
   },
   handler: async (userId: number, params: any) => {
     try {
-      console.log('[Agent] Creazione cliente con parametri:', JSON.stringify(params));
+      console.log('[Agent] Preparazione dati cliente:', JSON.stringify(params));
       
       // Validazione dei parametri obbligatori
       if (!params.firstName || !params.lastName || !params.email) {
-        console.log('[Agent] Parametri mancanti per la creazione del cliente');
+        const missingParams = [];
+        if (!params.firstName) missingParams.push('firstName');
+        if (!params.lastName) missingParams.push('lastName');
+        if (!params.email) missingParams.push('email');
+        
         return {
           success: false,
-          message: 'Parametri mancanti per la creazione del cliente. Serve nome, cognome ed email.',
-          requiredParams: ['firstName', 'lastName', 'email']
+          message: 'Informazioni incomplete per la creazione del cliente',
+          requiredParams: missingParams
         };
       }
       
-      // Controllo se l'email è già utilizzata da un altro cliente dello stesso advisor
-      const existingClient = await db.select()
-        .from(clients)
-        .where(
-          and(
-            eq(clients.advisorId, userId),
-            eq(clients.email, params.email)
-          )
-        )
-        .limit(1);
-      
-      if (existingClient.length > 0) {
-        console.log('[Agent] Email già utilizzata:', params.email);
-        return {
-          success: false,
-          message: `L'email ${params.email} è già utilizzata da un altro cliente`,
-          existingClient: existingClient[0]
-        };
-      }
-      
-      // Aggiungi l'advisorId ai dati del cliente
+      // Formatta i dati per il dialogo di conferma
       const clientData = {
-        ...params,
-        advisorId: userId,
-        createdAt: new Date(),
-        isArchived: false,
-        isOnboarded: false,
-        active: false
+        firstName: params.firstName,
+        lastName: params.lastName,
+        email: params.email,
+        name: `${params.firstName} ${params.lastName}`
       };
       
-      // Inserisci il nuovo cliente
-      const result = await db.insert(clients)
-        .values(clientData)
-        .returning();
-      
-      if (!result || result.length === 0) {
-        return {
-          success: false,
-          message: 'Errore nella creazione del cliente: nessun risultato restituito'
-        };
-      }
-      
-      console.log('[Agent] Cliente creato con successo:', JSON.stringify(result[0]));
-      
+      // Prepariamo i dati per il dialog UI
       return {
         success: true,
-        client: result[0],
-        message: `Cliente ${result[0].firstName} ${result[0].lastName} creato con successo`
+        clientData,
+        showDialog: true,
+        showClientDialog: true,
+        dialogType: 'createClient',
+        message: `Sto preparando l'interfaccia per aggiungere ${params.firstName} ${params.lastName} come nuovo cliente.`
       };
     } catch (error) {
-      console.error('[Agent] Error creating client:', error);
+      console.error('[Agent] Error preparing client data:', error);
       return {
         success: false,
-        message: 'Errore nella creazione del cliente',
+        message: 'Errore nella preparazione dei dati del cliente',
         error: String(error)
       };
     }
@@ -271,7 +240,7 @@ export const createClient: AgentFunction = {
  * FUNZIONI PER APPUNTAMENTI
  */
 
-// Cerca appuntamenti del cliente
+// Cerca appuntamenti
 export const searchMeetings: AgentFunction = {
   name: 'searchMeetings',
   description: 'Cerca appuntamenti per un cliente specifico o in un intervallo di date',
@@ -286,19 +255,15 @@ export const searchMeetings: AgentFunction = {
     try {
       const clientId = params.clientId;
       const timeframe = params.timeframe || 'all';
-      const limit = params.limit || 10; // Aumentiamo il limite predefinito
+      const limit = params.limit || 20;
       
-      // Gestisci le date in modo più flessibile
+      // Gestisci le date in modo flessibile
       let startDate: Date | undefined;
       let endDate: Date | undefined;
       
-      // Gestione migliorata della data - includi ora di inizio e fine per query per giorno singolo
       if (params.startDate) {
         try {
-          // Prova a parsare la data
           startDate = new Date(params.startDate);
-          // Se la data è valida e non ha un'ora specificata (è solo una data),
-          // impostiamo l'ora a 00:00:00 per coprire l'intera giornata
           if (!isNaN(startDate.getTime()) && params.startDate.indexOf('T') === -1) {
             startDate.setHours(0, 0, 0, 0);
           }
@@ -309,9 +274,7 @@ export const searchMeetings: AgentFunction = {
       
       if (params.endDate) {
         try {
-          // Prova a parsare la data di fine
           endDate = new Date(params.endDate);
-          // Se la data è valida e non ha un'ora specificata, impostiamo l'ora a 23:59:59
           if (!isNaN(endDate.getTime()) && params.endDate.indexOf('T') === -1) {
             endDate.setHours(23, 59, 59, 999);
           }
@@ -326,16 +289,13 @@ export const searchMeetings: AgentFunction = {
         endDate.setHours(23, 59, 59, 999);
       }
       
-      // Debug logging migliorato
-      console.log('[Agent] Search meetings params:', JSON.stringify({
+      console.log('[Agent] Search meetings params:', {
         clientId,
         timeframe,
-        originalStartDate: params.startDate,
-        originalEndDate: params.endDate,
-        parsedStartDate: startDate?.toISOString(),
-        parsedEndDate: endDate?.toISOString(),
+        startDate: startDate?.toISOString(),
+        endDate: endDate?.toISOString(),
         limit
-      }));
+      });
 
       // Costruisci le condizioni di ricerca
       let conditions = [eq(meetings.advisorId, userId)];
@@ -347,17 +307,14 @@ export const searchMeetings: AgentFunction = {
       
       // Priorità alle date esplicite se fornite
       if (startDate && endDate) {
-        console.log('[Agent] Using explicit date range:', startDate.toISOString(), 'to', endDate.toISOString());
         conditions.push(gte(meetings.dateTime, startDate));
         conditions.push(lte(meetings.dateTime, endDate));
       } else if (startDate) {
-        console.log('[Agent] Using only start date:', startDate.toISOString());
         conditions.push(gte(meetings.dateTime, startDate));
       } else if (endDate) {
-        console.log('[Agent] Using only end date:', endDate.toISOString());
         conditions.push(lte(meetings.dateTime, endDate));
       } 
-      // Gestione semplificata di "oggi"
+      // Gestione di "oggi"
       else if (timeframe === 'today') {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -365,16 +322,13 @@ export const searchMeetings: AgentFunction = {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
         
-        console.log('[Agent] Using today timeframe:', today.toISOString(), 'to', tomorrow.toISOString());
         conditions.push(gte(meetings.dateTime, today));
         conditions.push(lt(meetings.dateTime, tomorrow));
       }
       // Altrimenti usa il timeframe
       else if (timeframe === 'future') {
-        console.log('[Agent] Using future timeframe');
         conditions.push(gt(meetings.dateTime, new Date()));
       } else if (timeframe === 'past') {
-        console.log('[Agent] Using past timeframe');
         conditions.push(lt(meetings.dateTime, new Date()));
       } else if (timeframe === 'week') {
         const today = new Date();
@@ -383,23 +337,19 @@ export const searchMeetings: AgentFunction = {
         const nextWeek = new Date(today);
         nextWeek.setDate(nextWeek.getDate() + 7);
         
-        console.log('[Agent] Using week timeframe:', today.toISOString(), 'to', nextWeek.toISOString());
         conditions.push(gte(meetings.dateTime, today));
         conditions.push(lt(meetings.dateTime, nextWeek));
       }
       
       // Esegui la query
-      console.log('[Agent] Executing query with conditions');
       const results = await db.select()
         .from(meetings)
         .where(and(...conditions))
-        .orderBy(meetings.dateTime) // Ordina per data ascendente
+        .orderBy(meetings.dateTime)
         .limit(limit);
       
-      console.log('[Agent] Found', results.length, 'meetings');
-      
       // Arricchisci i risultati con i dati del cliente
-      const enrichedResults: any[] = [];
+      const enrichedResults = [];
       
       for (const meeting of results) {
         let clientInfo = null;
@@ -420,7 +370,7 @@ export const searchMeetings: AgentFunction = {
           }
         }
         
-        // Formatta il meeting con le informazioni cliente
+        // Formatta il meeting
         const meetingDate = new Date(meeting.dateTime);
         
         enrichedResults.push({
@@ -436,23 +386,65 @@ export const searchMeetings: AgentFunction = {
         });
       }
       
-      // Log più dettagliato dei risultati
+      // Genera un messaggio descrittivo
+      let message = '';
       if (enrichedResults.length > 0) {
-        console.log('[Agent] First meeting found:', JSON.stringify({
-          subject: enrichedResults[0].subject,
-          dateTime: enrichedResults[0].dateTime,
-          formattedDate: enrichedResults[0].formattedDate,
-          formattedTime: enrichedResults[0].formattedTime,
-        }));
+        message = `Ho trovato ${enrichedResults.length} appuntament${enrichedResults.length === 1 ? 'o' : 'i'}`;
+        
+        if (timeframe === 'today') {
+          message += ' per oggi';
+        } else if (timeframe === 'future') {
+          message += ' futuri';
+        } else if (timeframe === 'past') {
+          message += ' passati';
+        } else if (timeframe === 'week') {
+          message += ' per questa settimana';
+        }
+        
+        if (clientId) {
+          const clientResult = await db.select()
+            .from(clients)
+            .where(eq(clients.id, clientId))
+            .limit(1);
+          
+          if (clientResult.length > 0) {
+            message += ` con ${clientResult[0].firstName} ${clientResult[0].lastName}`;
+          }
+        }
+        
+        message += '.';
+      } else {
+        message = 'Non ho trovato appuntamenti';
+        
+        if (timeframe === 'today') {
+          message += ' per oggi';
+        } else if (timeframe === 'future') {
+          message += ' futuri';
+        } else if (timeframe === 'past') {
+          message += ' passati';
+        } else if (timeframe === 'week') {
+          message += ' per questa settimana';
+        }
+        
+        if (clientId) {
+          const clientResult = await db.select()
+            .from(clients)
+            .where(eq(clients.id, clientId))
+            .limit(1);
+          
+          if (clientResult.length > 0) {
+            message += ` con ${clientResult[0].firstName} ${clientResult[0].lastName}`;
+          }
+        }
+        
+        message += '.';
       }
       
       return {
         success: true,
         meetings: enrichedResults,
         count: enrichedResults.length,
-        message: enrichedResults.length > 0 
-          ? `Trovati ${enrichedResults.length} appuntamenti` 
-          : 'Nessun appuntamento trovato per il periodo specificato'
+        message: message
       };
     } catch (error) {
       console.error('[Agent] Error searching meetings:', error);
@@ -466,118 +458,216 @@ export const searchMeetings: AgentFunction = {
   requiresAuth: true
 };
 
-// Crea nuovo appuntamento
+// Crea nuovo appuntamento (prepara dialogo)
 export const createMeeting: AgentFunction = {
   name: 'createMeeting',
-  description: 'Crea un nuovo appuntamento',
+  description: 'Prepara i dati per la creazione di un nuovo appuntamento, mostrando un dialogo di conferma all\'utente',
   parameters: {
-    clientId: 'number',      // ID del cliente
-    subject: 'string',       // Oggetto dell'appuntamento
-    dateTime: 'string',      // Data e ora (formato ISO)
-    duration: 'number',      // Durata in minuti
-    location: 'string?',     // Luogo dell'appuntamento
-    notes: 'string?',        // Note aggiuntive
-    sendEmail: 'boolean?'    // Invia email di invito
+    clientIdentifier: 'string?',  // Nome, cognome o email del cliente (se non si specifica l'ID)
+    clientId: 'number?',          // ID del cliente (opzionale se viene fornito clientIdentifier)
+    subject: 'string',           // Oggetto dell'appuntamento (obbligatorio)
+    dateTime: 'string',          // Data e ora (formato ISO o anche solo testo come "domani alle 15")
+    duration: 'number?',         // Durata in minuti (default: 60 minuti)
+    location: 'string?',         // Luogo dell'appuntamento (default: "incontro")
+    notes: 'string?'             // Note aggiuntive (opzionale)
   },
   handler: async (userId: number, params: any) => {
     try {
+      console.log('[Agent] createMeeting - Parametri ricevuti:', JSON.stringify(params));
+      
       // Verifica che i parametri obbligatori siano presenti
-      if (!params.clientId || !params.subject || !params.dateTime || !params.duration) {
+      if (!params.subject) {
         return {
           success: false,
-          message: 'Parametri obbligatori mancanti. Serve clientId, subject, dateTime e duration.',
-          requiredParams: ['clientId', 'subject', 'dateTime', 'duration']
-        };
-      }
-      
-      // Crea i dati dell'appuntamento
-      const meetingData = {
-        clientId: params.clientId,
-        subject: params.subject,
-        dateTime: new Date(params.dateTime),
-        duration: params.duration,
-        location: params.location || '',
-        notes: params.notes || '',
-        advisorId: userId,
-        createdAt: new Date()
-      };
-      
-      // Inserisci il nuovo appuntamento
-      const result = await db.insert(meetings)
-        .values(meetingData)
-        .returning();
-      
-      if (!result || result.length === 0) {
-        return {
-          success: false,
-          message: 'Errore nella creazione dell\'appuntamento: nessun risultato restituito'
+          message: 'È necessario specificare almeno l\'oggetto dell\'appuntamento.',
+          requiredParams: ['subject']
         };
       }
 
-      const createdMeeting = result[0];
+      // Se non è stato fornito dateTime, restituisci un errore
+      if (!params.dateTime) {
+        return {
+          success: false,
+          message: 'È necessario specificare la data e l\'ora dell\'appuntamento.',
+          requiredParams: ['dateTime']
+        };
+      }
       
-      // Invia email di invito se richiesto
-      if (params.sendEmail) {
-        try {
-          // Recupera informazioni cliente e consulente
-          const client = await db.select()
-            .from(clients)
-            .where(eq(clients.id, createdMeeting.clientId as number))
-            .limit(1)
-            .then(results => results[0]);
+      // Gestisci durata e luogo con valori di default
+      const duration = params.duration || 60; // Default: 1 ora
+      const location = params.location || 'incontro'; // Default: incontro
+      const notes = params.notes || '';
+      
+      // Cerca di risolvere il clientId se è stato fornito clientIdentifier
+      let clientId = params.clientId;
+      let clientInfo = null;
+      
+      if (!clientId && params.clientIdentifier) {
+        console.log('[Agent] createMeeting - Cerco cliente con identificatore:', params.clientIdentifier);
+        
+        // Cerca il cliente per nome, cognome o email
+        const searchQuery = params.clientIdentifier.trim();
+        
+        const matchedClients = await db.select()
+          .from(clients)
+          .where(
+            and(
+              eq(clients.advisorId, userId),
+              or(
+                like(clients.firstName, `%${searchQuery}%`),
+                like(clients.lastName, `%${searchQuery}%`),
+                like(clients.email, `%${searchQuery}%`),
+                like(clients.name, `%${searchQuery}%`)
+              )
+            )
+          )
+          .limit(1000);
+        
+        if (matchedClients.length === 0) {
+          return {
+            success: false,
+            message: `Non è stato trovato alcun cliente che corrisponda a "${params.clientIdentifier}". Prova con un altro nome o email.`
+          };
+        } else if (matchedClients.length === 1) {
+          // Se abbiamo trovato esattamente un cliente, usiamo il suo ID
+          clientId = matchedClients[0].id;
+          clientInfo = {
+            id: matchedClients[0].id,
+            name: `${matchedClients[0].firstName} ${matchedClients[0].lastName}`,
+            email: matchedClients[0].email
+          };
+          console.log('[Agent] createMeeting - Trovato cliente:', matchedClients[0].firstName, matchedClients[0].lastName);
+        } else {
+          // Se abbiamo trovato più clienti, mostriamo le opzioni
+          const clientOptions = matchedClients.map(client => ({
+            id: client.id,
+            name: `${client.firstName} ${client.lastName}`,
+            email: client.email
+          }));
           
-          const advisor = await db.select()
-            .from(users)
-            .where(eq(users.id, createdMeeting.advisorId as number))
-            .limit(1)
-            .then(results => results[0]);
-          
-          if (client && advisor) {
-            // Formatta data e ora
-            const formattedDate = formatDate(new Date(createdMeeting.dateTime));
-            const formattedTime = formatTime(new Date(createdMeeting.dateTime));
-            
-            // Prepara dati firma
-            const signatureData = advisor ? {
-              firstName: advisor.firstName || undefined,
-              lastName: advisor.lastName || undefined,
-              company: advisor.company || undefined,
-              email: advisor.email,
-              phone: advisor.phone || undefined,
-              role: advisor.role || undefined
-            } : undefined;
-            
-            // In questa versione semplificata non invieremo l'email reale
-            // ma registriamo l'intenzione di farlo
-            return {
-              success: true,
-              meeting: createdMeeting,
-              emailStatus: {
-                would_send_to: client.email,
-                client_name: `${client.firstName} ${client.lastName}`,
-                advisor_name: `${advisor.firstName} ${advisor.lastName}`,
-                meeting_date: formattedDate,
-                meeting_time: formattedTime
-              },
-              message: 'Appuntamento creato con successo e notifica email simulata'
-            };
-          }
-        } catch (emailError) {
-          console.error('[Agent] Error preparing meeting email:', emailError);
-          // Continuiamo con il successo anche se l'email fallisce
+          return {
+            success: false,
+            message: `Ho trovato ${matchedClients.length} clienti che corrispondono a "${params.clientIdentifier}". Per favore specifica quale cliente scegliere.`,
+            clientOptions
+          };
+        }
+      } else if (clientId) {
+        // Se abbiamo già l'ID, ottieni le informazioni del cliente
+        const clientResult = await db.select()
+          .from(clients)
+          .where(eq(clients.id, clientId))
+          .limit(1);
+        
+        if (clientResult.length > 0) {
+          clientInfo = {
+            id: clientResult[0].id,
+            name: `${clientResult[0].firstName} ${clientResult[0].lastName}`,
+            email: clientResult[0].email
+          };
         }
       }
       
+      // Se ancora non abbiamo un clientId, restituisci un errore
+      if (!clientId) {
+        return {
+          success: false,
+          message: 'È necessario specificare un cliente per l\'appuntamento, tramite nome/email o ID.',
+          requiredParams: ['clientIdentifier']
+        };
+      }
+      
+      // Risolvi la data/ora
+      let dateTimeObj;
+      try {
+        console.log('[Agent] createMeeting - Interpretazione data/ora da:', params.dateTime);
+        
+        // Tenta di parsare la data in diversi formati
+        const dateText = params.dateTime;
+        
+        // Prova prima con il formato ISO standard
+        dateTimeObj = new Date(dateText);
+        
+        // Se non è valida, potrebbe essere in formato italiano o altri formati
+        if (isNaN(dateTimeObj.getTime())) {
+          console.log('[Agent] createMeeting - Il formato ISO non ha funzionato, provo formati alternativi');
+          
+          // Formato italiano: dd/mm/yyyy
+          if (dateText.match(/^\d{1,2}\/\d{1,2}\/\d{2,4}/)) {
+            const [day, month, year] = dateText.split('/');
+            dateTimeObj = new Date(`${year}-${month}-${day}`);
+          }
+          // Formato con data testuale "oggi alle 18"
+          else if (dateText.toLowerCase().includes('oggi')) {
+            dateTimeObj = new Date();
+          }
+          // Formato con data testuale "domani alle 18"
+          else if (dateText.toLowerCase().includes('domani')) {
+            dateTimeObj = new Date();
+            dateTimeObj.setDate(dateTimeObj.getDate() + 1);
+          }
+          // Altrimenti, assumiamo oggi
+          else {
+            dateTimeObj = new Date();
+          }
+          
+          // Cerca l'ora nel formato "alle 18" o simili
+          const hourMatch = dateText.match(/(\d{1,2})(?::(\d{1,2}))?/);
+          if (hourMatch) {
+            const hours = parseInt(hourMatch[1], 10);
+            const minutes = hourMatch[2] ? parseInt(hourMatch[2], 10) : 0;
+            dateTimeObj.setHours(hours, minutes, 0, 0);
+          }
+        }
+        
+        console.log('[Agent] createMeeting - Data/ora interpretata:', dateTimeObj);
+      } catch (e) {
+        console.error('[Agent] createMeeting - Errore nell\'interpretazione della data:', e);
+        return {
+          success: false,
+          message: `Non sono riuscito a interpretare la data e l'ora "${params.dateTime}". Per favore specifica la data in modo più chiaro.`
+        };
+      }
+      
+      // Verifica che la data sia valida
+      if (isNaN(dateTimeObj.getTime())) {
+        return {
+          success: false,
+          message: `La data specificata "${params.dateTime}" non è valida. Per favore fornisci una data chiara.`
+        };
+      }
+
+      // Formatta i dati per il dialog
+      const formattedDate = formatDate(dateTimeObj);
+      const formattedTime = formatTime(dateTimeObj);
+      
+      // Prepara l'oggetto con i dati del meeting
+      const meetingData = {
+        clientId,
+        clientInfo,
+        subject: params.subject,
+        dateTime: dateTimeObj.toISOString(),
+        formattedDate,
+        formattedTime, 
+        duration,
+        location,
+        notes,
+        advisorId: userId
+      };
+      
+      // Prepariamo i dati per il dialog UI di creazione appuntamento
       return {
         success: true,
-        meeting: createdMeeting,
-        message: 'Appuntamento creato con successo'
+        showDialog: true,
+        showMeetingDialog: true,
+        dialogType: 'createMeeting',
+        meetingData,
+        message: `Certo! Ecco il modulo per l'appuntamento con ${clientInfo?.name}. Conferma i dati qui sotto o modificali se necessario.`
       };
     } catch (error) {
-      console.error('[Agent] Error creating meeting:', error);
+      console.error('[Agent] Error preparing meeting:', error);
       return {
         success: false,
-        message: 'Errore nella creazione dell\'appuntamento',
+        message: 'Errore nella preparazione dei dati per l\'appuntamento',
         error: String(error)
       };
     }
