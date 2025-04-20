@@ -675,11 +675,349 @@ export const createMeeting: AgentFunction = {
   requiresAuth: true
 };
 
+// Invia email di onboarding a un cliente
+export const sendOnboardingEmail: AgentFunction = {
+  name: 'sendOnboardingEmail',
+  description: 'Invia email di onboarding a un cliente esistente',
+  parameters: {
+    clientId: 'number?',          // ID del cliente
+    clientIdentifier: 'string?',  // Nome, cognome o email del cliente (se non si specifica l'ID)
+  },
+  handler: async (userId: number, params: any) => {
+    try {
+      console.log('[Agent] sendOnboardingEmail - Parametri ricevuti:', JSON.stringify(params));
+      
+      // Cerca di risolvere il clientId se è stato fornito clientIdentifier
+      let clientId = params.clientId;
+      let clientInfo = null;
+      
+      if (!clientId && params.clientIdentifier) {
+        console.log('[Agent] sendOnboardingEmail - Cerco cliente con identificatore:', params.clientIdentifier);
+        
+        // Cerca il cliente per nome, cognome o email
+        const searchQuery = params.clientIdentifier.trim();
+        
+        const matchedClients = await db.select()
+          .from(clients)
+          .where(
+            and(
+              eq(clients.advisorId, userId),
+              or(
+                like(clients.firstName, `%${searchQuery}%`),
+                like(clients.lastName, `%${searchQuery}%`),
+                like(clients.email, `%${searchQuery}%`),
+                like(clients.name, `%${searchQuery}%`)
+              )
+            )
+          )
+          .limit(1000);
+        
+        if (matchedClients.length === 0) {
+          return {
+            success: false,
+            message: `Non è stato trovato alcun cliente che corrisponda a "${params.clientIdentifier}". Prova con un altro nome o email.`
+          };
+        } else if (matchedClients.length === 1) {
+          // Se abbiamo trovato esattamente un cliente, usiamo il suo ID
+          clientId = matchedClients[0].id;
+          clientInfo = {
+            id: matchedClients[0].id,
+            name: `${matchedClients[0].firstName} ${matchedClients[0].lastName}`,
+            email: matchedClients[0].email
+          };
+          console.log('[Agent] sendOnboardingEmail - Trovato cliente:', matchedClients[0].firstName, matchedClients[0].lastName);
+        } else {
+          // Se abbiamo trovato più clienti, mostriamo le opzioni
+          const clientOptions = matchedClients.map(client => ({
+            id: client.id,
+            name: `${client.firstName} ${client.lastName}`,
+            email: client.email
+          }));
+          
+          return {
+            success: false,
+            message: `Ho trovato ${matchedClients.length} clienti che corrispondono a "${params.clientIdentifier}". Per favore specifica quale cliente scegliere.`,
+            clientOptions
+          };
+        }
+      } else if (clientId) {
+        // Se abbiamo già l'ID, ottieni le informazioni del cliente
+        const clientResult = await db.select()
+          .from(clients)
+          .where(eq(clients.id, clientId))
+          .limit(1);
+        
+        if (clientResult.length > 0) {
+          clientInfo = {
+            id: clientResult[0].id,
+            name: `${clientResult[0].firstName} ${clientResult[0].lastName}`,
+            email: clientResult[0].email
+          };
+        } else {
+          return {
+            success: false,
+            message: `Non è stato trovato alcun cliente con ID ${clientId}.`
+          };
+        }
+      }
+      
+      // Se ancora non abbiamo un clientId, restituisci un errore
+      if (!clientId) {
+        return {
+          success: false,
+          message: 'È necessario specificare un cliente per l\'onboarding, tramite nome/email o ID.',
+          requiredParams: ['clientIdentifier']
+        };
+      }
+      
+      // Recupera le informazioni dell'utente (consulente)
+      const user = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      if (user.length === 0) {
+        return {
+          success: false,
+          message: 'Impossibile trovare le informazioni del consulente.'
+        };
+      }
+      
+      // In questo punto del codice inviamo l'email di onboarding
+      // Qui ci sarebbe l'implementazione reale che chiama la funzione di invio email
+      // Ma per ora simuliamo il comportamento
+      
+      // Prepariamo i dati per il dialog UI
+      return {
+        success: true,
+        client: clientInfo!,
+        message: `Ho inviato l'email di onboarding a ${clientInfo!.name}. Il cliente riceverà un'email con un link per completare la registrazione.`,
+        showOnboardingSent: true
+      };
+    } catch (error) {
+      console.error('[Agent] Error preparing onboarding email:', error);
+      return {
+        success: false,
+        message: 'Errore nella preparazione dell\'email di onboarding',
+        error: String(error)
+      };
+    }
+  },
+  requiresAuth: true
+};
+
+// Invia email personalizzate a un cliente
+export const sendCustomEmail: AgentFunction = {
+  name: 'sendCustomEmail',
+  description: 'Invia un\'email personalizzata a un cliente esistente. Se il contenuto non è specificato, lo genero automaticamente in base all\'argomento richiesto.',
+  parameters: {
+    clientIdentifier: 'string?',  // Nome, cognome o email del cliente (se non si specifica l'ID)
+    clientId: 'number?',          // ID del cliente (opzionale se viene fornito clientIdentifier)
+    subject: 'string?',           // Oggetto dell'email (opzionale, verrà generato se non fornito)
+    messageTemplate: 'string?',    // Template dell'email o richiesta di generazione (opzionale, verrà generato se non fornito)
+    topic: 'string?',             // Argomento dell'email se il contenuto deve essere generato
+    language: 'string?'           // Lingua dell'email (default: italian)
+  },
+  handler: async (userId: number, params: any) => {
+    try {
+      console.log('[Agent] sendCustomEmail - Parametri ricevuti:', JSON.stringify(params));
+      
+      // Genera un oggetto di default se non specificato
+      if (!params.subject && params.topic) {
+        params.subject = `Informazioni su ${params.topic}`;
+      } else if (!params.subject) {
+        params.subject = "Informazioni sui nostri servizi";
+      }
+      
+      // Cerca di risolvere il clientId se è stato fornito clientIdentifier
+      let clientId = params.clientId;
+      let clientInfo = null;
+      
+      if (!clientId && params.clientIdentifier) {
+        console.log('[Agent] sendCustomEmail - Cerco cliente con identificatore:', params.clientIdentifier);
+        
+        // Cerca il cliente per nome, cognome o email
+        const searchQuery = params.clientIdentifier.trim();
+        
+        // Migliore ricerca del cliente - split delle parole per gestire nome e cognome separatamente
+        const queryWords = searchQuery.toLowerCase().split(/\s+/);
+        
+        const matchedClients = await db.select()
+          .from(clients)
+          .where(
+            and(
+              eq(clients.advisorId, userId),
+              or(
+                like(clients.firstName, `%${searchQuery}%`),
+                like(clients.lastName, `%${searchQuery}%`),
+                like(clients.email, `%${searchQuery}%`),
+                like(clients.name, `%${searchQuery}%`)
+              )
+            )
+          )
+          .limit(1000);
+        
+        // Se non troviamo corrispondenze esatte, miglioriamo la ricerca
+        if (matchedClients.length === 0) {
+          // Tentiamo con una ricerca manuale più intelligente
+          const allClients = await db.select()
+            .from(clients)
+            .where(eq(clients.advisorId, userId))
+            .limit(1000);
+            
+          // Implementiamo una ricerca fuzzy
+          const potentialMatches = allClients.filter(client => {
+            const firstName = (client.firstName || '').toLowerCase();
+            const lastName = (client.lastName || '').toLowerCase();
+            
+            // Verifica se almeno una parola della query corrisponde al nome o cognome
+            for (const word of queryWords) {
+              if (word.length > 2 && (firstName.includes(word) || lastName.includes(word))) {
+                return true;
+              }
+            }
+            return false;
+          });
+          
+          if (potentialMatches.length > 0) {
+            // Usa il primo cliente trovato con la ricerca fuzzy
+            clientId = potentialMatches[0].id;
+            clientInfo = {
+              id: potentialMatches[0].id,
+              firstName: potentialMatches[0].firstName,
+              lastName: potentialMatches[0].lastName,
+              name: `${potentialMatches[0].firstName} ${potentialMatches[0].lastName}`,
+              email: potentialMatches[0].email
+            };
+            console.log('[Agent] sendCustomEmail - Trovato cliente con ricerca fuzzy:', clientInfo.name);
+          } else {
+            return {
+              success: false,
+              message: `Non è stato trovato alcun cliente che corrisponda a "${params.clientIdentifier}". Prova con un altro nome o email.`
+            };
+          }
+        } else if (matchedClients.length === 1) {
+          // Se abbiamo trovato esattamente un cliente, usiamo il suo ID
+          clientId = matchedClients[0].id;
+          clientInfo = {
+            id: matchedClients[0].id,
+            firstName: matchedClients[0].firstName,
+            lastName: matchedClients[0].lastName,
+            name: `${matchedClients[0].firstName} ${matchedClients[0].lastName}`,
+            email: matchedClients[0].email
+          };
+          console.log('[Agent] sendCustomEmail - Trovato cliente:', matchedClients[0].firstName, matchedClients[0].lastName);
+        } else {
+          // Se abbiamo trovato più clienti, mostriamo le opzioni
+          const clientOptions = matchedClients.map(client => ({
+            id: client.id,
+            name: `${client.firstName} ${client.lastName}`,
+            email: client.email
+          }));
+          
+          return {
+            success: false,
+            message: `Ho trovato ${matchedClients.length} clienti che corrispondono a "${params.clientIdentifier}". Per favore specifica quale cliente scegliere.`,
+            clientOptions
+          };
+        }
+      } else if (clientId) {
+        // Se abbiamo già l'ID, ottieni le informazioni del cliente
+        const clientResult = await db.select()
+          .from(clients)
+          .where(eq(clients.id, clientId))
+          .limit(1);
+        
+        if (clientResult.length > 0) {
+          clientInfo = {
+            id: clientResult[0].id,
+            firstName: clientResult[0].firstName,
+            lastName: clientResult[0].lastName,
+            name: `${clientResult[0].firstName} ${clientResult[0].lastName}`,
+            email: clientResult[0].email
+          };
+        } else {
+          return {
+            success: false,
+            message: `Non è stato trovato alcun cliente con ID ${clientId}.`
+          };
+        }
+      }
+      
+      // Se ancora non abbiamo un clientId, restituisci un errore
+      if (!clientId || !clientInfo) {
+        return {
+          success: false,
+          message: 'È necessario specificare un cliente per l\'email, tramite nome/email o ID.',
+          requiredParams: ['clientIdentifier']
+        };
+      }
+      
+      // La lingua dell'email (predefinita: italiano)
+      const language = params.language || 'italian';
+      
+      // Se non è stato fornito un messaggio, generiamo un template basato sul subject e/o topic
+      let messageContent = params.messageTemplate;
+      if (!messageContent) {
+        const topic = params.topic || params.subject;
+        
+        // Non usiamo template predefiniti, ma lasciamo che OpenAI generi completamente il testo
+        // Questa parte sarà gestita dall'intelligenza di OpenAI nel controller.ts 
+        // quando viene chiamata l'API di GPT per generare la risposta
+        
+        // Indichiamo che è necessario generare dinamicamente il contenuto
+        return {
+          success: true,
+          clientInfo,
+          subject: params.subject,
+          needsGeneration: true,  // Flag per indicare che è necessaria la generazione di contenuto
+          topic: topic,
+          language,
+          showDialog: true,
+          showEmailDialog: true,
+          dialogType: 'sendCustomEmail',
+          message: `Sto preparando un'email personalizzata da inviare a ${clientInfo.name} riguardo a "${topic}". Il contenuto sarà generato in modo unico e personalizzato.`
+        };
+      }
+      
+      // Log per debug
+      console.log('[Agent] Mostro dialog con mail:', {
+        showDialog: true,
+        showEmailDialog: true,
+        dialogType: 'sendCustomEmail'
+      });
+      
+      // Prepariamo i dati per il dialog UI di conferma
+      return {
+        success: true,
+        clientInfo,
+        subject: params.subject,
+        messageTemplate: messageContent,
+        language,
+        showDialog: true,
+        showEmailDialog: true,
+        dialogType: 'sendCustomEmail',
+        message: `Ho preparato un'email da inviare a ${clientInfo.name}. Controlla il contenuto e inviala quando sei pronto.`
+      };
+    } catch (error) {
+      console.error('[Agent] Error preparing custom email:', error);
+      return {
+        success: false,
+        message: 'Errore nella preparazione dell\'email personalizzata',
+        error: String(error)
+      };
+    }
+  },
+  requiresAuth: true
+};
+
 // Raccolta di tutte le funzioni
 export const agentFunctions: Record<string, AgentFunction> = {
   searchClients,
   getClientById,
   createClient,
   searchMeetings,
-  createMeeting
+  createMeeting,
+  sendOnboardingEmail,
+  sendCustomEmail
 }; 

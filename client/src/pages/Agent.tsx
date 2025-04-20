@@ -17,14 +17,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClientDialog } from "@/components/dashboard/ClientDialog";
-import { Dialog } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useParams, useRouter } from "next/navigation";
+import { useLocation } from "wouter";
 import { formatDate } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
-import { SendIcon } from "lucide-react";
 import { z } from "zod";
 import { 
   Select, 
@@ -35,6 +34,13 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import axios from 'axios';
+import { RiSendPlaneFill } from 'react-icons/ri';
+import { IoMdAttach } from 'react-icons/io';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
+import { LuSend } from 'react-icons/lu';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { BiLoaderAlt } from 'react-icons/bi';
 
 // Definisci le interfacce per i tipi di dati che gestiremo
 interface Client {
@@ -78,6 +84,15 @@ interface Conversation {
   title: string;
   createdAt: string;
   updatedAt: string;
+}
+
+interface HasCreatedClient {
+  client: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
 }
 
 // Form embedded per creare clienti dentro la chat
@@ -244,7 +259,12 @@ function EmbeddedClientForm({ initialData, onSuccess }: {
 }
 
 // Componente per mostrare un singolo cliente in una card
-function ClientCard({ client, onClientClick, isNewlyCreated = false }: { client: Client; onClientClick?: (clientId: number) => void; isNewlyCreated?: boolean }) {
+function ClientCard({ client, onClientClick, isNewlyCreated = false, onRequestOnboarding }: { 
+  client: Client; 
+  onClientClick?: (clientId: number) => void; 
+  isNewlyCreated?: boolean;
+  onRequestOnboarding?: (client: Client) => void;
+}) {
   const goToClientDetail = () => {
     if (onClientClick) {
       onClientClick(client.id);
@@ -351,7 +371,7 @@ function ClientCard({ client, onClientClick, isNewlyCreated = false }: { client:
           </div>
         )}
       </CardContent>
-      <CardFooter className="p-2 pt-0 flex justify-end">
+      <CardFooter className="p-2 pt-0 flex justify-between">
         <Button 
           variant="ghost" 
           size="sm" 
@@ -361,6 +381,21 @@ function ClientCard({ client, onClientClick, isNewlyCreated = false }: { client:
           Visualizza Profilo
           <ArrowRight className="ml-2 h-3 w-3" />
         </Button>
+        
+        {isNewlyCreated && onRequestOnboarding && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestOnboarding(client);
+            }}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Invia Onboarding
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );
@@ -527,45 +562,50 @@ function MeetingsList({ meetings, onClientClick }: { meetings: Meeting[]; onClie
 export default function AgentPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Stati per i messaggi e l'input
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
-  const [currentConversationId, setCurrentConversationId] = useState<number | undefined>();
+  
+  // Stati per la gestione delle conversazioni
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isConversationsOpen, setIsConversationsOpen] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   
-  // Stati per i dialoghi - rimuoviamo i flag per i dialog esterni
-  // const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
-  // const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
-  const [clientData, setClientData] = useState<any>(null);
-  const [meetingData, setMeetingData] = useState<any>(null);
-  
-  // Traccia quali form sono stati completati
-  const [completedForms, setCompletedForms] = useState<{[key: string]: boolean}>({});
-  
-  // Stato per il checkbox dell'invio email
+  // Stato per i form e checkbox
   const [sendEmailChecked, setSendEmailChecked] = useState(true);
+  const [completedForms, setCompletedForms] = useState<Record<string, boolean>>({});
   
-  // Esempio di capabilities dell'agente
+  // Stati per i dialoghi
+  const [isOnboardingDialogOpen, setIsOnboardingDialogOpen] = useState(false);
+  const [clientToOnboard, setClientToOnboard] = useState<Client | null>(null);
+  
+  // Define capabilities for the agent
   const capabilities = [
-    { 
-      title: "Ricerca Clienti", 
-      description: "Trova rapidamente dettagli sui tuoi clienti e la loro storia" 
+    {
+      title: "Client Management",
+      description: "Search, create and manage client information",
+      icon: <User className="h-6 w-6" />
     },
-    { 
-      title: "Gestione Appuntamenti", 
-      description: "Visualizza, pianifica e modifica appuntamenti con i clienti" 
+    {
+      title: "Schedule Appointments",
+      description: "Create and manage your calendar appointments",
+      icon: <Calendar className="h-6 w-6" />
     },
-    { 
-      title: "Analisi Dati", 
-      description: "Ricevi insight e analisi sui tuoi clienti e portafoglio" 
+    {
+      title: "Send Emails",
+      description: "Draft and send emails to your clients",
+      icon: <Mail className="h-6 w-6" />
     },
-    { 
-      title: "Assistenza", 
-      description: "Ricevi supporto per utilizzare al meglio Gervis" 
+    {
+      title: "General Assistance",
+      description: "Get help with any other tasks or questions",
+      icon: <Sparkles className="h-6 w-6" />
     }
   ];
   
@@ -580,7 +620,7 @@ export default function AgentPage() {
         },
         {
           role: 'system',
-          content: "Il primo agent AI per consulenti finanziari.",
+          content: "L'assistente AI di riferimento per consulenti finanziari.",
           id: 2
         }
       ];
@@ -667,7 +707,7 @@ export default function AgentPage() {
   
   const startNewConversation = () => {
     setMessages([]);
-    setCurrentConversationId(undefined);
+    setCurrentConversationId(null);
     setIsConversationsOpen(false);
   };
   
@@ -675,6 +715,8 @@ export default function AgentPage() {
     if (!input.trim() || isLoading) return;
     
     try {
+      console.log('[Agent] Starting to send message:', input);
+      
       // Aggiungi il messaggio dell'utente alla chat locale
       const userMessage: Message = {
         content: input,
@@ -685,66 +727,117 @@ export default function AgentPage() {
       setInput('');
       setIsLoading(true);
       
-      // Invia il messaggio all'API
-      const response = await apiRequest('/api/agent/message', {
-        method: 'POST',
-        body: JSON.stringify({
-          message: input,
-          conversationId: currentConversationId
-        }),
-      });
+      console.log('[Agent] Making API request to /api/agent/message');
+      // Invia il messaggio all'API con fetch diretto per meglio diagnosticare l'errore
+      // Crea requestData includendo conversationId solo se è un valore numerico
+      const requestData: {message: string, conversationId?: number} = {
+        message: input
+      };
       
-      if (response.success) {
-        // Aggiorna l'ID della conversazione se è una nuova
-        if (!currentConversationId) {
-          setCurrentConversationId(response.conversationId);
-        }
-        
-        // Verifica se la risposta contiene funzioni per la creazione di appuntamenti o clienti
-        const shouldOnlyShowEmbeddedForm = false; // Sempre mostra il messaggio di testo
-        
-        // Aggiungi la risposta dell'assistente, mostrando solo text se non è un form embedded
-        const assistantMessage: Message = {
-          content: shouldOnlyShowEmbeddedForm ? '' : response.response,
-          role: 'assistant',
-          functionCalls: response.functionCalls,
-          functionResults: response.functionResults
-        };
-        
-        setMessages((prev) => [...prev, assistantMessage]);
-        
-        // Gestisci i dialog, se presenti nella risposta
-        if (response.dialog) {
-          console.log('Dialog ricevuto:', response.dialog);
-          
-          // Solo imposta i dati per i form embedded
-          if (response.dialog.showClientDialog) {
-            setClientData(response.dialog.clientData);
-          }
-          
-          // Solo imposta i dati per i form embedded
-          if (response.dialog.showMeetingDialog) {
-            setMeetingData(response.dialog.meetingData);
-          }
-        }
-        
-        // Aggiorna la lista delle conversazioni
-        fetchConversations();
-      } else {
-        toast({
-          title: "Errore",
-          description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
-          variant: "destructive",
+      // Aggiungi conversationId solo se è un valore valido (numero)
+      if (typeof currentConversationId === 'number') {
+        requestData.conversationId = currentConversationId;
+      }
+      
+      console.log('[Agent] Request data:', requestData);
+      
+      try {
+        // Usando fetch direttamente invece di apiRequest
+        const fetchResponse = await fetch('/api/agent/message', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'include', // Importante per includere i cookie di autenticazione
         });
+        
+        console.log('[Agent] Fetch response status:', fetchResponse.status);
+        console.log('[Agent] Fetch response headers:', 
+          Object.fromEntries(fetchResponse.headers.entries())
+        );
+        
+        if (!fetchResponse.ok) {
+          const errorText = await fetchResponse.text();
+          console.error(`[Agent] HTTP error ${fetchResponse.status}:`, errorText);
+          throw new Error(`Errore HTTP ${fetchResponse.status}: ${errorText || fetchResponse.statusText}`);
+        }
+        
+        const response = await fetchResponse.json();
+        console.log('[Agent] API response received:', response);
+        
+        if (response.success) {
+          // Aggiorna l'ID della conversazione se è una nuova
+          if (!currentConversationId) {
+            console.log('[Agent] Setting new conversation ID:', response.conversationId);
+            if (response.conversationId) {
+              setCurrentConversationId(response.conversationId);
+            } else {
+              console.error('[Agent] Expected conversationId in response but it was not provided');
+            }
+          }
+          
+          // Verifica se la risposta contiene testo
+          if (response.response) {
+            console.log('[Agent] Received text response:', response.response.substring(0, 100) + (response.response.length > 100 ? '...' : ''));
+          } else {
+            console.warn('[Agent] No text response received in the API response');
+          }
+          
+          // Verifica se la risposta contiene funzioni per la creazione di appuntamenti o clienti
+          const shouldOnlyShowEmbeddedForm = false; // Sempre mostra il messaggio di testo
+          
+          // Aggiungi la risposta dell'assistente, mostrando solo text se non è un form embedded
+          const assistantMessage: Message = {
+            content: shouldOnlyShowEmbeddedForm ? '' : (response.response || 'Non ho ricevuto una risposta dal server'),
+            role: 'assistant',
+            functionCalls: response.functionCalls,
+            functionResults: response.functionResults
+          };
+          
+          setMessages((prev) => [...prev, assistantMessage]);
+          
+          // Gestisci i dialog, se presenti nella risposta
+          if (response.dialog) {
+            console.log('[Agent] Dialog in response:', response.dialog);
+            
+            if (response.dialog.showClientDialog) {
+              console.log('[Agent] Client dialog data:', response.dialog.clientData);
+            } else if (response.dialog.showMeetingDialog) {
+              console.log('[Agent] Meeting dialog data:', response.dialog.meetingData);
+            }
+          }
+          
+          // Aggiorna la lista delle conversazioni
+          fetchConversations();
+        } else {
+          console.error('[Agent] API returned error:', response);
+          toast({
+            title: "Errore",
+            description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
+            variant: "destructive",
+          });
+        }
+      } catch (fetchError) {
+        console.error('[Agent] Fetch error:', fetchError);
+        throw fetchError;
       }
     } catch (error) {
-      console.error("Errore nell'invio del messaggio:", error);
+      console.error('[Agent] Error in sendMessage:', error);
+      
+      if (error instanceof Error) {
+        console.error('[Agent] Error message:', error.message);
+        console.error('[Agent] Error stack:', error.stack);
+      }
+      
       toast({
         title: "Errore",
-        description: "Si è verificato un errore nell'invio del messaggio",
+        description: error instanceof Error ? error.message : "Si è verificato un errore nell'invio del messaggio",
         variant: "destructive",
       });
     } finally {
+      console.log('[Agent] Finishing sendMessage function');
       setIsLoading(false);
     }
   };
@@ -875,7 +968,7 @@ export default function AgentPage() {
               onClick={() => {
                 setShowIntro(false);
                 setMessages([]);
-                setCurrentConversationId(undefined);
+                setCurrentConversationId(null);
               }}
               className="px-10 py-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
             >
@@ -930,6 +1023,8 @@ export default function AgentPage() {
     const hasCreatedMeeting = functionResult && 'success' in functionResult && functionResult.success && 'meeting' in functionResult && functionResult.meeting;
     const showClientForm = functionResult && functionResult.showClientDialog && functionResult.clientData;
     const showMeetingForm = functionResult && functionResult.showMeetingDialog && functionResult.meetingData;
+    const showEmailForm = functionResult && functionResult.showEmailDialog && functionResult.clientInfo;
+    const hasOnboardingSent = functionResult && 'success' in functionResult && functionResult.success && functionResult.showOnboardingSent && 'client' in functionResult;
     
     return (
       <motion.div
@@ -1226,6 +1321,137 @@ export default function AgentPage() {
               </motion.div>
             )}
             
+            {/* Form per l'invio dell'email */}
+            {showEmailForm && !completedForms[`email-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <Mail className="h-4 w-4 mr-2 text-blue-600" />
+                      Invia Email
+                    </CardTitle>
+                    <CardDescription>
+                      Conferma i dettagli dell'email prima dell'invio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid gap-4 py-2">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email-recipient" className="text-right">
+                          Destinatario
+                        </Label>
+                        <div className="col-span-3 font-medium">
+                          {functionResult.clientInfo?.name} ({functionResult.clientInfo?.email})
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email-subject" className="text-right">
+                          Oggetto
+                        </Label>
+                        <Input
+                          id="email-subject"
+                          defaultValue={functionResult.subject || ""}
+                          className="col-span-3"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-start gap-4">
+                        <Label htmlFor="email-content" className="text-right mt-2">
+                          Contenuto
+                        </Label>
+                        <Textarea
+                          id="email-content"
+                          defaultValue={functionResult.messageTemplate || ""}
+                          className="col-span-3"
+                          rows={10}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCompletedForms(prev => ({
+                          ...prev,
+                          [`email-${index}`]: true
+                        }))}
+                      >
+                        Annulla
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => {
+                          // Ottieni i valori dal form
+                          const subjectElement = document.getElementById('email-subject') as HTMLInputElement;
+                          const contentElement = document.getElementById('email-content') as HTMLTextAreaElement;
+                          
+                          const subject = subjectElement?.value || functionResult.subject || "";
+                          const content = contentElement?.value || functionResult.messageTemplate || "";
+                          
+                          // Crea un oggetto con i dati dell'email
+                          const emailData = {
+                            clientId: functionResult.clientInfo.id,
+                            subject,
+                            content,
+                            language: functionResult.language || 'italian'
+                          };
+                          
+                          // Aggiungi messaggio di conferma
+                          const confirmationMessage: Message = {
+                            content: `Ho inviato l'email a ${functionResult.clientInfo?.name}.`,
+                            role: 'assistant',
+                            functionResults: [{
+                              success: true,
+                              emailSent: true,
+                              clientInfo: functionResult.clientInfo,
+                              message: `Email inviata a ${functionResult.clientInfo?.email} con successo.`
+                            }]
+                          };
+                          
+                          // Invia i dati all'API 
+                          apiRequest(`/api/clients/${functionResult.clientInfo.id}/send-email`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              subject,
+                              content,
+                              language: functionResult.language || 'italian'
+                            })
+                          }).then(() => {
+                            toast({
+                              title: "Email inviata",
+                              description: `Email inviata a ${functionResult.clientInfo?.name} con successo.`,
+                            });
+                          }).catch(error => {
+                            console.error("Errore nell'invio dell'email:", error);
+                            toast({
+                              title: "Errore",
+                              description: "Si è verificato un errore durante l'invio dell'email.",
+                              variant: "destructive"
+                            });
+                          });
+                          
+                          setMessages((prev) => [...prev, confirmationMessage]);
+                          setCompletedForms(prev => ({
+                            ...prev,
+                            [`email-${index}`]: true
+                          }));
+                        }}
+                      >
+                        Invia Email
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
             {/* Visualizzazione dei risultati della ricerca di clienti */}
             {hasClientResults && (
               <motion.div 
@@ -1240,7 +1466,7 @@ export default function AgentPage() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {functionResult.clients.map((client: Client) => (
-                    <ClientCard key={client.id} client={client} onClientClick={handleClientClick} isNewlyCreated={false} />
+                    <ClientCard key={client.id} client={client} onClientClick={handleClientClick} isNewlyCreated={false} onRequestOnboarding={handleOnboardingRequest} />
                   ))}
                 </div>
               </motion.div>
@@ -1356,7 +1582,7 @@ export default function AgentPage() {
                   Cliente creato con successo
                 </h3>
                 <div className="border-l-4 border-green-500 pl-4">
-                  <ClientCard client={functionResult.client} onClientClick={handleClientClick} isNewlyCreated={hasCreatedClient} />
+                  <ClientCard client={functionResult.client} onClientClick={handleClientClick} isNewlyCreated={hasCreatedClient} onRequestOnboarding={handleOnboardingRequest} />
                 </div>
               </motion.div>
             )}
@@ -1378,6 +1604,41 @@ export default function AgentPage() {
                 </div>
               </motion.div>
             )}
+            
+            {/* Visualizzazione della conferma di onboarding inviato */}
+            {hasOnboardingSent && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <div className="rounded-md border border-green-300 bg-green-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Mail className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">Email di onboarding inviata</h3>
+                      <div className="mt-2 text-sm text-green-700">
+                        <p>Un'email di onboarding è stata inviata a {functionResult.client.email}. Il cliente riceverà le istruzioni per completare la registrazione.</p>
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex items-center text-blue-600"
+                          onClick={() => handleClientClick(functionResult.client.id)}
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Visualizza Profilo Cliente
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
       </motion.div>
@@ -1388,6 +1649,87 @@ export default function AgentPage() {
   const handleClientClick = (clientId: number) => {
     // Apre in una nuova scheda/finestra
     window.open(`/clients/${clientId}`, '_blank');
+  };
+
+  // Funzione per inviare l'email di onboarding
+  const sendOnboardingEmail = async (client: Client) => {
+    try {
+      setIsLoading(true);
+      
+      // Prima generiamo un token di onboarding
+      const tokenResponse = await apiRequest(`/api/clients/${client.id}/onboarding-token`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendEmail: false // Non inviare subito l'email, lo faremo dopo
+        })
+      });
+      
+      if (!tokenResponse.success || !tokenResponse.token) {
+        toast({
+          title: "Errore",
+          description: tokenResponse.message || "Impossibile generare il token di onboarding",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        setIsOnboardingDialogOpen(false);
+        return;
+      }
+      
+      // Ora inviamo l'email con il token generato
+      const emailResponse = await apiRequest(`/api/clients/${client.id}/onboarding-token`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendEmail: true,
+          token: tokenResponse.token,
+          language: 'italian',
+          customMessage: `Gentile ${client.firstName} ${client.lastName},\n\nPer completare la registrazione alla piattaforma Gervis, ti invitiamo a compilare il modulo di onboarding cliccando sul link qui sotto.\n\nGrazie per la collaborazione.`,
+          customSubject: "Completa la registrazione a Gervis"
+        })
+      });
+      
+      if (emailResponse.success) {
+        // Aggiungi la risposta assistente per mostrare la conferma
+        const assistantMessage: Message = {
+          content: `Ho inviato l'email di onboarding a ${client.email} con successo.`,
+          role: 'assistant',
+          functionResults: [{
+            success: true,
+            client: client,
+            showOnboardingSent: true,
+            message: `Email di onboarding inviata a ${client.email}`
+          }]
+        };
+        
+        setMessages((prev) => [...prev, assistantMessage]);
+        
+        toast({
+          title: "Email inviata",
+          description: `Email di onboarding inviata a ${client.email}`,
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: emailResponse.message || "Si è verificato un errore nell'invio dell'email di onboarding",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'invio dell'email:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore nell'invio dell'email di onboarding",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsOnboardingDialogOpen(false);
+    }
+  };
+
+  // Funzione per gestire la richiesta di onboarding
+  const handleOnboardingRequest = (client: Client) => {
+    setClientToOnboard(client);
+    setIsOnboardingDialogOpen(true);
   };
 
   return (
@@ -1536,6 +1878,42 @@ export default function AgentPage() {
           </Button>
         </div>
       </motion.div>
+
+      {/* Dialog per conferma invio email onboarding */}
+      <Dialog open={isOnboardingDialogOpen} onOpenChange={setIsOnboardingDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Invia email di onboarding</DialogTitle>
+            <DialogDescription>
+              Invia un'email di onboarding a {clientToOnboard?.firstName} {clientToOnboard?.lastName} ({clientToOnboard?.email}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Il cliente riceverà un'email con le istruzioni per completare la registrazione alla piattaforma.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOnboardingDialogOpen(false)}>Annulla</Button>
+            <Button 
+              onClick={() => clientToOnboard && sendOnboardingEmail(clientToOnboard)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Invio in corso...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Invia Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

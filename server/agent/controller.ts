@@ -40,31 +40,45 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Log the API key status (without revealing the key)
+console.log('[Agent Controller] OpenAI API key status:', process.env.OPENAI_API_KEY ? 'Key is set' : 'Key is missing');
+console.log('[Agent Controller] OpenAI API key length:', process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0);
+
 /**
  * Gestore principale per le richieste all'agente
  * Riceve un messaggio dall'utente, lo elabora e restituisce una risposta
  */
 export async function handleAgentRequest(req: Request, res: Response) {
   try {
+    console.log('[Agent Controller] Received request to /api/agent/message');
+    console.log('[Agent Controller] Request body:', req.body);
+    
     // Verifica che l'utente sia autenticato
     if (!req.user || !req.user.id) {
+      console.log('[Agent Controller] Authentication required but user not found');
       return res.status(401).json({
         success: false,
         message: 'Autenticazione richiesta'
       });
     }
+    
+    console.log('[Agent Controller] User authenticated:', req.user.id);
 
     // Valida l'input
     const validationResult = agentRequestSchema.safeParse(req.body);
     if (!validationResult.success) {
+      console.log('[Agent Controller] Input validation failed:', JSON.stringify(validationResult.error.format()));
       return res.status(400).json({
         success: false,
         message: 'Input non valido',
         errors: validationResult.error.format()
       });
     }
-
+    
+    console.log('[Agent Controller] Input validated successfully');
+    
     const { message, conversationId, context } = validationResult.data;
+    console.log('[Agent Controller] Parsed data:', { message, conversationId: conversationId || 'not provided', hasContext: !!context });
     
     // Recupera o crea una nuova conversazione
     let currentConversationId = conversationId;
@@ -158,9 +172,11 @@ export async function handleAgentRequest(req: Request, res: Response) {
     2. Per la creazione di appuntamenti, le informazioni essenziali sono: nome del cliente e orario dell'appuntamento
     3. NON chiedere ulteriori conferme quando l'utente ha già fornito le informazioni essenziali
     4. Quando hai le informazioni essenziali, rispondi con un breve messaggio come "Certo, ecco il form per l'appuntamento" o "Perfetto, conferma i dati qui sotto" e POI passa DIRETTAMENTE alla creazione con createClient o createMeeting
-    6. Non richiedere conferma e non chiedere informazioni non essenziali; usa valori predefiniti ragionevoli per i campi non specificati
-    7. Deduci il più possibile dalle informazioni fornite e riempi i campi mancanti non essenziali con valori ragionevoli. Per le informazioni essenziali invece chiedi conferma
-    8. Rispondi in italiano e in modo conversazionale
+    5. Non richiedere conferma e non chiedere informazioni non essenziali; usa valori predefiniti ragionevoli per i campi non specificati
+    6. Deduci il più possibile dalle informazioni fornite e riempi i campi mancanti non essenziali con valori ragionevoli. Per le informazioni essenziali invece chiedi conferma
+    7. Rispondi in italiano e in modo conversazionale
+    8. Per l'onboarding di un cliente, usa la funzione sendOnboardingEmail quando l'utente chiede di inviare un onboarding a un cliente esistente
+    9. Se un cliente è appena stato creato, suggerisci sempre di procedere con l'onboarding
     
     INFORMAZIONI TEMPORALI:
     Oggi è ${formattedDate}.
@@ -190,7 +206,7 @@ export async function handleAgentRequest(req: Request, res: Response) {
     }
     
     // Chiama l'API di OpenAI per generare una risposta, includendo lo stato della conversazione
-    const agentResponse = await processAgentRequest(req.user.id, message, {
+    const agentResponse = await processAgentRequestWithOpenAI(req.user.id, message, {
       conversationState,
       lastAssistantMessage,
       systemMessage
@@ -441,7 +457,7 @@ interface AgentResponse {
   functionResults?: any[];
 }
 
-async function processAgentRequest(userId: number, message: string, context?: any): Promise<AgentResponse> {
+async function processAgentRequestWithOpenAI(userId: number, message: string, context?: any): Promise<AgentResponse> {
   console.log('[Agent] Elaborazione richiesta per userId:', userId);
   console.log('[Agent] Messaggio utente:', message);
 
@@ -579,123 +595,232 @@ async function processAgentRequest(userId: number, message: string, context?: an
         },
         required: ["subject", "dateTime"]
       }
+    },
+    {
+      name: "sendOnboardingEmail",
+      description: "Invia email di onboarding a un cliente esistente. Usa questa funzione quando l'utente vuole inviare un'email di onboarding a un cliente.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientIdentifier: {
+            type: "string",
+            description: "Nome, cognome o email del cliente. Usa questo se l'utente non specifica un ID cliente."
+          },
+          clientId: {
+            type: "integer",
+            description: "ID del cliente. Opzionale se viene fornito clientIdentifier."
+          }
+        }
+      }
+    },
+    {
+      name: "sendCustomEmail",
+      description: "Compone e invia un'email personalizzata a un cliente. Usa questa funzione quando l'utente vuole inviare un'email a un cliente con contenuto personalizzato o generato da te.",
+      parameters: {
+        type: "object",
+        properties: {
+          clientIdentifier: {
+            type: "string",
+            description: "Nome, cognome o email del cliente. Usa questo se l'utente non specifica un ID cliente."
+          },
+          clientId: {
+            type: "integer",
+            description: "ID del cliente. Opzionale se viene fornito clientIdentifier."
+          },
+          subject: {
+            type: "string",
+            description: "Oggetto dell'email. Crea un oggetto conciso e professionale. Se non specificato, verrà generato automaticamente."
+          },
+          messageTemplate: {
+            type: "string",
+            description: "Contenuto dell'email. Se non specificato, lo genererò automaticamente in base al topic. Il messaggio dovrà includere un saluto iniziale formale e una chiusura professionale."
+          },
+          topic: {
+            type: "string",
+            description: "Argomento dell'email se il contenuto deve essere generato. Es: 'valore aggiunto dei nostri servizi' o 'proposte di investimento'."
+          },
+          language: {
+            type: "string",
+            description: "Lingua dell'email: 'italian' o 'english'. Default: 'italian'."
+          }
+        },
+        required: ["clientIdentifier"]
+      }
     }
   ];
 
   try {
     console.log('[Agent] Funzioni disponibili:', availableFunctions.map(f => f.name).join(', '));
+    console.log('[Agent] Preparing to call OpenAI API with model: gpt-4o-mini');
 
     // Chiamata a OpenAI
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages,
-      tools: availableFunctions.map(func => ({
-        type: "function",
-        function: func
-      })),
-      tool_choice: "auto",
-      temperature: 0.7,
-    });
-
-    // Estrai la risposta
-    const assistantResponse = response.choices[0].message;
-    let responseText = assistantResponse.content || '';
-    let functionCalls = [];
-    let functionResults = [];
-
-    // Gestisci tool calling se presente
-    if (assistantResponse.tool_calls && assistantResponse.tool_calls.length > 0) {
-      for (const toolCall of assistantResponse.tool_calls) {
-        if (toolCall.type === 'function') {
-          const functionName = toolCall.function.name;
-          let functionArgs;
-          
-          try {
-            functionArgs = JSON.parse(toolCall.function.arguments);
-          } catch (e) {
-            console.error(`[Agent] Errore nel parsing degli argomenti: ${e}`);
-            functionArgs = {};
-          }
-
-          // Registra la chiamata a funzione
-          functionCalls.push({
-            name: functionName,
-            parameters: functionArgs
-          });
-
-          // Esegui la funzione
-          if (agentFunctions[functionName]) {
+    try {
+      console.log('[Agent] Sending request to OpenAI API...');
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages,
+        tools: availableFunctions.map(func => ({
+          type: "function",
+          function: func
+        })),
+        tool_choice: "auto",
+        temperature: 0.7,
+      });
+      
+      console.log('[Agent] OpenAI API response received successfully');
+      
+      // Estrai la risposta
+      const assistantResponse = response.choices[0].message;
+      let responseText = assistantResponse.content || '';
+      let functionCalls = [];
+      let functionResults = [];
+      
+      // Gestisci tool calling se presente
+      if (assistantResponse.tool_calls && assistantResponse.tool_calls.length > 0) {
+        for (const toolCall of assistantResponse.tool_calls) {
+          if (toolCall.type === 'function') {
+            const functionName = toolCall.function.name;
+            let functionArgs;
+            
             try {
-              const result = await agentFunctions[functionName].handler(userId, functionArgs);
-              functionResults.push(result);
+              functionArgs = JSON.parse(toolCall.function.arguments);
+            } catch (e) {
+              console.error(`[Agent] Errore nel parsing degli argomenti: ${e}`);
+              functionArgs = {};
+            }
 
-              // Genera una risposta in base al risultato
-              if (result.success) {
-                // Risposta per funzioni con successo
-                responseText = result.message || responseText;
+            // Registra la chiamata a funzione
+            functionCalls.push({
+              name: functionName,
+              parameters: functionArgs
+            });
+
+            // Esegui la funzione
+            if (agentFunctions[functionName]) {
+              try {
+                const result = await agentFunctions[functionName].handler(userId, functionArgs);
                 
-                // Aggiungi flag per indicare che c'è un dialog da mostrare
-                if (result.showMeetingDialog || result.showClientDialog || 
-                    result.showDialog || result.dialogData) {
-                  console.log('[Agent] Dialog rilevato nei risultati');
-                }
-              } else {
-                // Risposta per errori
-                if (result.clientOptions && result.clientOptions.length > 0) {
-                  // Mostra le opzioni dei clienti
-                  responseText = result.message + "\n\nEcco i clienti che ho trovato:\n";
-                  result.clientOptions.forEach((client: any, index: number) => {
-                    responseText += `${index + 1}. ${client.name} (${client.email})\n`;
-                  });
-                  responseText += "\nPuoi specificare quale cliente scegliere.";
-                } else if (result.requiredParams && result.requiredParams.length > 0) {
-                  // Chiedi i parametri mancanti in modo conversazionale
-                  const missingParams = result.requiredParams.filter(
-                    (param: string) => !functionArgs[param]
-                  );
+                // Se è richiesta una generazione dinamica di contenuto email
+                if (result.needsGeneration && functionName === 'sendCustomEmail') {
+                  // Ottieni informazioni sul cliente e sull'argomento
+                  const clientInfo = result.clientInfo;
+                  const topic = result.topic || 'informazioni importanti';
                   
-                  if (missingParams.length > 0) {
-                    const paramDescriptions: Record<string, string> = {
-                      'firstName': 'nome',
-                      'lastName': 'cognome',
-                      'email': 'email',
-                      'clientId': 'cliente',
-                      'clientIdentifier': 'nome o email del cliente',
-                      'subject': 'oggetto dell\'appuntamento',
-                      'dateTime': 'data e ora'
-                    };
-                    
-                    const readableParams = missingParams.map((p: string) => paramDescriptions[p] || p).join(', ');
-                    responseText = `Ho bisogno di altre informazioni: ${readableParams}. Puoi fornirmele?`;
-                  } else {
-                    responseText = result.message || "Ci sono alcuni problemi con i dati inseriti.";
+                  // Chiedi a OpenAI di generare un contenuto personalizzato per l'email
+                  const emailPrompt = `Scrivi un'email professionale in italiano da inviare a ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". 
+                  L'email deve essere formale ma cordiale, con un'apertura appropriata, un corpo dettagliato e una chiusura professionale.
+                  Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
+                  Se è una presentazione di servizi, descrivi i vantaggi in modo convincente e personalizzato.
+                  Assicurati che l'email sia completamente personalizzata e unica, non un template generico.
+                  NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
+                  
+                  // Chiamata a OpenAI per la generazione del contenuto
+                  const emailResponse = await openai.chat.completions.create({
+                    model: "gpt-4o-mini",
+                    messages: [{ role: "system", content: "Sei un assistente esperto nella scrittura di email professionali e personalizzate. Non includere mai firme o segnaposti del tipo [il tuo nome], [firma], ecc. alla fine dell'email, poiché queste verranno aggiunte automaticamente dal sistema." },
+                               { role: "user", content: emailPrompt }],
+                    temperature: 0.7,
+                  });
+                  
+                  // Estrai il contenuto generato
+                  const generatedContent = emailResponse.choices[0].message.content || '';
+                  
+                  // Aggiorna il risultato con il contenuto generato
+                  result.messageTemplate = generatedContent;
+                  delete result.needsGeneration;
+                  
+                  console.log('[Agent] Email generata dinamicamente da OpenAI');
+                }
+                
+                functionResults.push(result);
+
+                // Genera una risposta in base al risultato
+                if (result.success) {
+                  // Risposta per funzioni con successo
+                  responseText = result.message || responseText;
+                  
+                  // Aggiungi flag per indicare che c'è un dialog da mostrare
+                  if (result.showMeetingDialog || result.showClientDialog || 
+                      result.showDialog || result.dialogData) {
+                    console.log('[Agent] Dialog rilevato nei risultati');
                   }
                 } else {
-                  responseText = result.message || "Non sono riuscito a completare la richiesta.";
+                  // Risposta per errori
+                  if (result.clientOptions && result.clientOptions.length > 0) {
+                    // Mostra le opzioni dei clienti
+                    responseText = result.message + "\n\nEcco i clienti che ho trovato:\n";
+                    result.clientOptions.forEach((client: any, index: number) => {
+                      responseText += `${index + 1}. ${client.name} (${client.email})\n`;
+                    });
+                    responseText += "\nPuoi specificare quale cliente scegliere.";
+                  } else if (result.requiredParams && result.requiredParams.length > 0) {
+                    // Chiedi i parametri mancanti in modo conversazionale
+                    const missingParams = result.requiredParams.filter(
+                      (param: string) => !functionArgs[param]
+                    );
+                    
+                    if (missingParams.length > 0) {
+                      const paramDescriptions: Record<string, string> = {
+                        'firstName': 'nome',
+                        'lastName': 'cognome',
+                        'email': 'email',
+                        'clientId': 'cliente',
+                        'clientIdentifier': 'nome o email del cliente',
+                        'subject': 'oggetto dell\'appuntamento',
+                        'dateTime': 'data e ora'
+                      };
+                      
+                      const readableParams = missingParams.map((p: string) => paramDescriptions[p] || p).join(', ');
+                      responseText = `Ho bisogno di altre informazioni: ${readableParams}. Puoi fornirmele?`;
+                    } else {
+                      responseText = result.message || "Ci sono alcuni problemi con i dati inseriti.";
+                    }
+                  } else {
+                    responseText = result.message || "Non sono riuscito a completare la richiesta.";
+                  }
                 }
+              } catch (error) {
+                console.error(`[Agent] Errore nell'esecuzione di ${functionName}:`, error);
+                responseText = "Si è verificato un errore. Riprova più tardi.";
               }
-            } catch (error) {
-              console.error(`[Agent] Errore nell'esecuzione di ${functionName}:`, error);
-              responseText = "Si è verificato un errore. Riprova più tardi.";
+            } else {
+              responseText = "La funzione richiesta non è disponibile al momento.";
             }
-          } else {
-            responseText = "La funzione richiesta non è disponibile al momento.";
           }
         }
       }
+      
+      return {
+        text: responseText,
+        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
+        functionResults: functionResults.length > 0 ? functionResults : undefined
+      };
+    } catch (openaiError) {
+      console.error('[Agent] OpenAI API call failed:', openaiError);
+      
+      if (openaiError instanceof Error) {
+        console.error('[Agent] OpenAI error message:', openaiError.message);
+        console.error('[Agent] OpenAI error stack:', openaiError.stack);
+        
+        // If it's an API error with a response
+        if ('response' in openaiError) {
+          console.error('[Agent] OpenAI API error response:', (openaiError as any).response?.data);
+        }
+      }
+      
+      throw openaiError;
     }
-    
-    return {
-      text: responseText,
-      functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-      functionResults: functionResults.length > 0 ? functionResults : undefined
-    };
   } catch (error) {
-    console.error('[Agent] Errore:', error);
+    console.error('[Agent] Error during agent request processing:', error);
+    
+    if (error instanceof Error) {
+      console.error('[Agent] Error message:', error.message);
+      console.error('[Agent] Error stack:', error.stack);
+    }
     
     // Fallback in caso di errore
     return {
-      text: 'Scusa, sto avendo qualche problema a elaborare la tua richiesta. Riprova tra poco.'
+      text: 'Scusa, sto avendo qualche problema tecnico a elaborare la tua richiesta. Riprova tra poco.',
     };
   }
 }
