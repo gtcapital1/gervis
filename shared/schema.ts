@@ -440,3 +440,29 @@ export type InsertSignatureSession = typeof signatureSessions.$inferInsert;
 // Insert schema for signature sessions
 export const insertSignatureSessionSchema = createInsertSchema(signatureSessions);
 export type InsertSignatureSessionSchema = z.infer<typeof insertSignatureSessionSchema>;
+
+// Tabelle per l'agente conversazionale
+export const conversations = pgTable('conversations', {
+  id: serial('id').primaryKey(),
+  userId: integer('userId').notNull().references(() => users.id),
+  title: text('title').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
+  metadata: text('metadata')  // Metadati JSON per lo stato della conversazione
+});
+
+export const messages = pgTable('messages', {
+  id: serial('id').primaryKey(),
+  conversationId: integer('conversationId').notNull().references(() => conversations.id),
+  content: text('content').notNull(),
+  role: varchar('role', { length: 50 }).notNull(), // 'user' o 'assistant'
+  createdAt: timestamp('createdAt').notNull(),
+  functionCalls: text('functionCalls'), // JSON stringificato delle function calls
+  functionResults: text('functionResults') // JSON stringificato dei risultati
+});
+
+// Tipi per TypeScript
+export type Conversation = typeof conversations.$inferSelect;
+export type Message = typeof messages.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+export type InsertMessage = typeof messages.$inferInsert;

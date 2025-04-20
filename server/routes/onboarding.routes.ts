@@ -129,9 +129,80 @@ async function saveOnboardingData(clientId: number, data: any) {
   }
 }
 
+// Funzione per verificare la validità del token
+async function validateToken(token: string) {
+  try {
+    // Cerca il cliente con il token fornito
+    const client = await db.query.clients.findFirst({
+      where: eq(clients.onboardingToken, token),
+    });
+
+    // Se il cliente non esiste, il token non è valido
+    if (!client) {
+      return { isValid: false, error: "Invalid token" };
+    }
+
+    // Controlla se il token è scaduto
+    if (client.tokenExpiry) {
+      const now = new Date();
+      const expiryDate = new Date(client.tokenExpiry);
+      
+      if (expiryDate < now) {
+        return { isValid: false, error: "Token expired" };
+      }
+    }
+
+    // Se siamo arrivati qui, il token è valido
+    return { 
+      isValid: true, 
+      client: {
+        id: client.id,
+        name: client.name,
+        email: client.email,
+        isOnboarded: client.isOnboarded
+      }
+    };
+  } catch (error) {
+    safeLog('Errore nella validazione del token', error, 'error');
+    throw error;
+  }
+}
+
 export function registerOnboardingRoutes(app: Express) {
+  // Endpoint per verificare la validità del token di onboarding
+  app.get('/api/onboarding', async (req: Request, res: Response) => {
+    try {
+      const { token } = req.query;
+      
+      safeLog('Richiesta di verifica token onboarding', { hasToken: !!token }, 'info');
+      
+      if (!token) {
+        return res.status(400).json({ error: "Token is required" });
+      }
+
+      // Verifica la validità del token
+      const validation = await validateToken(token as string);
+      
+      if (!validation.isValid) {
+        safeLog('Token onboarding non valido', { error: validation.error }, 'error');
+        return res.status(404).json({ error: validation.error });
+      }
+
+      safeLog('Token onboarding valido', { clientId: validation.client?.id }, 'info');
+      
+      res.json(validation.client);
+    } catch (error: unknown) {
+      const typedError = typedCatch(error);
+      safeLog('Errore nella verifica del token', typedError, 'error');
+      res.status(500).json({ 
+        error: typedError.message || "Failed to validate token",
+        details: typedError.message
+      });
+    }
+  });
+
   // Endpoint per salvare i dati dell'onboarding
-  app.post('/onboarding', async (req: Request, res: Response) => {
+  app.post('/api/onboarding', async (req: Request, res: Response) => {
     try {
       const { token } = req.query;
       
@@ -141,21 +212,23 @@ export function registerOnboardingRoutes(app: Express) {
         return res.status(400).json({ error: "Token is required" });
       }
 
-      // Verifica il token e ottieni l'ID del cliente
-      const client = await db.query.clients.findFirst({
-        where: eq(clients.onboardingToken, token as string),
-      });
-
-      safeLog('Verifica token onboarding', { tokenValid: !!client }, 'debug');
-
-      if (!client) {
-        return res.status(404).json({ error: "Invalid or expired token" });
+      // Verifica la validità del token
+      const validation = await validateToken(token as string);
+      
+      if (!validation.isValid) {
+        safeLog('Token onboarding non valido', { error: validation.error }, 'error');
+        return res.status(404).json({ error: validation.error });
       }
 
-      safeLog('Cliente trovato, procedo con onboarding', { clientId: client.id }, 'info');
+      if (validation.client?.isOnboarded) {
+        safeLog('Cliente già onboarded', { clientId: validation.client.id }, 'info');
+        return res.status(400).json({ error: "Client already onboarded" });
+      }
+
+      safeLog('Cliente trovato, procedo con onboarding', { clientId: validation.client?.id }, 'info');
 
       // Salva i dati dell'onboarding
-      await saveOnboardingData(client.id, req.body);
+      await saveOnboardingData(validation.client!.id, req.body);
 
       res.json({ success: true });
     } catch (error: unknown) {
@@ -169,7 +242,7 @@ export function registerOnboardingRoutes(app: Express) {
   });
 
   // Endpoint per verificare il completamento dell'onboarding
-  app.get('/onboarding/success', async (req: Request, res: Response) => {
+  app.get('/api/onboarding/success', async (req: Request, res: Response) => {
     try {
       const { token } = req.query;
       
@@ -179,23 +252,21 @@ export function registerOnboardingRoutes(app: Express) {
         return res.status(400).json({ error: "Token is required" });
       }
 
-      // Verifica il token e ottieni l'ID del cliente
-      const client = await db.query.clients.findFirst({
-        where: eq(clients.onboardingToken, token as string),
-      });
-
-      if (!client) {
-        safeLog('Token onboarding non valido', { token }, 'error');
-        return res.status(404).json({ error: "Invalid or expired token" });
+      // Verifica la validità del token
+      const validation = await validateToken(token as string);
+      
+      if (!validation.isValid) {
+        safeLog('Token onboarding non valido', { error: validation.error }, 'error');
+        return res.status(404).json({ error: validation.error });
       }
 
       // Verifica se il cliente ha completato l'onboarding
-      if (!client.isOnboarded) {
-        safeLog('Onboarding non completato', { clientId: client.id }, 'error');
+      if (!validation.client?.isOnboarded) {
+        safeLog('Onboarding non completato', { clientId: validation.client?.id }, 'error');
         return res.status(404).json({ error: "Onboarding not completed" });
       }
 
-      safeLog('Verifica onboarding completata con successo', { clientId: client.id }, 'info');
+      safeLog('Verifica onboarding completata con successo', { clientId: validation.client.id }, 'info');
       res.json({ success: true });
     } catch (error: unknown) {
       const typedError = typedCatch(error);

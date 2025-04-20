@@ -11,7 +11,7 @@ import {
   FileText, 
   Home, 
   Briefcase, 
-  Calendar, 
+  Calendar as CalendarIcon, 
   Phone, 
   Mail,
   Check,
@@ -98,7 +98,7 @@ import {
   FormMessage 
 } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar as DatePicker } from "@/components/ui/calendar";
+import { Calendar as CalendarDatePicker } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import AddLogDialog from "@/components/AddLogDialog";
@@ -108,6 +108,7 @@ import { DigitalSignatureDialog } from "@/components/dashboard/DigitalSignatureD
 import { TraditionalSignatureDialog } from "@/components/dashboard/TraditionalSignatureDialog";
 import { VerifiedDocumentsTable } from "@/components/VerifiedDocumentsTable";
 import { MifidTab } from "@/components/dashboard/MifidTab";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // Importa il componente AiProfileTab
 import { AiProfileTab } from "@/components/tabs/AiProfileTab";
@@ -119,6 +120,10 @@ import { ClientInteractionsTab } from "@/components/tabs/ClientInteractionsTab";
 import { MifidDocsTab } from "@/components/tabs/MifidDocsTab";
 // Importa il componente MifidEditForm
 import { MifidEditForm, MifidFormValues, MifidType as FormMifidType } from "@/components/forms/MifidEditForm";
+// Importa il componente OnboardingRequired
+import { OnboardingRequired } from "@/components/client-detail/OnboardingRequired";
+// Importa il componente SendEmailDialog
+import SendEmailDialog from "@/components/SendEmailDialog";
 
 // Form schema for editing client information
 const clientFormSchema = z.object({
@@ -296,6 +301,15 @@ export default function ClientDetail() {
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isLinkLoading, setIsLinkLoading] = useState(false);
   const [showPdfDialog, setShowPdfDialog] = useState(false);
+  const [isSendEmailDialogOpen, setIsSendEmailDialogOpen] = useState(false);
+  const [isMeetingDialogOpen, setIsMeetingDialogOpen] = useState(false);
+  const [meetingSubject, setMeetingSubject] = useState("");
+  const [meetingDate, setMeetingDate] = useState<Date | undefined>(new Date());
+  const [meetingTime, setMeetingTime] = useState("10:00");
+  const [meetingNotes, setMeetingNotes] = useState("");
+  const [meetingLocation, setMeetingLocation] = useState("office");
+  const [meetingDuration, setMeetingDuration] = useState(60);
+  const [sendMeetingEmail, setSendMeetingEmail] = useState(false);
   
   // State per ricordare il tab attivo
   const [activeTab, setActiveTab] = useState<string>(() => {
@@ -442,7 +456,7 @@ export default function ClientDetail() {
   
   // Estrai il client, gli asset e i dati MIFID dalla risposta
   const client = clientData?.client;
-  const mifid = clientData?.mifid;
+  const mifid: MifidType | null = clientData?.mifid || null;
   
   // Debug logs per verificare i dati
   
@@ -728,51 +742,23 @@ Grazie per la tua fiducia e collaborazione.`
   // Funzione per aggiornare lo stato active del cliente
   const updateClientActiveMutation = useMutation({
     mutationFn: async () => {
+      // Inverti lo stato attuale del cliente
+      const newActiveState = !client?.active;
       
-      try {
-        // Aggiungi un timestamp per evitare la cache
-        const timestamp = new Date().getTime();
-        const response = await apiRequest(`/api/clients/${clientId}/toggle-active?t=${timestamp}`, {
+      // Chiamata API per aggiornare lo stato
+      const response = await apiRequest(`/api/clients/${clientId}/toggle-active`, {
           method: 'PATCH',
           headers: { 
             'Content-Type': 'application/json',
             'Accept': 'application/json' 
           },
-          body: JSON.stringify({ active: !client?.active }),
-        });
-        
-        // Controlla se la risposta è HTML invece di JSON (errore comune)
-        if (typeof response === 'string' && response.includes('<!doctype html>')) {
-          
-          throw new Error('Risposta del server non valida: ricevuto HTML invece di JSON');
-        }
-        
-        
-        
-        // In caso di risposta non valida, forzare un refresh della pagina dopo 1 secondo 
-        // per aggirare il problema
-        if (!response || !response.success) {
-          setTimeout(() => {
-            
-            window.location.reload();
-          }, 1000);
-          
-          throw new Error(response?.message || 'Errore sconosciuto');
-        }
+        body: JSON.stringify({ active: newActiveState }),
+      });
         
         return response;
-      } catch (error) {
-        
-        // In caso di errore, forzare un refresh della pagina dopo 1 secondo
-        setTimeout(() => {
-          
-          window.location.reload();
-        }, 1000);
-        throw error;
-      }
     },
-    onSuccess: (response) => {
-      
+    onSuccess: () => {
+      // Mostra un toast di conferma
       toast({ 
         title: client?.active 
           ? t('client.deactivation_successful') 
@@ -781,11 +767,11 @@ Grazie per la tua fiducia e collaborazione.`
           ? t('client.client_deactivated') 
           : t('client.client_activated'),
       });
-      // Ricarica i dati del cliente
+      
+      // Aggiorna i dati del cliente
       queryClient.invalidateQueries({ queryKey: ['client', clientId] });
     },
     onError: (error: any) => {
-      
       toast({
         title: t('common.error'),
         description: error.message || t('client.status_update_error'),
@@ -1010,6 +996,163 @@ Grazie per la tua fiducia e collaborazione.`
     return new Date(date).toLocaleDateString();
   }
   
+  // Funzione per programmare un incontro
+  const scheduleMeeting = async () => {
+    try {
+      console.log('Starting scheduleMeeting with:', { user, clientId, meetingDate, meetingTime, meetingSubject });
+
+      if (!user?.id) {
+        toast({
+          title: "Errore",
+          description: 'Non sei autorizzato a programmare incontri',
+          variant: "destructive"
+        });
+        console.log('User not authorized to schedule meetings');
+        return;
+      }
+
+      const advisorId = user.id;
+      console.log('Advisor ID:', advisorId);
+
+      // Validate required fields
+      if (!clientId || !advisorId || !meetingDate || !meetingTime || !meetingSubject?.trim()) {
+        const missingFields = [];
+        if (!clientId) missingFields.push('Cliente');
+        if (!advisorId) missingFields.push('Advisor');
+        if (!meetingDate) missingFields.push('Data');
+        if (!meetingTime) missingFields.push('Ora');
+        if (!meetingSubject?.trim()) missingFields.push('Oggetto');
+        
+        toast({
+          title: "Errore",
+          description: `Campi obbligatori mancanti: ${missingFields.join(', ')}`,
+          variant: "destructive"
+        });
+        console.log('Missing required fields:', missingFields);
+        return;
+      }
+
+      // Validate subject length
+      if (meetingSubject.trim().length > 255) {
+        toast({
+          title: "Errore",
+          description: "L'oggetto non può superare i 255 caratteri",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Parse and validate date
+      const date = new Date(meetingDate);
+      if (isNaN(date.getTime())) {
+        toast({
+          title: "Errore",
+          description: 'Data non valida',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Parse time
+      const [hours, minutes] = meetingTime.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) {
+        toast({
+          title: "Errore",
+          description: 'Orario non valido',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Combine date and time
+      const combinedDateTime = new Date(date);
+      combinedDateTime.setHours(hours, minutes, 0, 0);
+
+      // Check if date is in the past
+      if (combinedDateTime < new Date()) {
+        toast({
+          title: "Errore",
+          description: 'Non puoi programmare un incontro nel passato',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Format date for API
+      const formattedDate = combinedDateTime.toISOString().split('.')[0];
+      console.log('Combined date and time:', {
+        originalDate: date,
+        meetingTime,
+        parsedTime: { hours, minutes },
+        combinedDateTime,
+        formattedDate,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+
+      const requestBody = {
+        clientId: Number(clientId),
+        advisorId: Number(advisorId),
+        subject: meetingSubject.trim(),
+        dateTime: formattedDate,
+        duration: meetingDuration,
+        location: meetingLocation,
+        notes: meetingNotes.trim(),
+        sendEmail: sendMeetingEmail
+      };
+
+      console.log('Request body:', requestBody);
+
+      const apiUrl = '/api/meetings';
+      console.log('Making API request to:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API error:', errorData);
+        toast({
+          title: "Errore",
+          description: errorData.message || 'Errore durante la programmazione dell\'incontro',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Meeting scheduled successfully');
+      toast({
+        title: "Successo",
+        description: 'Incontro programmato con successo'
+      });
+      
+      // Clear form
+      setMeetingDate(undefined);
+      setMeetingSubject('');
+      setMeetingTime("10:00");
+      setMeetingNotes("");
+      setMeetingLocation("office");
+      setMeetingDuration(60);
+      setSendMeetingEmail(false);
+      setIsMeetingDialogOpen(false);
+      
+      // Refresh meetings list
+      queryClient.invalidateQueries({ queryKey: ['meetings'] });
+
+    } catch (error) {
+      console.error('Error in scheduleMeeting:', error);
+      toast({
+        title: "Errore",
+        description: 'Si è verificato un errore durante la programmazione dell\'incontro',
+        variant: "destructive"
+      });
+    }
+  };
+  
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-full">
@@ -1033,136 +1176,11 @@ Grazie per la tua fiducia e collaborazione.`
   // Check if client is onboarded - simplified to only check isOnboarded
   if (!client.isOnboarded) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col space-y-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setLocation("/clients")}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <h1 className="text-2xl font-bold">{client.name}</h1>
-            </div>
-          </div>
-
-          {/* Tabs structure for consistency with the onboarded view */}
-          <Tabs defaultValue="onboarding" className="w-full">
-            <TabsList className="grid grid-cols-1 mb-6">
-              <TabsTrigger value="onboarding">
-                <Link2 className="h-4 w-4 mr-2" />
-                {t('client.onboarding') || "Onboarding Richiesto"}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="onboarding" className="space-y-6">
-          {/* Onboarding Required Message */}
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('client.onboarding_required')}</CardTitle>
-              <CardDescription>
-                {t('client.onboarding_required_description')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center py-6 space-y-6">
-                {/* Cambiamo l'icona per qualcosa di più amichevole */}
-                <Mail className="h-14 w-14 text-blue-500" />
-                <p className="text-center text-muted-foreground">
-                  {t('client.onboard_first')}
-                </p>
-                <div className="flex space-x-4">
-                  {!onboardingLink ? (
-                    <Button 
-                      variant="default" 
-                      size="lg"
-                      onClick={handleGenerateOnboardingLink}
-                      disabled={isLinkLoading}
-                      className="bg-accent hover:bg-accent/90"
-                    >
-                      <Link2 className="mr-2 h-4 w-4" />
-                      {isLinkLoading ? t('common.generating') : t('client.generate_link')}
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="default" 
-                      size="lg"
-                      onClick={() => window.open(onboardingLink, '_blank')}
-                      className="bg-green-600 hover:bg-green-700 text-white"
-                    >
-                      <ExternalLink className="mr-2 h-4 w-4" />
-                      {t('client.visit_onboarding_page')}
-                    </Button>
-                  )}
-                  {onboardingLink && (
-                    <Button 
-                      variant="default" 
-                      size="lg"
-                      onClick={handleSendOnboardingEmail}
-                      disabled={isLinkLoading}
-                      className="bg-blue-500 hover:bg-blue-600 text-white"
-                    >
-                      <Send className="mr-2 h-4 w-4" />
-                      {isLinkLoading ? t('client.sending') : t('client.send_email')}
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Onboarding Link Section */}
-          {onboardingLink && (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('client.onboarding_link')}</CardTitle>
-                <CardDescription>
-                  {t('client.onboarding_link_description')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <Input
-                      readOnly
-                      value={onboardingLink}
-                      className="font-mono text-sm"
-                    />
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        navigator.clipboard.writeText(onboardingLink);
-                        toast({
-                          title: t('common.copied'),
-                          description: t('common.link_copied'),
-                        });
-                      }}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="flex justify-end space-x-2">
-                    <Button
-                      variant="outline"
-                      onClick={handleGenerateNewLink}
-                      disabled={isLinkLoading}
-                    >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      {isLinkLoading ? t('common.generating') : t('client.generate_new_link')}
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-            </TabsContent>
-          </Tabs>
-        </div>
-      </div>
+      <OnboardingRequired 
+        clientId={clientId} 
+        clientName={client.name}
+        onBackToClients={() => setLocation("/clients")}
+      />
     );
   }
   
@@ -1199,6 +1217,7 @@ Grazie per la tua fiducia e collaborazione.`
                       size="sm"
                       className="h-6 w-6 p-0 hover:bg-white/20"
                       onClick={() => setIsConfirmActiveDialogOpen(true)}
+                      title={client?.active ? "Cambia in Prospect" : "Cambia in Attivo"}
                     >
                       <Edit className="h-3 w-3 text-white" />
                     </Button>
@@ -1221,7 +1240,7 @@ Grazie per la tua fiducia e collaborazione.`
               variant="ghost" 
               size="sm"
               className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 flex items-center"
-              onClick={() => setIsAddLogDialogOpen(true)}
+              onClick={() => setIsSendEmailDialogOpen(true)}
             >
               <Mail className="h-4 w-4 mr-1" />
               Invia email
@@ -1230,9 +1249,18 @@ Grazie per la tua fiducia e collaborazione.`
               variant="ghost" 
               size="sm"
               className="text-gray-500 hover:text-blue-600 hover:bg-blue-50 flex items-center"
-              onClick={() => setLocation(`/app/calendar?client=${clientId}`)}
+              onClick={() => {
+                setMeetingSubject(`Incontro con ${client.name}`);
+                setMeetingDate(new Date());
+                setMeetingTime("10:00");
+                setMeetingNotes("");
+                setMeetingLocation("office");
+                setMeetingDuration(60);
+                setSendMeetingEmail(false);
+                setIsMeetingDialogOpen(true);
+              }}
             >
-              <Calendar className="h-4 w-4 mr-1" />
+              <CalendarIcon className="h-4 w-4 mr-1" />
               Programma incontro
             </Button>
           </div>
@@ -1265,7 +1293,7 @@ Grazie per la tua fiducia e collaborazione.`
           {/* Tab Content for Client Information */}
           <ClientInfoTab 
             client={client} 
-            mifid={mifid || null} 
+            mifid={mifid} 
             assets={assets} 
           />
           
@@ -1421,6 +1449,164 @@ Grazie per la tua fiducia e collaborazione.`
           />
         </>
       )}
+
+      {/* SendEmailDialog */}
+      {client && (
+        <SendEmailDialog
+          open={isSendEmailDialogOpen}
+          onOpenChange={setIsSendEmailDialogOpen}
+          clientId={clientId}
+          clientName={client.name}
+          clientEmail={client.email}
+        />
+      )}
+
+      {/* Dialog per programmare un incontro */}
+      <Dialog open={isMeetingDialogOpen} onOpenChange={setIsMeetingDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>{t('dashboard.schedule_meeting') || "Programma incontro"}</DialogTitle>
+            <DialogDescription>
+              {t('dashboard.schedule_meeting_with') || "Programma un incontro con"} {client?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="meeting-subject" className="text-sm font-medium">
+                {t('dashboard.subject') || "Oggetto"}
+              </label>
+              <Input
+                id="meeting-subject"
+                value={meetingSubject}
+                onChange={(e) => setMeetingSubject(e.target.value)}
+                placeholder={t('dashboard.meeting_details') || "Dettagli incontro"}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">
+                  {t('dashboard.date') || "Data"}
+                </label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="text-left font-normal justify-start"
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {meetingDate ? format(meetingDate, "PPP", { locale: it }) : t('dashboard.select_date') || "Seleziona data"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarDatePicker
+                      mode="single"
+                      selected={meetingDate}
+                      onSelect={setMeetingDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="meeting-time" className="text-sm font-medium">
+                  {t('dashboard.time') || "Ora"}
+                </label>
+                <select
+                  id="meeting-time"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={meetingTime}
+                  onChange={(e) => setMeetingTime(e.target.value)}
+                >
+                  {Array.from({ length: 24 }, (_, hour) => {
+                    return ['00', '30'].map(minute => {
+                      const time = `${hour.toString().padStart(2, '0')}:${minute}`;
+                      return (
+                        <option key={time} value={time}>
+                          {time}
+                        </option>
+                      );
+                    });
+                  }).flat()}
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <label htmlFor="meeting-location" className="text-sm font-medium">
+                  {t('dashboard.location') || "Luogo"}
+                </label>
+                <select
+                  id="meeting-location"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={meetingLocation}
+                  onChange={(e) => setMeetingLocation(e.target.value)}
+                >
+                  <option value="zoom">Zoom</option>
+                  <option value="office">Ufficio</option>
+                  <option value="phone">Telefono</option>
+                </select>
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="meeting-duration" className="text-sm font-medium">
+                  {t('dashboard.duration') || "Durata"}
+                </label>
+                <select
+                  id="meeting-duration"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  value={meetingDuration}
+                  onChange={(e) => setMeetingDuration(parseInt(e.target.value))}
+                >
+                  <option value="15">15 minuti</option>
+                  <option value="30">30 minuti</option>
+                  <option value="45">45 minuti</option>
+                  <option value="60">1 ora</option>
+                  <option value="90">1 ora e 30 minuti</option>
+                  <option value="120">2 ore</option>
+                  <option value="180">3 ore</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="meeting-notes" className="text-sm font-medium">
+                {t('dashboard.notes_optional') || "Note (opzionale)"}
+              </label>
+              <Textarea
+                id="meeting-notes"
+                value={meetingNotes}
+                onChange={(e) => setMeetingNotes(e.target.value)}
+                placeholder={t('dashboard.add_meeting_details') || "Aggiungi dettagli dell'incontro"}
+                className="min-h-[80px]"
+              />
+            </div>
+            <div className="flex items-center space-x-2 pt-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="send-email"
+                  checked={sendMeetingEmail}
+                  onChange={(e) => setSendMeetingEmail(e.target.checked)}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label
+                  htmlFor="send-email"
+                  className="text-sm font-medium leading-none cursor-pointer"
+                >
+                  Invia email di invito al cliente
+                </label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsMeetingDialogOpen(false)}>
+              {t('dashboard.cancel') || "Annulla"}
+            </Button>
+            <Button onClick={scheduleMeeting}>
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              {t('dashboard.schedule_meeting') || "Programma incontro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

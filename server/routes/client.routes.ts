@@ -486,7 +486,7 @@ export function registerClientRoutes(app: Express) {
     }
   });
 
-  // Endpoint per salvare PDF nella directory privata
+  // Endpoint for saving PDFs in the private directory
   app.post('/api/clients/save-pdf', isAuthenticated, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
@@ -575,6 +575,52 @@ export function registerClientRoutes(app: Express) {
     } catch (error) {
       safeLog('Errore nel salvataggio del PDF', error, 'error');
       handleErrorResponse(res, error, 'Errore nel salvataggio del PDF');
+    }
+  });
+
+  // Toggle client active status
+  app.patch('/api/clients/:id/toggle-active', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        safeLog('Tentativo di aggiornamento non autorizzato dello stato del cliente', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato a modificare questo cliente' });
+      }
+      
+      // Extract active status from request body
+      const { active } = req.body;
+      if (typeof active !== 'boolean') {
+        return res.status(400).json({ success: false, message: 'Stato attivo non specificato' });
+      }
+      
+      // Update client in database
+      const updatedClient = await storage.updateClient(clientId, { active });
+      
+      res.json({ 
+        success: true, 
+        client: updatedClient,
+        message: active ? 'Cliente attivato con successo' : 'Cliente disattivato con successo'
+      });
+    } catch (error) {
+      safeLog('Errore durante l\'aggiornamento dello stato del cliente', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile aggiornare lo stato del cliente');
     }
   });
 } 

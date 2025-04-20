@@ -1139,57 +1139,116 @@ export class PostgresStorage implements IStorage {
 
   async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
     try {
-      // Verifica che il client esista
+      // Validazione input
+      if (!insertMeeting.subject?.trim()) {
+        throw new Error('Il soggetto del meeting è obbligatorio');
+      }
+      if (insertMeeting.subject.length > 255) {
+        throw new Error('Il soggetto del meeting non può superare i 255 caratteri');
+      }
+      
+      // Validazione clientId
       const clientId = Number(insertMeeting.clientId);
       if (isNaN(clientId)) {
         throw new Error(`Invalid clientId: ${insertMeeting.clientId}`);
       }
       
-      const client = await this.getClient(clientId);
-      if (!client) {
-        throw new Error(`Cliente con ID ${clientId} non trovato`);
-      }
-      
-      // Verifica che l'advisor esista
+      // Validazione advisorId
       const advisorId = Number(insertMeeting.advisorId);
       if (isNaN(advisorId)) {
         throw new Error(`Invalid advisorId: ${insertMeeting.advisorId}`);
       }
       
-      const advisor = await this.getUser(advisorId);
-      if (!advisor) {
-        throw new Error(`Advisor con ID ${advisorId} non trovato`);
+      // Validazione location
+      const validLocations = ['zoom', 'office', 'phone'];
+      if (insertMeeting.location && !validLocations.includes(insertMeeting.location)) {
+        throw new Error(`Location non valida. Valori permessi: ${validLocations.join(', ')}`);
       }
       
-      // Assicurati che dateTime sia un oggetto Date
+      // Validazione duration
+      const duration = Number(insertMeeting.duration);
+      if (isNaN(duration) || duration <= 0 || duration > 480) { // max 8 ore
+        throw new Error('La durata deve essere un numero positivo non superiore a 480 minuti');
+      }
+      
+      // Validazione e parsing della data
       let meetingDateTime: Date;
       if (typeof insertMeeting.dateTime === 'string') {
         meetingDateTime = new Date(insertMeeting.dateTime);
-        if (isNaN(meetingDateTime.getTime())) {
-          throw new Error(`Data invalida: ${insertMeeting.dateTime}`);
-        }
       } else if (insertMeeting.dateTime instanceof Date) {
         meetingDateTime = insertMeeting.dateTime;
       } else {
         throw new Error('dateTime deve essere una stringa ISO o un oggetto Date');
       }
       
-      // Crea un nuovo oggetto da inserire nel database
-      const meetingToInsert = {
-        ...insertMeeting,
-        clientId,
-        advisorId,
-        dateTime: meetingDateTime  // Ora siamo sicuri che sia un Date
-      };
+      if (isNaN(meetingDateTime.getTime())) {
+        throw new Error(`Data invalida: ${insertMeeting.dateTime}`);
+      }
       
+      // Verifica che la data non sia nel passato
+      const now = new Date();
+      if (meetingDateTime < now) {
+        throw new Error('Non è possibile creare meeting nel passato');
+      }
       
-      
-      // Inserisci il meeting nel database
-      const result = await db.insert(meetings).values(meetingToInsert).returning();
-      
-      return result[0];
+      // Inizia una transazione
+      return await db.transaction(async (tx) => {
+        // Verifica che il client esista
+        const client = await tx.select().from(clients).where(eq(clients.id, clientId)).limit(1);
+        if (!client.length) {
+          throw new Error(`Cliente con ID ${clientId} non trovato`);
+        }
+        
+        // Verifica che l'advisor esista
+        const advisor = await tx.select().from(users).where(eq(users.id, advisorId)).limit(1);
+        if (!advisor.length) {
+          throw new Error(`Advisor con ID ${advisorId} non trovato`);
+        }
+        
+        // Calcola l'intervallo del meeting
+        const meetingEnd = new Date(meetingDateTime);
+        meetingEnd.setMinutes(meetingEnd.getMinutes() + duration);
+        
+        // Verifica sovrapposizioni con altri meeting dell'advisor
+        const overlappingMeetings = await tx
+          .select()
+          .from(meetings)
+          .where(
+            and(
+              eq(meetings.advisorId, advisorId),
+              lt(meetings.dateTime, meetingEnd),
+              gt(sql`${meetings.dateTime} + (${meetings.duration} || ' minutes')::interval`, meetingDateTime)
+            )
+          );
+        
+        if (overlappingMeetings.length > 0) {
+          throw new Error('Esiste già un meeting programmato in questo slot temporale');
+        }
+        
+        // Crea il meeting
+        const meetingToInsert = {
+          ...insertMeeting,
+          clientId,
+          advisorId,
+          dateTime: meetingDateTime,
+          duration,
+          location: insertMeeting.location || 'zoom'
+        };
+        
+        const result = await tx.insert(meetings).values(meetingToInsert).returning();
+        return result[0];
+      });
     } catch (error) {
-      
+      // Log dettagliato dell'errore
+      console.error('[ERROR] Errore nella creazione del meeting:', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        meetingData: {
+          ...insertMeeting,
+          clientId: Number(insertMeeting.clientId),
+          advisorId: Number(insertMeeting.advisorId)
+        }
+      });
       throw error;
     }
   }

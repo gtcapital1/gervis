@@ -10,6 +10,8 @@ const { setupVite, serveStatic } = require('./server/vite.ts');
 const { registerRoutes } = require('./server/routes.ts');
 const { autorunCascadeFix } = require('./server/migrations/autorun-cascade-fix.ts');
 const { autorunCreateClientLogs } = require('./server/migrations/autorun-create-client-logs.ts');
+const { autorunCreateAgentTables } = require('./server/migrations/autorun-create-agent-tables.ts');
+const { runMigration } = require('./server/migrations/autorun-add-conversation-metadata.ts');
 const http = require('http');
 const path = require('path');
 
@@ -23,6 +25,10 @@ const host = process.env.HOST || 'localhost';
 // Esegui migrazioni automatiche
 autorunCascadeFix(true);
 autorunCreateClientLogs(true);
+autorunCreateAgentTables(true).then(() => {
+  // After creating tables, add the metadata column
+  runMigration().catch(err => console.error('Error running conversation metadata migration:', err));
+}).catch(err => console.error('Error creating agent tables:', err));
 
 // Configura autenticazione
 setupAuth(app);

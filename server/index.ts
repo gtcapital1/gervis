@@ -15,6 +15,7 @@ import { autorunAddActiveAndOnboardedAt } from "./migrations/autorun-add-active-
 import { addEmailSettingsColumns } from "./migrations/autorun-add-email-settings";
 import { autorunAddMeetingDuration } from "./migrations/autorun-add-meeting-duration";
 import { autorunCreateTrendData } from "./migrations/autorun-create-trend-data";
+import { autorunCreateAgentTables } from "./migrations/autorun-create-agent-tables";
 
 // Importa il servizio dei trend
 import { trendService } from './trends-service';
@@ -204,6 +205,16 @@ app.use((req, res, next) => {
     console.log('Tabella trend_data verificata con successo');
   } catch (error) {
     console.error('Errore durante la verifica/creazione della tabella trend_data:', error);
+    // Non interrompiamo l'avvio dell'applicazione in caso di errore
+  }
+  
+  // Crea le tabelle per l'agente se non esistono
+  try {
+    console.log('Verifica ed eventuale creazione delle tabelle dell\'agente...');
+    await autorunCreateAgentTables();
+    console.log('Tabelle dell\'agente verificate con successo');
+  } catch (error) {
+    console.error('Errore durante la verifica/creazione delle tabelle dell\'agente:', error);
     // Non interrompiamo l'avvio dell'applicazione in caso di errore
   }
   

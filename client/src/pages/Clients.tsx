@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, 
   Search, 
@@ -60,7 +60,7 @@ import { ClientDialog } from "../components/dashboard/ClientDialog";
 import { UpgradeDialog } from "../components/pro/UpgradeDialog";
 import { Client, CLIENT_SEGMENTS } from "@shared/schema";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import { PageHeader } from "@/components/ui/page-header";
 import { Textarea } from "@/components/ui/textarea";
@@ -103,6 +103,7 @@ export default function Clients() {
   const [emailMessage, setEmailMessage] = useState("");
   const [sortColumn, setSortColumn] = useState<string>("lastName");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const queryClient = useQueryClient();
 
   // Fetch clients
   const { data, isLoading, isError } = useQuery<{clients: Client[]} | null>({
@@ -429,53 +430,104 @@ export default function Clients() {
     setIsMeetingDialogOpen(true);
   }
   
+  // Mutation per creare un nuovo meeting
+  const createMeetingMutation = useMutation({
+    mutationFn: async (meeting: {
+      clientId: number;
+      advisorId?: number;  // Added advisorId as optional
+      subject: string;
+      dateTime: string;
+      duration: number;
+      location: string;
+      notes: string;
+      sendEmail: boolean;
+    }) => {
+      console.log("[Clients] Tentativo di creazione meeting:", meeting);
+      const response = await apiRequest('/api/meetings', {
+        method: 'POST',
+        body: JSON.stringify(meeting),
+      });
+      if (!response.success) {
+        throw new Error(response.message || 'Errore durante la creazione del meeting');
+      }
+      return response.meeting;
+    },
+    onSuccess: (data) => {
+      console.log("[Clients] Meeting creato con successo:", data);
+      setIsMeetingDialogOpen(false);
+      
+      // Reset form
+      setMeetingSubject("");
+      setMeetingDate(new Date());
+      setMeetingTime("10:00");
+      setMeetingNotes("");
+      setMeetingLocation("office");
+      setMeetingDuration(60);
+      setSendMeetingEmail(false);
+      
+      toast({
+        title: t('dashboard.meeting_scheduled'),
+        description: t('dashboard.meeting_scheduled_success'),
+      });
+      
+      // Refresh data - now using the correct endpoint
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+    },
+    onError: (error) => {
+      console.error("[Clients] Errore nella creazione del meeting:", error);
+      toast({
+        title: "Errore",
+        description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
+        variant: "destructive",
+      });
+    }
+  });
+
   function scheduleMeeting() {
     if (clientToMeeting && meetingDate && meetingSubject) {
-      // Combine date and time
-      const [hours, minutes] = meetingTime.split(':').map(Number);
-      const dateTime = new Date(meetingDate);
-      dateTime.setHours(hours, minutes, 0, 0);
-      
-      // URL with sendEmail parameter
-      const url = sendMeetingEmail ? '/api/meetings?sendEmail=true' : '/api/meetings';
-      
-      // Create meeting via API request
-      apiRequest(url, {
-        method: 'POST',
-        body: JSON.stringify({
+      try {
+        // Check if user is authenticated
+        if (!user?.id) {
+          toast({
+            title: "Errore",
+            description: "Utente non autenticato. Impossibile creare il meeting.",
+            variant: "destructive",
+          });
+          return;
+        }
+        
+        // Combine date and time
+        const [hours, minutes] = meetingTime.split(':').map(Number);
+        const dateTime = new Date(meetingDate);
+        dateTime.setHours(hours, minutes, 0, 0);
+        
+        // Format date for API
+        const formattedDate = dateTime.toISOString();
+        
+        // Create meeting
+        createMeetingMutation.mutate({
           clientId: clientToMeeting.id,
+          advisorId: user.id, // Always include the advisor ID and ensure it's defined
           subject: meetingSubject,
-          dateTime: dateTime.toISOString(),
+          dateTime: formattedDate,
           duration: meetingDuration,
           location: meetingLocation,
-          notes: meetingNotes
-        })
-      })
-      .then(() => {
-        setIsMeetingDialogOpen(false);
-        toast({
-          title: t('dashboard.meeting_scheduled'),
-          description: t('dashboard.meeting_scheduled_success'),
+          notes: meetingNotes,
+          sendEmail: sendMeetingEmail
         });
-        
-        // Reset form
-        setMeetingSubject("");
-        setMeetingDate(new Date());
-        setMeetingTime("10:00");
-        setMeetingNotes("");
-        setMeetingLocation("office");
-        setMeetingDuration(60);
-        setSendMeetingEmail(false);
-        
-        // Refresh data
-        queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error('Error in scheduleMeeting:', error);
         toast({
-          title: "Error",
-          description: "Failed to schedule meeting. Please try again.",
-          variant: "destructive",
+          title: "Errore",
+          description: 'Si è verificato un errore durante la programmazione dell\'incontro',
+          variant: "destructive"
         });
+      }
+    } else {
+      toast({
+        title: "Errore",
+        description: "Compilare tutti i campi richiesti (soggetto e data).",
+        variant: "destructive",
       });
     }
   }
@@ -905,7 +957,7 @@ export default function Clients() {
                   onChange={(e) => setMeetingTime(e.target.value)}
                 >
                   {Array.from({ length: 24 }, (_, hour) => {
-                    return ['00', '30'].map(minute => {
+                    return ['00', '15', '30', '45'].map(minute => {
                       const time = `${hour.toString().padStart(2, '0')}:${minute}`;
                       return (
                         <option key={time} value={time}>

@@ -98,7 +98,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   console.log('DEBUG TRANSLATE:', {
     title: t('client.generate_profile_title'),
     description: t('client.generate_profile_description'),
-    token: t('client.token_usage_estimate'),
     button: t('client.generate_profile')
   });
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -680,7 +679,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
               </div>
             )}
             <p className="text-xs text-gray-500 mt-4 italic">
-              {t('client.token_usage_estimate')}
             </p>
           </div>
           <Button 

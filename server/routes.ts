@@ -52,15 +52,15 @@ import { registerAuthRoutes } from './routes/auth.routes';
 import { registerUserRoutes } from './routes/user.routes';
 import { registerClientRoutes } from './routes/client.routes';
 import { registerAdminRoutes } from './routes/admin.routes';
-
 import { registerLogRoutes } from './routes/log.routes';
-
 import { registerDocumentRoutes } from './routes/document.routes';
 import { registerSignatureRoutes } from './routes/signature.routes';
 import { registerMarketRoutes } from './routes/market.routes';
 import { registerAiRoutes } from './routes/ai.routes';
 import { registerPublicRoutes } from './routes/public.routes';
 import { registerOnboardingRoutes } from './routes/onboarding.routes';
+import { registerMeetingRoutes } from './routes/meeting.routes';
+import { registerAgentRoutes } from './agent/routes';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -404,13 +404,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerClientRoutes(app);
   registerAdminRoutes(app);
   registerLogRoutes(app);
-
   registerDocumentRoutes(app);
   registerSignatureRoutes(app);
   registerMarketRoutes(app);
   registerAiRoutes(app);
   registerPublicRoutes(app);
   registerOnboardingRoutes(app);
+  registerMeetingRoutes(app);
+  registerAgentRoutes(app);
   
   // Create and return the server
   const server = createServer(app);
@@ -426,4 +427,15 @@ export function typedCatch<T extends Error>(error: unknown): T {
   // Se non è un Error, crea un nuovo Error con il messaggio convertito in stringa
   const newError = new Error(String(error)) as T;
   return newError;
+}
+
+interface InsertMeeting {
+  clientId: number;
+  advisorId: number;
+  subject: string;
+  dateTime: Date | string;
+  duration: number;
+  location?: 'zoom' | 'office' | 'phone';
+  notes?: string;
+  sendEmail?: boolean;
 }

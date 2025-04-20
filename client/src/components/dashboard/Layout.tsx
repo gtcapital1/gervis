@@ -21,6 +21,7 @@ import {
   Info,
   Server,
   AlertTriangle,
+  Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,21 +83,20 @@ export function Layout({ children }: LayoutProps) {
   const baseNavigation = [
     {
       name: "Dashboard",
-      href: "/dashboard",
-      icon: LayoutDashboard,
-      current: location === "/dashboard",
+      href: "/app",
+      icon: Home,
+      current: location === "/app" || location === "/dashboard",
+      disabled: false,
     },
     {
       name: "Clients",
-      href: "/app/clients",
+      href: "/clients",
       icon: Users,
-      current: location === "/app/clients" || location.startsWith("/app/clients/"),
-    },
-    {
-      name: "Opportunities",
-      href: "/opportunities",
-      icon: TrendingUp,
-      current: location === "/opportunities",
+      current:
+        location === "/clients" ||
+        location === "/app/clients" ||
+        location.startsWith("/clients/") ||
+        location.startsWith("/app/clients/"),
       disabled: false,
     },
     {
@@ -104,6 +104,13 @@ export function Layout({ children }: LayoutProps) {
       href: "/calendar",
       icon: Calendar,
       current: location === "/calendar",
+      disabled: false,
+    },
+    {
+      name: "Agent",
+      href: "/agent",
+      icon: Bot,
+      current: location === "/agent",
       disabled: false,
     },
     {

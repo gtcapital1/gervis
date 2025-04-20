@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, Clock, User, MapPin, FileText, Edit, Trash2, MoreHorizontal, Calendar, ArrowLeft, Plus, CalendarCheck } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { format, parse, startOfWeek, addDays } from "date-fns";
@@ -40,6 +40,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAuth } from "@/hooks/use-auth";
 
 // Definizione interfacce
 interface Event {
@@ -69,6 +70,9 @@ type Meeting = {
 }
 
 export default function CalendarPage() {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -86,11 +90,10 @@ export default function CalendarPage() {
   const [sendMeetingEmail, setSendMeetingEmail] = useState(false);
   const [sendMeetingUpdateEmail, setSendMeetingUpdateEmail] = useState(false); // New state for update email
   const { t } = useTranslation();
-  const { toast } = useToast();
   
-  // Fetch degli eventi dall'agenda
-  const { data, isLoading, isError, refetch } = useQuery<{events: Event[]} | null>({
-    queryKey: ['/api/agenda/today'],
+  // Fetch dei meeting usando l'API esistente
+  const { data: meetingsData, isLoading, isError, refetch } = useQuery<{success: boolean, meetings: any[]} | null>({
+    queryKey: ['/api/meetings'],
     retry: 2,
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -99,45 +102,25 @@ export default function CalendarPage() {
   // Quando l'utente cambia la data selezionata, rifacciamo la query
   useEffect(() => {
     if (selectedDate) {
-      
       refetch();
     }
   }, [selectedDate, refetch]);
 
   // Dopo che i dati vengono caricati, aggiungiamo più log di debug
   useEffect(() => {
-    if (data?.events) {
+    if (meetingsData?.success && meetingsData.meetings) {
+      console.log('Meeting data received:', meetingsData.meetings);
       
-      // Log dei primi 5 eventi per un controllo rapido
-      data.events.slice(0, 5).forEach((event, index) => {
-        console.log(`Evento ${index + 1}:`, {
-          id: event.id,
-          title: event.title,
-          date: event.date,
-          startTime: event.startTime,
-          clientName: event.clientName
+      // Log dei primi 5 meeting per un controllo rapido
+      meetingsData.meetings.slice(0, 5).forEach((meeting, index) => {
+        console.log(`Meeting ${index + 1}:`, {
+          id: meeting.id,
+          subject: meeting.subject,
+          dateTime: meeting.dateTime
         });
       });
     }
-  }, [data]);
-  
-  // Eventi dal backend
-  const events = data?.events || [];
-  
-  // Giorni della settimana
-  const weekDays = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
-  
-  // Aggiungiamo il passo di 30 minuti nelle ore mostrate nel calendario per più precisione
-  const dayHours = [];
-  for (let i = 8; i < 19; i++) {
-    // Assicuriamoci che le ore vengano sempre formattate con due cifre (08:00 invece di 8:00)
-    const formattedHour = i.toString().padStart(2, "0");
-    dayHours.push(`${formattedHour}:00`);
-    dayHours.push(`${formattedHour}:30`);
-  }
-  
-  // Aggiungiamo l'ultima ora senza i 30 minuti
-  dayHours.push('19:00');
+  }, [meetingsData]);
   
   // Fetch dei clienti per il dropdown
   const { data: clientsData } = useQuery<{clients: any[]} | null>({
@@ -147,6 +130,57 @@ export default function CalendarPage() {
   });
   
   const clients = clientsData?.clients || [];
+  
+  // Eventi dal backend - trasformiamo i meeting nel formato di eventi richiesto dal calendario
+  const events = useMemo(() => {
+    if (!meetingsData?.success || !meetingsData.meetings || !meetingsData.meetings.length) {
+      return [];
+    }
+    
+    return meetingsData.meetings.map(meeting => {
+      // Parsing della data e ora del meeting
+      const meetingDate = new Date(meeting.dateTime);
+      const endTime = new Date(meetingDate);
+      endTime.setMinutes(endTime.getMinutes() + (meeting.duration || 60));
+      
+      // Formattazione della data per il calendar (YYYY-MM-DD)
+      const formattedDate = format(meetingDate, "yyyy-MM-dd");
+      // Formattazione dell'orario di inizio (HH:mm)
+      const startTime = format(meetingDate, "HH:mm");
+      // Formattazione dell'orario di fine (HH:mm)
+      const endTimeString = format(endTime, "HH:mm");
+      
+      // Trova il cliente corrispondente nell'elenco dei client
+      const client = clients.find(c => c.id === meeting.clientId);
+      const clientName = client 
+        ? `${client.firstName} ${client.lastName}` 
+        : 'Cliente';
+      
+      // Creazione dell'oggetto evento nel formato richiesto dal calendario
+      return {
+        id: meeting.id,
+        title: meeting.subject || 'Meeting',
+        type: 'meeting',
+        startTime: startTime,
+        endTime: endTimeString,
+        clientId: meeting.clientId,
+        clientName: clientName,
+        location: meeting.location || 'Online',
+        date: formattedDate
+      } as Event;
+    });
+  }, [meetingsData, clients]);
+  
+  // Giorni della settimana
+  const weekDays = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì"];
+  
+  // Mostriamo slot orari di 1 ora nel calendario
+  const dayHours = [];
+  for (let i = 8; i <= 19; i++) {
+    // Assicuriamoci che le ore vengano sempre formattate con due cifre (08:00 invece di 8:00)
+    const formattedHour = i.toString().padStart(2, "0");
+    dayHours.push(`${formattedHour}:00`);
+  }
   
   // Mutation per aggiornare un meeting
   const updateMeetingMutation = useMutation({
@@ -168,7 +202,7 @@ export default function CalendarPage() {
         title: "Successo",
         description: "Meeting aggiornato con successo",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
     },
     onError: (error) => {
       console.error("[Calendar Error] Errore nell\'aggiornamento del meeting:", error);
@@ -193,7 +227,7 @@ export default function CalendarPage() {
         title: "Successo",
         description: "Meeting eliminato con successo",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
     },
     onError: (error) => {
       toast({
@@ -228,7 +262,7 @@ export default function CalendarPage() {
         title: "Successo",
         description: "Meeting creato con successo",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
     },
     onError: (error) => {
       console.error("[Calendar Error] Errore nella creazione del meeting:", error);
@@ -394,64 +428,165 @@ export default function CalendarPage() {
   };
 
   // Funzione per creare un nuovo evento
-  const handleCreateEvent = useCallback(() => {
-    if (!selectedDate || !newEventClientId || !eventTitle) {
-      toast({
-        title: "Errore",
-        description: "Compila tutti i campi obbligatori",
-        variant: "destructive",
+  const handleCreateEvent = useCallback(async () => {
+    try {
+      const currentUser = user;
+      
+      console.log('Starting handleCreateEvent with:', { 
+        userId: currentUser?.id, 
+        newEventClientId, 
+        eventDate: selectedDate, 
+        eventTime, 
+        eventTitle,
+        eventLocation,
+        eventDuration,
+        newEventNotes,
+        sendMeetingEmail
       });
-      return;
-    }
-    
-    // Crea una nuova data basata sulla data selezionata
-    const startDateTime = new Date(selectedDate);
-    
-    // Imposta l'ora selezionata nella data
-    const [hours, minutes] = eventTime.split(':').map(Number);
-    startDateTime.setHours(hours, minutes, 0, 0);
-    
-    // Converti la data in UTC mantenendo lo stesso orario locale
-    const utcDate = new Date(startDateTime.getTime() - (startDateTime.getTimezoneOffset() * 60000));
-    
-    // Log di debug
-    console.log('Creating meeting with date:', {
-      localDate: startDateTime.toISOString(),
-      utcDate: utcDate.toISOString(),
-      timezoneOffset: startDateTime.getTimezoneOffset()
-    });
-    
-    // Creazione evento tramite apiRequest
-    apiRequest('/api/meetings', {
-      method: 'POST',
-      body: JSON.stringify({
-        clientId: newEventClientId,
-        subject: eventTitle,
-        dateTime: utcDate.toISOString(),
-        duration: eventDuration,
+
+      if (!currentUser?.id) {
+        toast({
+          title: "Errore",
+          description: 'Non sei autorizzato a programmare incontri',
+          variant: "destructive"
+        });
+        console.log('User not authorized to schedule meetings');
+        return;
+      }
+
+      const advisorId = currentUser.id;
+      console.log('Advisor ID:', advisorId);
+
+      // Validate required fields
+      if (!newEventClientId || !advisorId || !selectedDate || !eventTime || !eventTitle?.trim()) {
+        const missingFields = [];
+        if (!newEventClientId) missingFields.push('Cliente');
+        if (!advisorId) missingFields.push('Advisor');
+        if (!selectedDate) missingFields.push('Data');
+        if (!eventTime) missingFields.push('Ora');
+        if (!eventTitle?.trim()) missingFields.push('Oggetto');
+        
+        toast({
+          title: "Errore",
+          description: `Campi obbligatori mancanti: ${missingFields.join(', ')}`,
+          variant: "destructive"
+        });
+        console.log('Missing required fields:', missingFields);
+        return;
+      }
+
+      // Parse and validate date
+      const date = new Date(selectedDate);
+      if (isNaN(date.getTime())) {
+        toast({
+          title: "Errore",
+          description: 'Data non valida',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Parse time
+      const [hours, minutes] = eventTime.split(':').map(Number);
+      if (isNaN(hours) || isNaN(minutes)) {
+        toast({
+          title: "Errore",
+          description: 'Orario non valido',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Combine date and time
+      const combinedDateTime = new Date(date);
+      combinedDateTime.setHours(hours, minutes, 0, 0);
+
+      // Check if date is in the past
+      if (combinedDateTime < new Date()) {
+        toast({
+          title: "Errore",
+          description: 'Non puoi programmare un incontro nel passato',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Format date for API
+      const formattedDate = combinedDateTime.toISOString().split('.')[0];
+      console.log('Combined date and time:', {
+        originalDate: date,
+        meetingTime: eventTime,
+        parsedTime: { hours, minutes },
+        combinedDateTime,
+        formattedDate,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      });
+
+      const requestBody = {
+        clientId: Number(newEventClientId),
+        advisorId: Number(advisorId),
+        subject: eventTitle.trim(),
+        dateTime: formattedDate,
+        duration: Number(eventDuration),
         location: eventLocation,
-        notes: newEventNotes,
+        notes: newEventNotes?.trim() || '',
         sendEmail: sendMeetingEmail
-      })
-    }).then(() => {
-      setIsCreateDialogOpen(false);
-      setNewEventClientId(null);
-      setEventTitle("");
-      setNewEventNotes("");
-      setSelectedTimeSlot("");
+      };
+
+      console.log('Request body:', requestBody);
+
+      const apiUrl = '/api/meetings';
+      console.log('Making API request to:', apiUrl);
+
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API error:', errorData);
+        toast({
+          title: "Errore",
+          description: errorData.message || 'Errore durante la programmazione dell\'incontro',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Meeting scheduled successfully');
       toast({
         title: "Successo",
-        description: "Meeting creato con successo",
+        description: 'Incontro programmato con successo'
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
-    }).catch((error) => {
+      
+      // Clear form
+      setSelectedDate(new Date());
+      setEventTitle('');
+      setEventTime("10:00");
+      setNewEventNotes("");
+      setEventLocation("office");
+      setEventDuration(60);
+      setSendMeetingEmail(false);
+      setIsCreateDialogOpen(false);
+      setNewEventClientId(null);
+      
+      // Refresh meetings list
+      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+
+    } catch (error) {
+      console.error('Error in handleCreateEvent:', error);
       toast({
         title: "Errore",
-        description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
-        variant: "destructive",
+        description: 'Si è verificato un errore durante la programmazione dell\'incontro',
+        variant: "destructive"
       });
-    });
+    }
   }, [
+    user,
     selectedDate,
     eventTime,
     eventTitle,
@@ -460,8 +595,8 @@ export default function CalendarPage() {
     newEventNotes,
     eventDuration,
     sendMeetingEmail,
-    toast,
-    queryClient
+    queryClient,
+    toast
   ]);
 
   // Funzione per gestire il click su una cella oraria nella vista settimanale

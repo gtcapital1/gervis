@@ -62,3 +62,19 @@ export const formatCompactValue = (value: number): string => {
   }
   return value.toFixed(1);
 };
+
+type ToastOptions = {
+  title: string;
+  description: string;
+  variant?: 'default' | 'destructive';
+};
+
+// Simple toast function that uses browser's alert for now
+// In a real app, you'd use a proper toast component
+export function toast(options: ToastOptions) {
+  console.log(`${options.title}: ${options.description}`);
+  // In development, show alerts for immediate feedback
+  if (process.env.NODE_ENV === 'development') {
+    alert(`${options.title}\n${options.description}`);
+  }
+}
