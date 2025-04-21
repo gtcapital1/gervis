@@ -1458,12 +1458,16 @@ Grazie per la tua fiducia e collaborazione.`
           clientId={clientId}
           title={t('dashboard.send_email')}
           onSubmit={(data) => {
+            // Qui puoi implementare la funzionalità per inviare effettivamente l'email
+            // usando una chiamata API appropriata
+
+            // Per ora solo un feedback all'utente
             toast({
               title: "Email inviata",
               description: "L'email è stata inviata con successo",
             });
           }}
-          useClientSelector={true}
+          useClientSelector={true} // Questo è il valore che determina se il destinatario è modificabile
         />
       )}
 

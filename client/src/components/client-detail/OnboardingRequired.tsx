@@ -398,6 +398,7 @@ Grazie per la tua fiducia e collaborazione.`;
         presetMessage={emailMessage}
         onSubmit={handleSendOnboardingEmail}
         includeCustomFooter={false}
+        useClientSelector={true}
       />
     </div>
   );

@@ -591,6 +591,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             presetSubject={emailSubject}
             presetMessage={emailMessage}
             onSubmit={sendEmail}
+            useClientSelector={true}
           />
         </CardContent>
       </Card>
