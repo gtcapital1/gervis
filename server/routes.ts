@@ -60,7 +60,7 @@ import { registerAiRoutes } from './routes/ai.routes';
 import { registerPublicRoutes } from './routes/public.routes';
 import { registerOnboardingRoutes } from './routes/onboarding.routes';
 import { registerMeetingRoutes } from './routes/meeting.routes';
-import { registerAgentRoutes } from './agent/routes';
+import { registerAgentRoutes } from './routes/agent.routes';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;

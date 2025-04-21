@@ -1,29 +1,17 @@
-/**
- * GERVIS AGENT ROUTES
- * 
- * Definizione delle rotte API per l'agente conversazionale
- */
-
-import { Router, Request, Response } from 'express';
-import { isAuthenticated } from '../routes';
-import {
-  handleAgentRequest,
-  getConversationHistory,
-  getConversations
-} from './controller';
+import { Router } from 'express';
+import { handleChat, getConversations, getConversationById, deleteConversation } from './controller';
 
 const router = Router();
 
-// Endpoint principale per inviare messaggi all'agente
-router.post('/agent/message', isAuthenticated, handleAgentRequest);
+// Define the chat route
+// POST /api/agent/chat (assuming this router is mounted under /api/agent)
+router.post('/chat', handleChat);
 
-// Recupera l'elenco delle conversazioni dell'utente
-router.get('/agent/conversations', isAuthenticated, getConversations);
+// Conversation routes
+router.get('/conversations', getConversations);
+router.get('/conversations/:id', getConversationById);
+router.delete('/conversations/:id', deleteConversation);
 
-// Recupera la cronologia dei messaggi di una specifica conversazione
-router.get('/agent/conversations/:id', isAuthenticated, getConversationHistory);
+// Add other agent-related routes here later
 
-// Registra le rotte nell'app
-export function registerAgentRoutes(app: Router) {
-  app.use('/api', router);
-} 
+export default router;

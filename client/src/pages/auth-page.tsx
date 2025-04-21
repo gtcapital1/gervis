@@ -149,7 +149,7 @@ export default function AuthPage() {
 
   // Se l'utente è già loggato e verificato, reindirizza alla dashboard
   if (user && user.isEmailVerified) {
-    navigate("/dashboard");
+    navigate("/agent");
     return null;
   }
   
@@ -285,7 +285,7 @@ export default function AuthPage() {
               title: "Login effettuato",
               description: "Bentornato!",
             });
-            navigate("/dashboard");
+            navigate("/agent");
           }
         },
         onError: (error: any) => {
@@ -396,7 +396,7 @@ export default function AuthPage() {
               title: "Registrazione completata",
               description: "Il tuo account è stato creato con successo.",
             });
-            navigate("/dashboard");
+            navigate("/agent");
           }
         },
         onError: (error: any) => {

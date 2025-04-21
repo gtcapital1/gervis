@@ -77,7 +77,7 @@
     "memorystore": "^1.6.7",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.0",
-    "openai": "^4.89.0",
+    "openai": "^4.95.1",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "pdf-lib": "^1.17.1",
@@ -104,6 +104,7 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.23.8",
+    "zod-to-json-schema": "^3.24.5",
     "zod-validation-error": "^3.4.0"
   },
   "devDependencies": {

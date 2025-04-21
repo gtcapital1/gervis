@@ -444,10 +444,10 @@ export type InsertSignatureSessionSchema = z.infer<typeof insertSignatureSession
 // Tabelle per l'agente conversazionale
 export const conversations = pgTable('conversations', {
   id: serial('id').primaryKey(),
-  userId: integer('user_id').notNull().references(() => users.id),
+  userId: integer('userId').notNull().references(() => users.id),
   title: text('title').notNull(),
-  createdAt: timestamp('created_at').notNull(),
-  updatedAt: timestamp('updated_at').notNull(),
+  createdAt: timestamp('createdAt').notNull(),
+  updatedAt: timestamp('updatedAt').notNull(),
   metadata: text('metadata')  // Metadati JSON per lo stato della conversazione
 });
 

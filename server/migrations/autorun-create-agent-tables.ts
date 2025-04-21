@@ -32,9 +32,10 @@ export async function autorunCreateAgentTables(silent: boolean = false) {
         CREATE TABLE IF NOT EXISTS "conversations" (
           "id" SERIAL PRIMARY KEY,
           "userId" INTEGER NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-          "title" VARCHAR(255),
+          "title" TEXT NOT NULL,
           "createdAt" TIMESTAMP NOT NULL,
-          "updatedAt" TIMESTAMP NOT NULL
+          "updatedAt" TIMESTAMP NOT NULL,
+          "metadata" TEXT
         )
       `);
       

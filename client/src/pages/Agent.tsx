@@ -571,6 +571,7 @@ export default function AgentPage() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showIntro, setShowIntro] = useState(true);
+  const [hasSeenIntro, setHasSeenIntro] = useState(false);
   
   // Stati per la gestione delle conversazioni
   const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
@@ -608,6 +609,15 @@ export default function AgentPage() {
     }
   ];
   
+  // Controlla se l'utente ha già visto l'intro
+  useEffect(() => {
+    const introSeen = localStorage.getItem('introSeen');
+    if (introSeen === 'true') {
+      setShowIntro(false);
+      setHasSeenIntro(true);
+    }
+  }, []);
+  
   // Animazioni introduttive
   useEffect(() => {
     if (showIntro) {
@@ -643,8 +653,10 @@ export default function AgentPage() {
   
   // Carica le conversazioni esistenti
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    if (!showIntro) {
+      fetchConversations();
+    }
+  }, [showIntro]);
   
   // Scorrimento automatico all'ultimo messaggio
   useEffect(() => {
@@ -726,7 +738,7 @@ export default function AgentPage() {
       setInput('');
       setIsLoading(true);
       
-      console.log('[Agent] Making API request to /api/agent/message');
+      console.log('[Agent] Making API request to /api/agent/chat');
       // Invia il messaggio all'API con fetch diretto per meglio diagnosticare l'errore
       // Crea requestData includendo conversationId solo se è un valore numerico
       const requestData: {message: string, conversationId?: number} = {
@@ -742,7 +754,7 @@ export default function AgentPage() {
       
       try {
         // Usando fetch direttamente invece di apiRequest
-        const fetchResponse = await fetch('/api/agent/message', {
+        const fetchResponse = await fetch('/api/agent/chat', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -966,8 +978,10 @@ export default function AgentPage() {
               size="lg" 
               onClick={() => {
                 setShowIntro(false);
+                setHasSeenIntro(true);
                 setMessages([]);
                 setCurrentConversationId(null);
+                localStorage.setItem('introSeen', 'true');
               }}
               className="px-10 py-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
             >
@@ -1848,6 +1862,65 @@ export default function AgentPage() {
     }
   };
 
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  // Function to handle conversation deletion
+  const deleteConversation = async (id: number) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/agent/conversations/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from conversations list
+        setConversations(prev => prev.filter(conv => conv.id !== id));
+        
+        // If it was the current conversation, start a new one
+        if (currentConversationId === id) {
+          startNewConversation();
+        }
+        
+        toast({
+          title: "Conversazione eliminata",
+          description: "La conversazione è stata eliminata con successo",
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: data.message || "Si è verificato un errore durante l'eliminazione della conversazione",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'eliminazione della conversazione:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione della conversazione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
+      setConversationToDelete(null);
+    }
+  };
+  
+  // Handle delete button click
+  const handleDeleteClick = (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation(); // Prevent triggering the button onClick
+    setConversationToDelete(conversation);
+    setIsDeleteDialogOpen(true);
+  };
+
   return (
     <div className="relative flex flex-col h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black overflow-hidden">
       {/* Header */}
@@ -1863,32 +1936,34 @@ export default function AgentPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setIsConversationsOpen(!isConversationsOpen)}
-            className="bg-white/70 dark:bg-black/70"
-          >
-            <History className="h-4 w-4 mr-2" />
-            Conversazioni
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={startNewConversation}
-            className="bg-white/70 dark:bg-black/70"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nuova chat
-          </Button>
-        </div>
+        {hasSeenIntro && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsConversationsOpen(!isConversationsOpen)}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Conversazioni
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startNewConversation}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuova chat
+            </Button>
+          </div>
+        )}
       </div>
       
       {/* Pannello laterale conversazioni */}
       <AnimatePresence>
-        {isConversationsOpen && (
+        {isConversationsOpen && hasSeenIntro && (
           <motion.div 
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -1920,20 +1995,29 @@ export default function AgentPage() {
                   </div>
                 ) : (
                   conversations.map((conversation) => (
-                    <Button
-                      key={conversation.id}
-                      variant={currentConversationId === conversation.id ? "default" : "outline"}
-                      className="w-full justify-start text-left h-auto py-3"
-                      onClick={() => loadConversation(conversation.id)}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <div className="truncate flex-1">
-                        <div className="font-medium truncate">{conversation.title}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {formatDate(conversation.updatedAt)}
+                    <div key={conversation.id} className="relative group">
+                      <Button
+                        variant={currentConversationId === conversation.id ? "default" : "outline"}
+                        className="w-full justify-start text-left h-auto py-3 pr-10"
+                        onClick={() => loadConversation(conversation.id)}
+                      >
+                        <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                        <div className="truncate flex-1">
+                          <div className="font-medium truncate">{conversation.title}</div>
+                          <div className={`text-xs ${currentConversationId === conversation.id ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {formatDate(conversation.updatedAt)}
+                          </div>
                         </div>
-                      </div>
-                    </Button>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                        onClick={(e) => handleDeleteClick(e, conversation)}
+                      >
+                        <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                      </Button>
+                    </div>
                   ))
                 )}
               </div>
@@ -2024,6 +2108,56 @@ export default function AgentPage() {
                 <>
                   <Mail className="mr-2 h-4 w-4" />
                   Invia Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Elimina conversazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare questa conversazione? L'operazione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {conversationToDelete && (
+            <div className="py-2 px-4 bg-gray-100 dark:bg-gray-800 rounded-md my-2">
+              <p className="font-medium">{conversationToDelete.title}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {formatDate(conversationToDelete.updatedAt)}
+              </p>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsDeleteDialogOpen(false);
+                setConversationToDelete(null);
+              }}
+            >
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive"
+              onClick={() => conversationToDelete && deleteConversation(conversationToDelete.id)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Eliminazione...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Elimina
                 </>
               )}
             </Button>

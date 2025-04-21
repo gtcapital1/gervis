@@ -1,899 +1,307 @@
-/**
- * GERVIS AGENT CONTROLLER
- * 
- * Controller principale per l'agente AI che gestisce:
- * - Le richieste in arrivo dall'UI
- * - L'interazione con il modello LLM
- * - La preparazione di dialoghi di conferma
- * - Il tracciamento delle conversazioni
- */
-
+import { OpenAI } from 'openai';
 import { Request, Response } from 'express';
-import { agentFunctions } from './functions';
-import { db } from '../db';
-import { conversations, messages, clients, meetings } from '@shared/schema';
-import { z } from 'zod';
-import { eq, and, desc, asc } from 'drizzle-orm';
-import OpenAI from 'openai';
-import type { ChatCompletionMessageParam } from 'openai/resources';
+import { db } from '../db'; // Import database instance
+import { conversations, messages as messagesTable } from '../../shared/schema'; // Rename to avoid conflict
+import { eq, and, asc } from 'drizzle-orm'; // Import query helpers and asc helper for sorting
+// Import necessary types from schema if needed later, e.g., for conversation history
+// import { Conversation, Message } from '../../shared/schema'; 
 
-// Tipi per gestire lo stato della conversazione
-interface ConversationState {
-  currentIntent?: string;
-  pendingAction?: {
-    type: string;
-    params: Record<string, any>;
-    requiredParams: string[];
-    collectedParams: Record<string, any>;
-  };
-}
-
-// Validazione dell'input dell'agente
-const agentRequestSchema = z.object({
-  message: z.string().min(1),
-  conversationId: z.number().optional(), // Se fornito, continua una conversazione esistente
-  context: z.record(z.any()).optional()  // Contesto aggiuntivo (opzionale)
-});
-
-// Setup client OpenAI
+// Initialize OpenAI client
+// Ensure OPENAI_API_KEY is set in your environment variables
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Log the API key status (without revealing the key)
-console.log('[Agent Controller] OpenAI API key status:', process.env.OPENAI_API_KEY ? 'Key is set' : 'Key is missing');
-console.log('[Agent Controller] OpenAI API key length:', process.env.OPENAI_API_KEY ? process.env.OPENAI_API_KEY.length : 0);
+// Type for OpenAI message
+type OpenAIMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
 
-/**
- * Gestore principale per le richieste all'agente
- * Riceve un messaggio dall'utente, lo elabora e restituisce una risposta
- */
-export async function handleAgentRequest(req: Request, res: Response) {
+// Basic chat handler function
+export const handleChat = async (req: Request, res: Response) => {
+  // Check if API Key is loaded
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OpenAI API Key not configured.');
+    return res.status(500).json({ 
+      success: false, 
+      error: 'AI service is not configured.' 
+    });
+  }
+
   try {
-    console.log('[Agent Controller] Received request to /api/agent/message');
-    console.log('[Agent Controller] Request body:', req.body);
-    
-    // Verifica che l'utente sia autenticato
+    const { message, conversationId } = req.body; // Expect message content and optional conversationId
+
+    // Ensure message is a string
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Message content must be a non-empty string' 
+      });
+    }
+
+    // Get user ID from req.user - ensure it exists
+    // This is set by the isAuthenticated middleware
     if (!req.user || !req.user.id) {
-      console.log('[Agent Controller] Authentication required but user not found');
       return res.status(401).json({
         success: false,
-        message: 'Autenticazione richiesta'
+        error: 'User not authenticated'
       });
     }
-    
-    console.log('[Agent Controller] User authenticated:', req.user.id);
+    const userId = req.user.id;
 
-    // Valida l'input
-    const validationResult = agentRequestSchema.safeParse(req.body);
-    if (!validationResult.success) {
-      console.log('[Agent Controller] Input validation failed:', JSON.stringify(validationResult.error.format()));
-      return res.status(400).json({
-        success: false,
-        message: 'Input non valido',
-        errors: validationResult.error.format()
-      });
-    }
-    
-    console.log('[Agent Controller] Input validated successfully');
-    
-    const { message, conversationId, context } = validationResult.data;
-    console.log('[Agent Controller] Parsed data:', { message, conversationId: conversationId || 'not provided', hasContext: !!context });
-    
-    // Recupera o crea una nuova conversazione
+    // Get or create conversation
     let currentConversationId = conversationId;
-    let conversationState: ConversationState = {};
+    let conversationTitle = message.substring(0, 50); // First 50 chars as title
     
     if (!currentConversationId) {
-      // Crea una nuova conversazione
-      const newConversation = await db.insert(conversations)
-        .values({
-          userId: req.user.id,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          title: generateConversationTitle(message)
-        })
-        .returning();
+      // Create a new conversation using camelCase column names
+      console.log('Creating new conversation with title:', conversationTitle);
       
-      if (!newConversation || newConversation.length === 0) {
-        throw new Error('Impossibile creare una nuova conversazione');
-      }
+      const newConversation = await db.insert(conversations).values({
+        userId: userId,
+        title: conversationTitle,
+        createdAt: new Date(),  // camelCase nel database
+        updatedAt: new Date()   // camelCase nel database
+      }).returning({ id: conversations.id });
       
       currentConversationId = newConversation[0].id;
+      console.log('Created new conversation with ID:', currentConversationId);
     } else {
-      // Recupera lo stato della conversazione esistente
-      const existingConversation = await db.select()
-        .from(conversations)
-        .where(eq(conversations.id, currentConversationId))
-        .limit(1);
-      
-      if (existingConversation && existingConversation.length > 0) {
-        try {
-          // Recupera lo stato della conversazione dai metadati
-          if (existingConversation[0].metadata) {
-            const metadata = JSON.parse(existingConversation[0].metadata as string);
-            if (metadata.state) {
-              conversationState = metadata.state;
-              console.log('[Agent] Stato conversazione recuperato:', JSON.stringify(conversationState));
-            }
-          }
-        } catch (e) {
-          console.error('[Agent] Errore nel parsing dello stato della conversazione:', e);
-        }
-      }
+      // Update existing conversation timestamp
+      await db.update(conversations)
+        .set({ updatedAt: new Date() })  // Usa camelCase
+        .where(eq(conversations.id, currentConversationId));
     }
     
-    // Salva il messaggio dell'utente
-    await db.insert(messages)
-      .values({
-        conversationId: currentConversationId,
-        content: message,
-        role: 'user',
-        createdAt: new Date()
-      });
-    
-    // Recuperiamo l'ultima risposta dell'assistente per questo thread di conversazione
-    let lastAssistantMessage = null;
-    try {
-      const recentMessages = await db.select()
-        .from(messages)
-        .where(and(
-          eq(messages.conversationId, currentConversationId),
-          eq(messages.role, 'assistant')
-        ))
-        .orderBy(desc(messages.createdAt))
-        .limit(1);
-      
-      if (recentMessages && recentMessages.length > 0) {
-        lastAssistantMessage = recentMessages[0].content;
-        console.log('[Agent] Recuperato ultimo messaggio assistente per contesto');
-      }
-    } catch (e) {
-      console.log('[Agent] Errore nel recupero dell\'ultimo messaggio:', e);
-    }
-    
-    // Prepariamo un messaggio di sistema potenziato che include contesto temporale
-    const currentDate = new Date();
-    const formattedDate = currentDate.toLocaleDateString('it-IT', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    const formattedTime = currentDate.toLocaleTimeString('it-IT', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    let systemMessage = `Sei Gervis, un assistente virtuale esperto che aiuta i consulenti finanziari italiani.
-    
-    PRINCIPI GUIDA:
-    1. Per la creazione di clienti, le informazioni essenziali sono: nome, cognome ed email
-    2. Per la creazione di appuntamenti, le informazioni essenziali sono: nome del cliente e orario dell'appuntamento
-    3. NON chiedere ulteriori conferme quando l'utente ha già fornito le informazioni essenziali
-    4. Quando hai le informazioni essenziali, rispondi con un breve messaggio come "Certo, ecco il form per l'appuntamento" o "Perfetto, conferma i dati qui sotto" e POI passa DIRETTAMENTE alla creazione con createClient o createMeeting
-    5. Non richiedere conferma e non chiedere informazioni non essenziali; usa valori predefiniti ragionevoli per i campi non specificati
-    6. Deduci il più possibile dalle informazioni fornite e riempi i campi mancanti non essenziali con valori ragionevoli. Per le informazioni essenziali invece chiedi conferma
-    7. Rispondi in italiano e in modo conversazionale
-    8. Per l'onboarding di un cliente, usa la funzione sendOnboardingEmail quando l'utente chiede di inviare un onboarding a un cliente esistente
-    9. Se un cliente è appena stato creato, suggerisci sempre di procedere con l'onboarding
-    10. Per le email personalizzate, chiama immediatamente sendCustomEmail non appena hai le informazioni essenziali: il cliente (nome/email) e l'argomento dell'email. Non chiedere ulteriori conferme ma mostra direttamente il form con l'email generata
-    11. Per le email puoi utilizzare sendCustomEmail anche solo conoscendo l'argomento, senza un cliente specifico. L'utente potrà scegliere il destinatario nel form. Se l'utente dice frasi come "prepara un'email su [argomento]", usa subito sendCustomEmail con quell'argomento.
-    
-    INFORMAZIONI TEMPORALI:
-    Oggi è ${formattedDate}.
-    Ora sono le ${formattedTime}.
-    
-    CONTESTO ATTUALE:`;
-    
-    // Aggiungiamo informazioni sullo stato della conversazione
-    if (conversationState.currentIntent) {
-      systemMessage += `\nL'utente sta attualmente eseguendo l'azione "${conversationState.currentIntent}".`;
-      
-      if (conversationState.pendingAction) {
-        systemMessage += `\nHai già raccolto questi parametri: ${JSON.stringify(conversationState.pendingAction.collectedParams)}.`;
-        const requiredParams = Array.isArray(conversationState.pendingAction.requiredParams) ? 
-          conversationState.pendingAction.requiredParams : [];
-        const missingParams = requiredParams.filter(
-          (p: string) => !conversationState.pendingAction?.collectedParams[p]
-        );
-        
-        if (missingParams.length > 0) {
-          systemMessage += `\nParametri ancora mancanti: ${missingParams.join(', ')}.`;
-          systemMessage += `\nCerca di estrarre questi parametri dal messaggio dell'utente o suggerisci valori ragionevoli.`;
-        }
-      }
-    } else {
-      systemMessage += `\nNessuna azione in corso. Decidi la migliore azione in base al messaggio dell'utente.`;
-    }
-    
-    // Chiama l'API di OpenAI per generare una risposta, includendo lo stato della conversazione
-    const agentResponse = await processAgentRequestWithOpenAI(req.user.id, message, {
-      conversationState,
-      lastAssistantMessage,
-      systemMessage
-    });
-    
-    // Aggiorna lo stato della conversazione in base alle funzioni chiamate
-    if (agentResponse.functionCalls && agentResponse.functionCalls.length > 0) {
-      const functionCall = agentResponse.functionCalls[0];
-      
-      console.log('[Agent] Intent corrente:', conversationState.currentIntent || 'nessuno');
-      console.log('[Agent] Nuova funzione chiamata:', functionCall.name);
-      
-      // Aggiorna l'intent corrente
-      const vecchioIntent = conversationState.currentIntent;
-      conversationState.currentIntent = functionCall.name;
-      console.log(`[Agent] Intent aggiornato: da "${vecchioIntent || 'nessuno'}" a "${functionCall.name}"`);
-      
-      // Se è un'operazione con parametri, gestiamo lo stato
-      const requiredParamsExist = agentFunctions[functionCall.name]?.parameters?.required || [];
-      const providedParams = functionCall.parameters || {};
-      
-      console.log('[Agent] Parametri richiesti:', requiredParamsExist);
-      console.log('[Agent] Parametri forniti:', providedParams);
-      
-      // Fusioniamo i parametri precedentemente raccolti con quelli nuovi
-      let mergedParams = {...providedParams};
-      if (conversationState.pendingAction && 
-          conversationState.pendingAction.type === functionCall.name && 
-          conversationState.pendingAction.collectedParams) {
-        // Mantieni i vecchi parametri che non sono stati sovrascritti
-        mergedParams = {
-          ...conversationState.pendingAction.collectedParams,
-          ...providedParams // I nuovi parametri hanno priorità
-        };
-        console.log('[Agent] Parametri fusi:', mergedParams);
-      }
-      
-      const missingParams = Array.isArray(requiredParamsExist) ? requiredParamsExist.filter(
-        (param: string) => !mergedParams[param] && mergedParams[param] !== 0 && mergedParams[param] !== false
-      ) : [];
-      
-      console.log('[Agent] Parametri mancanti:', missingParams);
-      
-      if (missingParams.length > 0) {
-        // Operazione incompleta, salva lo stato pendente
-        conversationState.pendingAction = {
-          type: functionCall.name,
-          params: providedParams,
-          requiredParams: Array.isArray(requiredParamsExist) ? requiredParamsExist : [],
-          collectedParams: mergedParams
-        };
-        
-        console.log('[Agent] Operazione incompleta, parametri mancanti:', missingParams);
-      } else {
-        // Abbiamo tutti i parametri, ma non eseguiamo direttamente l'azione
-        // La conferma e l'esecuzione saranno gestite tramite l'interfaccia UI
-        conversationState.pendingAction = {
-          type: functionCall.name,
-          params: providedParams,
-          requiredParams: Array.isArray(requiredParamsExist) ? requiredParamsExist : [],
-          collectedParams: mergedParams
-        };
-        
-        console.log('[Agent] Operazione pronta per il dialogo UI');
-      }
-    } else if (agentResponse.functionResults && agentResponse.functionResults.length > 0) {
-      const result = agentResponse.functionResults[0];
-      
-      // Se la funzione restituisce un dialogo, manteniamo lo stato della conversazione
-      // In modo che l'utente possa confermare l'azione dal frontend
-      if (result.showDialog || result.showMeetingDialog || result.showClientDialog) {
-        console.log('[Agent] Mantengo lo stato per il dialogo UI');
-      } else {
-        // Se è solo una ricerca o un'altra azione senza dialogo, possiamo pulire lo stato
-        console.log('[Agent] Resetto lo stato perché l\'azione è completata');
-        conversationState.currentIntent = undefined;
-        conversationState.pendingAction = undefined;
-      }
-    }
-    
-    // Salva la risposta dell'agente
-    await db.insert(messages)
-      .values({
-        conversationId: currentConversationId,
-        content: agentResponse.text,
-        role: 'assistant',
-        createdAt: new Date(),
-        functionCalls: agentResponse.functionCalls ? JSON.stringify(agentResponse.functionCalls) : null,
-        functionResults: agentResponse.functionResults ? JSON.stringify(agentResponse.functionResults) : null
-      });
-    
-    // Aggiorna il timestamp della conversazione e salva lo stato
-    await db.update(conversations)
-      .set({ 
-        updatedAt: new Date(),
-        metadata: JSON.stringify({ state: conversationState })
-      })
-      .where(eq(conversations.id, currentConversationId));
-    
-    console.log('[Agent] Stato conversazione aggiornato:', JSON.stringify(conversationState));
-    
-    // Restituisci la risposta all'utente con eventuali dati per i dialog UI
-    return res.json({
-      success: true,
-      response: agentResponse.text,
+    // Save user message to database
+    const userMessageRecord = await db.insert(messagesTable).values({
       conversationId: currentConversationId,
-      functionCalls: agentResponse.functionCalls,
-      functionResults: agentResponse.functionResults,
-      conversationState: conversationState,
-      // Dati specifici per il frontend per aprire i dialog UI
-      dialog: agentResponse.functionResults && agentResponse.functionResults.length > 0
-        ? {
-            // Se è un dialog per creare un cliente
-            showClientDialog: agentResponse.functionResults[0].showClientDialog || false,
-            // Se è un dialog per creare un meeting
-            showMeetingDialog: agentResponse.functionResults[0].showMeetingDialog || false,
-            // Tipo di dialog (createClient, createMeeting, ecc.)
-            type: agentResponse.functionResults[0].dialogType,
-            // Dati del cliente da mostrare nel dialog
-            clientData: agentResponse.functionResults[0].clientData,
-            // Dati del meeting da mostrare nel dialog
-            meetingData: agentResponse.functionResults[0].meetingData
-          }
-        : null
+      content: message,
+      role: 'user',
+      createdAt: new Date()
+    }).returning({ id: messagesTable.id });
+    
+    console.log('Saved user message with ID:', userMessageRecord[0].id);
+    
+    // Get conversation history from database
+    const historyMessages = await db.select()
+      .from(messagesTable)
+      .where(eq(messagesTable.conversationId, currentConversationId))
+      .orderBy(asc(messagesTable.createdAt));
+    
+    console.log(`Found ${historyMessages.length} messages in conversation history`);
+
+    // Prepare messages for OpenAI API, including history
+    const validRoles = ['user', 'assistant']; // Define valid roles for history
+    
+    // Create correctly typed array for OpenAI
+    const systemMessage: OpenAIMessage = {
+      role: 'system',
+      content: 'You are Gervis, an advanced AI assistant specialized for financial advisors. Your purpose is to help them onboard and manage clients, automate tasks, provide insights and generate ideas. Your capabilities include: helping with client management, scheduling appointments, providing investment ideas, generating reports, answering questions about financial products, and guiding advisors through platform features. You have expertise in wealth management, financial planning, client relations, and investment strategies. Always respond in a professional, concise manner that reflects industry best practices.'
+    };
+    
+    // Convert database messages to OpenAI format with proper types
+    const historyOpenAIMessages: OpenAIMessage[] = historyMessages
+      .filter(msg => validRoles.includes(msg.role))
+      .map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }));
+    
+    // Combine all messages
+    const apiMessages: OpenAIMessage[] = [systemMessage, ...historyOpenAIMessages];
+
+    // --- DEBUG LOG --- 
+    console.log('Sending messages to OpenAI:', JSON.stringify(apiMessages, null, 2));
+    // --- END DEBUG LOG ---
+
+    // Call OpenAI API with properly typed messages
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Using the specified model
+      messages: apiMessages,
+      // Add other parameters like temperature, max_tokens if needed
+    });
+
+    const aiResponse = completion.choices[0]?.message?.content;
+
+    if (!aiResponse) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Failed to get response from AI' 
+      });
+    }
+    
+    // Save assistant response to database
+    await db.insert(messagesTable).values({
+      conversationId: currentConversationId,
+      content: aiResponse,
+      role: 'assistant',
+      createdAt: new Date()
     });
     
-  } catch (error) {
-    console.error('[AgentController] Error processing request:', error);
-    return res.status(500).json({
-      success: false,
-      message: "Errore durante l'elaborazione della richiesta",
-      error: process.env.NODE_ENV === 'production' ? undefined : String(error)
+    // Return response with conversationId
+    res.json({ 
+      success: true, 
+      response: aiResponse,
+      conversationId: currentConversationId
     });
-  }
-}
 
-/**
- * Recupera la cronologia della conversazione
- */
-export async function getConversationHistory(req: Request, res: Response) {
+  } catch (error) {
+    console.error('Error handling chat:', error);
+    if (error instanceof OpenAI.APIError) {
+       res.status(error.status || 500).json({ 
+         success: false, 
+         error: error.message 
+       });
+    } else {
+       res.status(500).json({ 
+         success: false, 
+         error: 'An internal server error occurred' 
+       });
+    }
+  }
+};
+
+// Get all conversations for the logged-in user
+export const getConversations = async (req: Request, res: Response) => {
   try {
-    // Verifica che l'utente sia autenticato
+    // Ensure user is authenticated
     if (!req.user || !req.user.id) {
       return res.status(401).json({
         success: false,
-        message: 'Autenticazione richiesta'
+        message: 'User not authenticated'
       });
     }
-    
-    const conversationId = parseInt(req.params.id);
-    if (isNaN(conversationId)) {
-      return res.status(400).json({
-        success: false,
-        message: 'ID conversazione non valido'
-      });
-    }
-    
-    // Verifica che la conversazione appartenga all'utente
-    const conversation = await db.select()
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.id, conversationId),
-          eq(conversations.userId, req.user.id)
-        )
-      );
-    
-    if (!conversation || conversation.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Conversazione non trovata'
-      });
-    }
-    
-    // Recupera i messaggi ordinati per data di creazione
-    const messageHistory = await db.select()
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(asc(messages.createdAt));
-    
-    return res.json({
-      success: true,
-      conversation: conversation[0],
-      messages: messageHistory
-    });
-    
-  } catch (error) {
-    console.error('[AgentController] Error fetching conversation history:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Errore durante il recupero della cronologia della conversazione',
-      error: process.env.NODE_ENV === 'production' ? undefined : String(error)
-    });
-  }
-}
 
-/**
- * Recupera l'elenco delle conversazioni dell'utente
- */
-export async function getConversations(req: Request, res: Response) {
-  try {
-    // Verifica che l'utente sia autenticato
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({
-        success: false,
-        message: 'Autenticazione richiesta'
-      });
-    }
-    
-    // Recupera le conversazioni dell'utente
+    // Fetch conversations from DB for the logged-in user
     const userConversations = await db.select()
       .from(conversations)
       .where(eq(conversations.userId, req.user.id))
-      .orderBy(desc(conversations.updatedAt));
+      .orderBy(asc(conversations.updatedAt));
     
-    return res.json({
-      success: true,
-      conversations: userConversations
+    res.json({ 
+      success: true, 
+      conversations: userConversations 
     });
-    
   } catch (error) {
-    console.error('[AgentController] Error fetching conversations:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Errore durante il recupero delle conversazioni',
-      error: process.env.NODE_ENV === 'production' ? undefined : String(error)
+    console.error('Error fetching conversations:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch conversations' 
     });
   }
-}
+};
 
-// Genera un titolo per la conversazione basato sul primo messaggio
-function generateConversationTitle(message: string): string {
-  // Se il messaggio è troppo lungo, prendiamo solo l'inizio
-  const maxLength = 40;
-  const truncated = message.length > maxLength 
-    ? message.substring(0, maxLength) + '...'
-    : message;
-  
-  return truncated;
-}
-
-// ==========================================
-// INTEGRAZIONE CON OPENAI API
-// ==========================================
-interface AgentResponse {
-  text: string;
-  functionCalls?: any[];
-  functionResults?: any[];
-}
-
-async function processAgentRequestWithOpenAI(userId: number, message: string, context?: any): Promise<AgentResponse> {
-  console.log('[Agent] Elaborazione richiesta per userId:', userId);
-  console.log('[Agent] Messaggio utente:', message);
-
-  // Prepara i messaggi per l'API di OpenAI
-  const messages: ChatCompletionMessageParam[] = [
-    {
-      role: "system",
-      content: context?.systemMessage || `Sei Gervis, un assistente virtuale che prepara dialoghi di conferma ma non esegue mai azioni finali.`
-    }
-  ];
-
-  // Se c'è un messaggio precedente dell'assistente, includiamolo per dare contesto
-  if (context?.lastAssistantMessage) {
-    messages.push({
-      role: "assistant",
-      content: context.lastAssistantMessage
-    });
-  }
-
-  // Aggiungi il messaggio dell'utente
-  messages.push({
-    role: "user",
-    content: message
-  });
-
-  // Funzioni disponibili per l'AI
-  const availableFunctions = [
-    {
-      name: "searchClients",
-      description: "Cerca clienti per nome, email o altre informazioni. Usa questa funzione per trovare clienti in base a qualsiasi criterio menzionato dall'utente.",
-      parameters: {
-        type: "object",
-        properties: {
-          query: {
-            type: "string",
-            description: "Testo di ricerca (nome, email, o qualsiasi altra informazione del cliente)"
-          },
-          limit: {
-            type: "integer",
-            description: "Numero massimo di risultati. Default: 10."
-          },
-          includeArchived: {
-            type: "boolean",
-            description: "Includi clienti archiviati. Default: false."
-          }
-        },
-        required: ["query"]
-      }
-    },
-    {
-      name: "searchMeetings",
-      description: "Cerca appuntamenti per data, cliente o qualsiasi altro criterio. Usa questa funzione quando l'utente chiede di trovare o visualizzare appuntamenti.",
-      parameters: {
-        type: "object",
-        properties: {
-          startDate: {
-            type: "string",
-            description: "Data di inizio della ricerca. Puoi dedurla dal messaggio dell'utente. Se l'utente dice 'oggi', usa la data di oggi."
-          },
-          endDate: {
-            type: "string",
-            description: "Data di fine della ricerca. Se l'utente chiede gli appuntamenti 'di oggi', startDate e endDate dovrebbero essere lo stesso giorno."
-          },
-          clientId: {
-            type: "integer",
-            description: "Filtra per cliente specifico. Deducilo dal contesto se possibile."
-          },
-          timeframe: {
-            type: "string",
-            description: "Periodo predefinito: 'today' (oggi), 'future' (futuri), 'past' (passati), 'week' (questa settimana), 'all' (tutti). Se l'utente non specifica, scegli l'opzione più logica."
-          },
-          limit: {
-            type: "integer",
-            description: "Numero massimo di risultati. Default: 20."
-          }
-        }
-      }
-    },
-    {
-      name: "createClient",
-      description: "Prepara i dati per la creazione di un nuovo cliente, mostrando un dialogo di conferma. Usa questa funzione quando l'utente vuole aggiungere un cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          firstName: {
-            type: "string",
-            description: "Nome del cliente. Obbligatorio."
-          },
-          lastName: {
-            type: "string",
-            description: "Cognome del cliente. Obbligatorio."
-          },
-          email: {
-            type: "string",
-            description: "Email del cliente. Obbligatorio."
-          }
-        },
-        required: ["firstName", "lastName", "email"]
-      }
-    },
-    {
-      name: "createMeeting",
-      description: "Prepara i dati per un nuovo appuntamento, mostrando un dialogo di conferma. Usa questa funzione quando l'utente vuole creare un appuntamento.",
-      parameters: {
-        type: "object",
-        properties: {
-          clientIdentifier: {
-            type: "string",
-            description: "Nome, cognome o email del cliente. Usa questo se l'utente non specifica un ID cliente."
-          },
-          clientId: {
-            type: "integer",
-            description: "ID del cliente. Opzionale se viene fornito clientIdentifier."
-          },
-          subject: {
-            type: "string",
-            description: "Oggetto dell'appuntamento. Se non specificato, suggerisci un oggetto ragionevole."
-          },
-          dateTime: {
-            type: "string",
-            description: "Data e ora dell'appuntamento. Cerca di dedurre dal messaggio dell'utente. Se l'utente dice solo 'alle 18', assumi che sia oggi."
-          },
-          duration: {
-            type: "integer",
-            description: "Durata in minuti. Default: 60 minuti."
-          },
-          location: {
-            type: "string",
-            description: "Luogo dell'appuntamento. Default: 'incontro'. Se l'utente non specifica, scegli un'opzione ragionevole."
-          },
-          notes: {
-            type: "string",
-            description: "Note aggiuntive. Opzionale."
-          }
-        },
-        required: ["subject", "dateTime"]
-      }
-    },
-    {
-      name: "sendOnboardingEmail",
-      description: "Invia email di onboarding a un cliente esistente. Usa questa funzione quando l'utente vuole inviare un'email di onboarding a un cliente.",
-      parameters: {
-        type: "object",
-        properties: {
-          clientIdentifier: {
-            type: "string",
-            description: "Nome, cognome o email del cliente. Usa questo se l'utente non specifica un ID cliente."
-          },
-          clientId: {
-            type: "integer",
-            description: "ID del cliente. Opzionale se viene fornito clientIdentifier."
-          }
-        }
-      }
-    },
-    {
-      name: "sendCustomEmail",
-      description: "Compone e invia un'email personalizzata a un cliente. Usa questa funzione IMMEDIATAMENTE quando l'utente vuole inviare un'email a un cliente, bastano solo il nome del cliente e un semplice accenno all'argomento dell'email. Il sistema genererà automaticamente un contenuto personalizzato.",
-      parameters: {
-        type: "object",
-        properties: {
-          clientIdentifier: {
-            type: "string",
-            description: "Nome, cognome o email del cliente. Usa questo se l'utente non specifica un ID cliente."
-          },
-          clientId: {
-            type: "integer",
-            description: "ID del cliente. Opzionale se viene fornito clientIdentifier."
-          },
-          subject: {
-            type: "string",
-            description: "Oggetto dell'email. Crea un oggetto conciso e professionale. Se non specificato, verrà generato automaticamente."
-          },
-          messageTemplate: {
-            type: "string",
-            description: "Contenuto dell'email. Se non specificato, lo genererò automaticamente in base al topic. Il messaggio dovrà includere un saluto iniziale formale e una chiusura professionale."
-          },
-          topic: {
-            type: "string",
-            description: "Argomento dell'email se il contenuto deve essere generato. Es: 'valore aggiunto dei nostri servizi' o 'proposte di investimento'."
-          },
-          language: {
-            type: "string",
-            description: "Lingua dell'email: 'italian' o 'english'. Default: 'italian'."
-          }
-        },
-        required: ["clientIdentifier"]
-      }
-    }
-  ];
-
+// Get a specific conversation by ID
+export const getConversationById = async (req: Request, res: Response) => {
   try {
-    console.log('[Agent] Funzioni disponibili:', availableFunctions.map(f => f.name).join(', '));
-    console.log('[Agent] Preparing to call OpenAI API with model: gpt-4o-mini');
-
-    // Chiamata a OpenAI
-    try {
-      console.log('[Agent] Sending request to OpenAI API...');
-      const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages,
-        tools: availableFunctions.map(func => ({
-          type: "function",
-          function: func
-        })),
-        tool_choice: "auto",
-        temperature: 0.7,
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
       });
-      
-      console.log('[Agent] OpenAI API response received successfully');
-      
-      // Estrai la risposta
-      const assistantResponse = response.choices[0].message;
-      let responseText = assistantResponse.content || '';
-      let functionCalls = [];
-      let functionResults = [];
-      
-      // Gestisci tool calling se presente
-      if (assistantResponse.tool_calls && assistantResponse.tool_calls.length > 0) {
-        for (const toolCall of assistantResponse.tool_calls) {
-          if (toolCall.type === 'function') {
-            const functionName = toolCall.function.name;
-            let functionArgs;
-            
-            try {
-              functionArgs = JSON.parse(toolCall.function.arguments);
-            } catch (e) {
-              console.error(`[Agent] Errore nel parsing degli argomenti: ${e}`);
-              functionArgs = {};
-            }
-
-            // Registra la chiamata a funzione
-            functionCalls.push({
-              name: functionName,
-              parameters: functionArgs
-            });
-
-            // Esegui la funzione
-            if (agentFunctions[functionName]) {
-              try {
-                const result = await agentFunctions[functionName].handler(userId, functionArgs);
-                
-                // Se è richiesta una generazione dinamica di contenuto email
-                if (result.needsGeneration && functionName === 'sendCustomEmail') {
-                  // Ottieni informazioni sul cliente e sull'argomento
-                  const clientInfo = result.clientInfo;
-                  const topic = result.topic || 'informazioni importanti';
-                  
-                  // Costruisci un prompt appropriato in base a clientInfo
-                  let emailPrompt;
-                  if (clientInfo) {
-                    emailPrompt = `Scrivi un'email professionale in italiano da inviare a ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". 
-                    L'email deve essere formale ma cordiale, con un'apertura appropriata, un corpo dettagliato e una chiusura professionale.
-                    Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
-                    Se è una presentazione di servizi, descrivi i vantaggi in modo convincente e personalizzato.
-                    Assicurati che l'email sia completamente personalizzata e unica, non un template generico.
-                    NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
-                  } else {
-                    // Prompt senza destinatario specifico
-                    emailPrompt = `Scrivi un'email professionale in italiano riguardo a "${topic}". 
-                    L'email deve essere formale ma cordiale, con un'apertura appropriata del tipo "Gentile Cliente," (sempre al singolare), un corpo dettagliato e una chiusura professionale.
-                    Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
-                    Se è una presentazione di servizi, descrivi i vantaggi in modo convincente.
-                    Assicurati che l'email sia ben strutturata e si possa adattare a un destinatario singolo.
-                    NON utilizzare mai formule di saluto al plurale come "Gentilissimi," o "Spettabili,".
-                    NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
-                  }
-                  
-                  // Chiamata a OpenAI per la generazione del contenuto
-                  const emailResponse = await openai.chat.completions.create({
-                    model: "gpt-4o-mini",
-                    messages: [{ role: "system", content: "Sei un assistente esperto nella scrittura di email professionali e personalizzate. Non includere mai firme o segnaposti del tipo [il tuo nome], [firma], ecc. alla fine dell'email, poiché queste verranno aggiunte automaticamente dal sistema." },
-                               { role: "user", content: emailPrompt }],
-                    temperature: 0.7,
-                  });
-                  
-                  // Estrai il contenuto generato
-                  const generatedContent = emailResponse.choices[0].message.content || '';
-                  
-                  // Aggiorna il risultato con il contenuto generato
-                  result.messageTemplate = generatedContent;
-                  // Assicuriamoci che il subject sia impostato
-                  if (!result.subject) {
-                    result.subject = `Informazioni su ${topic}`;
-                  }
-                  
-                  delete result.needsGeneration;
-                  
-                  // Modifico la risposta per mostrare subito il dialog per l'email
-                  result.showDialog = true;
-                  result.showEmailDialog = true;
-                  
-                  // Messaggio appropriato in base alla presenza di un cliente
-                  if (clientInfo) {
-                    result.message = `Ho preparato un'email per ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". Puoi modificarla e inviarla.`;
-                  } else {
-                    result.message = `Ho preparato un'email riguardo a "${topic}". Seleziona un destinatario, poi modifica e invia l'email.`;
-                  }
-                  
-                  console.log('[Agent] Email generata dinamicamente da OpenAI:', {
-                    subject: result.subject,
-                    hasMessageTemplate: !!result.messageTemplate,
-                    messageTemplateLength: result.messageTemplate ? result.messageTemplate.length : 0,
-                    hasClientInfo: !!result.clientInfo
-                  });
-                }
-                
-                functionResults.push(result);
-
-                // Genera una risposta in base al risultato
-                if (result.success) {
-                  // Risposta per funzioni con successo
-                  responseText = result.message || responseText;
-                  
-                  // Aggiungi flag per indicare che c'è un dialog da mostrare
-                  if (result.showMeetingDialog || result.showClientDialog || 
-                      result.showDialog || result.dialogData) {
-                    console.log('[Agent] Dialog rilevato nei risultati');
-                  }
-                } else {
-                  // Risposta per errori
-                  if (result.clientOptions && result.clientOptions.length > 0) {
-                    // Mostra le opzioni dei clienti
-                    responseText = result.message + "\n\nEcco i clienti che ho trovato:\n";
-                    result.clientOptions.forEach((client: any, index: number) => {
-                      responseText += `${index + 1}. ${client.name} (${client.email})\n`;
-                    });
-                    responseText += "\nPuoi specificare quale cliente scegliere.";
-                  } else if (result.requiredParams && result.requiredParams.length > 0) {
-                    // Chiedi i parametri mancanti in modo conversazionale
-                    const missingParams = result.requiredParams.filter(
-                      (param: string) => !functionArgs[param]
-                    );
-                    
-                    if (missingParams.length > 0) {
-                      const paramDescriptions: Record<string, string> = {
-                        'firstName': 'nome',
-                        'lastName': 'cognome',
-                        'email': 'email',
-                        'clientId': 'cliente',
-                        'clientIdentifier': 'nome o email del cliente',
-                        'subject': 'oggetto dell\'appuntamento',
-                        'dateTime': 'data e ora'
-                      };
-                      
-                      const readableParams = missingParams.map((p: string) => paramDescriptions[p] || p).join(', ');
-                      responseText = `Ho bisogno di altre informazioni: ${readableParams}. Puoi fornirmele?`;
-                    } else {
-                      responseText = result.message || "Ci sono alcuni problemi con i dati inseriti.";
-                    }
-                  } else {
-                    responseText = result.message || "Non sono riuscito a completare la richiesta.";
-                  }
-                }
-              } catch (error) {
-                console.error(`[Agent] Errore nell'esecuzione di ${functionName}:`, error);
-                responseText = "Si è verificato un errore. Riprova più tardi.";
-              }
-            } else {
-              responseText = "La funzione richiesta non è disponibile al momento.";
-            }
-          }
-        }
-      }
-      
-      return {
-        text: responseText,
-        functionCalls: functionCalls.length > 0 ? functionCalls : undefined,
-        functionResults: functionResults.length > 0 ? functionResults : undefined
-      };
-    } catch (openaiError) {
-      console.error('[Agent] OpenAI API call failed:', openaiError);
-      
-      if (openaiError instanceof Error) {
-        console.error('[Agent] OpenAI error message:', openaiError.message);
-        console.error('[Agent] OpenAI error stack:', openaiError.stack);
-        
-        // If it's an API error with a response
-        if ('response' in openaiError) {
-          console.error('[Agent] OpenAI API error response:', (openaiError as any).response?.data);
-        }
-      }
-      
-      throw openaiError;
     }
+
+    const conversationId = parseInt(req.params.id, 10);
+    if (isNaN(conversationId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid conversation ID' 
+      });
+    }
+
+    // Ensure the conversation belongs to the logged-in user
+    const conversation = await db.select()
+      .from(conversations)
+      .where(and(
+        eq(conversations.id, conversationId),
+        eq(conversations.userId, req.user.id)
+      ));
+    
+    if (conversation.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found'
+      });
+    }
+
+    // Fetch messages for this conversation
+    const conversationMessages = await db.select()
+      .from(messagesTable)
+      .where(eq(messagesTable.conversationId, conversationId))
+      .orderBy(asc(messagesTable.createdAt));
+
+    res.json({ 
+      success: true, 
+      messages: conversationMessages,
+      conversation: conversation[0]
+    });
   } catch (error) {
-    console.error('[Agent] Error during agent request processing:', error);
-    
-    if (error instanceof Error) {
-      console.error('[Agent] Error message:', error.message);
-      console.error('[Agent] Error stack:', error.stack);
-    }
-    
-    // Fallback in caso di errore
-    return {
-      text: 'Scusa, sto avendo qualche problema tecnico a elaborare la tua richiesta. Riprova tra poco.',
-    };
+    console.error('Error fetching conversation by ID:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to fetch conversation' 
+    });
   }
-}
+};
 
-// Funzione helper per estrarre termini di ricerca
-function extractSearchTerm(message: string): string {
-  // Cerca pattern come "cerca cliente Mario" o "trova cliente con email mario@"
-  const patterns = [
-    /cerca\s+client[ei]\s+(?:chiamat[oi]\s+)?([a-zA-Z0-9@.]+)/i,
-    /trova\s+client[ei]\s+(?:chiamat[oi]\s+)?([a-zA-Z0-9@.]+)/i,
-    /client[ei]\s+(?:che\s+si\s+chiam(?:a|ano)\s+)?([a-zA-Z0-9@.]+)/i
-  ];
-  
-  for (const pattern of patterns) {
-    const match = message.match(pattern);
-    if (match && match[1]) {
-      return match[1];
+// Delete a conversation by ID
+export const deleteConversation = async (req: Request, res: Response) => {
+  try {
+    // Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({
+        success: false,
+        message: 'User not authenticated'
+      });
     }
+
+    const conversationId = parseInt(req.params.id, 10);
+    if (isNaN(conversationId)) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Invalid conversation ID' 
+      });
+    }
+
+    // Check if the conversation exists and belongs to the user
+    const conversation = await db.select()
+      .from(conversations)
+      .where(and(
+        eq(conversations.id, conversationId),
+        eq(conversations.userId, req.user.id)
+      ));
+    
+    if (conversation.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Conversation not found or you do not have permission to delete it'
+      });
+    }
+
+    // Delete all messages in the conversation first
+    await db.delete(messagesTable)
+      .where(eq(messagesTable.conversationId, conversationId));
+    
+    // Then delete the conversation
+    await db.delete(conversations)
+      .where(eq(conversations.id, conversationId));
+    
+    res.json({ 
+      success: true, 
+      message: 'Conversation and all related messages have been deleted'
+    });
+  } catch (error) {
+    console.error('Error deleting conversation:', error);
+    res.status(500).json({ 
+      success: false, 
+      message: 'Failed to delete conversation' 
+    });
   }
-  
-  // Se non troviamo un pattern specifico, prendiamo l'ultima parola
-  const words = message.split(/\s+/);
-  return words[words.length - 1];
-}
+};
 
-// Helper function per formattare la data
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('it-IT', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
-  });
-}
+// --- END NEW FUNCTIONS ---
 
-// Helper function per formattare l'ora
-function formatTime(date: Date): string {
-  return date.toLocaleTimeString('it-IT', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-} 
+// Add other agent-related functions here later (e.g., function calling handlers)
