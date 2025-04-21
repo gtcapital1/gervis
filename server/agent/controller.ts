@@ -13,6 +13,12 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Modelli OpenAI disponibili
+const AVAILABLE_MODELS = {
+  DEFAULT: 'gpt-4.1-mini',
+  ADVANCED: 'gpt-4.1'
+};
+
 // Type for OpenAI message
 type OpenAIMessage = {
   role: 'system' | 'user' | 'assistant';
@@ -31,7 +37,7 @@ export const handleChat = async (req: Request, res: Response) => {
   }
 
   try {
-    const { message: userMessage, conversationId } = req.body; // Expect message content and optional conversationId
+    const { message: userMessage, conversationId, model: requestedModel } = req.body; // Aggiungi il parametro model
 
     // Ensure message is a string
     if (!userMessage || typeof userMessage !== 'string') {
@@ -40,6 +46,11 @@ export const handleChat = async (req: Request, res: Response) => {
         error: 'Message content must be a non-empty string' 
       });
     }
+
+    // Controlla che il modello richiesto sia valido
+    const modelToUse = requestedModel === AVAILABLE_MODELS.ADVANCED 
+      ? AVAILABLE_MODELS.ADVANCED 
+      : AVAILABLE_MODELS.DEFAULT;
 
     // Get user ID from req.user - ensure it exists
     // This is set by the isAuthenticated middleware
@@ -99,7 +110,7 @@ export const handleChat = async (req: Request, res: Response) => {
     // Create correctly typed array for OpenAI
     const systemMessage: OpenAIMessage = {
       role: 'system',
-      content: 'Sei Gervis, un assistente AI avanzato specializzato per consulenti finanziari. Il tuo scopo è aiutarli con le seguenti capacità: 1) Insight clienti e mail personalizzate: analizza i profili dei clienti e genera email personalizzate; 2) Gestione calendario e incontri: pianifica, prepara e fai follow-up degli incontri con i clienti; 3) Generazione idee basate su news recenti: fornisci suggerimenti di investimento basati sulle ultime notizie di mercato; 4) Assistenza generale: supporto con normative, template di documenti e utilizzo della piattaforma. Hai competenze in gestione patrimoniale, pianificazione finanziaria, relazioni con i clienti e strategie di investimento. Rispondi sempre in italiano in modo professionale e conciso, riflettendo le migliori pratiche del settore.'
+      content: 'Tu sei Gervis, un assistente AI avanzato specializzato per consulenti finanziari. Il tuo scopo è aiutarli con le seguenti capacità: 1) Insight clienti e mail personalizzate: analizza i profili dei clienti e genera email personalizzate; 2) Gestione calendario e incontri: pianifica, prepara e fai follow-up degli incontri con i clienti; 3) Generazione idee basate su news recenti: fornisci suggerimenti di investimento basati sulle ultime notizie di mercato; 4) Assistenza generale: supporto con normative, template di documenti e utilizzo della piattaforma. Hai competenze in gestione patrimoniale, pianificazione finanziaria, relazioni con i clienti e strategie di investimento. Rispondi sempre in italiano in modo professionale e conciso, riflettendo le migliori pratiche del settore. Non aggiungere mai spazi extra all\'inizio delle tue risposte.'
     };
     
     // Convert database messages to OpenAI format with proper types
@@ -115,6 +126,7 @@ export const handleChat = async (req: Request, res: Response) => {
 
     // --- DEBUG LOG --- 
     console.log('Sending messages to OpenAI:', JSON.stringify(apiMessages, null, 2));
+    console.log(`Using model: ${modelToUse}`);
     // --- END DEBUG LOG ---
 
     // Determiniamo se la richiesta sembra riferirsi a un cliente
@@ -155,7 +167,7 @@ export const handleChat = async (req: Request, res: Response) => {
     // Call OpenAI API with properly typed messages
     console.log('Chiamata OpenAI in corso...');
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini', // Using the specified model
+      model: modelToUse, // Usa il modello selezionato
       messages: apiMessages,
       tools: [
         {
@@ -253,8 +265,8 @@ export const handleChat = async (req: Request, res: Response) => {
           
           console.log('Recupero contesto cliente completato:', { 
             success: result.success,
-            client: result.success && result.clientInfo && result.clientInfo.basicInfo ? 
-              `${result.clientInfo.basicInfo.firstName} ${result.clientInfo.basicInfo.lastName}` : 
+            client: result.success && result.clientInfo && result.clientInfo.personalInformation && result.clientInfo.personalInformation.data ? 
+              `${result.clientInfo.personalInformation.data.firstName.value} ${result.clientInfo.personalInformation.data.lastName.value}` : 
               'Cliente trovato ma dati incompleti'
           });
           
@@ -274,7 +286,7 @@ export const handleChat = async (req: Request, res: Response) => {
             
             // Get a follow-up message from OpenAI with the function results
             const followUpCompletion = await openai.chat.completions.create({
-              model: 'gpt-4.1-mini',
+              model: modelToUse, // Usa lo stesso modello per coerenza
               messages: toolMessages,
             });
             
@@ -311,7 +323,8 @@ export const handleChat = async (req: Request, res: Response) => {
       response: aiResponse,
       conversationId: currentConversationId,
       functionCalls: functionCalls,
-      functionResults: functionResults
+      functionResults: functionResults,
+      model: modelToUse // Aggiungi il modello utilizzato nella risposta
     });
 
   } catch (error) {

@@ -13,6 +13,7 @@ interface Message {
   role: 'user' | 'assistant' | 'system';
   id?: number;
   createdAt?: string;
+  model?: string;
 }
 
 // Tipo per le conversazioni
@@ -35,6 +36,7 @@ export default function AgentPage() {
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  const [currentModel, setCurrentModel] = useState<'gpt-4.1-mini' | 'gpt-4.1'>('gpt-4.1-mini');
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -63,6 +65,12 @@ export default function AgentPage() {
       gradient: "from-amber-500 to-orange-400"
     }
   ];
+  
+  // Modelli OpenAI disponibili
+  const AVAILABLE_MODELS = {
+    DEFAULT: 'gpt-4.1-mini' as const,
+    ADVANCED: 'gpt-4.1' as const
+  };
   
   // Carica le conversazioni esistenti all'avvio
   useEffect(() => {
@@ -143,8 +151,9 @@ export default function AgentPage() {
     
     try {
       // Prepara i dati per la richiesta
-      const requestData: { message: string; conversationId?: number } = {
-        message: input
+      const requestData: { message: string; conversationId?: number; model?: string } = {
+        message: input,
+        model: currentModel
       };
       
       // Aggiungi conversationId solo se è un valore valido
@@ -164,11 +173,12 @@ export default function AgentPage() {
           setCurrentConversationId(response.conversationId);
         }
         
-        // Aggiungi la risposta dell'assistente
+        // Aggiungi la risposta dell'assistente con il modello utilizzato
         const assistantMessage: Message = {
           content: response.response || "Non ho ricevuto una risposta dal server",
           role: 'assistant',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          model: response.model || currentModel
         };
         
         setMessages(prev => [...prev, assistantMessage]);
@@ -339,11 +349,23 @@ export default function AgentPage() {
               {message.content}
             </div>
             
-            {message.createdAt && (
-              <div className="text-xs opacity-70 mt-1 text-right">
-                {formatTimestamp(message.createdAt)}
-              </div>
-            )}
+            <div className="flex justify-between items-center mt-1">
+              {/* Mostra il modello utilizzato per messaggi dell'assistente */}
+              {!isUser && message.model && (
+                <div className="text-xs opacity-70">
+                  <span className="inline-flex items-center">
+                    <Sparkles className="h-3 w-3 mr-1 opacity-70" />
+                    Generato con {message.model}
+                  </span>
+                </div>
+              )}
+              
+              {message.createdAt && (
+                <div className="text-xs opacity-70 text-right ml-auto">
+                  {formatTimestamp(message.createdAt)}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </motion.div>
@@ -415,6 +437,16 @@ export default function AgentPage() {
           {showChat && (
             <div className="w-full flex-grow overflow-y-auto mb-4 px-4 sm:px-0">
               <div className="flex flex-col space-y-4 max-w-6xl mx-auto">
+                {/* Indicatore del modello in uso */}
+                <div className="flex justify-center my-2">
+                  <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
+                    <Bot className="h-3.5 w-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
+                    <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                      Modello in uso: {currentModel === AVAILABLE_MODELS.DEFAULT ? 'Standard' : 'Avanzato'}
+                    </span>
+                  </div>
+                </div>
+                
                 {messages
                   .filter(message => message.role !== 'system')
                   .map(renderMessage)}
@@ -439,6 +471,47 @@ export default function AgentPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
+            {/* Selettore di modello */}
+            <div className="flex justify-center max-w-6xl mx-auto mb-4">
+              <div className="flex flex-col items-center gap-1">
+                <div className="text-sm font-medium mb-1">Seleziona il modello AI</div>
+                <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                  <button
+                    onClick={() => setCurrentModel(AVAILABLE_MODELS.DEFAULT)}
+                    className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                      currentModel === AVAILABLE_MODELS.DEFAULT
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Bot className="h-3.5 w-3.5 mr-1.5" />
+                      Standard (gpt-4.1-mini)
+                    </div>
+                    <div className="text-xs opacity-70 mt-0.5">
+                      Veloce e efficiente
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setCurrentModel(AVAILABLE_MODELS.ADVANCED)}
+                    className={`px-6 py-2 rounded-md text-sm font-medium ml-1 transition-all ${
+                      currentModel === AVAILABLE_MODELS.ADVANCED
+                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
+                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                    }`}
+                  >
+                    <div className="flex items-center">
+                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                      Avanzato (gpt-4.1)
+                    </div>
+                    <div className="text-xs opacity-70 mt-0.5">
+                      Più potente e preciso
+                    </div>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
             <div className="relative max-w-6xl mx-auto">
               <input 
                 type="text" 
