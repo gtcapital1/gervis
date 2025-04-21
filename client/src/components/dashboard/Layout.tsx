@@ -82,6 +82,13 @@ export function Layout({ children }: LayoutProps) {
   // Define base navigation items
   const baseNavigation = [
     {
+      name: "Agent",
+      href: "/agent",
+      icon: Bot,
+      current: location === "/agent",
+      disabled: false,
+    },
+    {
       name: "Dashboard",
       href: "/app",
       icon: Home,
@@ -106,20 +113,7 @@ export function Layout({ children }: LayoutProps) {
       current: location === "/calendar",
       disabled: false,
     },
-    {
-      name: "Agent",
-      href: "/agent",
-      icon: Bot,
-      current: location === "/agent",
-      disabled: false,
-    },
-    {
-      name: "Market",
-      href: "/app/market",
-      icon: BarChart3,
-      current: location === "/app/market",
-      disabled: false,
-    },
+
     {
       name: "Spark",
       href: "/app/spark",

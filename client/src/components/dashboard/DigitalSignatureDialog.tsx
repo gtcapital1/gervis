@@ -123,13 +123,13 @@ Cordiali saluti,`);
   // Gestisce l'invio dell'email attraverso EmailDialog
   const handleSendEmail = (data: EmailFormData) => {
     // Dopo aver inviato l'email, chiudi il dialog principale
-    toast({
-      title: "Email inviata",
-      description: "L'email con il link per la firma digitale è stata inviata con successo."
-    });
-    
+      toast({
+        title: "Email inviata",
+        description: "L'email con il link per la firma digitale è stata inviata con successo."
+      });
+      
     // Chiudi il dialog principale
-    onOpenChange(false);
+        onOpenChange(false);
   };
 
   // Handle successful verification
@@ -169,21 +169,21 @@ Cordiali saluti,`);
   }, [open]);
 
   // Mostra EmailDialog
-  return (
-    <>
+        return (
+          <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+            <DialogHeader>
             <DialogTitle>Preparazione Email di Firma Digitale</DialogTitle>
-            <DialogDescription>
+              <DialogDescription>
               Generazione del link sicuro per la firma digitale in corso...
-            </DialogDescription>
-          </DialogHeader>
+              </DialogDescription>
+            </DialogHeader>
           <div className="py-6 flex justify-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-          </div>
-        </DialogContent>
-      </Dialog>
+            </div>
+      </DialogContent>
+    </Dialog>
 
       {/* Nuovo EmailDialog per l'invio della mail */}
       <EmailDialog

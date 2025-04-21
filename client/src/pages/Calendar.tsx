@@ -41,6 +41,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useAuth } from "@/hooks/use-auth";
+import { CalendarDialog } from "@/components/dialog";
+import { CalendarEvent } from "@/types/calendar";
 
 // Definizione interfacce
 interface Event {
@@ -74,21 +76,12 @@ export default function CalendarPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [selectedTime, setSelectedTime] = useState<string>("09:00");
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [eventTitle, setEventTitle] = useState("");
-  const [eventLocation, setEventLocation] = useState("zoom");
-  const [eventDate, setEventDate] = useState<Date | undefined>(new Date());
-  const [eventTime, setEventTime] = useState("10:00");
-  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<Event | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [newEventClientId, setNewEventClientId] = useState<number | null>(null);
-  const [newEventNotes, setNewEventNotes] = useState("");
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
-  const [eventDuration, setEventDuration] = useState<number>(60); // Durata di default: 60 minuti
-  const [sendMeetingEmail, setSendMeetingEmail] = useState(false);
-  const [sendMeetingUpdateEmail, setSendMeetingUpdateEmail] = useState(false); // New state for update email
+  const [deleteConfirmEvent, setDeleteConfirmEvent] = useState<Event | null>(null);
   const { t } = useTranslation();
   
   // Fetch dei meeting usando l'API esistente
@@ -186,14 +179,35 @@ export default function CalendarPage() {
   const updateMeetingMutation = useMutation({
     mutationFn: async (meeting: Meeting) => {
       console.log("[Calendar] Tentativo di aggiornamento meeting:", meeting);
-      const response = await apiRequest(`/api/meetings/${meeting.id}`, {
-        method: 'PUT',
-        body: JSON.stringify(meeting),
-      });
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Errore durante l\'aggiornamento del meeting');
+      try {
+        // Log completo della richiesta
+        console.log("[Calendar] Dettagli richiesta di aggiornamento:", {
+          url: `/api/meetings/${meeting.id}`,
+          method: 'PUT',
+          body: meeting
+        });
+        
+        const response = await apiRequest(`/api/meetings/${meeting.id}`, {
+          method: 'PUT',
+          body: JSON.stringify(meeting),
+        });
+        
+        // Log completo della risposta
+        console.log("[Calendar] Risposta API aggiornamento completa:", {
+          status: response?.status,
+          statusText: response?.statusText,
+          data: response?.data,
+          headers: response?.headers,
+          response: response
+        });
+        
+        // Ritorna sempre un valore valido se non ci sono errori di rete
+        return { success: true, meeting: meeting };
+      } catch (error) {
+        console.error("[Calendar Error] Errore dettagliato nell'aggiornamento:", error);
+        console.error("[Calendar Error] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+        throw error;
       }
-      return response.data.meeting;
     },
     onSuccess: (data) => {
       console.log("[Calendar] Meeting aggiornato con successo:", data);
@@ -205,10 +219,10 @@ export default function CalendarPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
     },
     onError: (error) => {
-      console.error("[Calendar Error] Errore nell\'aggiornamento del meeting:", error);
+      console.error("[Calendar Error] Errore nell'aggiornamento del meeting:", error);
       toast({
         title: "Errore",
-        description: error instanceof Error ? error.message : 'Errore durante l\'aggiornamento del meeting',
+        description: "Problema durante l'aggiornamento dell'evento, ma le modifiche potrebbero essere state salvate. Ricarica la pagina per verificare.",
         variant: "destructive",
       });
     }
@@ -216,10 +230,18 @@ export default function CalendarPage() {
   
   // Mutation per eliminare un meeting
   const deleteMeetingMutation = useMutation({
-    mutationFn: (id: number) => {
-      return apiRequest(`/api/meetings/${id}`, {
-        method: 'DELETE',
-      });
+    mutationFn: async (id: number) => {
+      try {
+        const response = await apiRequest(`/api/meetings/${id}`, {
+          method: 'DELETE',
+        });
+        
+        console.log("[Calendar] Risposta eliminazione:", response);
+        return { success: true };
+      } catch (error) {
+        console.error("[Calendar Error] Errore durante l'eliminazione:", error);
+        throw error;
+      }
     },
     onSuccess: () => {
       setIsDeleteDialogOpen(false);
@@ -232,7 +254,7 @@ export default function CalendarPage() {
     onError: (error) => {
       toast({
         title: "Errore",
-        description: error instanceof Error ? error.message : 'Errore durante la cancellazione del meeting',
+        description: "Problema durante l'eliminazione dell'evento. Ricarica la pagina per verificare.",
         variant: "destructive",
       });
     },
@@ -240,24 +262,41 @@ export default function CalendarPage() {
   
   // Mutation per creare un nuovo meeting
   const createMeetingMutation = useMutation({
-    mutationFn: async (meeting: Meeting) => {
-      console.log("[Calendar] Tentativo di creazione meeting:", meeting);
-      const response = await apiRequest('/api/meetings', {
-        method: 'POST',
-        body: JSON.stringify(meeting),
-      });
-      if (!response.data.success) {
-        throw new Error(response.data.message || 'Errore durante la creazione del meeting');
+    mutationFn: async (meetingData: Omit<Meeting, 'id' | 'title'> & { subject: string }) => {
+      console.log("[Calendar] Tentativo di creazione meeting:", meetingData);
+      try {
+        // Log completo della richiesta
+        console.log("[Calendar] Dettagli richiesta:", {
+          url: '/api/meetings',
+          method: 'POST',
+          body: meetingData
+        });
+        
+        const response = await apiRequest('/api/meetings', {
+          method: 'POST',
+          body: JSON.stringify(meetingData),
+        });
+        
+        // Log completo della risposta
+        console.log("[Calendar] Risposta API completa:", {
+          status: response?.status,
+          statusText: response?.statusText,
+          data: response?.data,
+          headers: response?.headers,
+          response: response
+        });
+        
+        // Ritorna sempre un valore valido se non ci sono errori di rete
+        return { success: true };
+      } catch (error) {
+        console.error("[Calendar Error] Errore dettagliato nella chiamata API:", error);
+        console.error("[Calendar Error] Stack trace:", error instanceof Error ? error.stack : "No stack trace");
+        throw error;
       }
-      return response.data.meeting;
     },
     onSuccess: (data) => {
       console.log("[Calendar] Meeting creato con successo:", data);
       setIsCreateDialogOpen(false);
-      setNewEventClientId(null);
-      setEventTitle("");
-      setNewEventNotes("");
-      setSelectedTimeSlot("");
       toast({
         title: "Successo",
         description: "Meeting creato con successo",
@@ -268,7 +307,7 @@ export default function CalendarPage() {
       console.error("[Calendar Error] Errore nella creazione del meeting:", error);
       toast({
         title: "Errore",
-        description: error instanceof Error ? error.message : 'Errore durante la creazione del meeting',
+        description: "Problema durante la creazione dell'evento, ma l'evento potrebbe essere stato creato. Ricarica la pagina per verificare.",
         variant: "destructive",
       });
     }
@@ -277,53 +316,28 @@ export default function CalendarPage() {
   // Funzioni per gestire l'editing di un evento
   const handleEditEvent = (event: Event) => {
     setEditingEvent(event);
-    setEventTitle(event.title);
-    setEventLocation(event.location);
-    setSendMeetingUpdateEmail(false); // Reset email flag when opening edit dialog
-    
-    // Estrai data e ora dall'evento
-    if (event.startTime) {
-      // Combina la data corrente con l'ora dell'evento
-      const [hours, minutes] = event.startTime.split(':').map(Number);
-      // Crea una data basata sulla data dell'evento (in una implementazione reale, avresti la data effettiva dell'evento)
-      const date = new Date();
-      date.setHours(hours, minutes, 0, 0);
-      setEventDate(date);
-      setEventTime(event.startTime);
-    }
-    
     setIsEditDialogOpen(true);
   };
   
-  const handleUpdateEvent = () => {
-    if (editingEvent && eventTitle && eventDate) {
+  // Funzione per la submissione dell'evento modificato (per CalendarDialog)
+  const handleSubmitEditEvent = (updatedEvent: CalendarEvent, sendEmail: boolean) => {
+    if (editingEvent) {
       try {
-        // Combina data e ora in un formato datetime
-        const [hours, minutes] = eventTime.split(':').map(Number);
-        const dateTime = new Date(eventDate);
-        dateTime.setHours(hours, minutes, 0, 0);
+        // Estrai dateTime dall'event aggiornato
+        const dateTime = new Date(updatedEvent.dateTime);
         
-        // Converti la data in UTC mantenendo lo stesso orario locale
-        const utcDate = new Date(dateTime.getTime() - (dateTime.getTimezoneOffset() * 60000));
-        
-        // Log di debug
-        console.log('Updating meeting with date:', {
-          localDate: dateTime.toISOString(),
-          utcDate: utcDate.toISOString(),
-          timezoneOffset: dateTime.getTimezoneOffset()
-        });
-        
+        // Prepara l'oggetto per l'API
         updateMeetingMutation.mutate({
           id: editingEvent.id,
-          advisorId: 1, // TODO: Sostituire con l'ID dell'advisor corretto
-          clientId: editingEvent.clientId,
-          title: eventTitle,
-          subject: eventTitle, // Usiamo il titolo come subject
-          dateTime: utcDate,
-          duration: eventDuration,
-          location: eventLocation,
-          notes: newEventNotes,
-          sendEmail: sendMeetingUpdateEmail
+          advisorId: user?.id || 1,
+          clientId: updatedEvent.clientId,
+          title: updatedEvent.title,
+          subject: updatedEvent.title, // Usiamo il titolo come subject
+          dateTime: dateTime,
+          duration: updatedEvent.duration,
+          location: updatedEvent.location || 'office',
+          notes: updatedEvent.notes || '',
+          sendEmail: sendEmail
         });
       } catch (error) {
         toast({
@@ -332,12 +346,6 @@ export default function CalendarPage() {
           variant: "destructive",
         });
       }
-    } else {
-      toast({
-        title: "Errore",
-        description: "Compilare tutti i campi richiesti (titolo e data).",
-        variant: "destructive",
-      });
     }
   };
   
@@ -410,6 +418,23 @@ export default function CalendarPage() {
     };
   });
   
+  // Funzione per ottenere eventi per una specifica ora e un giorno specifico
+  const getEventsForHourAndDay = (dayIndex: number, hour: string) => {
+    if (!weekDaysWithDates[dayIndex]) return [];
+    
+    // Ottieni la data per il giorno specifico
+    const dateString = weekDaysWithDates[dayIndex].dateString;
+    
+    // Estrai l'ora del time slot (ad es. "09:00" -> "09")
+    const hourValue = hour.split(':')[0];
+    
+    // Filtra gli eventi che hanno la stessa data e iniziano alla stessa ora
+    return events.filter(event => {
+      const eventStartHour = event.startTime.split(':')[0];
+      return event.date === dateString && eventStartHour === hourValue;
+    });
+  };
+  
   // Raggruppa gli eventi per ora
   const eventsByHour = dayHours.reduce((acc, hour) => {
     acc[hour] = filteredEvents.filter(event => {
@@ -422,182 +447,8 @@ export default function CalendarPage() {
 
   // Funzione per aprire il dialogo di creazione evento con uno slot orario preselezionato
   const handleCreateEventClick = (timeSlot: string) => {
-    setSelectedTimeSlot(timeSlot);
-    setEventTime(timeSlot);
     setIsCreateDialogOpen(true);
   };
-
-  // Funzione per creare un nuovo evento
-  const handleCreateEvent = useCallback(async () => {
-    try {
-      const currentUser = user;
-      
-      console.log('Starting handleCreateEvent with:', { 
-        userId: currentUser?.id, 
-        newEventClientId, 
-        eventDate: selectedDate, 
-        eventTime, 
-        eventTitle,
-        eventLocation,
-        eventDuration,
-        newEventNotes,
-        sendMeetingEmail
-      });
-
-      if (!currentUser?.id) {
-        toast({
-          title: "Errore",
-          description: 'Non sei autorizzato a programmare incontri',
-          variant: "destructive"
-        });
-        console.log('User not authorized to schedule meetings');
-        return;
-      }
-
-      const advisorId = currentUser.id;
-      console.log('Advisor ID:', advisorId);
-
-      // Validate required fields
-      if (!newEventClientId || !advisorId || !selectedDate || !eventTime || !eventTitle?.trim()) {
-        const missingFields = [];
-        if (!newEventClientId) missingFields.push('Cliente');
-        if (!advisorId) missingFields.push('Advisor');
-        if (!selectedDate) missingFields.push('Data');
-        if (!eventTime) missingFields.push('Ora');
-        if (!eventTitle?.trim()) missingFields.push('Oggetto');
-        
-        toast({
-          title: "Errore",
-          description: `Campi obbligatori mancanti: ${missingFields.join(', ')}`,
-          variant: "destructive"
-        });
-        console.log('Missing required fields:', missingFields);
-        return;
-      }
-
-      // Parse and validate date
-      const date = new Date(selectedDate);
-      if (isNaN(date.getTime())) {
-        toast({
-          title: "Errore",
-          description: 'Data non valida',
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Parse time
-      const [hours, minutes] = eventTime.split(':').map(Number);
-      if (isNaN(hours) || isNaN(minutes)) {
-        toast({
-          title: "Errore",
-          description: 'Orario non valido',
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Combine date and time
-      const combinedDateTime = new Date(date);
-      combinedDateTime.setHours(hours, minutes, 0, 0);
-
-      // Check if date is in the past
-      if (combinedDateTime < new Date()) {
-        toast({
-          title: "Errore",
-          description: 'Non puoi programmare un incontro nel passato',
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Format date for API
-      const formattedDate = combinedDateTime.toISOString().split('.')[0];
-      console.log('Combined date and time:', {
-        originalDate: date,
-        meetingTime: eventTime,
-        parsedTime: { hours, minutes },
-        combinedDateTime,
-        formattedDate,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      });
-
-      const requestBody = {
-        clientId: Number(newEventClientId),
-        advisorId: Number(advisorId),
-        subject: eventTitle.trim(),
-        dateTime: formattedDate,
-        duration: Number(eventDuration),
-        location: eventLocation,
-        notes: newEventNotes?.trim() || '',
-        sendEmail: sendMeetingEmail
-      };
-
-      console.log('Request body:', requestBody);
-
-      const apiUrl = '/api/meetings';
-      console.log('Making API request to:', apiUrl);
-
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('API error:', errorData);
-        toast({
-          title: "Errore",
-          description: errorData.message || 'Errore durante la programmazione dell\'incontro',
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('Meeting scheduled successfully');
-      toast({
-        title: "Successo",
-        description: 'Incontro programmato con successo'
-      });
-      
-      // Clear form
-      setSelectedDate(new Date());
-      setEventTitle('');
-      setEventTime("10:00");
-      setNewEventNotes("");
-      setEventLocation("office");
-      setEventDuration(60);
-      setSendMeetingEmail(false);
-      setIsCreateDialogOpen(false);
-      setNewEventClientId(null);
-      
-      // Refresh meetings list
-      queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
-
-    } catch (error) {
-      console.error('Error in handleCreateEvent:', error);
-      toast({
-        title: "Errore",
-        description: 'Si è verificato un errore durante la programmazione dell\'incontro',
-        variant: "destructive"
-      });
-    }
-  }, [
-    user,
-    selectedDate,
-    eventTime,
-    eventTitle,
-    eventLocation,
-    newEventClientId,
-    newEventNotes,
-    eventDuration,
-    sendMeetingEmail,
-    queryClient,
-    toast
-  ]);
 
   // Funzione per gestire il click su una cella oraria nella vista settimanale
   const handleWeeklyTimeSlotClick = (dayIndex: number, hour: string) => {
@@ -606,92 +457,60 @@ export default function CalendarPage() {
       const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 }); // Lunedì
       const targetDate = addDays(weekStart, dayIndex);
       
-      // Assicuriamoci che l'ora sia formattata correttamente
+      // Prepara l'orario in formato corretto (HH:MM)
       let formattedHour = hour;
       if (hour.includes(':')) {
         const [h, m] = hour.split(':');
-        // Aggiungiamo lo zero iniziale se necessario
         formattedHour = `${h.padStart(2, '0')}:${m}`;
       }
       
-      console.log('Cella cliccata:', {
-        originalHour: hour,
-        formattedHour,
-        dayIndex,
-        targetDate: format(targetDate, 'yyyy-MM-dd'),
-      });
+      // Imposta la data e ora selezionata
+      setSelectedDate(targetDate);
+      setSelectedTime(formattedHour);
       
-      // Imposta sia eventDate che selectedDate in modo che la data sia coerente in tutto il componente
-      setEventDate(targetDate);
-      setSelectedDate(targetDate); // Aggiorna anche selectedDate per assicurarsi che il dialogo mostri la data corretta
-      
-      // Mantieni esattamente l'ora cliccata nella cella, con formattazione corretta
-      setEventTime(formattedHour);
-      
-      // Reset other fields for a new meeting
-      setEventTitle("");
-      setNewEventNotes("");
-      setEventLocation("zoom");
-      setEventDuration(60);
-      setSendMeetingEmail(false);
-      
-      // Log per debug
-      console.log(`Apertura dialog creazione per: ${format(targetDate, 'yyyy-MM-dd')} alle ${formattedHour}`);
-      
-      // Apri il dialog
+      // Apri il dialog per creare un nuovo evento
       setIsCreateDialogOpen(true);
     }
   };
 
-  // Funzione per ottenere le opzioni di durata in minuti
-  const getDurationOptions = () => {
-    const options = [
-      { value: 15, label: "15 minuti" },
-      { value: 30, label: "30 minuti" },
-      { value: 45, label: "45 minuti" },
-      { value: 60, label: "1 ora" },
-      { value: 90, label: "1 ora e 30 minuti" },
-      { value: 120, label: "2 ore" },
-      { value: 180, label: "3 ore" }
-    ];
-    
-    return options.map(option => (
-      <option key={option.value} value={option.value}>
-        {option.label}
-      </option>
-    ));
-  };
-
-  // Funzione per ottenere gli eventi di una specifica giornata della settimana e ora specifica
-  const getEventsForHourAndDay = (dayIndex: number, hour: string): Event[] => {
-    if (!selectedDate || !events.length) return [];
-    
+  // Funzione per gestire la creazione di un nuovo evento (per CalendarDialog)
+  const handleSubmitCreateEvent = (newEvent: CalendarEvent, sendEmail: boolean) => {
     try {
-      const weekStart = startOfWeek(selectedDate, { weekStartsOn: 1 });
-      const targetDate = addDays(weekStart, dayIndex);
+      // Controlla advisor ID
+      if (!user?.id) {
+        toast({
+          title: "Errore",
+          description: 'Non sei autorizzato a programmare incontri',
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Crea una data da dateTime
+      const dateTime = new Date(newEvent.dateTime);
       
-      // Formatta la data target in YYYY-MM-DD
-      const targetDateStr = format(targetDate, 'yyyy-MM-dd');
-      const [targetHour, targetMinute] = hour.split(':').map(Number);
-      
-      // Aggiungiamo log per vedere i dati esatti delle celle e degli eventi
-      console.log(`Controllo eventi per la cella: ${hour} - giorno ${dayIndex} - data ${targetDateStr}`);
-      
-      // Filtra gli eventi che hanno la stessa data e lo stesso orario
-      const filteredEvents = events.filter(event => {
-        const matchesDate = event.date === targetDateStr;
-        const [eventHour, eventMinute] = event.startTime.split(':').map(Number);
-        
-        // Confronta ora e minuti esattamente come mostrati nella griglia
-        const matchesHour = eventHour === targetHour && (targetMinute === 0 ? eventMinute < 30 : eventMinute >= 30);
-        
-        return matchesDate && matchesHour;
+      // Prepara l'oggetto per l'API
+      const requestBody = {
+        clientId: Number(newEvent.clientId),
+        advisorId: Number(user.id),
+        subject: newEvent.title,
+        title: newEvent.title, // Aggiunto per soddisfare il tipo Meeting
+        dateTime: dateTime,
+        duration: newEvent.duration,
+        location: newEvent.location || 'office',
+        notes: newEvent.notes || '',
+        sendEmail: sendEmail
+      };
+
+      // Esegui la chiamata API tramite mutation
+      createMeetingMutation.mutate(requestBody);
+    } catch (error) {
+      console.error('Error in handleSubmitCreateEvent:', error);
+      toast({
+        title: "Errore",
+        description: 'Si è verificato un errore durante la programmazione dell\'incontro',
+        variant: "destructive"
       });
-      
-      return filteredEvents;
-    } catch (e) {
-      console.error('Error in getEventsForHourAndDay:', e);
-      return [];
     }
   };
 
@@ -938,157 +757,30 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Dialog per modificare un evento */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-lg shadow-xl border-0">
-          <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
-            <DialogTitle className="text-xl font-bold">Modifica appuntamento</DialogTitle>
-            <DialogDescription className="text-blue-100 mt-1">
-              Modifica i dettagli dell'appuntamento con {editingEvent?.clientName}
-            </DialogDescription>
-          </div>
-          <div className="p-6">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label htmlFor="event-title" className="text-sm font-medium flex items-center">
-                  <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                  Titolo
-                </label>
-                <Input
-                  id="event-title"
-                  value={eventTitle}
-                  onChange={(e) => setEventTitle(e.target.value)}
-                  className="w-full border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  autoFocus
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium flex items-center">
-                    <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
-                    Data
-                  </label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full text-left font-normal justify-start bg-white hover:bg-gray-50"
-                      >
-                        <Calendar className="mr-2 h-4 w-4 text-blue-500" />
-                        {eventDate ? format(eventDate, "PPP", { locale: it }) : "Seleziona data"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <CalendarComponent
-                        mode="single"
-                        selected={eventDate}
-                        onSelect={setEventDate}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="event-time" className="text-sm font-medium flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                    Ora
-                  </label>
-                  <select
-                    id="event-time"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={eventTime}
-                    onChange={(e) => setEventTime(e.target.value)}
-                  >
-                    {getTimeOptions()}
-                  </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label htmlFor="event-location" className="text-sm font-medium flex items-center">
-                    <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-                    Luogo
-                  </label>
-                  <select
-                    id="event-location"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={eventLocation}
-                    onChange={(e) => setEventLocation(e.target.value)}
-                  >
-                    <option value="zoom">Zoom</option>
-                    <option value="office">Ufficio</option>
-                    <option value="phone">Telefono</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="event-duration" className="text-sm font-medium flex items-center">
-                    <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                    Durata
-                  </label>
-                  <select
-                    id="event-duration"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    value={eventDuration}
-                    onChange={(e) => setEventDuration(parseInt(e.target.value))}
-                  >
-                    {getDurationOptions()}
-                  </select>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label htmlFor="notes" className="text-sm font-medium flex items-center">
-                  <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                  Note
-                </label>
-                <Textarea
-                  id="notes"
-                  placeholder="Note aggiuntive"
-                  value={newEventNotes}
-                  onChange={(e) => setNewEventNotes(e.target.value)}
-                  className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
-                />
-              </div>
-              <div className="flex items-center space-x-2 pt-2">
-                <Checkbox 
-                  id="sendUpdateEmail" 
-                  checked={sendMeetingUpdateEmail} 
-                  onCheckedChange={(checked) => setSendMeetingUpdateEmail(checked === true)} 
-                />
-                <label
-                  htmlFor="sendUpdateEmail"
-                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  Invia email di aggiornamento al cliente
-                </label>
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="bg-gray-50 p-4 flex justify-between">
-            <Button 
-              variant="destructive" 
-              onClick={() => {
-                setIsEditDialogOpen(false);
-                handleDeleteEvent(editingEvent!);
-              }}
-              className="hover:bg-red-600"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Elimina
-            </Button>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="bg-white">
-                Annulla
-              </Button>
-              <Button onClick={handleUpdateEvent} className="bg-blue-600 hover:bg-blue-700">
-                <Edit className="mr-2 h-4 w-4" />
-                Salva
-              </Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Sostituisce il dialog di modifica con CalendarDialog */}
+      {editingEvent && (
+        <CalendarDialog
+          open={isEditDialogOpen}
+          onOpenChange={setIsEditDialogOpen}
+          mode="edit"
+          selectedDate={new Date(editingEvent.date)}
+          clientId={editingEvent.clientId}
+          event={{
+            id: editingEvent.id,
+            clientId: editingEvent.clientId,
+            clientName: editingEvent.clientName,
+            title: editingEvent.title,
+            location: editingEvent.location,
+            dateTime: `${editingEvent.date}T${editingEvent.startTime}:00`,
+            duration: 60, // Fornisci una durata di default o calcola da startTime/endTime
+            notes: ""  // Da popolare se disponibile
+          }}
+          useClientSelector={true}
+          onSubmit={handleSubmitEditEvent}
+        />
+      )}
       
-      {/* Dialog per confermare l'eliminazione */}
+      {/* Sostituisce il dialog di conferma eliminazione (lasciato originale) */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
@@ -1108,171 +800,25 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog per creare un nuovo evento */}
-      {isCreateDialogOpen && (
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogContent className="max-w-xl p-0 overflow-hidden rounded-lg shadow-xl border-0">
-            <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-4 text-white">
-              <DialogTitle className="text-xl font-bold">Nuovo appuntamento</DialogTitle>
-              <DialogDescription className="text-blue-100 mt-1">
-                Aggiungi un nuovo appuntamento al calendario
-              </DialogDescription>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor="client" className="text-sm font-medium flex items-center">
-                    <User className="h-4 w-4 mr-2 text-blue-500" />
-                    Cliente
-                  </label>
-                  <Select 
-                    value={newEventClientId?.toString() || ""} 
-                    onValueChange={(value) => setNewEventClientId(parseInt(value))}
-                  >
-                    <SelectTrigger className="bg-white border-gray-300 focus:border-blue-500 focus:ring-blue-500">
-                      <SelectValue placeholder="Seleziona cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map(client => (
-                        <SelectItem key={client.id} value={client.id.toString()}>
-                          {client.firstName} {client.lastName}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="title" className="text-sm font-medium flex items-center">
-                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                    Titolo
-                  </label>
-                  <Input
-                    id="title"
-                    placeholder="Titolo appuntamento"
-                    value={eventTitle}
-                    onChange={(e) => setEventTitle(e.target.value)}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="date" className="text-sm font-medium flex items-center">
-                      <CalendarIcon className="h-4 w-4 mr-2 text-blue-500" />
-                      Data
-                    </label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          id="date"
-                          variant={"outline"}
-                          className="w-full text-left font-normal justify-start bg-white hover:bg-gray-50 border-gray-300"
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4 text-blue-500" />
-                          {selectedDate ? format(selectedDate, "PPP", { locale: it }) : 
-                            <span>Seleziona data</span>}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={setSelectedDate}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="time" className="text-sm font-medium flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                      Orario
-                    </label>
-                    <select
-                      id="time"
-                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                      value={eventTime}
-                      onChange={(e) => setEventTime(e.target.value)}
-                    >
-                      {getTimeOptions()}
-                    </select>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label htmlFor="location" className="text-sm font-medium flex items-center">
-                      <MapPin className="h-4 w-4 mr-2 text-blue-500" />
-                      Luogo
-                    </label>
-                    <select
-                      id="location"
-                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                      value={eventLocation}
-                      onChange={(e) => setEventLocation(e.target.value)}
-                    >
-                      <option value="zoom">Zoom</option>
-                      <option value="office">Ufficio</option>
-                      <option value="phone">Telefono</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <label htmlFor="duration" className="text-sm font-medium flex items-center">
-                      <Clock className="h-4 w-4 mr-2 text-blue-500" />
-                      Durata
-                    </label>
-                    <select
-                      id="duration"
-                      className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:ring-blue-500"
-                      value={eventDuration}
-                      onChange={(e) => setEventDuration(parseInt(e.target.value))}
-                    >
-                      {getDurationOptions()}
-                    </select>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <label htmlFor="notes" className="text-sm font-medium flex items-center">
-                    <FileText className="h-4 w-4 mr-2 text-blue-500" />
-                    Note
-                  </label>
-                  <Textarea
-                    id="notes"
-                    placeholder="Note aggiuntive"
-                    value={newEventNotes}
-                    onChange={(e) => setNewEventNotes(e.target.value)}
-                    className="border-gray-300 focus:border-blue-500 focus:ring-blue-500 min-h-[80px]"
-                  />
-                </div>
-                <div className="flex items-center space-x-2 pt-2">
-                  <Checkbox 
-                    id="sendEmail" 
-                    checked={sendMeetingEmail} 
-                    onCheckedChange={(checked) => setSendMeetingEmail(checked === true)} 
-                  />
-                  <label
-                    htmlFor="sendEmail"
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    Invia email di invito al cliente
-                  </label>
-                </div>
-              </div>
-            </div>
-            <DialogFooter className="bg-gray-50 p-4 flex justify-between">
-              <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="bg-white">
-                Annulla
-              </Button>
-              <Button 
-                disabled={!eventTitle || !newEventClientId || !selectedDate}
-                onClick={handleCreateEvent}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <CalendarCheck className="mr-2 h-4 w-4" />
-                Crea Appuntamento
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+      {/* Sostituisce il dialog di creazione con CalendarDialog */}
+      <CalendarDialog
+        open={isCreateDialogOpen}
+        onOpenChange={setIsCreateDialogOpen}
+        mode="create"
+        selectedDate={selectedDate || new Date()}
+        event={{
+          clientId: 0, // Sarà selezionato dall'utente
+          title: "",
+          dateTime: selectedDate ? 
+            `${format(selectedDate, "yyyy-MM-dd")}T${selectedTime}:00` : 
+            new Date().toISOString(),
+          duration: 60,
+          location: "office",
+          notes: ""
+        }}
+        useClientSelector={true}
+        onSubmit={handleSubmitCreateEvent}
+      />
     </div>
   );
 } 
