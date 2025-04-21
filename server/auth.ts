@@ -107,37 +107,26 @@ export function setupAuth(app: Express) {
         req.path === '/api/user') {
       
       const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`;
-      console.log(`[Auth Debug ${requestId}] ${req.method} ${req.path} iniziato`);
+      // Log minimo solo in caso di errori
       
-      // Traccia headers rilevanti per problemi di sessione/cookie
-      console.log(`[Auth Debug ${requestId}] Headers:`, {
-        cookie: req.headers.cookie,
-        'content-type': req.headers['content-type'],
-        'user-agent': req.headers['user-agent']
-      });
-      
-      // Traccia la sessione attuale
-      if (req.session) {
-        console.log(`[Auth Debug ${requestId}] Session ID:`, req.sessionID);
-        console.log(`[Auth Debug ${requestId}] isAuthenticated:`, req.isAuthenticated?.());
-      }
-      
-      // Override delle funzioni di risposta per tracciare l'output
+      // Override delle funzioni di risposta per tracciare solo errori
       const originalJson = res.json;
       res.json = function(body) {
-        console.log(`[Auth Debug ${requestId}] Risposta:`, {
-          statusCode: res.statusCode,
-          body: body
-        });
+        // Log solo in caso di errori
+        if (res.statusCode >= 400) {
+          console.log(`[Auth Error ${requestId}] ${req.method} ${req.path} fallito con stato ${res.statusCode}`);
+        }
         return originalJson.apply(this, [body]);
       };
       
-      // Registra il tempo di risposta
-      const startTime = Date.now();
-      res.on('finish', () => {
-        const duration = Date.now() - startTime;
-        console.log(`[Auth Debug ${requestId}] ${req.method} ${req.path} completato in ${duration}ms con stato ${res.statusCode}`);
-      });
+      // Registra il tempo di risposta solo in debug mode
+      if (process.env.DEBUG_AUTH === 'true') {
+        const startTime = Date.now();
+        res.on('finish', () => {
+          const duration = Date.now() - startTime;
+          console.log(`[Auth ${requestId}] ${req.method} ${req.path} completato in ${duration}ms con stato ${res.statusCode}`);
+        });
+      }
     }
     next();
   });
@@ -537,41 +526,23 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res) => {
     try {
-      console.log("[API] Richiesta /api/user");
-      console.log("[API] Session ID:", req.sessionID);
-      console.log("[API] isAuthenticated:", req.isAuthenticated());
-      
-      // Log lo stato della sessione
-      if (req.session) {
-        console.log("[API] Session cookie:", req.session.cookie);
-        // Accedere in modo sicuro alla proprietà passport
-        const sessionData = req.session as any;
-        console.log("[API] Session user:", sessionData.passport?.user);
-      } else {
-        console.log("[API] Nessuna sessione trovata");
-      }
-      
+      // Rimosso log dettagliati
       if (!req.isAuthenticated()) {
-        console.log("[API] Utente non autenticato");
         return res.status(401).json({ 
           success: false, 
           message: "Not authenticated" 
         });
       }
       
-      console.log("[API] Utente autenticato:", req.user?.id);
       res.json({ success: true, user: req.user });
     } catch (error: unknown) {
       console.error("[API Error] Errore durante /api/user:", error);
       const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
-      const errorStack = error instanceof Error ? error.stack : '';
-      console.error("[API DEBUG] Stack trace:", errorStack);
       
       res.status(500).json({ 
         success: false, 
         message: "Errore interno del server", 
-        error: errorMessage,
-        stack: errorStack
+        error: errorMessage
       });
     }
   });

@@ -1,0 +1,2247 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
+import { apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
+import { Bot, Send, Sparkles, User, Loader2, Plus, MessageSquare, History, Trash2, RefreshCw, X, Mail, Calendar, Clock, MapPin, ExternalLink, ArrowRight, Phone } from 'lucide-react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { motion, AnimatePresence } from 'framer-motion';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { ClientDialog } from "@/components/dashboard/ClientDialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useLocation } from "wouter";
+import { formatDate } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { z } from "zod";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import axios from 'axios';
+import { RiSendPlaneFill } from 'react-icons/ri';
+import { IoMdAttach } from 'react-icons/io';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
+import { LuSend } from 'react-icons/lu';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { BiLoaderAlt } from 'react-icons/bi';
+import { AlertTriangle } from 'lucide-react';
+
+// Definisci le interfacce per i tipi di dati che gestiremo
+interface Client {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone?: string;
+  clientSegment?: string;
+  totalAssets?: number;
+  isArchived?: boolean;
+}
+
+interface Meeting {
+  id: number;
+  subject: string;
+  dateTime: string;
+  formattedDate?: string;
+  formattedTime?: string;
+  duration: number;
+  location?: string;
+  notes?: string;
+  client?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+}
+
+interface Message {
+  id?: number;
+  content: string;
+  role: 'user' | 'assistant' | 'system';
+  createdAt?: string;
+  functionCalls?: any[];
+  functionResults?: any[];
+}
+
+interface Conversation {
+  id: number;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface HasCreatedClient {
+  client: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+}
+
+// Form embedded per creare clienti dentro la chat
+function EmbeddedClientForm({ initialData, onSuccess }: { 
+  initialData: any; 
+  onSuccess: (createdClient: Client) => void 
+}) {
+  const { toast } = useToast();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Validiamo i dati del form
+  const formSchema = z.object({
+    firstName: z.string().min(2, "Il nome deve avere almeno 2 caratteri"),
+    lastName: z.string().min(2, "Il cognome deve avere almeno 2 caratteri"),
+    email: z.string().email("Inserisci un indirizzo email valido"),
+    phone: z.string().optional()
+  });
+  
+  // Inizializziamo il form
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      firstName: initialData?.firstName || "",
+      lastName: initialData?.lastName || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || ""
+    }
+  });
+  
+  // Quando i dati iniziali cambiano, aggiorniamo il form
+  useEffect(() => {
+    if (initialData) {
+      form.reset({
+        firstName: initialData.firstName || "",
+        lastName: initialData.lastName || "",
+        email: initialData.email || "",
+        phone: initialData.phone || ""
+      });
+    }
+  }, [initialData, form]);
+  
+  // Funzione per creare il cliente
+  async function handleSubmit(data: any) {
+    setIsSubmitting(true);
+    
+    try {
+      // Prepariamo i dati per l'API
+      const payload = {
+        ...data,
+        name: `${data.firstName} ${data.lastName}`,
+        active: false
+      };
+      
+      // Chiamata API
+      const response = await apiRequest('/api/clients', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Cliente creato",
+          description: `${data.firstName} ${data.lastName} è stato aggiunto con successo`
+        });
+        
+        // Resettiamo il form e indichiamo successo
+        form.reset();
+        onSuccess(response.client);
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante la creazione del cliente",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Errore nella creazione del cliente:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore imprevisto. Riprova più tardi.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+  
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="firstName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Mario" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          
+          <FormField
+            control={form.control}
+            name="lastName"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cognome</FormLabel>
+                <FormControl>
+                  <Input placeholder="Rossi" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+        
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email</FormLabel>
+              <FormControl>
+                <Input 
+                  type="email" 
+                  placeholder="mario.rossi@example.com" 
+                  {...field} 
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <FormField
+          control={form.control}
+          name="phone"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Telefono (Opzionale)</FormLabel>
+              <FormControl>
+                <Input placeholder="+39 123 456 7890" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        
+        <div className="flex justify-end gap-2">
+          <Button 
+            type="submit"
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? "Creazione in corso..." : "Crea Cliente"}
+          </Button>
+        </div>
+      </form>
+    </Form>
+  );
+}
+
+// Componente per mostrare un singolo cliente in una card
+function ClientCard({ client, onClientClick, isNewlyCreated = false, onRequestOnboarding }: { 
+  client: Client; 
+  onClientClick?: (clientId: number) => void; 
+  isNewlyCreated?: boolean;
+  onRequestOnboarding?: (client: Client) => void;
+}) {
+  const goToClientDetail = () => {
+    if (onClientClick) {
+      onClientClick(client.id);
+    }
+  };
+  
+  // Formatta il valore degli asset
+  const formatAssets = (value?: number) => {
+    if (value === undefined) return "N/D";
+    return new Intl.NumberFormat('it-IT', { 
+      style: 'currency', 
+      currency: 'EUR',
+      maximumFractionDigits: 0
+    }).format(value);
+  };
+  
+  // Ottieni un colore per il segmento cliente
+  const getSegmentColor = (segment?: string) => {
+    if (!segment) return "bg-gray-200 text-gray-800";
+    
+    switch(segment) {
+      case 'mass_market': return "bg-green-100 text-green-800";
+      case 'affluent': return "bg-blue-100 text-blue-800";
+      case 'hnw': return "bg-purple-100 text-purple-800";
+      case 'vhnw': return "bg-pink-100 text-pink-800";
+      case 'uhnw': return "bg-amber-100 text-amber-800";
+      default: return "bg-gray-200 text-gray-800";
+    }
+  };
+  
+  // Traduci il segmento cliente
+  const getSegmentLabel = (segment?: string) => {
+    if (!segment) return "Non specificato";
+    
+    switch(segment) {
+      case 'mass_market': return "Mass Market";
+      case 'affluent': return "Affluent";
+      case 'hnw': return "High Net Worth";
+      case 'vhnw': return "Very High Net Worth";
+      case 'uhnw': return "Ultra High Net Worth";
+      default: return segment;
+    }
+  };
+  
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <CardHeader className="p-4 pb-2 space-y-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Avatar>
+              <AvatarFallback className="uppercase bg-blue-100 text-blue-700">
+                {client.firstName?.[0]}{client.lastName?.[0]}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <CardTitle className="text-lg">{client.firstName} {client.lastName}</CardTitle>
+              <CardDescription className="flex items-center">
+                <Mail className="h-3 w-3 mr-1" />
+                {client.email}
+              </CardDescription>
+            </div>
+          </div>
+          {client.isArchived && (
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
+              Archiviato
+            </Badge>
+          )}
+          {isNewlyCreated && (
+            <Badge className="bg-green-100 text-green-800 border-green-300">
+              Nuovo
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 pt-2 space-y-4">
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          {client.phone && (
+            <div className="flex items-center space-x-1 text-gray-600">
+              <Phone className="h-3 w-3" />
+              <span>{client.phone}</span>
+            </div>
+          )}
+          {client.clientSegment && (
+            <div className="flex items-center space-x-1 text-gray-600">
+              <Badge className={getSegmentColor(client.clientSegment)}>
+                {getSegmentLabel(client.clientSegment)}
+              </Badge>
+            </div>
+          )}
+        </div>
+        {!isNewlyCreated && client.totalAssets !== undefined && (
+          <div className="text-sm">
+            <span className="font-semibold text-blue-700">Patrimonio:</span> {formatAssets(client.totalAssets)}
+          </div>
+        )}
+        
+        {isNewlyCreated && (
+          <div className="mt-2 p-2 bg-amber-50 rounded-lg border border-amber-200 text-amber-800 text-sm">
+            <p className="font-medium flex items-center mb-1">
+              <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+              Suggerimento
+            </p>
+            <p>Ricordati di procedere con l'onboarding del cliente per completare la sua registrazione.</p>
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="p-2 pt-0 flex justify-between">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={goToClientDetail}
+          className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+        >
+          Visualizza Profilo
+          <ArrowRight className="ml-2 h-3 w-3" />
+        </Button>
+        
+        {isNewlyCreated && onRequestOnboarding && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50 flex items-center"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRequestOnboarding(client);
+            }}
+          >
+            <Mail className="h-4 w-4 mr-2" />
+            Invia Onboarding
+          </Button>
+        )}
+      </CardFooter>
+    </Card>
+  );
+}
+
+// Componente per mostrare un singolo appuntamento in una card
+function MeetingCard({ meeting, onClientClick }: { meeting: Meeting; onClientClick?: (clientId: number) => void }) {
+  const goToClientDetail = () => {
+    if (meeting.client?.id && onClientClick) {
+      onClientClick(meeting.client.id);
+    }
+  };
+  
+  // Formatta la durata
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+  };
+  
+  return (
+    <Card className="overflow-hidden transition-all hover:shadow-md">
+      <CardHeader className="p-4 pb-2 bg-blue-50 dark:bg-blue-900/20">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg text-blue-800 dark:text-blue-300">{meeting.subject}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+          <Calendar className="h-4 w-4 text-blue-600" />
+          <span>{meeting.formattedDate || new Date(meeting.dateTime).toLocaleDateString()}</span>
+        </div>
+        <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+          <Clock className="h-4 w-4 text-blue-600" />
+          <span>{meeting.formattedTime || new Date(meeting.dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span className="text-sm text-gray-500">({formatDuration(meeting.duration)})</span>
+        </div>
+        {meeting.location && (
+          <div className="flex items-center space-x-2 text-gray-700 dark:text-gray-300">
+            <MapPin className="h-4 w-4 text-blue-600" />
+            <span>{meeting.location}</span>
+          </div>
+        )}
+        {meeting.client && (
+          <div className="flex items-center mt-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+            <Avatar className="h-6 w-6 mr-2">
+              <AvatarFallback className="text-xs bg-blue-100 text-blue-700">
+                {meeting.client.name.split(' ').map(n => n[0]).join('')}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-sm">
+              <span className="font-medium">{meeting.client.name}</span>
+            </div>
+          </div>
+        )}
+      </CardContent>
+      {meeting.client && onClientClick && (
+        <CardFooter className="p-2 pt-0 flex justify-end">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={goToClientDetail}
+            className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+          >
+            Profilo Cliente
+            <ArrowRight className="ml-2 h-3 w-3" />
+          </Button>
+        </CardFooter>
+      )}
+    </Card>
+  );
+}
+
+// Componente per mostrare una lista di appuntamenti in una card
+function MeetingsList({ meetings, onClientClick }: { meetings: Meeting[]; onClientClick?: (clientId: number) => void }) {
+  return (
+    <Card className="w-full overflow-hidden shadow-md border border-blue-200/30 bg-white dark:bg-black/20">
+      <CardHeader className="p-4 bg-blue-50/80 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800/20">
+        <CardTitle className="text-base text-blue-800 dark:text-blue-300 flex items-center">
+          <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+          I tuoi appuntamenti
+        </CardTitle>
+      </CardHeader>
+      
+      <CardContent className="p-0">
+        {meetings.length === 0 ? (
+          <div className="p-6 text-center text-gray-500">
+            Nessun appuntamento trovato
+          </div>
+        ) : (
+          <div className="divide-y divide-gray-100 dark:divide-gray-800">
+            {meetings.map((meeting) => {
+              // Prepariamo i dati della data per formattazione migliore
+              const meetingDate = new Date(meeting.dateTime);
+              const today = new Date();
+              const tomorrow = new Date(today);
+              tomorrow.setDate(tomorrow.getDate() + 1);
+              
+              // Determina se è oggi, domani o altro giorno
+              const isToday = meetingDate.toDateString() === today.toDateString();
+              const isTomorrow = meetingDate.toDateString() === tomorrow.toDateString();
+              
+              // Formatta l'etichetta della data in modo intelligente
+              let dateLabel = meeting.formattedDate;
+              if (isToday) dateLabel = "Oggi";
+              if (isTomorrow) dateLabel = "Domani";
+              
+              return (
+                <div key={meeting.id} className="p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                  <div className="flex items-start mb-2 justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-blue-800 dark:text-blue-300">{meeting.subject}</h4>
+                      {meeting.client && (
+                        <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                          <User className="h-3 w-3 mr-1 inline" />
+                          {meeting.client.name}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold text-blue-600 bg-blue-100/50 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full inline-block">
+                        {dateLabel} • {meeting.formattedTime}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-500">
+                    <div className="flex items-center">
+                      <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                      <span>{meeting.duration} min</span>
+                    </div>
+                    {meeting.location && (
+                      <div className="flex items-center">
+                        <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+                        <span>{meeting.location}</span>
+                      </div>
+                    )}
+                  </div>
+                  {meeting.client && onClientClick && (
+                    <div className="mt-3 text-right">
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => onClientClick(meeting.client!.id)}
+                        className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"
+                      >
+                        Profilo Cliente
+                        <ArrowRight className="ml-1 h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function AgentPage() {
+  const { t } = useTranslation();
+  const { toast } = useToast();
+  const [, navigate] = useLocation();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Stati per i messaggi e l'input
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [hasSeenIntro, setHasSeenIntro] = useState(false);
+  
+  // Stati per la gestione delle conversazioni
+  const [currentConversationId, setCurrentConversationId] = useState<number | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [isConversationsOpen, setIsConversationsOpen] = useState(false);
+  
+  // Stato per i form e checkbox
+  const [sendEmailChecked, setSendEmailChecked] = useState(true);
+  const [completedForms, setCompletedForms] = useState<Record<string, boolean>>({});
+  
+  // Stati per i dialoghi
+  const [isOnboardingDialogOpen, setIsOnboardingDialogOpen] = useState(false);
+  const [clientToOnboard, setClientToOnboard] = useState<Client | null>(null);
+  
+  // Define capabilities for the agent
+  const capabilities = [
+    { 
+      title: "1- Insight clienti e mail personalizzate", 
+      description: "Analisi dei profili clienti e generazione di email personalizzate" 
+    },
+    {
+      title: "2- Gestione calendario e incontri",
+      description: "Pianificazione, preparazione e follow-up degli incontri con i clienti",
+      icon: <Calendar className="h-6 w-6" />
+    },
+    {
+      title: "3- Generazione idee",
+      description: "Suggerimenti di investimento e opportunità basati sulle ultime notizie di mercato",
+      icon: <Mail className="h-6 w-6" />
+    },
+    {
+      title: "4- Assistenza generale",
+      description: "Supporto con normative, template di documenti e utilizzo della piattaforma",
+      icon: <Sparkles className="h-6 w-6" />
+    }
+  ];
+  
+  // Controlla se l'utente ha già visto l'intro
+  useEffect(() => {
+    const introSeen = localStorage.getItem('introSeen');
+    if (introSeen === 'true') {
+      setShowIntro(false);
+      setHasSeenIntro(true);
+    }
+  }, []);
+  
+  // Animazioni introduttive
+  useEffect(() => {
+    if (showIntro) {
+      const initialMessages: Message[] = [
+        {
+          role: 'system',
+          content: 'Ciao. Sono Gervis',
+          id: 1
+        },
+        {
+          role: 'system',
+          content: "L'assistente AI di riferimento per consulenti finanziari.",
+          id: 2
+        }
+      ];
+      
+      // Aggiungi i messaggi uno alla volta con un ritardo
+      let timer1 = setTimeout(() => {
+        setMessages([initialMessages[0]]);
+      }, 600);
+      
+      let timer2 = setTimeout(() => {
+        setMessages([...initialMessages]);
+      }, 2000);
+      
+      // Non nascondere automaticamente l'intro, lasciamo che l'utente clicchi su "Inizia"
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [showIntro]);
+  
+  // Carica le conversazioni esistenti
+  useEffect(() => {
+    if (!showIntro) {
+      fetchConversations();
+    }
+  }, [showIntro]);
+  
+  // Scorrimento automatico all'ultimo messaggio
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages]);
+  
+  // Focus automatico sull'input quando l'intro finisce
+  useEffect(() => {
+    if (!showIntro && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [showIntro]);
+  
+  const fetchConversations = async () => {
+    try {
+      setIsLoading(true);
+      const response = await apiRequest('/api/agent/conversations');
+      
+      if (response.success) {
+        setConversations(response.conversations || []);
+      } else {
+        toast({
+          title: "Errore",
+          description: "Impossibile caricare le conversazioni",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento delle conversazioni:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const loadConversation = async (id: number) => {
+    try {
+      setIsLoading(true);
+      const response = await apiRequest(`/api/agent/conversations/${id}`);
+      
+      if (response.success) {
+        setMessages(response.messages);
+        setCurrentConversationId(id);
+        setIsConversationsOpen(false);
+      } else {
+        toast({
+          title: "Errore",
+          description: "Impossibile caricare la conversazione",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento della conversazione:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  const startNewConversation = () => {
+    setMessages([]);
+    setCurrentConversationId(null);
+    setIsConversationsOpen(false);
+  };
+  
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+    
+    try {
+      console.log('[Agent] Starting to send message:', input);
+      
+      // Aggiungi il messaggio dell'utente alla chat locale
+      const userMessage: Message = {
+        content: input,
+        role: 'user'
+      };
+      
+      setMessages((prev) => [...prev, userMessage]);
+      setInput('');
+      setIsLoading(true);
+      
+      console.log('[Agent] Making API request to /api/agent/chat');
+      // Invia il messaggio all'API con fetch diretto per meglio diagnosticare l'errore
+      // Crea requestData includendo conversationId solo se è un valore numerico
+      const requestData: {message: string, conversationId?: number} = {
+        message: input
+      };
+      
+      // Aggiungi conversationId solo se è un valore valido (numero)
+      if (typeof currentConversationId === 'number') {
+        requestData.conversationId = currentConversationId;
+      }
+      
+      console.log('[Agent] Request data:', requestData);
+      
+      try {
+        // Usando fetch direttamente invece di apiRequest
+        const fetchResponse = await fetch('/api/agent/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          body: JSON.stringify(requestData),
+          credentials: 'include', // Importante per includere i cookie di autenticazione
+        });
+        
+        console.log('[Agent] Fetch response status:', fetchResponse.status);
+        console.log('[Agent] Fetch response headers:', 
+          Object.fromEntries(fetchResponse.headers.entries())
+        );
+        
+        if (!fetchResponse.ok) {
+          const errorText = await fetchResponse.text();
+          console.error(`[Agent] HTTP error ${fetchResponse.status}:`, errorText);
+          throw new Error(`Errore HTTP ${fetchResponse.status}: ${errorText || fetchResponse.statusText}`);
+        }
+        
+        const response = await fetchResponse.json();
+        console.log('[Agent] API response received:', response);
+        
+        if (response.success) {
+          // Aggiorna l'ID della conversazione se è una nuova
+          if (!currentConversationId) {
+            console.log('[Agent] Setting new conversation ID:', response.conversationId);
+            if (response.conversationId) {
+              setCurrentConversationId(response.conversationId);
+            } else {
+              console.error('[Agent] Expected conversationId in response but it was not provided');
+            }
+          }
+          
+          // Verifica se la risposta contiene testo
+          if (response.response) {
+            console.log('[Agent] Received text response:', response.response.substring(0, 100) + (response.response.length > 100 ? '...' : ''));
+          } else {
+            console.warn('[Agent] No text response received in the API response');
+          }
+          
+          // Verifica se la risposta contiene funzioni per la creazione di appuntamenti o clienti
+          const shouldOnlyShowEmbeddedForm = false; // Sempre mostra il messaggio di testo
+          
+          // Aggiungi la risposta dell'assistente, mostrando solo text se non è un form embedded
+          const assistantMessage: Message = {
+            content: shouldOnlyShowEmbeddedForm ? '' : (response.response || 'Non ho ricevuto una risposta dal server'),
+            role: 'assistant',
+            functionCalls: response.functionCalls,
+            functionResults: response.functionResults
+          };
+          
+          setMessages((prev) => [...prev, assistantMessage]);
+          
+          // Gestisci i dialog, se presenti nella risposta
+          if (response.dialog) {
+            console.log('[Agent] Dialog in response:', response.dialog);
+            
+            if (response.dialog.showClientDialog) {
+              console.log('[Agent] Client dialog data:', response.dialog.clientData);
+            } else if (response.dialog.showMeetingDialog) {
+              console.log('[Agent] Meeting dialog data:', response.dialog.meetingData);
+            }
+          }
+          
+          // Aggiorna la lista delle conversazioni
+          fetchConversations();
+        } else {
+          console.error('[Agent] API returned error:', response);
+          toast({
+            title: "Errore",
+            description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
+            variant: "destructive",
+          });
+        }
+      } catch (fetchError) {
+        console.error('[Agent] Fetch error:', fetchError);
+        throw fetchError;
+      }
+    } catch (error) {
+      console.error('[Agent] Error in sendMessage:', error);
+      
+      if (error instanceof Error) {
+        console.error('[Agent] Error message:', error.message);
+        console.error('[Agent] Error stack:', error.stack);
+      }
+      
+      toast({
+        title: "Errore",
+        description: error instanceof Error ? error.message : "Si è verificato un errore nell'invio del messaggio",
+        variant: "destructive",
+      });
+    } finally {
+      console.log('[Agent] Finishing sendMessage function');
+      setIsLoading(false);
+    }
+  };
+  
+  // Gestisce l'invio del messaggio con il tasto invio
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  };
+  
+  // Formatta il timestamp
+  const formatTimestamp = (dateString?: string) => {
+    if (!dateString) return '';
+    
+    const date = new Date(dateString);
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // Formatta data e ora per l'elenco conversazioni
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+  
+  // Renderizza il messaggio iniziale con le capabilities
+  const renderCapabilitiesMessage = () => {
+    if (showIntro || messages.length > 0) return null;
+    
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.7 }}
+        className="flex mb-8 justify-start"
+      >
+        <div className="flex flex-row max-w-[90%]">
+          <Avatar className="h-10 w-10 mr-4 mt-2">
+            <AvatarFallback className="bg-blue-600 text-white"><Bot size={20} /></AvatarFallback>
+          </Avatar>
+          
+          <motion.div 
+            className="py-6 px-6 rounded-2xl border border-blue-300/20 shadow-lg backdrop-blur-md"
+            initial={{ scale: 0.98 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.5, type: "spring", stiffness: 100 }}
+          >
+            <motion.h2 
+              className="text-2xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center"
+              initial={{ x: -20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 0.8 }}
+            >
+              <Sparkles className="h-5 w-5 mr-2 text-blue-500" />
+              Il tuo assistente personale per consulenza finanziaria
+            </motion.h2>
+            
+            <motion.p 
+              className="text-base mb-6 leading-relaxed"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.0 }}
+            >
+              Ciao! Sono l'assistente Gervis, progettato specificamente per i consulenti finanziari. 
+              Posso aiutarti a gestire clienti, appuntamenti e molto altro.
+            </motion.p>
+            
+            <motion.div 
+              className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+            >
+              {capabilities.map((cap, index) => (
+                <motion.div 
+                  key={index}
+                  className="p-4 rounded-xl border border-blue-200/30 bg-white/10 dark:bg-black/20 backdrop-blur-sm hover:bg-white/20 dark:hover:bg-black/30 transition-all cursor-pointer shadow-sm"
+                  initial={{ y: 20, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ delay: 1.2 + index * 0.1 }}
+                  whileHover={{ y: -5, scale: 1.03 }}
+                >
+                  <h3 className="font-medium text-blue-500 flex items-center">
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {cap.title}
+                  </h3>
+                  <p className="text-sm opacity-80 mt-2">{cap.description}</p>
+                </motion.div>
+              ))}
+            </motion.div>
+            
+            <motion.p 
+              className="text-sm mt-6 italic opacity-80 text-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.8 }}
+            >
+              Come posso aiutarti oggi?
+            </motion.p>
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  };
+  
+  // Renderizza messaggio introduttivo con pulsante
+  const renderIntroScreen = () => {
+    return (
+      <motion.div
+        key="intro-screen"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="flex flex-col justify-center items-center h-full w-full"
+      >
+        <div className="flex flex-col items-center max-w-4xl mx-auto">
+          {messages.map(renderMessage)}
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.5, duration: 0.5 }}
+            className="mt-12"
+          >
+            <Button 
+              size="lg" 
+              onClick={() => {
+                setShowIntro(false);
+                setHasSeenIntro(true);
+                setMessages([]);
+                setCurrentConversationId(null);
+                localStorage.setItem('introSeen', 'true');
+              }}
+              className="px-10 py-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg"
+            >
+              <motion.span 
+                className="text-white text-lg font-medium"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                Inizia
+              </motion.span>
+            </Button>
+          </motion.div>
+        </div>
+      </motion.div>
+    );
+  };
+  
+  // Renderizza un messaggio
+  const renderMessage = (message: Message, index: number) => {
+    const isUser = message.role === 'user';
+    const isSystem = message.role === 'system';
+    
+    if (isSystem) {
+      // Codice per messaggio di sistema non modificato
+      return (
+        <motion.div
+          key={index}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-4 w-full"
+        >
+          <motion.div 
+            className="font-bold text-4xl sm:text-6xl md:text-7xl inline-block py-3 px-4 bg-gradient-to-r from-[#0035a4] via-[#3a5de2] to-[#6d68e4] bg-clip-text text-transparent"
+            initial={{ scale: 0.9 }}
+            animate={{ scale: 1 }}
+            transition={{ type: "spring", stiffness: 100 }}
+          >
+            {message.content}
+          </motion.div>
+        </motion.div>
+      );
+    }
+    
+    // Resto delle variabili e logica esistente
+    const functionResults = message.functionResults || [];
+    const hasResults = functionResults.length > 0;
+    const functionResult = hasResults ? functionResults[0] : null;
+    
+    // Determina il tipo di risultato
+    const hasClientResults = functionResult && 'clients' in functionResult && Array.isArray(functionResult.clients) && functionResult.clients.length > 0;
+    const hasMeetingResults = functionResult && 'meetings' in functionResult && Array.isArray(functionResult.meetings) && functionResult.meetings.length > 0;
+    const hasCreatedClient = functionResult && 'success' in functionResult && functionResult.success && 'client' in functionResult && functionResult.client;
+    const hasCreatedMeeting = functionResult && 'success' in functionResult && functionResult.success && 'meeting' in functionResult && functionResult.meeting;
+    const hasGeneratedEmail = functionResult && 'success' in functionResult && functionResult.success && 'email' in functionResult;
+    const showClientForm = functionResult && functionResult.showClientDialog && functionResult.clientData;
+    const showMeetingForm = functionResult && functionResult.showMeetingDialog && functionResult.meetingData;
+    const showEmailForm = functionResult && (functionResult.showEmailDialog || hasGeneratedEmail);
+    const hasOnboardingSent = functionResult && 'success' in functionResult && functionResult.success && functionResult.showOnboardingSent && 'client' in functionResult;
+    
+    return (
+      <motion.div
+        key={index}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className={`flex mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}
+      >
+        <div className={`flex ${isUser ? 'flex-row-reverse' : 'flex-row'} max-w-[90%]`}>
+          <Avatar className={`h-10 w-10 ${isUser ? 'ml-4' : 'mr-4'} flex-shrink-0`}>
+            <AvatarFallback className={isUser ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'}>
+              {isUser ? <User size={20} /> : <Bot size={20} />}
+            </AvatarFallback>
+          </Avatar>
+          
+          <div>
+            <div className={`
+              py-3 px-4 rounded-2xl mt-0
+              ${isUser 
+                ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white' 
+                : 'backdrop-blur-sm border border-blue-200/20'}
+            `}>
+              {message.content && <div className="text-base whitespace-pre-wrap break-words">{message.content}</div>}
+              
+              {message.createdAt && (
+                <div className="text-xs opacity-70 mt-1 text-right">
+                  {formatTimestamp(message.createdAt)}
+                </div>
+              )}
+              
+              {message.functionCalls && message.functionCalls.length > 0 && 
+                (!message.functionResults || message.functionResults.length === 0) && (
+                <div className="mt-2 text-xs opacity-70 italic flex items-center">
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Elaborazione in corso...
+                </div>
+              )}
+            </div>
+            
+            {/* Form embedded per la creazione del cliente */}
+            {showClientForm && !completedForms[`client-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <User className="h-4 w-4 mr-2 text-blue-600" />
+                      Crea Nuovo Cliente
+                    </CardTitle>
+                    <CardDescription>
+                      Completa i dati e conferma per aggiungere il cliente
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <EmbeddedClientForm 
+                      initialData={functionResult.clientData}
+                      onSuccess={(createdClient) => {
+                        // Nascondi il form
+                        setCompletedForms(prev => ({
+                          ...prev,
+                          [`client-${index}`]: true
+                        }));
+                        
+                        // Aggiungi un messaggio di conferma nella chat
+                        const confirmationMessage: Message = {
+                          content: `Ho creato il cliente ${createdClient.firstName} ${createdClient.lastName} con successo.`,
+                          role: 'assistant',
+                          functionResults: [{
+                            success: true,
+                            client: createdClient,
+                            message: 'Cliente creato con successo'
+                          }]
+                        };
+                        
+                        setMessages((prev) => [...prev, confirmationMessage]);
+                        
+                        // Aggiorna la lista delle conversazioni
+                        fetchConversations();
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            {/* Form per la creazione dell'appuntamento */}
+            {showMeetingForm && !completedForms[`meeting-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+                      Crea Nuovo Appuntamento
+                    </CardTitle>
+                    <CardDescription>
+                      Conferma i dettagli dell'appuntamento
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid gap-4 py-2">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="client" className="text-right">
+                          Cliente
+                        </Label>
+                        <div className="col-span-3 font-medium">
+                          {functionResult.meetingData?.clientInfo?.name}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="subject" className="text-right">
+                          Oggetto
+                        </Label>
+                        <Input
+                          id="subject"
+                          defaultValue={functionResult.meetingData?.subject || ""}
+                          className="col-span-3"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="location" className="text-right">
+                          Luogo
+                        </Label>
+                        <Select
+                          defaultValue={functionResult.meetingData?.location || "incontro"}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="zoom">Zoom</SelectItem>
+                            <SelectItem value="office">Ufficio</SelectItem>
+                            <SelectItem value="phone">Telefono</SelectItem>
+                            <SelectItem value="incontro">Incontro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="time" className="text-right">
+                          Orario
+                        </Label>
+                        <div className="col-span-3 font-medium">
+                          {functionResult.meetingData?.formattedDate} alle {functionResult.meetingData?.formattedTime}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="duration" className="text-right">
+                          Durata (min)
+                        </Label>
+                        <Select
+                          defaultValue={functionResult.meetingData?.duration?.toString() || "60"}
+                        >
+                          <SelectTrigger className="col-span-3">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="15">15 minuti</SelectItem>
+                            <SelectItem value="30">30 minuti</SelectItem>
+                            <SelectItem value="45">45 minuti</SelectItem>
+                            <SelectItem value="60">1 ora</SelectItem>
+                            <SelectItem value="90">1 ora e 30 minuti</SelectItem>
+                            <SelectItem value="120">2 ore</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="notes" className="text-right align-top mt-2">
+                          Note
+                        </Label>
+                        <Textarea
+                          id="notes"
+                          defaultValue={functionResult.meetingData?.notes || ""}
+                          className="col-span-3"
+                          rows={2}
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <div className="col-span-4 flex items-center space-x-2 justify-end">
+                          <Checkbox 
+                            id="sendEmail" 
+                            defaultChecked 
+                            onCheckedChange={(checked) => setSendEmailChecked(checked === true)}
+                          />
+                          <Label htmlFor="sendEmail" className="text-sm font-normal cursor-pointer">
+                            Invia email di invito al cliente
+                          </Label>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCompletedForms(prev => ({
+                          ...prev,
+                          [`meeting-${index}`]: true
+                        }))}
+                      >
+                        Annulla
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => {
+                          // Ottieni i valori dal form
+                          const subjectElement = document.getElementById('subject') as HTMLInputElement;
+                          const notesElement = document.getElementById('notes') as HTMLTextAreaElement;
+                          
+                          const subject = subjectElement?.value || functionResult.meetingData?.subject || "";
+                          const notes = notesElement?.value || functionResult.meetingData?.notes || "";
+                          
+                          // Crea un oggetto con i dati dell'appuntamento
+                          const meetingData = {
+                            ...functionResult.meetingData,
+                            subject,
+                            notes,
+                            sendEmail: sendEmailChecked
+                          };
+                          
+                          // Aggiungi messaggio di conferma
+                          const confirmationMessage: Message = {
+                            content: `Ho creato l'appuntamento con ${functionResult.meetingData?.clientInfo?.name} per il ${functionResult.meetingData?.formattedDate} alle ${functionResult.meetingData?.formattedTime}.`,
+                            role: 'assistant',
+                            functionResults: [{
+                              success: true,
+                              meeting: {
+                                ...meetingData,
+                                id: Date.now(), // ID temporaneo
+                                client: {
+                                  id: parseInt(functionResult.meetingData?.clientInfo?.id) || 0,
+                                  name: functionResult.meetingData?.clientInfo?.name || "",
+                                  email: functionResult.meetingData?.clientInfo?.email || ""
+                                }
+                              }
+                            }]
+                          };
+                          
+                          // Invia i dati all'API (implementazione semplificata)
+                          const apiData = {
+                            clientId: parseInt(functionResult.meetingData?.clientInfo?.id) || 0,
+                            subject,
+                            dateTime: functionResult.meetingData?.dateTime,
+                            duration: parseInt(functionResult.meetingData?.duration) || 60,
+                            location: functionResult.meetingData?.location || "incontro",
+                            notes,
+                            sendEmail: sendEmailChecked
+                          };
+                          
+                          // Chiamata all'API
+                          apiRequest('/api/meetings', {
+                            method: 'POST',
+                            body: JSON.stringify(apiData)
+                          }).then(() => {
+                            toast({
+                              title: "Appuntamento creato",
+                              description: `Appuntamento con ${functionResult.meetingData?.clientInfo?.name} creato con successo.`,
+                            });
+                          }).catch(error => {
+                            console.error("Errore nella creazione dell'appuntamento:", error);
+                            toast({
+                              title: "Errore",
+                              description: "Si è verificato un errore durante la creazione dell'appuntamento.",
+                              variant: "destructive"
+                            });
+                          });
+                          
+                          setMessages((prev) => [...prev, confirmationMessage]);
+                          setCompletedForms(prev => ({
+                            ...prev,
+                            [`meeting-${index}`]: true
+                          }));
+                        }}
+                      >
+                        Crea Appuntamento
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            {/* Form per l'invio dell'email */}
+            {showEmailForm && !completedForms[`email-${index}`] && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <Card className="border border-blue-200 shadow-md overflow-hidden">
+                  <CardHeader className="bg-blue-50 border-b border-blue-100 py-3">
+                    <CardTitle className="text-lg text-blue-800 flex items-center">
+                      <Mail className="h-4 w-4 mr-2 text-blue-600" />
+                      Invia Email
+                    </CardTitle>
+                    <CardDescription>
+                      Conferma i dettagli dell'email prima dell'invio
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <div className="grid gap-4 py-2">
+                      <div className="grid grid-cols-4 items-center gap-4 relative">
+                        <Label htmlFor="email-recipient" className="text-right">
+                          Destinatario
+                        </Label>
+                        <div className="col-span-3 relative">
+                          <Input
+                            id="email-recipient"
+                            placeholder="Cerca cliente per nome o email..."
+                            defaultValue={
+                              hasGeneratedEmail && functionResult.clientInfo
+                                ? functionResult.clientInfo.email
+                                : functionResult.clientInfo?.email || ""
+                            }
+                            onChange={(e) => searchRecipients(e.target.value)}
+                            className="col-span-3"
+                          />
+                          
+                          {/* Dropdown per risultati di ricerca */}
+                          {recipientSearchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                              {isSearchingRecipients && (
+                                <div className="p-2 text-center text-sm text-gray-500">
+                                  <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
+                                  Ricerca...
+                                </div>
+                              )}
+                              
+                              <ul className="max-h-60 overflow-auto py-1">
+                                {recipientSearchResults.map((client) => (
+                                  <li 
+                                    key={client.id}
+                                    onClick={() => {
+                                      setSelectedRecipient({
+                                        id: client.id,
+                                        email: client.email,
+                                        name: `${client.firstName} ${client.lastName}`
+                                      });
+                                      setRecipientSearchResults([]);
+                                      const inputElement = document.getElementById('email-recipient') as HTMLInputElement;
+                                      if (inputElement) {
+                                        inputElement.value = client.email;
+                                      }
+                                    }}
+                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                                  >
+                                    <div className="font-medium">{client.firstName} {client.lastName}</div>
+                                    <div className="text-sm text-gray-600">{client.email}</div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email-subject" className="text-right">
+                          Oggetto
+                        </Label>
+                        <Input
+                          id="email-subject"
+                          defaultValue={
+                            hasGeneratedEmail && functionResult.subject 
+                              ? functionResult.subject 
+                              : functionResult.subject || ""
+                          }
+                          className="col-span-3"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-4 items-start gap-4">
+                        <Label htmlFor="email-content" className="text-right mt-2">
+                          Contenuto
+                        </Label>
+                        <Textarea
+                          id="email-content"
+                          defaultValue={
+                            hasGeneratedEmail && functionResult.email 
+                              ? functionResult.email 
+                              : functionResult.messageTemplate || ""
+                          }
+                          className="col-span-3"
+                          rows={10}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-end gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setCompletedForms(prev => ({
+                          ...prev,
+                          [`email-${index}`]: true
+                        }))}
+                      >
+                        Annulla
+                      </Button>
+                      <Button 
+                        size="sm"
+                        onClick={() => {
+                          // Ottieni i valori dal form
+                          const recipientElement = document.getElementById('email-recipient') as HTMLInputElement;
+                          const subjectElement = document.getElementById('email-subject') as HTMLInputElement;
+                          const contentElement = document.getElementById('email-content') as HTMLTextAreaElement;
+                          
+                          const recipientEmail = recipientElement?.value || functionResult.clientInfo?.email || "";
+                          const subject = subjectElement?.value || functionResult.subject || "";
+                          const content = contentElement?.value || functionResult.messageTemplate || "";
+                          
+                          // Determina il clientId corretto
+                          let clientId = functionResult.clientInfo?.id;
+                          let recipientName = functionResult.clientInfo?.name;
+                          
+                          // Se l'utente ha selezionato un destinatario diverso
+                          if (selectedRecipient && selectedRecipient.email === recipientEmail) {
+                            clientId = selectedRecipient.id;
+                            recipientName = selectedRecipient.name;
+                          }
+                          
+                          // Verifica che l'email sia valida
+                          if (!recipientEmail || !recipientEmail.includes('@')) {
+                            toast({
+                              title: "Errore",
+                              description: "Inserisci un indirizzo email valido",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
+                          
+                          // Aggiungi messaggio di conferma
+                          const confirmationMessage: Message = {
+                            content: `Ho inviato l'email a ${recipientName || recipientEmail}.`,
+                            role: 'assistant',
+                            functionResults: [{
+                              success: true,
+                              emailSent: true,
+                              clientInfo: {
+                                id: clientId,
+                                name: recipientName || recipientEmail,
+                                email: recipientEmail
+                              },
+                              message: `Email inviata a ${recipientEmail} con successo.`
+                            }]
+                          };
+                          
+                          // Invia i dati all'API
+                          apiRequest(`/api/clients/${clientId}/send-email`, {
+                            method: 'POST',
+                            body: JSON.stringify({
+                              subject,
+                              message: content,
+                              language: functionResult.language || 'italian'
+                            })
+                          }).then(() => {
+                            toast({
+                              title: "Email inviata",
+                              description: `Email inviata a ${recipientName || recipientEmail} con successo.`,
+                            });
+                          }).catch(error => {
+                            console.error("Errore nell'invio dell'email:", error, error.message);
+                            toast({
+                              title: "Errore",
+                              description: error.message || "Si è verificato un errore durante l'invio dell'email.",
+                              variant: "destructive"
+                            });
+                          });
+                          
+                          setMessages((prev) => [...prev, confirmationMessage]);
+                          setCompletedForms(prev => ({
+                            ...prev,
+                            [`email-${index}`]: true
+                          }));
+                        }}
+                      >
+                        Invia Email
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            {/* Visualizzazione dei risultati della ricerca di clienti */}
+            {hasClientResults && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <h3 className="text-base font-medium text-blue-800 mb-2 flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  {functionResult.count} clienti trovati
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {functionResult.clients.map((client: Client) => (
+                    <ClientCard key={client.id} client={client} onClientClick={handleClientClick} isNewlyCreated={false} onRequestOnboarding={handleOnboardingRequest} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Visualizzazione dei risultati della ricerca di appuntamenti */}
+            {hasMeetingResults && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2 w-full"
+              >
+                <h3 className="text-base font-medium text-blue-800 mb-3 flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  {functionResult.count} appuntamenti trovati
+                </h3>
+                
+                <Card className="w-full overflow-hidden shadow-md border border-blue-200/30 bg-white dark:bg-black/20">
+                  <CardHeader className="p-4 bg-blue-50/80 dark:bg-blue-900/10 border-b border-blue-100 dark:border-blue-800/20">
+                    <CardTitle className="text-base text-blue-800 dark:text-blue-300 flex items-center">
+                      <Calendar className="h-4 w-4 mr-2 text-blue-600" />
+                      I tuoi appuntamenti
+                    </CardTitle>
+                  </CardHeader>
+                  
+                  <CardContent className="p-0">
+                    {functionResult.meetings.length === 0 ? (
+                      <div className="p-6 text-center text-gray-500">
+                        Nessun appuntamento trovato
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-gray-100 dark:divide-gray-800">
+                        {functionResult.meetings.map((meeting: Meeting) => {
+                          // Prepariamo i dati della data per formattazione migliore
+                          const meetingDate = new Date(meeting.dateTime);
+                          const today = new Date();
+                          const tomorrow = new Date(today);
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          
+                          // Determina se è oggi, domani o altro giorno
+                          const isToday = meetingDate.toDateString() === today.toDateString();
+                          const isTomorrow = meetingDate.toDateString() === tomorrow.toDateString();
+                          
+                          // Formatta l'etichetta della data in modo intelligente
+                          let dateLabel = meeting.formattedDate;
+                          if (isToday) dateLabel = "Oggi";
+                          if (isTomorrow) dateLabel = "Domani";
+                          
+                          return (
+                            <div key={meeting.id} className="p-4 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors">
+                              <div className="flex items-start mb-2 justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-blue-800 dark:text-blue-300">{meeting.subject}</h4>
+                                  {meeting.client && (
+                                    <p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                                      <User className="h-3 w-3 mr-1 inline" />
+                                      {meeting.client.name}
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-sm font-semibold text-blue-600 bg-blue-100/50 dark:bg-blue-900/30 dark:text-blue-300 px-2 py-0.5 rounded-full inline-block">
+                                    {dateLabel} • {meeting.formattedTime}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2 mt-2 text-xs text-gray-500">
+                                <div className="flex items-center">
+                                  <Clock className="h-3 w-3 mr-1 text-gray-400" />
+                                  <span>{meeting.duration} min</span>
+                                </div>
+                                {meeting.location && (
+                                  <div className="flex items-center">
+                                    <MapPin className="h-3 w-3 mr-1 text-gray-400" />
+                                    <span>{meeting.location}</span>
+                                  </div>
+                                )}
+                              </div>
+                              {meeting.client && (
+                                <div className="mt-3 text-right">
+                                  <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    onClick={() => meeting.client && handleClientClick(meeting.client.id)}
+                                    className="text-xs text-blue-600 hover:text-blue-800 hover:bg-blue-50 p-1 h-auto"
+                                  >
+                                    Profilo Cliente
+                                    <ArrowRight className="ml-1 h-3 w-3" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+            
+            {/* Visualizzazione del cliente appena creato */}
+            {hasCreatedClient && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <h3 className="text-base font-medium text-green-800 mb-2 flex items-center">
+                  <User className="h-4 w-4 mr-2" />
+                  Cliente creato con successo
+                </h3>
+                <div className="border-l-4 border-green-500 pl-4">
+                  <ClientCard client={functionResult.client} onClientClick={handleClientClick} isNewlyCreated={hasCreatedClient} onRequestOnboarding={handleOnboardingRequest} />
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Visualizzazione dell'appuntamento appena creato */}
+            {hasCreatedMeeting && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <h3 className="text-base font-medium text-green-800 mb-2 flex items-center">
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Appuntamento creato con successo
+                </h3>
+                <div className="border-l-4 border-green-500 pl-4">
+                  <MeetingCard meeting={functionResult.meeting} onClientClick={handleClientClick} />
+                </div>
+              </motion.div>
+            )}
+            
+            {/* Visualizzazione della conferma di onboarding inviato */}
+            {hasOnboardingSent && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="mt-4 mb-2"
+              >
+                <div className="rounded-md border border-green-300 bg-green-50 p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <Mail className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-green-800">Email di onboarding inviata</h3>
+                      <div className="mt-2 text-sm text-green-700">
+                        <p>Un'email di onboarding è stata inviata a {functionResult.client.email}. Il cliente riceverà le istruzioni per completare la registrazione.</p>
+                      </div>
+                      <div className="mt-3">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="flex items-center text-blue-600"
+                          onClick={() => handleClientClick(functionResult.client.id)}
+                        >
+                          <User className="h-4 w-4 mr-2" />
+                          Visualizza Profilo Cliente
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // Funzione per gestire la navigazione verso la pagina del cliente tramite window.location
+  const handleClientClick = (clientId: number) => {
+    // Apre in una nuova scheda/finestra
+    window.open(`/clients/${clientId}`, '_blank');
+  };
+
+  // Funzione per inviare l'email di onboarding
+  const sendOnboardingEmail = async (client: Client) => {
+    try {
+      setIsLoading(true);
+      
+      // Prima generiamo un token di onboarding
+      const tokenResponse = await apiRequest(`/api/clients/${client.id}/onboarding-token`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendEmail: false // Non inviare subito l'email, lo faremo dopo
+        })
+      });
+      
+      if (!tokenResponse.success || !tokenResponse.token) {
+        toast({
+          title: "Errore",
+          description: tokenResponse.message || "Impossibile generare il token di onboarding",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        setIsOnboardingDialogOpen(false);
+        return;
+      }
+      
+      // Ora inviamo l'email con il token generato
+      const emailResponse = await apiRequest(`/api/clients/${client.id}/onboarding-token`, {
+        method: 'POST',
+        body: JSON.stringify({
+          sendEmail: true,
+          token: tokenResponse.token,
+          language: 'italian',
+          customMessage: `Gentile ${client.firstName} ${client.lastName},\n\nPer completare la registrazione alla piattaforma Gervis, ti invitiamo a compilare il modulo di onboarding cliccando sul link qui sotto.\n\nGrazie per la collaborazione.`,
+          customSubject: "Completa la registrazione a Gervis"
+        })
+      });
+      
+      if (emailResponse.success) {
+        // Aggiungi la risposta assistente per mostrare la conferma
+        const assistantMessage: Message = {
+          content: `Ho inviato l'email di onboarding a ${client.email} con successo.`,
+          role: 'assistant',
+          functionResults: [{
+            success: true,
+            client: client,
+            showOnboardingSent: true,
+            message: `Email di onboarding inviata a ${client.email}`
+          }]
+        };
+        
+        setMessages((prev) => [...prev, assistantMessage]);
+        
+        toast({
+          title: "Email inviata",
+          description: `Email di onboarding inviata a ${client.email}`,
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: emailResponse.message || "Si è verificato un errore nell'invio dell'email di onboarding",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'invio dell'email:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore nell'invio dell'email di onboarding",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsOnboardingDialogOpen(false);
+    }
+  };
+
+  // Funzione per gestire la richiesta di onboarding
+  const handleOnboardingRequest = (client: Client) => {
+    setClientToOnboard(client);
+    setIsOnboardingDialogOpen(true);
+  };
+
+  // Aggiungo uno stato per la ricerca di clienti nel form email
+  const [recipientSearchResults, setRecipientSearchResults] = useState<Client[]>([]);
+  const [isSearchingRecipients, setIsSearchingRecipients] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<{id: number, email: string, name: string} | null>(null);
+
+  // Funzione per cercare clienti mentre l'utente digita nel campo destinatario
+  const searchRecipients = async (query: string) => {
+    if (!query || query.length < 2) {
+      setRecipientSearchResults([]);
+      return;
+    }
+    
+    setIsSearchingRecipients(true);
+    
+    try {
+      console.log("[Agent] Searching for recipients with query:", query);
+      
+      // Eseguiamo una ricerca più ampia e completa
+      const response = await apiRequest('/api/clients/search', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          query, 
+          limit: 10,  // Aumentiamo il limite
+          includeArchived: false
+        })
+      });
+      
+      console.log("[Agent] Search response:", response);
+      
+      if (response.success && response.clients) {
+        // Ordiniamo i risultati mettendo in cima quelli che iniziano con la query
+        const sortedResults = [...response.clients].sort((a, b) => {
+          const aName = `${a.firstName} ${a.lastName}`.toLowerCase();
+          const bName = `${b.firstName} ${b.lastName}`.toLowerCase();
+          const lowerQuery = query.toLowerCase();
+          
+          // Priorità ai clienti che iniziano con la query
+          const aStartsWith = aName.startsWith(lowerQuery) || a.email.toLowerCase().startsWith(lowerQuery);
+          const bStartsWith = bName.startsWith(lowerQuery) || b.email.toLowerCase().startsWith(lowerQuery);
+          
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+          return 0;
+        });
+        
+        setRecipientSearchResults(sortedResults);
+      } else {
+        setRecipientSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Errore nella ricerca dei clienti:", error);
+      setRecipientSearchResults([]);
+    } finally {
+      setIsSearchingRecipients(false);
+    }
+  };
+
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
+  
+  // Function to handle conversation deletion
+  const deleteConversation = async (id: number) => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/agent/conversations/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Remove from conversations list
+        setConversations(prev => prev.filter(conv => conv.id !== id));
+        
+        // If it was the current conversation, start a new one
+        if (currentConversationId === id) {
+          startNewConversation();
+        }
+        
+        toast({
+          title: "Conversazione eliminata",
+          description: "La conversazione è stata eliminata con successo",
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: data.message || "Si è verificato un errore durante l'eliminazione della conversazione",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'eliminazione della conversazione:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione della conversazione",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteDialogOpen(false);
+      setConversationToDelete(null);
+    }
+  };
+  
+  // Function to handle deletion of all conversations
+  const deleteAllConversations = async () => {
+    try {
+      setIsLoading(true);
+      
+      const response = await fetch(`/api/agent/conversations`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        // Clear the conversations list
+        setConversations([]);
+        
+        // Start a new conversation
+        startNewConversation();
+        
+        toast({
+          title: "Conversazioni eliminate",
+          description: "Tutte le conversazioni sono state eliminate con successo",
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: data.message || "Si è verificato un errore durante l'eliminazione delle conversazioni",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'eliminazione di tutte le conversazioni:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'eliminazione delle conversazioni",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+      setIsDeleteAllDialogOpen(false);
+    }
+  };
+  
+  // Handle delete button click
+  const handleDeleteClick = (e: React.MouseEvent, conversation: Conversation) => {
+    e.stopPropagation(); // Prevent triggering the button onClick
+    setConversationToDelete(conversation);
+    setIsDeleteDialogOpen(true);
+  };
+
+  return (
+    <div className="relative flex flex-col h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black overflow-hidden">
+      {/* Header */}
+      <div className="px-4 py-3 border-b bg-white/50 dark:bg-black/50 backdrop-blur-sm z-10 flex justify-between items-center">
+        <div className="flex items-center">
+          <Avatar className="h-8 w-8 mr-3">
+            <AvatarFallback className="bg-blue-600 text-white">
+              <Bot size={16} />
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="font-semibold">Gervis AI Assistant</h1>
+          </div>
+        </div>
+        
+        {hasSeenIntro && (
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsConversationsOpen(!isConversationsOpen)}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Conversazioni
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startNewConversation}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuova chat
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      {/* Pannello laterale conversazioni */}
+      <AnimatePresence>
+        {isConversationsOpen && hasSeenIntro && (
+          <motion.div 
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ duration: 0.3 }}
+            className="fixed top-[56px] right-0 bottom-0 w-80 bg-white dark:bg-gray-950 border-l shadow-md z-20 flex flex-col"
+          >
+            <div className="p-3 border-b flex justify-between items-center">
+              <h3 className="font-medium text-sm">Le tue conversazioni</h3>
+              <div className="flex gap-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setIsDeleteAllDialogOpen(true)}
+                  title="Elimina tutte le conversazioni"
+                  className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={() => setIsConversationsOpen(false)}
+                  className="h-7 w-7"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              {isLoading ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin mx-auto mb-2" />
+                  Caricamento...
+                </div>
+              ) : conversations.length === 0 ? (
+                <div className="py-4 text-center text-sm text-muted-foreground">
+                  Nessuna conversazione
+                </div>
+              ) : (
+                conversations.map((conversation) => (
+                  <div key={conversation.id} className="relative group">
+                    <Button
+                      variant={currentConversationId === conversation.id ? "default" : "outline"}
+                      className="w-full justify-start text-left h-auto py-3 pr-10"
+                      onClick={() => loadConversation(conversation.id)}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <div className="truncate flex-1">
+                        <div className="font-medium truncate">{conversation.title}</div>
+                        <div className={`text-xs ${currentConversationId === conversation.id ? 'text-white/80' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {formatDate(conversation.updatedAt)}
+                        </div>
+                      </div>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                      onClick={(e) => handleDeleteClick(e, conversation)}
+                    >
+                      <Trash2 className="h-4 w-4 text-gray-500 hover:text-red-500" />
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
+      {/* Area messaggi */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto">
+          <AnimatePresence mode="wait">
+            {showIntro ? (
+              renderIntroScreen()
+            ) : (
+              <motion.div
+                key="chat"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="flex flex-col"
+              >
+                {messages.map(renderMessage)}
+                {renderCapabilitiesMessage()}
+                <div ref={messagesEndRef} />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
+      
+      {/* Input area */}
+      <motion.div 
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: showIntro ? 100 : 0, opacity: showIntro ? 0 : 1 }}
+        transition={{ delay: showIntro ? 0 : 0.5, duration: 0.5 }}
+        className="p-4 border-t bg-white/70 dark:bg-black/70 backdrop-blur-md"
+      >
+        <div className="max-w-4xl mx-auto relative">
+          <Input
+            ref={inputRef}
+            placeholder="Scrivi un messaggio..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isLoading || showIntro}
+            className="pr-12 py-7 bg-white/70 dark:bg-black/40 border-blue-200/30 focus-visible:ring-blue-500"
+          />
+          <Button 
+            onClick={sendMessage} 
+            disabled={isLoading || !input.trim() || showIntro}
+            size="icon"
+            className="absolute right-1 top-1/2 -translate-y-1/2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+          >
+            {isLoading ? 
+              <Loader2 className="h-4 w-4 animate-spin" /> : 
+              <Send className="h-4 w-4" />
+            }
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Dialog per conferma invio email onboarding */}
+      <Dialog open={isOnboardingDialogOpen} onOpenChange={setIsOnboardingDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Invia email di onboarding</DialogTitle>
+            <DialogDescription>
+              Invia un'email di onboarding a {clientToOnboard?.firstName} {clientToOnboard?.lastName} ({clientToOnboard?.email}).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground">
+              Il cliente riceverà un'email con le istruzioni per completare la registrazione alla piattaforma.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsOnboardingDialogOpen(false)}>Annulla</Button>
+            <Button 
+              onClick={() => clientToOnboard && sendOnboardingEmail(clientToOnboard)}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Invio in corso...
+                </>
+              ) : (
+                <>
+                  <Mail className="mr-2 h-4 w-4" />
+                  Invia Email
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per conferma eliminazione conversazione */}
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Elimina conversazione</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare questa conversazione? Questa azione non può essere annullata.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={() => conversationToDelete && deleteConversation(conversationToDelete.id)}
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Elimina
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog per conferma eliminazione di tutte le conversazioni */}
+      <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Elimina tutte le conversazioni</DialogTitle>
+            <DialogDescription>
+              Sei sicuro di voler eliminare tutte le conversazioni? Questa azione non può essere annullata e cancellerà tutta la cronologia delle chat.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-md text-red-600 mb-4">
+            <AlertTriangle className="h-5 w-5" />
+            <div className="text-sm">
+              Tutti i dati delle conversazioni saranno permanentemente eliminati.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteAllDialogOpen(false)}>
+              Annulla
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={deleteAllConversations}
+              disabled={isLoading}
+            >
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Elimina tutte
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+} 

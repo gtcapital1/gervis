@@ -263,7 +263,7 @@ export async function generateClientProfile(
     
     // Chiama l'API OpenAI usando la nuova sintassi
     const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Utilizziamo GPT-4 per risultati migliori
+      model: 'gpt-4.1-mini', // Utilizziamo GPT-4 per risultati migliori
       messages: [
         {
           role: 'system',

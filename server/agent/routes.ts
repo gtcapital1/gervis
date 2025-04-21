@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { handleChat, getConversations, getConversationById, deleteConversation } from './controller';
+import { handleChat, getConversations, getConversationById, deleteConversation, deleteAllConversations, handleClientContext } from './controller';
 
 const router = Router();
 
@@ -11,6 +11,10 @@ router.post('/chat', handleChat);
 router.get('/conversations', getConversations);
 router.get('/conversations/:id', getConversationById);
 router.delete('/conversations/:id', deleteConversation);
+router.delete('/conversations', deleteAllConversations);
+
+// Client context route
+router.post('/client/context', handleClientContext);
 
 // Add other agent-related routes here later
 
