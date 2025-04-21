@@ -809,7 +809,7 @@ export const sendOnboardingEmail: AgentFunction = {
 // Invia email personalizzate a un cliente
 export const sendCustomEmail: AgentFunction = {
   name: 'sendCustomEmail',
-  description: 'Invia un\'email personalizzata a un cliente esistente. Se il contenuto non è specificato, lo genero automaticamente in base all\'argomento richiesto.',
+  description: 'Invia un\'email personalizzata a un cliente esistente. Usa questa funzione quando l\'utente vuole inviare un\'email a un cliente, anche se fornisce solo il cliente e un argomento generico.',
   parameters: {
     clientIdentifier: 'string?',  // Nome, cognome o email del cliente (se non si specifica l'ID)
     clientId: 'number?',          // ID del cliente (opzionale se viene fornito clientIdentifier)
@@ -829,10 +829,10 @@ export const sendCustomEmail: AgentFunction = {
         params.subject = "Informazioni sui nostri servizi";
       }
       
-      // Cerca di risolvere il clientId se è stato fornito clientIdentifier
       let clientId = params.clientId;
       let clientInfo = null;
       
+      // Cerca di risolvere il clientId se è stato fornito clientIdentifier
       if (!clientId && params.clientIdentifier) {
         console.log('[Agent] sendCustomEmail - Cerco cliente con identificatore:', params.clientIdentifier);
         
@@ -890,6 +890,9 @@ export const sendCustomEmail: AgentFunction = {
               email: potentialMatches[0].email
             };
             console.log('[Agent] sendCustomEmail - Trovato cliente con ricerca fuzzy:', clientInfo.name);
+          } else if (params.topic) {
+            // Se abbiamo almeno un topic, procediamo senza cliente
+            console.log('[Agent] sendCustomEmail - Nessun cliente trovato, ma proseguiamo con il topic:', params.topic);
           } else {
             return {
               success: false,
@@ -944,12 +947,15 @@ export const sendCustomEmail: AgentFunction = {
         }
       }
       
-      // Se ancora non abbiamo un clientId, restituisci un errore
-      if (!clientId || !clientInfo) {
+      // Controlliamo se abbiamo un topic, e in questo caso procediamo anche senza cliente
+      const hasTopic = params.topic && params.topic.trim() !== '';
+      
+      // Se ancora non abbiamo un clientId e non abbiamo un topic, restituisci un errore
+      if (!clientId && !clientInfo && !hasTopic) {
         return {
           success: false,
-          message: 'È necessario specificare un cliente per l\'email, tramite nome/email o ID.',
-          requiredParams: ['clientIdentifier']
+          message: 'È necessario specificare un cliente per l\'email, tramite nome/email o ID, oppure almeno un argomento.',
+          requiredParams: ['clientIdentifier', 'topic']
         };
       }
       
@@ -961,14 +967,11 @@ export const sendCustomEmail: AgentFunction = {
       if (!messageContent) {
         const topic = params.topic || params.subject;
         
-        // Non usiamo template predefiniti, ma lasciamo che OpenAI generi completamente il testo
-        // Questa parte sarà gestita dall'intelligenza di OpenAI nel controller.ts 
-        // quando viene chiamata l'API di GPT per generare la risposta
-        
-        // Indichiamo che è necessario generare dinamicamente il contenuto
+        // Se non abbiamo un cliente ma abbiamo un topic, procediamo comunque
+        // In questo caso, il cliente sarà scelto dall'utente nel dialog
         return {
           success: true,
-          clientInfo,
+          clientInfo: clientInfo || null,
           subject: params.subject,
           needsGeneration: true,  // Flag per indicare che è necessaria la generazione di contenuto
           topic: topic,
@@ -976,7 +979,9 @@ export const sendCustomEmail: AgentFunction = {
           showDialog: true,
           showEmailDialog: true,
           dialogType: 'sendCustomEmail',
-          message: `Sto preparando un'email personalizzata da inviare a ${clientInfo.name} riguardo a "${topic}". Il contenuto sarà generato in modo unico e personalizzato.`
+          message: clientInfo 
+            ? `Sto preparando un'email personalizzata da inviare a ${clientInfo.name} riguardo a "${topic}". Il contenuto sarà generato in modo unico e personalizzato.`
+            : `Sto preparando un'email personalizzata riguardo a "${topic}". Il contenuto sarà generato in modo unico e personalizzato.`
         };
       }
       
@@ -990,14 +995,16 @@ export const sendCustomEmail: AgentFunction = {
       // Prepariamo i dati per il dialog UI di conferma
       return {
         success: true,
-        clientInfo,
+        clientInfo: clientInfo || null,
         subject: params.subject,
         messageTemplate: messageContent,
         language,
         showDialog: true,
         showEmailDialog: true,
         dialogType: 'sendCustomEmail',
-        message: `Ho preparato un'email da inviare a ${clientInfo.name}. Controlla il contenuto e inviala quando sei pronto.`
+        message: clientInfo 
+          ? `Ho preparato un'email da inviare a ${clientInfo.name}. Controlla il contenuto e inviala quando sei pronto.`
+          : `Ho preparato un'email. Controlla il contenuto e il destinatario, poi inviala quando sei pronto.`
       };
     } catch (error) {
       console.error('[Agent] Error preparing custom email:', error);

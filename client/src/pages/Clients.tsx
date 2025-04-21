@@ -74,6 +74,9 @@ import { format } from "date-fns";
 import { it } from "date-fns/locale";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmailDialog, CalendarDialog } from "@/components/dialog";
+import { CalendarEvent } from "@/types/calendar";
+import { EmailFormData } from "@/types/email";
 
 export default function Clients() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false);
@@ -420,13 +423,6 @@ export default function Clients() {
 
   function handleScheduleMeeting(client: Client) {
     setClientToMeeting(client);
-    setMeetingSubject("");
-    setMeetingDate(new Date());
-    setMeetingTime("10:00");
-    setMeetingNotes("");
-    setMeetingLocation("office");
-    setMeetingDuration(60);
-    setSendMeetingEmail(false);
     setIsMeetingDialogOpen(true);
   }
   
@@ -483,8 +479,8 @@ export default function Clients() {
     }
   });
 
-  function scheduleMeeting() {
-    if (clientToMeeting && meetingDate && meetingSubject) {
+  function scheduleMeeting(event: CalendarEvent, sendEmail: boolean) {
+    if (clientToMeeting) {
       try {
         // Check if user is authenticated
         if (!user?.id) {
@@ -496,24 +492,16 @@ export default function Clients() {
           return;
         }
         
-        // Combine date and time
-        const [hours, minutes] = meetingTime.split(':').map(Number);
-        const dateTime = new Date(meetingDate);
-        dateTime.setHours(hours, minutes, 0, 0);
-        
-        // Format date for API
-        const formattedDate = dateTime.toISOString();
-        
         // Create meeting
         createMeetingMutation.mutate({
           clientId: clientToMeeting.id,
-          advisorId: user.id, // Always include the advisor ID and ensure it's defined
-          subject: meetingSubject,
-          dateTime: formattedDate,
-          duration: meetingDuration,
-          location: meetingLocation,
-          notes: meetingNotes,
-          sendEmail: sendMeetingEmail
+          advisorId: user.id,
+          subject: event.title,
+          dateTime: event.dateTime,
+          duration: event.duration,
+          location: event.location || "zoom",
+          notes: event.notes || "",
+          sendEmail: sendEmail
         });
       } catch (error) {
         console.error('Error in scheduleMeeting:', error);
@@ -523,12 +511,6 @@ export default function Clients() {
           variant: "destructive"
         });
       }
-    } else {
-      toast({
-        title: "Errore",
-        description: "Compilare tutti i campi richiesti (soggetto e data).",
-        variant: "destructive",
-      });
     }
   }
 
@@ -560,14 +542,23 @@ export default function Clients() {
   // Function to handle opening the email dialog
   function handleSendEmail(client: Client) {
     setClientToEmail(client);
-    setEmailSubject("");
-    setEmailMessage("");
     setIsEmailDialogOpen(true);
   }
 
   // Function to send email
-  function sendEmail() {
-    if (!clientToEmail) return;
+  function sendEmail(data: EmailFormData) {
+    // Determina l'ID client da usare (potrebbe essere undefined nelle email generiche)
+    const targetClientId = data.clientId;
+    
+    // Controlla se abbiamo un client ID valido
+    if (!targetClientId) {
+      toast({
+        title: "Errore",
+        description: "ID cliente non valido",
+        variant: "destructive",
+      });
+      return Promise.reject(new Error("ID cliente non valido"));
+    }
     
     // Show loading toast
     const loadingToast = toast({
@@ -576,11 +567,13 @@ export default function Clients() {
     });
     
     // Send the email via API
-    apiRequest(`/api/clients/${clientToEmail.id}/send-email`, {
+    return apiRequest(`/api/clients/${targetClientId}/send-email`, {
       method: 'POST',
       body: JSON.stringify({
-        subject: emailSubject,
-        message: emailMessage,
+        subject: data.subject,
+        message: data.message,
+        recipientName: data.recipientName,
+        recipientEmail: data.recipientEmail,
         language: 'italian' // o 'english' in base alle preferenze
       })
     })
@@ -593,13 +586,14 @@ export default function Clients() {
           title: "Email inviata",
           description: "L'email è stata inviata con successo",
         });
-        setIsEmailDialogOpen(false);
+        return response;
       } else {
         toast({
           title: "Errore",
           description: response.message || "Impossibile inviare l'email",
           variant: "destructive",
         });
+        throw new Error(response.message);
       }
     })
     .catch(error => {
@@ -611,6 +605,7 @@ export default function Clients() {
         description: error.message || "Si è verificato un errore durante l'invio dell'email",
         variant: "destructive",
       });
+      throw error;
     });
   }
 
@@ -901,202 +896,49 @@ export default function Clients() {
       </Dialog>
       
       {/* Schedule Meeting Dialog */}
-      <Dialog open={isMeetingDialogOpen} onOpenChange={setIsMeetingDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.schedule_meeting')}</DialogTitle>
-            <DialogDescription>
-              {t('dashboard.schedule_meeting_with')} {clientToMeeting?.firstName} {clientToMeeting?.lastName}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <label htmlFor="meeting-subject" className="text-sm font-medium">
-                {t('dashboard.subject')}
-              </label>
-              <Input
-                id="meeting-subject"
-                value={meetingSubject}
-                onChange={(e) => setMeetingSubject(e.target.value)}
-                placeholder={t('dashboard.meeting_details')}
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">
-                  {t('dashboard.date')}
-                </label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="text-left font-normal justify-start"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {meetingDate ? format(meetingDate, "PPP", { locale: it }) : t('dashboard.select_date')}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={meetingDate}
-                      onSelect={setMeetingDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="meeting-time" className="text-sm font-medium">
-                  {t('dashboard.time')}
-                </label>
-                <select
-                  id="meeting-time"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={meetingTime}
-                  onChange={(e) => setMeetingTime(e.target.value)}
-                >
-                  {Array.from({ length: 24 }, (_, hour) => {
-                    return ['00', '15', '30', '45'].map(minute => {
-                      const time = `${hour.toString().padStart(2, '0')}:${minute}`;
-                      return (
-                        <option key={time} value={time}>
-                          {time}
-                        </option>
-                      );
-                    });
-                  }).flat()}
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <label htmlFor="meeting-location" className="text-sm font-medium">
-                  {t('dashboard.location')}
-                </label>
-                <select
-                  id="meeting-location"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={meetingLocation}
-                  onChange={(e) => setMeetingLocation(e.target.value)}
-                >
-                  <option value="zoom">Zoom</option>
-                  <option value="office">Ufficio</option>
-                  <option value="phone">Telefono</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <label htmlFor="meeting-duration" className="text-sm font-medium">
-                  {t('dashboard.duration')}
-                </label>
-                <select
-                  id="meeting-duration"
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={meetingDuration}
-                  onChange={(e) => setMeetingDuration(parseInt(e.target.value))}
-                >
-                  <option value="15">15 minuti</option>
-                  <option value="30">30 minuti</option>
-                  <option value="45">45 minuti</option>
-                  <option value="60">1 ora</option>
-                  <option value="90">1 ora e 30 minuti</option>
-                  <option value="120">2 ore</option>
-                  <option value="180">3 ore</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <label htmlFor="meeting-notes" className="text-sm font-medium">
-                {t('dashboard.notes_optional')}
-              </label>
-              <Textarea
-                id="meeting-notes"
-                value={meetingNotes}
-                onChange={(e) => setMeetingNotes(e.target.value)}
-                placeholder={t('dashboard.add_meeting_details')}
-                className="min-h-[80px]"
-              />
-            </div>
-            <div className="flex items-center space-x-2 pt-2">
-              <Checkbox 
-                id="send-email" 
-                checked={sendMeetingEmail}
-                onCheckedChange={(checked) => setSendMeetingEmail(checked === true)}
-              />
-              <label
-                htmlFor="send-email"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Invia email di invito al cliente
-              </label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsMeetingDialogOpen(false)}>
-              {t('dashboard.cancel')}
-            </Button>
-            <Button onClick={scheduleMeeting}>
-              <Calendar className="mr-2 h-4 w-4" />
-              {t('dashboard.schedule_meeting')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {clientToMeeting && (
+        <CalendarDialog
+          open={isMeetingDialogOpen}
+          onOpenChange={setIsMeetingDialogOpen}
+          mode="create"
+          useClientSelector={true}
+          selectedDate={new Date()}
+          event={{
+            clientId: clientToMeeting.id,
+            title: "",
+            dateTime: new Date().toISOString(),
+            duration: 60,
+            location: "zoom",
+            notes: ""
+          }}
+          onSubmit={(event, sendEmailFlag) => {
+            if (clientToMeeting && user?.id) {
+              createMeetingMutation.mutate({
+                clientId: clientToMeeting.id,
+                advisorId: user.id,
+                subject: event.title,
+                dateTime: event.dateTime,
+                duration: event.duration,
+                location: event.location || "zoom",
+                notes: event.notes || "",
+                sendEmail: sendEmailFlag
+              });
+            }
+          }}
+        />
+      )}
       
       {/* Email Dialog */}
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>{t('dashboard.send_email')}</DialogTitle>
-            <DialogDescription>
-              {clientToEmail && `Invia un'email a ${clientToEmail.firstName} ${clientToEmail.lastName}`}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
-                <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4 text-accent" />
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Destinatario: </strong>{clientToEmail?.email}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
-                <Input 
-                  id="email-subject"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              
-              <Textarea 
-                id="email-content"
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                className="min-h-[300px] font-mono text-sm"
-                placeholder="Scrivi il contenuto dell'email qui..."
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-              {t('dashboard.cancel')}
-            </Button>
-            <Button 
-              onClick={sendEmail}
-              disabled={!emailSubject.trim() || !emailMessage.trim()}
-            >
-              <Mail className="mr-2 h-4 w-4" />
-              {t('dashboard.send_email')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {clientToEmail && (
+        <EmailDialog
+          open={isEmailDialogOpen}
+          onOpenChange={setIsEmailDialogOpen}
+          clientId={clientToEmail.id}
+          title={t('dashboard.send_email')}
+          onSubmit={sendEmail}
+          useClientSelector={true}
+        />
+      )}
       
       {/* Upgrade Dialog */}
       <UpgradeDialog 

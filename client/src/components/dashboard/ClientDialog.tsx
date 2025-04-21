@@ -1,7 +1,7 @@
 // This file defines the ClientDialog component.
 // It provides a dialog for creating a new client, including basic information such as name, email, and phone number.
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -40,15 +40,9 @@ type ClientFormValues = z.infer<typeof clientFormSchema>;
 interface ClientDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialData?: {
-    firstName?: string;
-    lastName?: string;
-    email?: string;
-    phone?: string;
-  };
 }
 
-export function ClientDialog({ open, onOpenChange, initialData }: ClientDialogProps) {
+export function ClientDialog({ open, onOpenChange }: ClientDialogProps) {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -56,24 +50,12 @@ export function ClientDialog({ open, onOpenChange, initialData }: ClientDialogPr
   const form = useForm<ClientFormValues>({
     resolver: zodResolver(clientFormSchema),
     defaultValues: {
-      firstName: initialData?.firstName || "",
-      lastName: initialData?.lastName || "",
-      email: initialData?.email || "",
-      phone: initialData?.phone || "",
+      firstName: "",
+      lastName: "",
+      email: "",
+      phone: "",
     },
   });
-  
-  // Update form values when initialData changes
-  useEffect(() => {
-    if (initialData && open) {
-      form.reset({
-        firstName: initialData.firstName || "",
-        lastName: initialData.lastName || "",
-        email: initialData.email || "",
-        phone: initialData.phone || "",
-      });
-    }
-  }, [initialData, open, form]);
   
   // Create client mutation
   const createClientMutation = useMutation({

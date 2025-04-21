@@ -16,6 +16,9 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailDialog } from "@/components/dialog";
+import { EmailFormData } from "@/types/email";
+import { apiRequest } from "@/lib/queryClient";
 
 interface AiClientProfileProps {
   clientId: number;
@@ -215,48 +218,46 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     refetch();
   };
 
-  // Funzione per inviare l'email
-  const sendEmail = async () => {
-    if (!emailToSend) return;
+  // Funzione per inviare email - modificata per usare il nuovo componente
+  const sendEmail = async (data: EmailFormData) => {
+    const loadingToast = toast({
+      title: "Invio email in corso...",
+      description: "Attendere prego"
+    });
     
     try {
-      // Show loading toast
-      toast({
-        title: t('common.sending'),
-        description: t('common.please_wait'),
-      });
-      
-      // Send the email via API
-      const response = await fetch(`/api/clients/${clientId}/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+      const response = await apiRequest(`/api/clients/${clientId}/send-email`, {
+        method: "POST",
         body: JSON.stringify({
-          subject: emailSubject,
-          message: emailMessage,
-          language: 'italian'
+          subject: data.subject,
+          message: data.message,
+          recipientName: data.recipientName,
+          recipientEmail: data.recipientEmail,
+          language: "italian" // o 'english' in base alle preferenze
         })
       });
       
-      if (response.ok) {
-        toast({
-          title: t('client.email_sent'),
-          description: t('client.email_sent_success'),
-        });
+      loadingToast.dismiss();
+      
+      if (response.success) {
         setIsEmailDialogOpen(false);
+        toast({
+          title: "Email inviata",
+          description: "L'email è stata inviata con successo",
+        });
       } else {
         toast({
-          title: t('common.error'),
-          description: await response.text() || t('client.onboarding_email_error'),
-          variant: 'destructive',
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante l'invio dell'email",
+          variant: "destructive",
         });
       }
     } catch (error) {
+      loadingToast.dismiss();
       toast({
-        title: t('common.error'),
-        description: t('dashboard.email_error'),
-        variant: 'destructive'
+        title: "Errore",
+        description: "Si è verificato un errore durante l'invio dell'email",
+        variant: "destructive",
       });
     }
   };
@@ -581,61 +582,16 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             </div>
           )}
 
-          {/* Email Dialog */}
-          <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-            <DialogContent className="sm:max-w-[600px]">
-              <DialogHeader>
-                <DialogTitle>{t('client.send_email')}</DialogTitle>
-                <DialogDescription>
-                  Invia email al cliente
-                </DialogDescription>
-              </DialogHeader>
-              <div className="py-4 space-y-6">
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <Label htmlFor="email-content" className="text-lg font-medium">{t('client.email_content')}</Label>
-                    <div className="flex items-center space-x-2">
-                      <Mail className="h-4 w-4 text-accent" />
-                      <p className="text-sm text-muted-foreground">
-                        <strong>Destinatario: </strong>{data?.data?.clientName}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <div className="mb-4">
-                    <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
-                    <Input 
-                      id="email-subject"
-                      value={emailSubject}
-                      onChange={(e) => setEmailSubject(e.target.value)}
-                      className="text-sm"
-                    />
-                  </div>
-                  
-                  <Textarea 
-                    id="email-content"
-                    value={emailMessage}
-                    onChange={(e) => setEmailMessage(e.target.value)}
-                    className="min-h-[300px] font-mono text-sm"
-                    placeholder="Scrivi il contenuto dell'email qui..."
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-                  {t('client.cancel')}
-                </Button>
-                <Button 
-                  onClick={sendEmail}
-                  disabled={!emailSubject.trim() || !emailMessage.trim()}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  {t('client.send_email')}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          {/* Email Dialog - aggiornato alla nuova versione */}
+          <EmailDialog
+            open={isEmailDialogOpen}
+            onOpenChange={setIsEmailDialogOpen}
+            clientId={clientId}
+            title={t('client.send_email')}
+            presetSubject={emailSubject}
+            presetMessage={emailMessage}
+            onSubmit={sendEmail}
+          />
         </CardContent>
       </Card>
     );

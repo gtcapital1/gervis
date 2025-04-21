@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailDialog } from "@/components/dialog";
+import { EmailFormData } from "@/types/email";
 
 interface OnboardingRequiredProps {
   clientId: number;
@@ -168,7 +170,7 @@ Grazie per la tua fiducia e collaborazione.`;
   };
   
   // Funzione per inviare il link di onboarding via email
-  const handleSendOnboardingEmail = async () => {
+  const handleSendOnboardingEmail = async (data: EmailFormData) => {
     if (!onboardingLink) {
       toast({
         title: t('error') || "Errore",
@@ -178,7 +180,7 @@ Grazie per la tua fiducia e collaborazione.`;
       return;
     }
     
-    // Invia direttamente l'email con il messaggio predefinito italiano
+    // Invia direttamente l'email con il messaggio personalizzato
     setIsSendingEmail(true);
     try {
       // Estrai il token dal link di onboarding
@@ -209,18 +211,12 @@ Grazie per la tua fiducia e collaborazione.`;
       const payload = {
         language: 'italian',
         sendEmail: true,
-        customMessage: emailMessage,
-        customSubject: emailSubject,
+        customMessage: data.message,
+        customSubject: data.subject,
+        recipientName: data.recipientName,
+        recipientEmail: data.recipientEmail,
         token: token
       };
-      
-      console.log('[DEBUG-FE] handleSendOnboardingEmail - Sending API request with payload:', { 
-        language: payload.language,
-        sendEmail: payload.sendEmail,
-        hasCustomMessage: !!payload.customMessage,
-        customSubject: payload.customSubject,
-        tokenLength: payload.token.length
-      });
       
       // Utilizziamo l'endpoint corretto onboarding-token invece di onboarding-email
       const response = await apiRequest(`/api/clients/${clientId}/onboarding-token`, {
@@ -228,10 +224,7 @@ Grazie per la tua fiducia e collaborazione.`;
         body: JSON.stringify(payload)
       });
       
-      console.log('[DEBUG-FE] handleSendOnboardingEmail - API response received:', response);
-      
       if (response.success) {
-        console.log('[DEBUG-FE] handleSendOnboardingEmail - Email sent successfully');
         setIsEmailDialogOpen(false);
         toast({
           title: t('client.email_sent') || "Email inviata",
@@ -241,7 +234,6 @@ Grazie per la tua fiducia e collaborazione.`;
       } else {
         // Verifica se è un errore di configurazione email
         if (response.configurationRequired) {
-          console.error('[DEBUG-FE] handleSendOnboardingEmail - Email configuration error:', response);
           toast({
             title: t('client.email_config_error') || "Configurazione email mancante",
             description: t('client.email_config_error_desc') || "È necessario configurare un server SMTP nelle impostazioni utente per inviare email",
@@ -249,19 +241,18 @@ Grazie per la tua fiducia e collaborazione.`;
             duration: 10000
           });
         } else {
-          console.error('[DEBUG-FE] handleSendOnboardingEmail - API error:', response);
           toast({
             title: t('error') || "Errore",
-            description: response.message || (t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding"),
+            description: response.message || (t('client.email_send_failed') || "Impossibile inviare l'email di onboarding"),
             variant: "destructive"
           });
         }
       }
     } catch (error) {
-      console.error('[DEBUG-FE] handleSendOnboardingEmail - Exception:', error);
+      console.error('[DEBUG-FE] handleSendOnboardingEmail - Error sending email:', error);
       toast({
         title: t('error') || "Errore",
-        description: t('client.onboarding_email_error') || "Impossibile inviare l'email di onboarding",
+        description: t('client.email_send_failed') || "Impossibile inviare l'email di onboarding",
         variant: "destructive"
       });
     } finally {
@@ -397,74 +388,17 @@ Grazie per la tua fiducia e collaborazione.`;
         </div>
       </div>
 
-      {/* Dialog per modificare ed inviare l'email */}
-      <Dialog open={isEmailDialogOpen} onOpenChange={setIsEmailDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-          <DialogHeader>
-            <DialogTitle>Invia modulo di onboarding</DialogTitle>
-            <DialogDescription>
-              Personalizza l'email che verrà inviata a {clientName} con il link per il modulo di onboarding.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4 space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <Label htmlFor="email-content" className="text-lg font-medium">Contenuto dell'email</Label>
-                <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4 text-accent" />
-                  <p className="text-sm text-muted-foreground">
-                    <strong>Destinatario: </strong>{clientName}
-                  </p>
-                </div>
-              </div>
-              
-              <div className="mb-4">
-                <Label htmlFor="email-subject" className="text-sm">Oggetto:</Label>
-                <Input 
-                  id="email-subject"
-                  value={emailSubject}
-                  onChange={(e) => setEmailSubject(e.target.value)}
-                  className="text-sm"
-                />
-              </div>
-              
-              <Textarea 
-                id="email-content"
-                value={emailMessage}
-                onChange={(e) => setEmailMessage(e.target.value)}
-                className="min-h-[300px] font-mono text-sm"
-                placeholder="Scrivi il contenuto dell'email qui..."
-              />
-              
-              <div className="text-sm bg-slate-50 p-3 rounded-md border border-slate-200 mt-2">
-                <p>Il link per il modulo di onboarding è incluso automaticamente al termine del messaggio.</p>
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEmailDialogOpen(false)}>
-              Annulla
-            </Button>
-            <Button 
-              onClick={handleSendOnboardingEmail}
-              disabled={isSendingEmail || !emailSubject.trim() || !emailMessage.trim()}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isSendingEmail ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Invio in corso...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Invia email
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Dialog per modificare ed inviare l'email - Aggiornato alla nuova versione */}
+      <EmailDialog
+        open={isEmailDialogOpen}
+        onOpenChange={setIsEmailDialogOpen}
+        clientId={clientId}
+        title="Invia modulo di onboarding"
+        presetSubject={emailSubject}
+        presetMessage={emailMessage}
+        onSubmit={handleSendOnboardingEmail}
+        includeCustomFooter={false}
+      />
     </div>
   );
 } 

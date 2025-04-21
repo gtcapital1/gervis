@@ -109,6 +109,7 @@ import { TraditionalSignatureDialog } from "@/components/dashboard/TraditionalSi
 import { VerifiedDocumentsTable } from "@/components/VerifiedDocumentsTable";
 import { MifidTab } from "@/components/dashboard/MifidTab";
 import { Checkbox } from "@/components/ui/checkbox";
+import { EmailDialog } from "@/components/dialog";
 
 // Importa il componente AiProfileTab
 import { AiProfileTab } from "@/components/tabs/AiProfileTab";
@@ -122,8 +123,7 @@ import { MifidDocsTab } from "@/components/tabs/MifidDocsTab";
 import { MifidEditForm, MifidFormValues, MifidType as FormMifidType } from "@/components/forms/MifidEditForm";
 // Importa il componente OnboardingRequired
 import { OnboardingRequired } from "@/components/client-detail/OnboardingRequired";
-// Importa il componente SendEmailDialog
-import SendEmailDialog from "@/components/SendEmailDialog";
+
 
 // Form schema for editing client information
 const clientFormSchema = z.object({
@@ -1452,12 +1452,18 @@ Grazie per la tua fiducia e collaborazione.`
 
       {/* SendEmailDialog */}
       {client && (
-        <SendEmailDialog
+        <EmailDialog
           open={isSendEmailDialogOpen}
           onOpenChange={setIsSendEmailDialogOpen}
           clientId={clientId}
-          clientName={client.name}
-          clientEmail={client.email}
+          title={t('dashboard.send_email')}
+          onSubmit={(data) => {
+            toast({
+              title: "Email inviata",
+              description: "L'email è stata inviata con successo",
+            });
+          }}
+          useClientSelector={true}
         />
       )}
 

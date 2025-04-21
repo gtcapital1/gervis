@@ -177,6 +177,8 @@ export async function handleAgentRequest(req: Request, res: Response) {
     7. Rispondi in italiano e in modo conversazionale
     8. Per l'onboarding di un cliente, usa la funzione sendOnboardingEmail quando l'utente chiede di inviare un onboarding a un cliente esistente
     9. Se un cliente è appena stato creato, suggerisci sempre di procedere con l'onboarding
+    10. Per le email personalizzate, chiama immediatamente sendCustomEmail non appena hai le informazioni essenziali: il cliente (nome/email) e l'argomento dell'email. Non chiedere ulteriori conferme ma mostra direttamente il form con l'email generata
+    11. Per le email puoi utilizzare sendCustomEmail anche solo conoscendo l'argomento, senza un cliente specifico. L'utente potrà scegliere il destinatario nel form. Se l'utente dice frasi come "prepara un'email su [argomento]", usa subito sendCustomEmail con quell'argomento.
     
     INFORMAZIONI TEMPORALI:
     Oggi è ${formattedDate}.
@@ -615,7 +617,7 @@ async function processAgentRequestWithOpenAI(userId: number, message: string, co
     },
     {
       name: "sendCustomEmail",
-      description: "Compone e invia un'email personalizzata a un cliente. Usa questa funzione quando l'utente vuole inviare un'email a un cliente con contenuto personalizzato o generato da te.",
+      description: "Compone e invia un'email personalizzata a un cliente. Usa questa funzione IMMEDIATAMENTE quando l'utente vuole inviare un'email a un cliente, bastano solo il nome del cliente e un semplice accenno all'argomento dell'email. Il sistema genererà automaticamente un contenuto personalizzato.",
       parameters: {
         type: "object",
         properties: {
@@ -706,13 +708,25 @@ async function processAgentRequestWithOpenAI(userId: number, message: string, co
                   const clientInfo = result.clientInfo;
                   const topic = result.topic || 'informazioni importanti';
                   
-                  // Chiedi a OpenAI di generare un contenuto personalizzato per l'email
-                  const emailPrompt = `Scrivi un'email professionale in italiano da inviare a ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". 
-                  L'email deve essere formale ma cordiale, con un'apertura appropriata, un corpo dettagliato e una chiusura professionale.
-                  Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
-                  Se è una presentazione di servizi, descrivi i vantaggi in modo convincente e personalizzato.
-                  Assicurati che l'email sia completamente personalizzata e unica, non un template generico.
-                  NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
+                  // Costruisci un prompt appropriato in base a clientInfo
+                  let emailPrompt;
+                  if (clientInfo) {
+                    emailPrompt = `Scrivi un'email professionale in italiano da inviare a ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". 
+                    L'email deve essere formale ma cordiale, con un'apertura appropriata, un corpo dettagliato e una chiusura professionale.
+                    Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
+                    Se è una presentazione di servizi, descrivi i vantaggi in modo convincente e personalizzato.
+                    Assicurati che l'email sia completamente personalizzata e unica, non un template generico.
+                    NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
+                  } else {
+                    // Prompt senza destinatario specifico
+                    emailPrompt = `Scrivi un'email professionale in italiano riguardo a "${topic}". 
+                    L'email deve essere formale ma cordiale, con un'apertura appropriata del tipo "Gentile Cliente," (sempre al singolare), un corpo dettagliato e una chiusura professionale.
+                    Se il topic riguarda la cancellazione di un appuntamento, includi scuse appropriate e proponi alternative.
+                    Se è una presentazione di servizi, descrivi i vantaggi in modo convincente.
+                    Assicurati che l'email sia ben strutturata e si possa adattare a un destinatario singolo.
+                    NON utilizzare mai formule di saluto al plurale come "Gentilissimi," o "Spettabili,".
+                    NON concludere con frasi come "[il tuo nome]" o "[firma]" o qualsiasi altro segnaposto per la firma, poiché questa verrà aggiunta automaticamente dal sistema.`;
+                  }
                   
                   // Chiamata a OpenAI per la generazione del contenuto
                   const emailResponse = await openai.chat.completions.create({
@@ -727,9 +741,30 @@ async function processAgentRequestWithOpenAI(userId: number, message: string, co
                   
                   // Aggiorna il risultato con il contenuto generato
                   result.messageTemplate = generatedContent;
+                  // Assicuriamoci che il subject sia impostato
+                  if (!result.subject) {
+                    result.subject = `Informazioni su ${topic}`;
+                  }
+                  
                   delete result.needsGeneration;
                   
-                  console.log('[Agent] Email generata dinamicamente da OpenAI');
+                  // Modifico la risposta per mostrare subito il dialog per l'email
+                  result.showDialog = true;
+                  result.showEmailDialog = true;
+                  
+                  // Messaggio appropriato in base alla presenza di un cliente
+                  if (clientInfo) {
+                    result.message = `Ho preparato un'email per ${clientInfo.firstName} ${clientInfo.lastName} riguardo a "${topic}". Puoi modificarla e inviarla.`;
+                  } else {
+                    result.message = `Ho preparato un'email riguardo a "${topic}". Seleziona un destinatario, poi modifica e invia l'email.`;
+                  }
+                  
+                  console.log('[Agent] Email generata dinamicamente da OpenAI:', {
+                    subject: result.subject,
+                    hasMessageTemplate: !!result.messageTemplate,
+                    messageTemplateLength: result.messageTemplate ? result.messageTemplate.length : 0,
+                    hasClientInfo: !!result.clientInfo
+                  });
                 }
                 
                 functionResults.push(result);

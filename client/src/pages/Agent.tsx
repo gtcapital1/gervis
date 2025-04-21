@@ -587,24 +587,23 @@ export default function AgentPage() {
   
   // Define capabilities for the agent
   const capabilities = [
-    {
-      title: "Client Management",
-      description: "Search, create and manage client information",
-      icon: <User className="h-6 w-6" />
+    { 
+      title: "Gestione Clienti", 
+      description: "Crea, onboarda e visualizza clienti" 
     },
     {
-      title: "Schedule Appointments",
-      description: "Create and manage your calendar appointments",
+      title: "Gestione appuntamenti",
+      description: "Crea, modifica e gestisci appuntamenti con i clienti",
       icon: <Calendar className="h-6 w-6" />
     },
     {
-      title: "Send Emails",
-      description: "Draft and send emails to your clients",
+      title: "Genera ed invia idee",
+      description: "Genera idee per i tuoi clienti e prepara email personalizzate",
       icon: <Mail className="h-6 w-6" />
     },
     {
-      title: "General Assistance",
-      description: "Get help with any other tasks or questions",
+      title: "Assistenza generale",
+      description: "Chiedi aiuto sul funzionamento di Gervis",
       icon: <Sparkles className="h-6 w-6" />
     }
   ];
@@ -1023,7 +1022,7 @@ export default function AgentPage() {
     const hasCreatedMeeting = functionResult && 'success' in functionResult && functionResult.success && 'meeting' in functionResult && functionResult.meeting;
     const showClientForm = functionResult && functionResult.showClientDialog && functionResult.clientData;
     const showMeetingForm = functionResult && functionResult.showMeetingDialog && functionResult.meetingData;
-    const showEmailForm = functionResult && functionResult.showEmailDialog && functionResult.clientInfo;
+    const showEmailForm = functionResult && functionResult.showEmailDialog;
     const hasOnboardingSent = functionResult && 'success' in functionResult && functionResult.success && functionResult.showOnboardingSent && 'client' in functionResult;
     
     return (
@@ -1341,12 +1340,54 @@ export default function AgentPage() {
                   </CardHeader>
                   <CardContent className="p-4">
                     <div className="grid gap-4 py-2">
-                      <div className="grid grid-cols-4 items-center gap-4">
+                      <div className="grid grid-cols-4 items-center gap-4 relative">
                         <Label htmlFor="email-recipient" className="text-right">
                           Destinatario
                         </Label>
-                        <div className="col-span-3 font-medium">
-                          {functionResult.clientInfo?.name} ({functionResult.clientInfo?.email})
+                        <div className="col-span-3 relative">
+                          <Input
+                            id="email-recipient"
+                            placeholder="Cerca cliente per nome o email..."
+                            defaultValue={functionResult.clientInfo?.email || ""}
+                            onChange={(e) => searchRecipients(e.target.value)}
+                            className="col-span-3"
+                          />
+                          
+                          {/* Dropdown per risultati di ricerca */}
+                          {recipientSearchResults.length > 0 && (
+                            <div className="absolute z-10 w-full mt-1 bg-white rounded-md shadow-lg border border-gray-200">
+                              {isSearchingRecipients && (
+                                <div className="p-2 text-center text-sm text-gray-500">
+                                  <Loader2 className="h-4 w-4 inline mr-2 animate-spin" />
+                                  Ricerca...
+                                </div>
+                              )}
+                              
+                              <ul className="max-h-60 overflow-auto py-1">
+                                {recipientSearchResults.map((client) => (
+                                  <li 
+                                    key={client.id}
+                                    onClick={() => {
+                                      setSelectedRecipient({
+                                        id: client.id,
+                                        email: client.email,
+                                        name: `${client.firstName} ${client.lastName}`
+                                      });
+                                      setRecipientSearchResults([]);
+                                      const inputElement = document.getElementById('email-recipient') as HTMLInputElement;
+                                      if (inputElement) {
+                                        inputElement.value = client.email;
+                                      }
+                                    }}
+                                    className="px-4 py-2 hover:bg-blue-50 cursor-pointer"
+                                  >
+                                    <div className="font-medium">{client.firstName} {client.lastName}</div>
+                                    <div className="text-sm text-gray-600">{client.email}</div>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
                         </div>
                       </div>
                       
@@ -1389,50 +1430,68 @@ export default function AgentPage() {
                         size="sm"
                         onClick={() => {
                           // Ottieni i valori dal form
+                          const recipientElement = document.getElementById('email-recipient') as HTMLInputElement;
                           const subjectElement = document.getElementById('email-subject') as HTMLInputElement;
                           const contentElement = document.getElementById('email-content') as HTMLTextAreaElement;
                           
+                          const recipientEmail = recipientElement?.value || functionResult.clientInfo?.email || "";
                           const subject = subjectElement?.value || functionResult.subject || "";
                           const content = contentElement?.value || functionResult.messageTemplate || "";
                           
-                          // Crea un oggetto con i dati dell'email
-                          const emailData = {
-                            clientId: functionResult.clientInfo.id,
-                            subject,
-                            content,
-                            language: functionResult.language || 'italian'
-                          };
+                          // Determina il clientId corretto
+                          let clientId = functionResult.clientInfo?.id;
+                          let recipientName = functionResult.clientInfo?.name;
+                          
+                          // Se l'utente ha selezionato un destinatario diverso
+                          if (selectedRecipient && selectedRecipient.email === recipientEmail) {
+                            clientId = selectedRecipient.id;
+                            recipientName = selectedRecipient.name;
+                          }
+                          
+                          // Verifica che l'email sia valida
+                          if (!recipientEmail || !recipientEmail.includes('@')) {
+                            toast({
+                              title: "Errore",
+                              description: "Inserisci un indirizzo email valido",
+                              variant: "destructive"
+                            });
+                            return;
+                          }
                           
                           // Aggiungi messaggio di conferma
                           const confirmationMessage: Message = {
-                            content: `Ho inviato l'email a ${functionResult.clientInfo?.name}.`,
+                            content: `Ho inviato l'email a ${recipientName || recipientEmail}.`,
                             role: 'assistant',
                             functionResults: [{
                               success: true,
                               emailSent: true,
-                              clientInfo: functionResult.clientInfo,
-                              message: `Email inviata a ${functionResult.clientInfo?.email} con successo.`
+                              clientInfo: {
+                                id: clientId,
+                                name: recipientName || recipientEmail,
+                                email: recipientEmail
+                              },
+                              message: `Email inviata a ${recipientEmail} con successo.`
                             }]
                           };
                           
-                          // Invia i dati all'API 
-                          apiRequest(`/api/clients/${functionResult.clientInfo.id}/send-email`, {
+                          // Invia i dati all'API
+                          apiRequest(`/api/clients/${clientId}/send-email`, {
                             method: 'POST',
                             body: JSON.stringify({
                               subject,
-                              content,
+                              message: content,
                               language: functionResult.language || 'italian'
                             })
                           }).then(() => {
                             toast({
                               title: "Email inviata",
-                              description: `Email inviata a ${functionResult.clientInfo?.name} con successo.`,
+                              description: `Email inviata a ${recipientName || recipientEmail} con successo.`,
                             });
                           }).catch(error => {
-                            console.error("Errore nell'invio dell'email:", error);
+                            console.error("Errore nell'invio dell'email:", error, error.message);
                             toast({
                               title: "Errore",
-                              description: "Si è verificato un errore durante l'invio dell'email.",
+                              description: error.message || "Si è verificato un errore durante l'invio dell'email.",
                               variant: "destructive"
                             });
                           });
@@ -1730,6 +1789,63 @@ export default function AgentPage() {
   const handleOnboardingRequest = (client: Client) => {
     setClientToOnboard(client);
     setIsOnboardingDialogOpen(true);
+  };
+
+  // Aggiungo uno stato per la ricerca di clienti nel form email
+  const [recipientSearchResults, setRecipientSearchResults] = useState<Client[]>([]);
+  const [isSearchingRecipients, setIsSearchingRecipients] = useState(false);
+  const [selectedRecipient, setSelectedRecipient] = useState<{id: number, email: string, name: string} | null>(null);
+
+  // Funzione per cercare clienti mentre l'utente digita nel campo destinatario
+  const searchRecipients = async (query: string) => {
+    if (!query || query.length < 2) {
+      setRecipientSearchResults([]);
+      return;
+    }
+    
+    setIsSearchingRecipients(true);
+    
+    try {
+      console.log("[Agent] Searching for recipients with query:", query);
+      
+      // Eseguiamo una ricerca più ampia e completa
+      const response = await apiRequest('/api/clients/search', {
+        method: 'POST',
+        body: JSON.stringify({ 
+          query, 
+          limit: 10,  // Aumentiamo il limite
+          includeArchived: false
+        })
+      });
+      
+      console.log("[Agent] Search response:", response);
+      
+      if (response.success && response.clients) {
+        // Ordiniamo i risultati mettendo in cima quelli che iniziano con la query
+        const sortedResults = [...response.clients].sort((a, b) => {
+          const aName = `${a.firstName} ${a.lastName}`.toLowerCase();
+          const bName = `${b.firstName} ${b.lastName}`.toLowerCase();
+          const lowerQuery = query.toLowerCase();
+          
+          // Priorità ai clienti che iniziano con la query
+          const aStartsWith = aName.startsWith(lowerQuery) || a.email.toLowerCase().startsWith(lowerQuery);
+          const bStartsWith = bName.startsWith(lowerQuery) || b.email.toLowerCase().startsWith(lowerQuery);
+          
+          if (aStartsWith && !bStartsWith) return -1;
+          if (!aStartsWith && bStartsWith) return 1;
+          return 0;
+        });
+        
+        setRecipientSearchResults(sortedResults);
+      } else {
+        setRecipientSearchResults([]);
+      }
+    } catch (error) {
+      console.error("Errore nella ricerca dei clienti:", error);
+      setRecipientSearchResults([]);
+    } finally {
+      setIsSearchingRecipients(false);
+    }
   };
 
   return (
