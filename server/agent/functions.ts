@@ -398,6 +398,9 @@ export async function prepareMeetingData(meetingData: {
     
     // Formatta la data e l'ora se specificati
     let formattedDateTime = new Date();
+    let extractedHours = -1;
+    let extractedMinutes = -1;
+    
     if (meetingData.dateTime) {
       console.log(`[DEBUG] Ricevuto dateTime: ${meetingData.dateTime}`);
       
@@ -407,14 +410,14 @@ export async function prepareMeetingData(meetingData: {
       
       if (timeMatch) {
         // Abbiamo trovato un'espressione "alle XX:YY"
-        const hours = parseInt(timeMatch[1]);
-        const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        extractedHours = parseInt(timeMatch[1]);
+        extractedMinutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
         
-        console.log(`[DEBUG] Estratta ora: ${hours}:${minutes} dall'espressione testuale`);
+        console.log(`[DEBUG] Estratta ora: ${extractedHours}:${extractedMinutes} dall'espressione testuale`);
         
         // Mantieni la data attuale ma imposta l'ora specificata
-        formattedDateTime.setHours(hours);
-        formattedDateTime.setMinutes(minutes);
+        formattedDateTime.setHours(extractedHours);
+        formattedDateTime.setMinutes(extractedMinutes);
         formattedDateTime.setSeconds(0);
         formattedDateTime.setMilliseconds(0);
         
@@ -432,13 +435,17 @@ export async function prepareMeetingData(meetingData: {
         if (isValid(parsedDate)) {
           console.log(`[DEBUG] Parsata data ISO: ${parsedDate}`);
           formattedDateTime = parsedDate;
+          // Estrai anche l'ora dalla data parsata (per essere coerenti)
+          extractedHours = parsedDate.getHours();
+          extractedMinutes = parsedDate.getMinutes();
         } else {
           console.log(`[DEBUG] Impossibile parsare la data, uso la data corrente`);
         }
       }
     }
     
-    console.log(`[DEBUG] Data finale impostata: ${formattedDateTime} (${formattedDateTime.getHours()}:${formattedDateTime.getMinutes()})`);
+    console.log(`[DEBUG] Data finale impostata: ${formattedDateTime}`);
+    console.log(`[DEBUG] Ore estratte: ${extractedHours}:${extractedMinutes}`);
     
     // Prepara la durata
     const duration = typeof meetingData.duration === 'string' ? parseInt(meetingData.duration) : (meetingData.duration || 60);
@@ -450,7 +457,10 @@ export async function prepareMeetingData(meetingData: {
       subject: meetingData.subject || "",
       dateTime: formatISO(formattedDateTime),
       formattedDate: format(formattedDateTime, 'dd/MM/yyyy', { locale: it }),
-      formattedTime: format(formattedDateTime, 'HH:mm', { locale: it }),
+      // Override esplicito dell'ora formattata per evitare qualsiasi problema di fuso orario
+      formattedTime: extractedHours >= 0 ? 
+        `${extractedHours.toString().padStart(2, '0')}:${extractedMinutes.toString().padStart(2, '0')}` :
+        format(formattedDateTime, 'HH:mm', { locale: it }),
       duration: isNaN(duration) ? 60 : duration,
       location: meetingData.location || "zoom",
       notes: meetingData.notes || ""
