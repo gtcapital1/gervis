@@ -291,9 +291,9 @@ export default function Dashboard() {
     staleTime: 30000,
   });
   
-  // Fetch agenda
-  const { data: agendaData, isLoading: isLoadingAgenda } = useQuery<{events: Event[]}>({
-    queryKey: ['/api/agenda/today'],
+  // Fetch meeting data (cambiato da /api/agenda/today a /api/meetings)
+  const { data: meetingsData, isLoading: isLoadingAgenda } = useQuery<{success: boolean, meetings: any[]} | null>({
+    queryKey: ['/api/meetings'],
     retry: 2,
     refetchOnWindowFocus: false,
     staleTime: 30000,
@@ -679,12 +679,16 @@ export default function Dashboard() {
         // Invalida le query rilevanti per aggiornare i dati
         
         queryClient.invalidateQueries({ queryKey: ['/api/tasks/today'] });
-        queryClient.invalidateQueries({ queryKey: ['/api/agenda/today'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/meetings'] }); // Aggiornato alla nuova route
       } catch (e) {
         console.warn('API non funzionante, usando solo lo stato locale:', e);
         // Non serve fare altro perché abbiamo già aggiornato lo stato locale
       }
       
+      toast({
+        title: isCompleted ? t('dashboard.task_completed') : t('dashboard.task_reopened'),
+        description: isCompleted ? t('dashboard.task_marked_complete') : t('dashboard.task_marked_incomplete')
+      });
     } catch (error) {
       
       toast({
@@ -695,9 +699,50 @@ export default function Dashboard() {
     }
   };
 
-  // Prepare agenda - filtra per assicurarsi che vengano mostrati solo gli eventi di oggi
+  // Prepare agenda - trasformo i meeting in eventi formattati correttamente
   const todayDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-  const todayEvents = (agendaData?.events || []).filter(event => event.date === todayDate);
+  
+  // Trasforma i meeting in eventi visualizzabili (come in Calendar.tsx)
+  const allEvents = useMemo(() => {
+    if (!meetingsData?.success || !meetingsData.meetings || !meetingsData.meetings.length) {
+      return [];
+    }
+    
+    return meetingsData.meetings.map(meeting => {
+      // Parsing della data e ora del meeting
+      const meetingDate = new Date(meeting.dateTime);
+      const endTime = new Date(meetingDate);
+      endTime.setMinutes(endTime.getMinutes() + (meeting.duration || 60));
+      
+      // Formattazione della data per il calendar (YYYY-MM-DD)
+      const formattedDate = meetingDate.toISOString().split('T')[0];
+      // Formattazione dell'orario di inizio (HH:mm)
+      const startTime = `${meetingDate.getHours().toString().padStart(2, '0')}:${meetingDate.getMinutes().toString().padStart(2, '0')}`;
+      // Formattazione dell'orario di fine (HH:mm)
+      const endTimeString = `${endTime.getHours().toString().padStart(2, '0')}:${endTime.getMinutes().toString().padStart(2, '0')}`;
+      
+      // Trova il cliente corrispondente nell'elenco dei client
+      const client = clients.find(c => c.id === meeting.clientId);
+      const clientName = client 
+        ? (client.name || `${client.firstName} ${client.lastName}`)
+        : 'Cliente';
+      
+      return {
+        id: meeting.id,
+        title: meeting.subject || 'Meeting',
+        type: 'meeting',
+        startTime: startTime,
+        endTime: endTimeString,
+        clientId: meeting.clientId,
+        clientName: clientName,
+        location: meeting.location || 'Online',
+        date: formattedDate
+      } as Event;
+    });
+  }, [meetingsData, clients]);
+  
+  // Filtra per mostrare solo gli eventi di oggi
+  const todayEvents = allEvents.filter(event => event.date === todayDate);
   
   // Prepare compliance data
   const missingDocuments = complianceData?.missingDocuments || [];
@@ -707,13 +752,102 @@ export default function Dashboard() {
   // Prepare activity feed
   const recentActivities = activityData?.activities || [];
 
+  // Calculate active client AUM function (moved up before it's used)
+  const calculateActiveClientAUM = () => {
+    // If no client data, use API value
+    if (!clients || !clients.length) {
+      return portfolioStats.totalAUM;
+    }
+    
+    // Get only active, non-archived clients
+    const activeClientsList = clients.filter(client => client.active && !client.isArchived);
+    
+    // Sum totalAssets field directly from active clients
+    const totalActiveAUM = activeClientsList.reduce((sum, client) => {
+      // Use totalAssets if available, otherwise 0
+      const clientAssets = client.totalAssets || 0;
+      return sum + clientAssets;
+    }, 0);
+    
+    return totalActiveAUM || portfolioStats.totalAUM; // Fallback to API data if sum is zero
+  };
+
   // Format asset allocation data
-  const assetAllocation = portfolioStats.assetAllocation || [
-    { category: "Equities", percentage: 45, value: portfolioStats.totalAUM * 0.45 },
-    { category: "Bonds", percentage: 30, value: portfolioStats.totalAUM * 0.30 },
-    { category: "ETFs", percentage: 15, value: portfolioStats.totalAUM * 0.15 },
-    { category: "Cash", percentage: 10, value: portfolioStats.totalAUM * 0.10 }
-  ];
+  const assetAllocation = useMemo(() => {
+    // Try to calculate real asset allocation from actual client assets
+    if (assetsData?.assets && assetsData.assets.length > 0 && activeClients.length > 0) {
+      console.log('Calculating real asset allocation from client data...');
+      
+      // Only consider assets from active clients
+      const activeClientIds = activeClients.map(client => client.id);
+      const activeAssets = assetsData.assets.filter(asset => 
+        activeClientIds.includes(asset.clientId)
+      );
+      
+      if (activeAssets.length > 0) {
+        // Group assets by category
+        const assetsByCategory: Record<string, number> = {};
+        const totalValue = activeAssets.reduce((sum, asset) => {
+          // Normalize the category to lowercase for consistency
+          const category = asset.category?.toLowerCase() || 'other';
+          
+          // Sum up values by category
+          assetsByCategory[category] = (assetsByCategory[category] || 0) + asset.value;
+          return sum + asset.value;
+        }, 0);
+        
+        // Convert to array format with percentages
+        if (totalValue > 0) {
+          const result = Object.entries(assetsByCategory)
+            .map(([category, value]) => ({
+              category,
+              value,
+              percentage: (value / totalValue) * 100,
+              translationKey: `asset_categories.${category}`
+            }))
+            .filter(item => item.value > 0)
+            .sort((a, b) => b.value - a.value); // Sort by value descending
+          
+          console.log('Calculated real asset allocation:', result);
+          
+          if (result.length > 0) {
+            return result;
+          }
+        }
+      }
+    }
+    
+    // Then check API data as before
+    console.log('Checking portfolio API data for asset allocation...');
+    if (portfolioStats.assetAllocation && portfolioStats.assetAllocation.length > 0) {
+      // Filter out any zero values which might cause rendering issues
+      const filteredData = portfolioStats.assetAllocation.filter(item => item.value > 0);
+      
+      // If we have valid data after filtering, use it and add translation keys
+      if (filteredData.length > 0) {
+        console.log('Using API asset allocation data:', filteredData);
+        return filteredData.map(item => ({
+          ...item,
+          translationKey: `asset_categories.${item.category.toLowerCase()}`
+        }));
+      }
+    }
+    
+    console.log('No real asset data found, using default allocation...');
+    
+    // Use calculated AUM from real data if available
+    const totalAUM = calculateActiveClientAUM() || 1000000;
+    
+    // Only use fallback data if needed, and include proper translation keys
+    const defaultData = [
+      { category: "equity", percentage: 42, value: totalAUM * 0.42, translationKey: "asset_categories.equity" },
+      { category: "bonds", percentage: 27, value: totalAUM * 0.27, translationKey: "asset_categories.bonds" },
+      { category: "cryptocurrencies", percentage: 18, value: totalAUM * 0.18, translationKey: "asset_categories.cryptocurrencies" },
+      { category: "cash", percentage: 13, value: totalAUM * 0.13, translationKey: "asset_categories.cash" }
+    ];
+    console.log('Using default asset allocation data:', defaultData);
+    return defaultData;
+  }, [assetsData, activeClients, portfolioStats, clients]);
 
   // Format communication data
   const unreadMessages = 3; // Da sostituire con dati API reali
@@ -1146,32 +1280,10 @@ export default function Dashboard() {
     return results;
   };
 
-  // Prepara i dati del portfolio filtrando solo i clienti attivi
-  const calculateActiveClientAUM = () => {
-    // Se non ci sono dati sui clienti, usa i dati dall'API
-    if (!clients || !clients.length) {
-      return portfolioStats.totalAUM;
-    }
-    
-    // Ottieni solo i clienti attivi e non archiviati
-    const activeClientsList = clients.filter(client => client.active && !client.isArchived);
-    
-    // Somma direttamente il campo totalAssets dai clienti attivi
-    const totalActiveAUM = activeClientsList.reduce((sum, client) => {
-      // Utilizza totalAssets se disponibile, altrimenti 0
-      const clientAssets = client.totalAssets || 0;
-      return sum + clientAssets;
-    }, 0);
-    
-    
-    
-    return totalActiveAUM || portfolioStats.totalAUM; // Fallback ai dati dell'API se la somma è zero
-  };
-
-  // Usa il valore calcolato invece di quello dell'API
+  // Use the calculated value (referencing the version defined earlier)
   const activeClientAUM = calculateActiveClientAUM();
 
-  // Funzione per formattare il valore in formato compatto (k, m)
+  // Format value in compact format (k, m)
   const formatCompactValue = (value: number): string => {
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}m`;
@@ -1495,7 +1607,7 @@ export default function Dashboard() {
           </div>
           
           {/* Task Manager */}
-          <Card>
+          <Card className="min-h-[450px]">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <CalendarClock className="h-5 w-5 mr-2 text-blue-600" />
@@ -1739,7 +1851,7 @@ export default function Dashboard() {
         {/* Right column - 1/3 width */}
         <div className="space-y-6">
           {/* Top Opportunità - Allungata fino in alto */}
-          <Card className="h-full flex flex-col">
+          <Card className="min-h-[300px] flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Sparkles className="h-5 w-5 mr-2 text-blue-600" />
@@ -2065,20 +2177,25 @@ export default function Dashboard() {
                   </h3>
                   <ResponsiveContainer width="100%" height={180}>
                     <PieChart margin={{ top: 5, right: 5, bottom: 5, left: 5 }}>
+                      {/* Add key to ensure re-rendering when data changes */}
                       <Pie
+                        key={`pie-${assetAllocation.length}`}
                         data={assetAllocation}
                         cx="50%"
                         cy="50%"
                         labelLine={true}
-                        label={({ category, percent, value }) => {
-                          // Non mostrare etichette per asset con valore 0
-                          return value > 0 ? `${t(`asset_categories.${category}`)}: ${(percent * 100).toFixed(0)}%` : null;
+                        label={({ category, percentage, translationKey, value }) => {
+                          if (value <= 0) return null;
+                          // Use translation if available, otherwise use category directly
+                          const label = t(translationKey || '') || category;
+                          return `${label}: ${percentage.toFixed(0)}%`;
                         }}
                         outerRadius={55}
                         innerRadius={0}
                         fill="#8884d8"
                         dataKey="value"
                         nameKey="category"
+                        isAnimationActive={true}
                       >
                         {
                           assetAllocation.map((entry, index) => (
@@ -2094,7 +2211,7 @@ export default function Dashboard() {
                       </Pie>
                       <RechartsTooltip 
                         formatter={(value: number) => formatCurrency(value)} 
-                        labelFormatter={(label) => t(`asset_categories.${label}`)}
+                        labelFormatter={(label) => t(`asset_categories.${label.toLowerCase()}`) || label}
                       />
                     </PieChart>
                   </ResponsiveContainer>

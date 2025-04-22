@@ -846,7 +846,7 @@ Grazie!`;
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ delay: 0.1 + index * 0.1, duration: 0.4 }}
-                  className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm hover:shadow-md transition-all"
+                  className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm hover:shadow-md transition-all relative"
                   whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 >
                   <div className="p-3">
@@ -854,6 +854,11 @@ Grazie!`;
                       <div className={`inline-flex rounded-full bg-gradient-to-r ${capability.gradient} p-1.5 text-white shadow-sm mb-2`}>
                         {capability.icon}
                       </div>
+                      {index === 2 && (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-medium text-yellow-800 absolute top-3 right-3">
+                          Coming Soon
+                        </span>
+                      )}
                       
                       <h3 className="text-base font-medium mb-1 flex items-center">
                         {capability.title}

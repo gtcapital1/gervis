@@ -121,15 +121,49 @@ Cordiali saluti,`);
   }, [open]);
 
   // Gestisce l'invio dell'email attraverso EmailDialog
-  const handleSendEmail = (data: EmailFormData) => {
-    // Dopo aver inviato l'email, chiudi il dialog principale
+  const handleSendEmail = async (data: EmailFormData) => {
+    try {
+      setIsLoading(true);
+      
+      // Send the actual email
+      const response = await fetch(`/api/clients/${data.clientId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: data.subject,
+          message: data.message,
+          recipientEmail: data.recipientEmail,
+          attachmentUrl: data.attachmentUrl,
+          includeAttachment: data.includeAttachment
+        })
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Error sending email');
+      }
+      
+      // Show success toast if API call was successful
       toast({
         title: "Email inviata",
         description: "L'email con il link per la firma digitale è stata inviata con successo."
       });
       
-    // Chiudi il dialog principale
-        onOpenChange(false);
+      // Chiudi il dialog principale
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error sending email:', error);
+      toast({
+        title: "Errore nell'invio dell'email",
+        description: error instanceof Error ? error.message : "Si è verificato un errore durante l'invio dell'email",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   // Handle successful verification

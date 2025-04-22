@@ -80,11 +80,34 @@ Cordiali saluti,`);
   // Gestisce l'invio dell'email attraverso EmailDialog
   const handleSendEmail = async (data: EmailFormData) => {
     try {
+      setIsLoading(true);
+      
       // Verifica che l'URL del documento sia disponibile
       if (!documentUrl) {
         throw new Error("URL del documento non disponibile");
       }
 
+      // Send the actual email
+      const response = await fetch(`/api/clients/${data.clientId}/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subject: data.subject,
+          message: data.message,
+          recipientEmail: data.recipientEmail,
+          attachmentUrl: data.attachmentUrl,
+          includeAttachment: data.includeAttachment
+        })
+      });
+      
+      const responseData = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(responseData.message || 'Error sending email');
+      }
+      
       // Mostra un toast di conferma
       toast({
         title: "Email inviata",
@@ -119,6 +142,8 @@ Cordiali saluti,`);
         description: `Si è verificato un errore durante l'invio dell'email: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`,
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
