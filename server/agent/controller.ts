@@ -5,7 +5,7 @@ import { conversations, messages as messagesTable } from '../../shared/schema'; 
 import { eq, and, asc } from 'drizzle-orm'; // Import query helpers and asc helper for sorting
 // Import necessary types from schema if needed later, e.g., for conversation history
 // import { Conversation, Message } from '../../shared/schema'; 
-import { getClientContext } from './functions';
+import { getClientContext, getSiteDocumentation } from './functions';
 import { nanoid } from 'nanoid';
 import { isNull, desc } from 'drizzle-orm';
 import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
@@ -189,6 +189,9 @@ export const handleChat = async (req: Request, res: Response) => {
     // Keywords che potrebbero indicare una richiesta relativa a un cliente
     const clientKeywords = ['profilo', 'cliente', 'informazioni su', 'dati di', 'portafoglio di'];
     
+    // Keywords che potrebbero indicare una richiesta relativa alla funzionalità della piattaforma
+    const platformKeywords = ['come', 'funziona', 'funzionalità', 'feature', 'caratteristiche', 'piattaforma', 'sistema', 'gervis', 'help', 'aiuto', 'guida', 'creare', 'aggiungere', 'modificare', 'eliminare', 'cancellare', 'gestire', 'nuovo', 'nuova', 'aggiunta', 'come si', 'come posso', 'dove', 'perché', 'come mai', 'a cosa serve', 'spiegami', 'istruzioni', 'tutorial', 'documentazione'];
+    
     // Verbi che indicano azione per calendario (più prioritari)
     const calendarActionVerbs = ['crea', 'creare', 'fissa', 'fissare', 'organizza', 'organizzare', 'programma', 'programmare', 'schedula', 'schedulare'];
     
@@ -200,6 +203,9 @@ export const handleChat = async (req: Request, res: Response) => {
     
     // Verifica se il messaggio contiene keywords relative a un cliente
     const isClientRequest = clientKeywords.some(keyword => messageText.includes(keyword));
+    
+    // Verifica se il messaggio contiene keywords relative alla funzionalità della piattaforma
+    const isPlatformRequest = platformKeywords.some(keyword => messageText.includes(keyword));
     
     // Cerca di estrarre un potenziale nome cliente dal messaggio
     let clientName = null;
@@ -227,7 +233,7 @@ export const handleChat = async (req: Request, res: Response) => {
       }
     }
     
-    console.log(`[DEBUG] Analisi messaggio - isCalendarRequest: ${isCalendarRequest}, hasCalendarActionVerb: ${hasCalendarActionVerb}, isClientRequest: ${isClientRequest}, clientName: "${clientName}"`);
+    console.log(`[DEBUG] Analisi messaggio - isCalendarRequest: ${isCalendarRequest}, hasCalendarActionVerb: ${hasCalendarActionVerb}, isClientRequest: ${isClientRequest}, isPlatformRequest: ${isPlatformRequest}, clientName: "${clientName}"`);
     
     // Call OpenAI API with properly typed messages
     console.log('Chiamata OpenAI in corso...');
@@ -242,6 +248,16 @@ export const handleChat = async (req: Request, res: Response) => {
       forcedToolChoice = {
         type: "function",
         function: { name: "prepareMeetingData" }
+      };
+    }
+    
+    // Se è una richiesta di informazioni sulla piattaforma e non è chiaramente una richiesta di calendario o cliente specifico
+    else if (isPlatformRequest && !isCalendarRequest && !(clientName && isClientRequest)) {
+      // Forza l'uso di getSiteDocumentation
+      console.log('[DEBUG] Forzando l\'uso di getSiteDocumentation per informazioni sulla piattaforma');
+      forcedToolChoice = {
+        type: "function",
+        function: { name: "getSiteDocumentation" }
       };
     }
     
@@ -267,6 +283,18 @@ export const handleChat = async (req: Request, res: Response) => {
                 }
               },
               required: ["clientName", "query"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getSiteDocumentation",
+            description: "Recupera la documentazione completa sulle funzionalità della piattaforma Gervis. Utilizzare questa funzione quando l'utente chiede informazioni sul funzionamento della piattaforma, domande come 'come funziona Gervis?', 'quali funzionalità ha il sito?', 'cosa può fare questa piattaforma?', 'spiegami le funzioni di Gervis', 'help', ecc.",
+            parameters: {
+              type: "object",
+              properties: {},
+              required: []
             }
           }
         },
@@ -455,6 +483,15 @@ export const handleChat = async (req: Request, res: Response) => {
               client: result.success && result.clientInfo && result.clientInfo.personalInformation && result.clientInfo.personalInformation.data ? 
                 `${result.clientInfo.personalInformation.data.firstName.value} ${result.clientInfo.personalInformation.data.lastName.value}` : 
                 'Cliente trovato ma dati incompleti'
+            });
+            break;
+          
+          case "getSiteDocumentation":
+            console.log(`[DEBUG] Chiamando getSiteDocumentation`);
+            result = await getSiteDocumentation();
+            console.log('[DEBUG] Risultato getSiteDocumentation:', {
+              success: result.success,
+              docLength: result.success && result.documentation ? result.documentation.length : 0
             });
             break;
           

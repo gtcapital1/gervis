@@ -6,6 +6,9 @@ import { getCompleteClientData } from './clientDataFetcher';
 import { format, parse, parseISO, isValid, addDays, startOfDay, endOfDay, formatISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { findClientByName } from '../services/clientProfileService';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -667,4 +670,59 @@ export async function prepareEditMeeting(searchParams: {
     };
   }
 }
+
+/**
+ * Retrieves documentation about site functionality
+ * @returns Documentation text about the Gervis platform functionality
+ */
+export const getSiteDocumentation = async () => {
+  try {
+    // Log current working directory for debugging
+    const cwd = process.cwd();
+    console.log('[DEBUG] Current working directory:', cwd);
+    
+    // Try several possible locations for the documentation file
+    const possiblePaths = [
+      './server/docs/site-documentation.md',
+      '../docs/site-documentation.md',
+      'server/docs/site-documentation.md',
+      `${cwd}/server/docs/site-documentation.md`,
+      '/Users/gianmarcotrapasso/Documents/GitHub/gervis/server/docs/site-documentation.md' // Absolute path as last resort
+    ];
+    
+    let docFilePath = '';
+    for (const path of possiblePaths) {
+      console.log('[DEBUG] Checking path:', path);
+      if (fs.existsSync(path)) {
+        docFilePath = path;
+        console.log('[DEBUG] Found documentation file at:', path);
+        break;
+      }
+    }
+    
+    if (!docFilePath) {
+      console.error('[DEBUG] Documentation file not found in any of the checked locations');
+      return {
+        success: false,
+        error: 'Documentation file not found in any of the expected locations'
+      };
+    }
+    
+    // Read file content
+    const documentationContent = fs.readFileSync(docFilePath, 'utf8');
+    console.log('[DEBUG] Successfully read documentation file, length:', documentationContent.length);
+    
+    return {
+      success: true,
+      documentation: documentationContent
+    };
+  } catch (error: unknown) {
+    console.error('Error retrieving site documentation:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      error: `Error retrieving site documentation: ${errorMessage}`
+    };
+  }
+};
 

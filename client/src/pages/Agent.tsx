@@ -131,7 +131,7 @@ export default function AgentPage() {
     },
     {
       title: "Assistenza generale",
-      description: "Supporto sull'app Gervis e sulla regolamentazione MIFID",
+      description: "Supporto sull'app Gervis",
       icon: <FileText className="h-8 w-8 p-1.5" />,
       gradient: "from-amber-500 to-orange-400"
     }
@@ -620,6 +620,25 @@ export default function AgentPage() {
                       // Personalizza gli elenchi per garantire indentazione coerente
                       ul: ({children}) => <ul style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ul>,
                       ol: ({children}) => <ol style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ol>,
+                      // Gestisci i link per aprirli in una nuova finestra
+                      a: ({node, href, children}) => {
+                        // Verifica se il link è interno (inizia con /)
+                        const isInternalLink = href && href.startsWith('/');
+                        return (
+                          <a 
+                            href={href} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{
+                              color: '#2563eb', // blue-600
+                              textDecoration: 'underline',
+                              fontWeight: isInternalLink ? 'bold' : 'normal'
+                            }}
+                          >
+                            {children}
+                          </a>
+                        );
+                      },
                       li: ({children, ...props}) => {
                         // La complessità del controllo per gli elementi annidati è stata rimossa
                         // perché non è necessaria per lo stile visivo
@@ -729,7 +748,7 @@ Grazie!`;
                                   // Aggiungi la risposta dell'assistente
                                   const assistantMessage: Message = {
                                     content: response.response || "Non ho ricevuto una risposta dal server",
-                                    role: 'assistant',
+                          role: 'assistant',
                                     createdAt: new Date().toISOString(),
                                     model: response.model || currentModel,
                                     functionResults: response.functionResults ? JSON.stringify(response.functionResults) : undefined
@@ -742,9 +761,9 @@ Grazie!`;
                                     setMeetingData(response.meetingDialogData);
                                     setShowMeetingDialog(true);
                                   }
-                                  
-                                  // Aggiorna la lista delle conversazioni
-                                  fetchConversations();
+                        
+                        // Aggiorna la lista delle conversazioni
+                        fetchConversations();
                                 } else {
                                   toast({
                                     title: "Errore",
@@ -776,9 +795,9 @@ Grazie!`;
               {message.createdAt && (
                 <div className="text-xs opacity-70 text-right">
                   {formatTimestamp(message.createdAt)}
-                      </div>
-              )}
                         </div>
+              )}
+                      </div>
                       </div>
                       </div>
       </motion.div>
@@ -814,8 +833,8 @@ Grazie!`;
                     Gervis AI Assistant
                   </h1>
                   <p className="text-sm text-muted-foreground">L'assistente di riferimento per consulenti finanziari</p>
-                    </div>
-              </div>
+                      </div>
+                        </div>
               </motion.div>
             )}
             
@@ -835,7 +854,7 @@ Grazie!`;
                       <div className={`inline-flex rounded-full bg-gradient-to-r ${capability.gradient} p-1.5 text-white shadow-sm mb-2`}>
                         {capability.icon}
                       </div>
-                        
+                      
                       <h3 className="text-base font-medium mb-1 flex items-center">
                         {capability.title}
                         <Sparkles className="h-4 w-4 ml-1.5 text-blue-500" />
@@ -851,9 +870,9 @@ Grazie!`;
                       </div>
                       {index === 0 && (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
                             onClick={() => {
                               const message = "Mi ricordi che esigenze ha Francesca Bianchi?";
@@ -873,12 +892,12 @@ Grazie!`;
                           >
                             <User className="h-3 w-3 mr-1.5 flex-shrink-0 text-blue-500" />
                             <div className="whitespace-normal overflow-hidden">Mi ricordi che esigenze ha Francesca Bianchi?</div>
-                          </Button>
-                          <Button
+                      </Button>
+                      <Button 
                             variant="outline"
-                            size="sm"
+                        size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
-                            onClick={() => {
+                        onClick={() => {
                               const message = "Dammi qualche idea da proporre a Mario Rossi";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
@@ -947,7 +966,7 @@ Grazie!`;
                           >
                             <Calendar className="h-3 w-3 mr-1.5 flex-shrink-0 text-purple-500" />
                             <span className="whitespace-normal">Che incontri abbiamo questa settimana?</span>
-                          </Button>
+                      </Button>
                         </>
                       )}
                       
@@ -980,7 +999,7 @@ Grazie!`;
                             variant="outline"
                             size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
-                            onClick={() => {
+                                    onClick={() => {
                               const message = "Genera qualche idea basata su news";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
@@ -1004,9 +1023,9 @@ Grazie!`;
                       
                       {index === 3 && (
                         <>
-                          <Button
-                            variant="outline"
-                            size="sm"
+                      <Button 
+                        variant="outline" 
+                        size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
                             onClick={() => {
                               const message = "Come aggiungo un nuovo cliente?";
@@ -1026,12 +1045,12 @@ Grazie!`;
                           >
                             <FileText className="h-3 w-3 mr-1.5 flex-shrink-0 text-amber-500" />
                             <span className="whitespace-normal">Come aggiungo un nuovo cliente?</span>
-                          </Button>
-                          <Button
+                      </Button>
+                      <Button 
                             variant="outline"
-                            size="sm"
+                        size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
-                            onClick={() => {
+                        onClick={() => {
                               const message = "Come onboardo nuovo cliente?";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
@@ -1049,14 +1068,14 @@ Grazie!`;
                           >
                             <FileText className="h-3 w-3 mr-1.5 flex-shrink-0 text-amber-500" />
                             <span className="whitespace-normal">Come onboardo nuovo cliente?</span>
-                          </Button>
+                      </Button>
                         </>
                       )}
                     </div>
                   </div>
-                </motion.div>
-              ))}
-                            </div>
+              </motion.div>
+                  ))}
+                </div>
                           )}
           
           {showChat && (
@@ -1069,7 +1088,7 @@ Grazie!`;
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       Modello in uso: {currentModel === AVAILABLE_MODELS.STANDARD ? 'Standard' : 'Avanzato'}
                     </span>
-                        </div>
+                      </div>
                       </div>
                       
                 {messages
@@ -1081,14 +1100,14 @@ Grazie!`;
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                      </div>
+                                </div>
                     <span>Gervis sta scrivendo...</span>
-                      </div>
+                                </div>
                 )}
                 <div ref={messagesEndRef} />
-                    </div>
-                    </div>
-            )}
+                              </div>
+                                  </div>
+                                )}
             
               <motion.div 
             className={`w-full ${showChat ? 'mt-auto' : 'mt-2'}`}
@@ -1106,22 +1125,22 @@ Grazie!`;
                 onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
-                      <Button 
+                                  <Button 
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 onClick={sendMessage}
                 disabled={isLoading || !input.trim()}
               >
                 <Send className="h-4 w-4" />
-                      </Button>
-                </div>
+                                  </Button>
+                                </div>
             
             {!showChat && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
                 Inizia a scrivere per interagire con Gervis
               </p>
             )}
-          </motion.div>
-          
+              </motion.div>
+            
           {/* Selettore di modello spostato fuori dalla barra di input, dopo il messaggio di inizio */}
               <motion.div 
             className="flex justify-center max-w-6xl mx-auto mt-4"
@@ -1143,7 +1162,7 @@ Grazie!`;
                   <div className="flex items-center">
                     <Bot className="h-3.5 w-3.5 mr-1.5" />
                     Standard (gpt-4.1-mini)
-                      </div>
+                </div>
                   <div className="text-xs opacity-70 mt-0.5">
                     Veloce e efficiente
                                 </div>
@@ -1165,8 +1184,8 @@ Grazie!`;
                               </div>
                 </button>
                                 </div>
-                                  </div>
-          </motion.div>
+                </div>
+              </motion.div>
                               </div>
               </motion.div>
     );
@@ -1187,7 +1206,7 @@ Grazie!`;
             <div className="p-3 border-b flex justify-between items-center">
               <h3 className="font-medium text-sm">Le tue conversazioni</h3>
               <div className="flex gap-1">
-                                  <Button 
+                        <Button
                                     variant="ghost" 
                   size="icon"
                   onClick={() => setIsDeleteAllDialogOpen(true)}
@@ -1203,16 +1222,16 @@ Grazie!`;
                   className="h-7 w-7"
                 >
                   <X className="h-4 w-4" />
-                                  </Button>
-                                </div>
-                            </div>
+                        </Button>
+                      </div>
+                    </div>
             
             <div className="overflow-y-auto flex-1 p-2">
               {isLoading ? (
                 <div className="flex flex-col items-center justify-center py-6">
                   <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
                   <p className="text-sm text-muted-foreground mt-2">Caricamento...</p>
-                </div>
+                  </div>
               ) : conversations.length === 0 ? (
                 <div className="text-center text-sm text-muted-foreground py-8">
                   Nessuna conversazione
@@ -1232,7 +1251,7 @@ Grazie!`;
                       <div className="font-medium text-sm truncate pr-8">{conversation.title}</div>
                       <div className="text-xs text-muted-foreground">
                         {new Date(conversation.updatedAt).toLocaleDateString()}
-                    </div>
+          </div>
                         <Button
                         size="icon"
                         variant="ghost" 
@@ -1256,7 +1275,7 @@ Grazie!`;
   const handleDirectMessageSend = async (message: string) => {
     if (!message.trim() || isLoading) return;
     
-    setIsLoading(true);
+      setIsLoading(true);
     // Clear input after sending the message
     setInput('');
     
