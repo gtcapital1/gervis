@@ -229,7 +229,7 @@ export async function getMeetingsByClientName(clientName: string, userId: number
     console.log(`[DEBUG] Ricerca appuntamenti per cliente: "${clientName}"`);
     
     // Utilizza la funzione helper findClientByName per trovare l'ID cliente
-    const clientId = await findClientByName(clientName);
+    const clientId = await findClientByName(clientName, undefined, false);
     
     if (!clientId) {
       return {
@@ -336,7 +336,7 @@ export async function prepareMeetingData(meetingData: {
       console.log(`[DEBUG] Ricerca cliente per nome: "${clientNameToSearch}"`);
       
       // Usa la funzione findClientByName per trovare l'ID cliente
-      const foundClientId = await findClientByName(clientNameToSearch);
+      const foundClientId = await findClientByName(clientNameToSearch, undefined, false);
       
       if (!foundClientId) {
         return {
@@ -492,7 +492,7 @@ export async function prepareEditMeeting(searchParams: {
     // Caso 2: Abbiamo nome cliente e data - dobbiamo cercare
     else if (searchParams.clientName && (searchParams.date || searchParams.time)) {
       // Trova l'ID cliente dal nome
-      const clientId = await findClientByName(searchParams.clientName);
+      const clientId = await findClientByName(searchParams.clientName, undefined, false);
       
       if (!clientId) {
         return {

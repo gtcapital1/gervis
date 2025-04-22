@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { clients, assets, aiProfiles, mifid, recommendations, clientLogs, signedDocuments, verifiedDocuments, trendData } from "../../shared/schema";
 import { and, eq, like, or, desc } from "drizzle-orm";
+import { findClientByName } from "../services/clientProfileService";
 
 /**
  * Comprehensive function to fetch all client-related data with field descriptions
@@ -12,18 +13,24 @@ export async function getCompleteClientData(firstName: string, lastName: string)
   try {
     console.log(`[INFO] Fetching comprehensive data for client: ${firstName} ${lastName}`);
     
-    // 1. Find the client in the database
-    const clientData = await db.select().from(clients).where(
-      and(
-        like(clients.firstName, `%${firstName}%`),
-        like(clients.lastName, `%${lastName}%`)
-      )
-    ).limit(1);
+    // 1. Find the client using the improved findClientByName function
+    const fullName = `${firstName} ${lastName}`.trim();
+    const clientId = await findClientByName(fullName, undefined, false);
+    
+    if (!clientId) {
+      return {
+        success: false,
+        error: `Client "${firstName} ${lastName}" not found in the database.`
+      };
+    }
+    
+    // Ora che abbiamo l'ID, otteniamo i dati completi del cliente
+    const clientData = await db.select().from(clients).where(eq(clients.id, clientId));
     
     if (!clientData.length) {
       return {
         success: false,
-        error: `Client "${firstName} ${lastName}" not found in the database.`
+        error: `Client with ID ${clientId} not found in the database. This is unusual and might indicate a database inconsistency.`
       };
     }
     

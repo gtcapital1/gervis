@@ -64,7 +64,7 @@ export async function searchClientByName(req: Request, res: Response) {
     }
     
     // Cerca l'ID del cliente per nome
-    const clientId = await findClientByName(name);
+    const clientId = await findClientByName(name, undefined, false);
     
     if (!clientId) {
       return res.status(404).json({

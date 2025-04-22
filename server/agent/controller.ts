@@ -177,89 +177,12 @@ export const handleChat = async (req: Request, res: Response) => {
     console.log(`Using model: ${modelToUse}`);
     // --- END DEBUG LOG ---
 
-    // Determiniamo se la richiesta sembra riferirsi a un cliente
-    const messageText = userMessage.toLowerCase();
-    
-    // Lista di parole comuni da escludere (saluti, verbi comuni, ecc.)
-    const excludedWords = ['ciao', 'salve', 'buongiorno', 'buonasera', 'parlami', 'dimmi', 'descrivimi', 'mostrami', 'visualizza', 'trova'];
-    
-    // Keywords che potrebbero indicare una richiesta relativa al calendario/meeting
-    const calendarKeywords = ['appuntamento', 'appuntamenti', 'meeting', 'meetings', 'incontro', 'incontri', 'calendario', 'riunione', 'riunioni', 'agenda', 'programma', 'programmato', 'schedulato', 'appuntato', 'settimana', 'mese', 'domani', 'oggi', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'creare', 'crea', 'fissa', 'organizza'];
-    
-    // Keywords che potrebbero indicare una richiesta relativa a un cliente
-    const clientKeywords = ['profilo', 'cliente', 'informazioni su', 'dati di', 'portafoglio di'];
-    
-    // Keywords che potrebbero indicare una richiesta relativa alla funzionalità della piattaforma
-    const platformKeywords = ['come', 'funziona', 'funzionalità', 'feature', 'caratteristiche', 'piattaforma', 'sistema', 'gervis', 'help', 'aiuto', 'guida', 'creare', 'aggiungere', 'modificare', 'eliminare', 'cancellare', 'gestire', 'nuovo', 'nuova', 'aggiunta', 'come si', 'come posso', 'dove', 'perché', 'come mai', 'a cosa serve', 'spiegami', 'istruzioni', 'tutorial', 'documentazione'];
-    
-    // Verbi che indicano azione per calendario (più prioritari)
-    const calendarActionVerbs = ['crea', 'creare', 'fissa', 'fissare', 'organizza', 'organizzare', 'programma', 'programmare', 'schedula', 'schedulare'];
-    
-    // Verifica se il messaggio contiene keywords relative al calendario
-    const isCalendarRequest = calendarKeywords.some(keyword => messageText.includes(keyword));
-    
-    // Verifica se il messaggio contiene un verbo di azione per calendario
-    const hasCalendarActionVerb = calendarActionVerbs.some(verb => messageText.includes(verb));
-    
-    // Verifica se il messaggio contiene keywords relative a un cliente
-    const isClientRequest = clientKeywords.some(keyword => messageText.includes(keyword));
-    
-    // Verifica se il messaggio contiene keywords relative alla funzionalità della piattaforma
-    const isPlatformRequest = platformKeywords.some(keyword => messageText.includes(keyword));
-    
-    // Cerca di estrarre un potenziale nome cliente dal messaggio
-    let clientName = null;
-    
-    // Estrai nome cliente solo se non è una richiesta di calendario con verbo d'azione
-    // Questo evita di interpretare erroneamente richieste come "crea appuntamento con Mario Rossi"
-    if (!hasCalendarActionVerb || !isCalendarRequest) {
-      const words = messageText.split(/\s+/);
-      for (let i = 0; i < words.length; i++) {
-        // Cerchiamo parole che iniziano con maiuscola e non sono all'inizio della frase
-        // e non sono nella lista di esclusione
-        const word = words[i];
-        if (i > 0 && 
-            word.charAt(0) === word.charAt(0).toUpperCase() && 
-            word.length > 2 && 
-            !excludedWords.includes(word.toLowerCase())) {
-          clientName = word;
-          break;
-        }
-      }
-      
-      // Controllo aggiuntivo: se il clientName è nella lista di esclusione, lo azzeriamo
-      if (clientName && excludedWords.includes(clientName.toLowerCase())) {
-        clientName = null;
-      }
-    }
-    
-    console.log(`[DEBUG] Analisi messaggio - isCalendarRequest: ${isCalendarRequest}, hasCalendarActionVerb: ${hasCalendarActionVerb}, isClientRequest: ${isClientRequest}, isPlatformRequest: ${isPlatformRequest}, clientName: "${clientName}"`);
-    
     // Call OpenAI API with properly typed messages
     console.log('Chiamata OpenAI in corso...');
     
-    // Determina quale tool forzare in base all'analisi dei dati
-    let forcedToolChoice: "auto" | { type: "function"; function: { name: string } } = "auto";
-    
-    // Se è una richiesta di creazione appuntamento (contiene verbo d'azione calendario + keywords calendario)
-    if (hasCalendarActionVerb && isCalendarRequest) {
-      // Forza l'uso di prepareMeetingData
-      console.log('[DEBUG] Forzando l\'uso di prepareMeetingData per la creazione di appuntamento');
-      forcedToolChoice = {
-        type: "function",
-        function: { name: "prepareMeetingData" }
-      };
-    }
-    
-    // Se è una richiesta di informazioni sulla piattaforma e non è chiaramente una richiesta di calendario o cliente specifico
-    else if (isPlatformRequest && !isCalendarRequest && !(clientName && isClientRequest)) {
-      // Forza l'uso di getSiteDocumentation
-      console.log('[DEBUG] Forzando l\'uso di getSiteDocumentation per informazioni sulla piattaforma');
-      forcedToolChoice = {
-        type: "function",
-        function: { name: "getSiteDocumentation" }
-      };
-    }
+    // Rimuoviamo l'analisi delle keyword e lasciamo che OpenAI scelga automaticamente
+    // il tool giusto da chiamare in base al contesto del messaggio
+    const forcedToolChoice = "auto";
     
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Usa il modello selezionato
@@ -269,7 +192,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "getClientContext",
-            description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente menziona il nome di un cliente o chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', ecc.",
+            description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', ecc.",
             parameters: {
               type: "object",
               properties: {
@@ -413,7 +336,7 @@ export const handleChat = async (req: Request, res: Response) => {
           }
         }
       ],
-      // Utilizziamo forcedToolChoice invece di "auto" quando vogliamo forzare un tool specifico
+      // Utilizziamo sempre "auto" per lasciare a OpenAI la scelta del tool più appropriato
       tool_choice: forcedToolChoice,
       // Add other parameters like temperature, max_tokens if needed
     });
@@ -517,10 +440,10 @@ export const handleChat = async (req: Request, res: Response) => {
             // Verifica se nel messaggio originale c'è una richiesta di modifica meeting
             // Esempio: "modifica meeting con [clientName]" o "sposta appuntamento con [clientName]"
             if (result.success && result.meetings && result.meetings.length > 0 && 
-                (messageText.includes("modif") || 
-                 messageText.includes("sposta") || 
-                 messageText.includes("cambia") || 
-                 messageText.includes("aggiorna"))) {
+                (userMessage.includes("modif") || 
+                 userMessage.includes("sposta") || 
+                 userMessage.includes("cambia") || 
+                 userMessage.includes("aggiorna"))) {
               
               console.log('[DEBUG] Rilevata richiesta di modifica meeting dopo getMeetingsByClientName');
               
@@ -536,7 +459,7 @@ export const handleChat = async (req: Request, res: Response) => {
               const dateRegex1 = /il\s+(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i;
               const dateRegex2 = /il\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i;
               
-              let dateMatch = messageText.match(dateRegex1);
+              let dateMatch = userMessage.match(dateRegex1);
               if (dateMatch) {
                 const day = parseInt(dateMatch[1]);
                 const monthNames = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
@@ -549,7 +472,7 @@ export const handleChat = async (req: Request, res: Response) => {
                   console.log(`[DEBUG] Estratta nuova data dal testo: ${editParams.newDate}`);
                 }
               } else {
-                dateMatch = messageText.match(dateRegex2);
+                dateMatch = userMessage.match(dateRegex2);
                 if (dateMatch) {
                   const day = parseInt(dateMatch[1]);
                   const month = parseInt(dateMatch[2]);
@@ -564,7 +487,7 @@ export const handleChat = async (req: Request, res: Response) => {
               
               // 2. Cerca una nuova ora nel formato "alle XX:YY" o "alle XX"
               const timeRegex = /alle\s+(\d{1,2})[:\.]?(\d{0,2})/i;
-              const timeMatch = messageText.match(timeRegex);
+              const timeMatch = userMessage.match(timeRegex);
               
               if (timeMatch) {
                 const hours = parseInt(timeMatch[1]);

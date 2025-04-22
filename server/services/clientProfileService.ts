@@ -1,6 +1,6 @@
 import { db } from '../db';
 import { clients, aiProfiles, assets, mifid, recommendations, clientLogs } from '../../shared/schema';
-import { eq, desc, and, or, like } from 'drizzle-orm';
+import { eq, desc, and, or, like, ilike, sql } from 'drizzle-orm';
 
 /**
  * Servizio per fornire un profilo cliente completo e unificato
@@ -418,44 +418,330 @@ function calculateCompletenessScore(client: any, mifidData: any | null): number 
 }
 
 /**
- * Ricerca un cliente per nome (parziale o completo)
- * @param clientName Nome o parte del nome del cliente
- * @returns ID del cliente se trovato
+ * Ricerca avanzata di clienti con varie opzioni di filtro
+ * @param searchTerm Nome o parte del nome del cliente da cercare
+ * @param options Opzioni di ricerca (limit, advisorId, onlyActive, etc.)
+ * @returns Array di clienti trovati con punteggio di corrispondenza
  */
-export async function findClientByName(clientName: string): Promise<number | null> {
+export async function findClients(searchTerm: string, options?: {
+  limit?: number;        // Numero massimo di risultati da restituire
+  advisorId?: number;    // Filtra per advisor specifico
+  onlyActive?: boolean;  // Solo clienti attivi
+  exactMatch?: boolean;  // Cerca corrispondenza esatta
+}) {
   try {
-    // Dividi il nome in parti
-    const nameParts = clientName.trim().split(/\s+/);
-    let firstName = '';
-    let lastName = '';
+    const {
+      limit = 1,                  // Default: restituisce solo il primo risultato
+      advisorId = undefined,      // Default: cerca tra tutti gli advisor
+      onlyActive = false,         // Default: cerca tra tutti i clienti
+      exactMatch = false          // Default: cerca corrispondenze parziali
+    } = options || {};
+
+    // Normalizza il termine di ricerca
+    const normalizedTerm = searchTerm.trim().toLowerCase();
     
-    if (nameParts.length >= 2) {
-      // Se ci sono almeno due parti, assume che la prima sia il nome e l'ultima il cognome
-      firstName = nameParts[0];
-      lastName = nameParts[nameParts.length - 1];
-    } else if (nameParts.length === 1) {
-      // Se c'è solo una parte, cerca di abbinare con nome o cognome
-      firstName = nameParts[0];
-      lastName = nameParts[0];
+    // Se il termine è vuoto, restituisci array vuoto
+    if (!normalizedTerm) {
+      return [];
     }
     
-    // Cerca il cliente nel database con criteri flessibili
-    const clientData = await db.select().from(clients).where(
-      or(
-        and(
-          like(clients.firstName, `%${firstName}%`),
-          like(clients.lastName, `%${lastName}%`)
-        ),
-        like(clients.firstName, `%${clientName}%`),
-        like(clients.lastName, `%${clientName}%`)
-      )
-    ).limit(1);
+    // Dividi il termine di ricerca in parti
+    const searchParts = normalizedTerm.split(/\s+/);
+    let firstName = searchParts[0] || '';
+    let lastName = searchParts.length > 1 ? searchParts[searchParts.length - 1] : '';
     
-    if (!clientData.length) {
-      return null;
+    // Costruisci la query di base
+    let query = db.select().from(clients);
+    
+    // Aggiungi condizioni di ricerca
+    let searchConditions = [];
+    
+    if (exactMatch) {
+      // Ricerca per corrispondenza esatta
+      if (firstName && lastName) {
+        // Nome e cognome entrambi specificati - prova entrambi gli ordini
+        searchConditions.push(
+          or(
+            and(
+              sql`LOWER(${clients.firstName}) = ${firstName}`,
+              sql`LOWER(${clients.lastName}) = ${lastName}`
+            ),
+            and(
+              sql`LOWER(${clients.firstName}) = ${lastName}`,
+              sql`LOWER(${clients.lastName}) = ${firstName}`
+            )
+          )
+        );
+      } else {
+        // Solo un termine specificato
+        searchConditions.push(
+          or(
+            sql`LOWER(${clients.firstName}) = ${normalizedTerm}`,
+            sql`LOWER(${clients.lastName}) = ${normalizedTerm}`
+          )
+        );
+      }
+    } else {
+      // Ricerca flessibile con ILIKE (case insensitive)
+      if (firstName && lastName) {
+        // Nome e cognome entrambi specificati - prova entrambi gli ordini
+        searchConditions.push(
+          or(
+            and(
+              ilike(clients.firstName, `%${firstName}%`),
+              ilike(clients.lastName, `%${lastName}%`)
+            ),
+            and(
+              ilike(clients.firstName, `%${lastName}%`),
+              ilike(clients.lastName, `%${firstName}%`)
+            )
+          )
+        );
+      }
+      
+      // Più flessibile: cerca ogni parola singola in entrambi i campi
+      searchParts.forEach(part => {
+        if (part.length >= 2) { // Skip parole troppo corte
+          searchConditions.push(ilike(clients.firstName, `%${part}%`));
+          searchConditions.push(ilike(clients.lastName, `%${part}%`));
+        }
+      });
+      
+      // Cerca anche come nome intero in entrambi i campi
+      if (normalizedTerm.length >= 3) { // Skip termini troppo corti
+        searchConditions.push(ilike(clients.firstName, `%${normalizedTerm}%`));
+        searchConditions.push(ilike(clients.lastName, `%${normalizedTerm}%`));
+      }
+      
+      // Cerca anche negli altri campi utili come email
+      if ('email' in clients) {
+        searchConditions.push(ilike(clients.email, `%${normalizedTerm}%`));
+      }
+      
+      // Se è disponibile un campo "name" completo, cerca anche lì
+      if ('name' in clients) {
+        searchConditions.push(ilike(clients.name, `%${normalizedTerm}%`));
+      }
     }
     
-    return clientData[0].id;
+    // Applica le condizioni di ricerca
+    query = query.where(or(...searchConditions));
+    
+    // Filtra per advisor se specificato
+    if (advisorId !== undefined) {
+      query = query.where(eq(clients.advisorId, advisorId));
+    }
+    
+    // Filtra solo clienti attivi se richiesto
+    if (onlyActive) {
+      query = query.where(eq(clients.active, true));
+    }
+    
+    // NON applichiamo il limit qui, ma prendiamo più risultati per valutarli
+    // e applicare la logica di scoring personalizzata
+    const maxResults = 100; // Prendiamo massimo 100 risultati per evitare problemi di memoria
+    query = query.limit(maxResults);
+    
+    // Esegui la query
+    const results = await query;
+    
+    // Calcola punteggi di corrispondenza
+    const scoredResults = results.map(client => {
+      const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
+      const clientFirstNameLower = client.firstName.toLowerCase();
+      const clientLastNameLower = client.lastName.toLowerCase();
+      
+      // Calcola un punteggio di corrispondenza più sofisticato
+      let score = 0;
+      
+      // Corrispondenza esatta con nome completo
+      if (fullName === normalizedTerm) {
+        score += 100;
+      } 
+      
+      // Corrispondenza con nomecognome senza spazi
+      if ((clientFirstNameLower + clientLastNameLower) === normalizedTerm.replace(/\s+/g, '')) {
+        score += 90;
+      }
+      
+      // Corrispondenza con cognomenome senza spazi
+      if ((clientLastNameLower + clientFirstNameLower) === normalizedTerm.replace(/\s+/g, '')) {
+        score += 85;
+      }
+      
+      // Corrispondenza con nome e cognome individualmente (nell'ordine corretto)
+      if (clientFirstNameLower === firstName && clientLastNameLower === lastName) {
+        score += 80;
+      }
+      
+      // Corrispondenza con nome e cognome in ordine inverso
+      if (clientFirstNameLower === lastName && clientLastNameLower === firstName) {
+        score += 75;
+      }
+      
+      // Corrispondenza parziale con nome e cognome (nell'ordine corretto)
+      if (clientFirstNameLower.includes(firstName) && clientLastNameLower.includes(lastName)) {
+        score += 60;
+      }
+      
+      // Corrispondenza parziale con nome e cognome in ordine inverso
+      if (clientFirstNameLower.includes(lastName) && clientLastNameLower.includes(firstName)) {
+        score += 55;
+      }
+      
+      // Corrispondenza con solo nome o cognome
+      if (clientFirstNameLower === normalizedTerm || clientLastNameLower === normalizedTerm) {
+        score += 50;
+      }
+      
+      // Corrispondenza parziale con nome o cognome
+      if (clientFirstNameLower.includes(normalizedTerm) || clientLastNameLower.includes(normalizedTerm)) {
+        score += 40;
+      }
+      
+      // Corrispondenza parziale con nome o cognome (per ogni parte)
+      searchParts.forEach(part => {
+        if (part.length >= 2) {
+          if (clientFirstNameLower.includes(part)) {
+            score += 10;
+          }
+          if (clientLastNameLower.includes(part)) {
+            score += 10;
+          }
+        }
+      });
+      
+      return {
+        ...client,
+        score,
+        fullName: `${client.firstName} ${client.lastName}`
+      };
+    })
+    // Ordina per punteggio decrescente
+    .sort((a, b) => b.score - a.score);
+    
+    // Ora applica il limite dopo l'ordinamento per score
+    const limitedResults = limit > 0 ? scoredResults.slice(0, limit) : scoredResults;
+    
+    return limitedResults;
+    
+  } catch (error) {
+    console.error("Errore nella ricerca dei clienti:", error);
+    return [];
+  }
+}
+
+/**
+ * Utility per trovare un singolo cliente per nome
+ * Mantiene compatibilità con il vecchio findClientByName ma usa la nuova implementazione
+ * @param clientName Nome o parte del nome
+ * @param advisorId ID dell'advisor (opzionale)
+ * @param onlyActive Se cercare solo clienti attivi (default: false, cerca tutti)
+ * @returns ID del cliente, se trovato
+ */
+export async function findClientByName(clientName: string, advisorId?: number, onlyActive: boolean = false): Promise<number | null> {
+  try {
+    console.log(`[DEBUG] findClientByName - Ricerca cliente: "${clientName}", advisorId: ${advisorId}, onlyActive: ${onlyActive}`);
+    
+    // Imposta un limite maggiore per la ricerca iniziale
+    const results = await findClients(clientName, {
+      limit: 10, // Aumenta il limite per vedere più risultati potenziali
+      advisorId,
+      onlyActive
+    });
+    
+    // Log per debug
+    console.log(`[DEBUG] findClientByName - Risultati trovati: ${results.length}`);
+    if (results.length > 0) {
+      console.log(`[DEBUG] findClientByName - Primi 3 risultati:`);
+      results.slice(0, 3).forEach((client, idx) => {
+        console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score})`);
+      });
+    } else {
+      // Se non abbiamo trovato risultati, proviamo una ricerca più permissiva
+      console.log(`[DEBUG] findClientByName - Nessun risultato, provo una ricerca più flessibile`);
+      
+      // Prova ricerca ultra-permissiva
+      const parts = clientName.toLowerCase().trim().split(/\s+/);
+      let flexResults = [];
+      
+      try {
+        // Costruisci una query molto permissiva che cerca parole parziali
+        const searchConditions = [];
+        
+        // Per ogni parola del nome, cerca corrispondenze parziali
+        for (const part of parts) {
+          if (part.length >= 2) {
+            // Considera solo parti con almeno 2 caratteri
+            // Ad esempio, per "matt col" cerca %ma% e %co% nei campi nome e cognome
+            const firstChars = part.substring(0, 2); // Prendi i primi 2 caratteri
+            searchConditions.push(ilike(clients.firstName, `%${firstChars}%`));
+            searchConditions.push(ilike(clients.lastName, `%${firstChars}%`));
+          }
+        }
+        
+        // Se ci sono condizioni valide, esegui la query
+        if (searchConditions.length > 0) {
+          let query = db.select().from(clients).where(or(...searchConditions));
+          
+          // Filtra per advisor se specificato
+          if (advisorId !== undefined) {
+            query = query.where(eq(clients.advisorId, advisorId));
+          }
+          
+          // Filtra solo clienti attivi se richiesto
+          if (onlyActive) {
+            query = query.where(eq(clients.active, true));
+          }
+          
+          // Esegui la query
+          flexResults = await query.limit(50);
+          
+          // Log dei risultati
+          console.log(`[DEBUG] findClientByName - Ricerca flessibile ha trovato: ${flexResults.length} risultati`);
+          
+          // Calcola un punteggio di corrispondenza rudimentale
+          flexResults = flexResults.map(client => {
+            const fullName = `${client.firstName} ${client.lastName}`.toLowerCase();
+            let score = 0;
+            
+            // Calcola quanto ciascuna parte del nome cerca corrisponde
+            for (const part of parts) {
+              if (client.firstName.toLowerCase().includes(part)) score += 20;
+              if (client.lastName.toLowerCase().includes(part)) score += 20;
+              
+              // Corrispondenze parziali
+              for (let i = 2; i <= part.length; i++) {
+                const subPart = part.substring(0, i);
+                if (client.firstName.toLowerCase().includes(subPart)) score += 2;
+                if (client.lastName.toLowerCase().includes(subPart)) score += 2;
+              }
+            }
+            
+            return { ...client, score, fullName };
+          })
+          .sort((a, b) => b.score - a.score);
+          
+          // Log dei migliori risultati
+          if (flexResults.length > 0) {
+            console.log(`[DEBUG] findClientByName - Migliori risultati ricerca flessibile:`);
+            flexResults.slice(0, 3).forEach((client, idx) => {
+              console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score})`);
+            });
+          }
+        }
+      } catch (flexError) {
+        console.error(`[DEBUG] findClientByName - Errore durante la ricerca flessibile:`, flexError);
+      }
+      
+      // Se abbiamo trovato risultati con la ricerca flessibile, usali
+      if (flexResults.length > 0) {
+        return flexResults[0].id;
+      }
+    }
+    
+    // Se abbiamo trovato almeno un cliente con la ricerca normale, restituisci il suo ID
+    return results.length > 0 ? results[0].id : null;
   } catch (error) {
     console.error("Errore nella ricerca del cliente per nome:", error);
     return null;
