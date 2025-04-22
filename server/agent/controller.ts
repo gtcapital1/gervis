@@ -6,6 +6,12 @@ import { eq, and, asc } from 'drizzle-orm'; // Import query helpers and asc help
 // Import necessary types from schema if needed later, e.g., for conversation history
 // import { Conversation, Message } from '../../shared/schema'; 
 import { getClientContext } from './functions';
+import { nanoid } from 'nanoid';
+import { isNull, desc } from 'drizzle-orm';
+import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
+import { ChatCompletionMessageParam } from 'openai';
+import { getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting } from './functions';
+import { findClientByName } from '../services/clientProfileService';
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in your environment variables
@@ -21,8 +27,9 @@ const AVAILABLE_MODELS = {
 
 // Type for OpenAI message
 type OpenAIMessage = {
-  role: 'system' | 'user' | 'assistant';
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
+  tool_call_id?: string;
 }
 
 // Basic chat handler function
@@ -37,6 +44,10 @@ export const handleChat = async (req: Request, res: Response) => {
   }
 
   try {
+    // Aggiungiamo una variabile per indicare se mostrare il dialog nel frontend
+    let showMeetingDialog = false;
+    let meetingDialogData = null;
+    
     const { message: userMessage, conversationId, model: requestedModel } = req.body; // Aggiungi il parametro model
 
     // Ensure message is a string
@@ -132,8 +143,15 @@ export const handleChat = async (req: Request, res: Response) => {
       Adotta uno stile professionale, chiaro, sintetico, ispirato alle best practice del settore della consulenza finanziaria e wealth management.  
       Se il messaggio dell'utente riguarda un cliente specifico, valuta se richiedere informazioni aggiuntive tramite strumenti esterni.
       
+      IMPORTANTE: Quando l'utente chiede di creare un appuntamento/meeting, NON usare frasi che indicano che l'operazione è già completata (come "Ho creato un appuntamento" o "L'appuntamento è stato fissato"). 
+      Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
+      Questo perché l'utente dovrà confermare l'appuntamento tramite un'interfaccia grafica, quindi l'operazione non è ancora conclusa.
+      
       Agisci come partner affidabile del consulente: **preciso, proattivo, strategico**.
       Rispondi alle domande che ti vengono fatte, senza divagare se non necessario.
+
+      IMPORTANTE: Oggi è ${new Date().toLocaleDateString('it-IT', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}.
+      Quando l'utente fa riferimento a periodi come "questa settimana", "oggi", "domani", ecc., usa questa data come riferimento.
 
       Formatta sempre le tue risposte usando markdown. Usa **grassetto** per evidenziare concetti chiave, *corsivo* per enfatizzare, ed elenchi puntati o numerati per chiarezza. Non aggiungere elementi HTML.
       Non aggiungere emoji.
@@ -165,31 +183,30 @@ export const handleChat = async (req: Request, res: Response) => {
     // Lista di parole comuni da escludere (saluti, verbi comuni, ecc.)
     const excludedWords = ['ciao', 'salve', 'buongiorno', 'buonasera', 'parlami', 'dimmi', 'descrivimi', 'mostrami', 'visualizza', 'trova'];
     
-    // Regex per trovare possibili nomi di cliente nel formato "Nome Cognome"
-    const nameRegex = /\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b/g;
-    
-    // Estrai possibili nomi di clienti dal messaggio
-    let clientNames = [];
-    let match;
-    const messageWithCapitalizedNames = userMessage.replace(/\b[a-z]/g, c => c.toUpperCase());
-    while ((match = nameRegex.exec(messageWithCapitalizedNames)) !== null) {
-      // Verifica che né il nome né il cognome siano nella lista di esclusione
-      const firstName = match[1].toLowerCase();
-      const lastName = match[2].toLowerCase();
-      if (!excludedWords.includes(firstName) && !excludedWords.includes(lastName)) {
-        clientNames.push(match[0]);
-      }
-    }
+    // Keywords che potrebbero indicare una richiesta relativa al calendario/meeting
+    const calendarKeywords = ['appuntamento', 'appuntamenti', 'meeting', 'meetings', 'incontro', 'incontri', 'calendario', 'riunione', 'riunioni', 'agenda', 'programma', 'programmato', 'schedulato', 'appuntato', 'settimana', 'mese', 'domani', 'oggi', 'lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'creare', 'crea', 'fissa', 'organizza'];
     
     // Keywords che potrebbero indicare una richiesta relativa a un cliente
     const clientKeywords = ['profilo', 'cliente', 'informazioni su', 'dati di', 'portafoglio di'];
+    
+    // Verbi che indicano azione per calendario (più prioritari)
+    const calendarActionVerbs = ['crea', 'creare', 'fissa', 'fissare', 'organizza', 'organizzare', 'programma', 'programmare', 'schedula', 'schedulare'];
+    
+    // Verifica se il messaggio contiene keywords relative al calendario
+    const isCalendarRequest = calendarKeywords.some(keyword => messageText.includes(keyword));
+    
+    // Verifica se il messaggio contiene un verbo di azione per calendario
+    const hasCalendarActionVerb = calendarActionVerbs.some(verb => messageText.includes(verb));
+    
+    // Verifica se il messaggio contiene keywords relative a un cliente
     const isClientRequest = clientKeywords.some(keyword => messageText.includes(keyword));
     
+    // Cerca di estrarre un potenziale nome cliente dal messaggio
     let clientName = null;
-    if (clientNames.length > 0) {
-      clientName = clientNames[0]; // Prendiamo il primo nome trovato
-    } else if (isClientRequest) {
-      // Cerca di estrarre nomi dal messaggio
+    
+    // Estrai nome cliente solo se non è una richiesta di calendario con verbo d'azione
+    // Questo evita di interpretare erroneamente richieste come "crea appuntamento con Mario Rossi"
+    if (!hasCalendarActionVerb || !isCalendarRequest) {
       const words = messageText.split(/\s+/);
       for (let i = 0; i < words.length; i++) {
         // Cerchiamo parole che iniziano con maiuscola e non sono all'inizio della frase
@@ -203,17 +220,31 @@ export const handleChat = async (req: Request, res: Response) => {
           break;
         }
       }
+      
+      // Controllo aggiuntivo: se il clientName è nella lista di esclusione, lo azzeriamo
+      if (clientName && excludedWords.includes(clientName.toLowerCase())) {
+        clientName = null;
+      }
     }
     
-    // Controllo aggiuntivo: se il clientName è nella lista di esclusione, lo azzeriamo
-    if (clientName && excludedWords.includes(clientName.toLowerCase())) {
-      clientName = null;
-    }
-    
-    console.log(`[DEBUG] Rilevato possibile nome cliente: "${clientName}"`);
+    console.log(`[DEBUG] Analisi messaggio - isCalendarRequest: ${isCalendarRequest}, hasCalendarActionVerb: ${hasCalendarActionVerb}, isClientRequest: ${isClientRequest}, clientName: "${clientName}"`);
     
     // Call OpenAI API with properly typed messages
     console.log('Chiamata OpenAI in corso...');
+    
+    // Determina quale tool forzare in base all'analisi dei dati
+    let forcedToolChoice: "auto" | { type: "function"; function: { name: string } } = "auto";
+    
+    // Se è una richiesta di creazione appuntamento (contiene verbo d'azione calendario + keywords calendario)
+    if (hasCalendarActionVerb && isCalendarRequest) {
+      // Forza l'uso di prepareMeetingData
+      console.log('[DEBUG] Forzando l\'uso di prepareMeetingData per la creazione di appuntamento');
+      forcedToolChoice = {
+        type: "function",
+        function: { name: "prepareMeetingData" }
+      };
+    }
+    
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Usa il modello selezionato
       messages: apiMessages,
@@ -238,15 +269,124 @@ export const handleChat = async (req: Request, res: Response) => {
               required: ["clientName", "query"]
             }
           }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getMeetingsByDateRange",
+            description: "Cerca gli appuntamenti in un intervallo di date specificato. Utilizzare questa funzione quando l'utente chiede di vedere gli appuntamenti per un certo periodo, ad esempio 'mostra gli appuntamenti di questa settimana' o 'appuntamenti dal 10 al 15 maggio'.",
+            parameters: {
+              type: "object",
+              properties: {
+                dateRange: {
+                  type: "object",
+                  properties: {
+                    startDate: {
+                      type: "string",
+                      description: "Data di inizio in formato YYYY-MM-DD"
+                    },
+                    endDate: {
+                      type: "string",
+                      description: "Data di fine in formato YYYY-MM-DD"
+                    }
+                  },
+                  required: ["startDate", "endDate"]
+                }
+              },
+              required: ["dateRange"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "getMeetingsByClientName",
+            description: "Cerca gli appuntamenti per un cliente specifico. Utilizzare questa funzione quando l'utente chiede di vedere gli appuntamenti per un certo cliente, ad esempio 'mostra gli appuntamenti con Mario Rossi' o 'appuntamenti per il cliente Bianchi'.",
+            parameters: {
+              type: "object",
+              properties: {
+                clientName: {
+                  type: "string",
+                  description: "Nome del cliente di cui cercare gli appuntamenti"
+                }
+              },
+              required: ["clientName"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "prepareMeetingData",
+            description: "Prepara i dati per creare o modificare un appuntamento. Utilizzare questa funzione quando l'utente vuole creare un nuovo appuntamento o modificarne uno esistente, ad esempio 'crea un appuntamento con Mario Rossi per domani alle 15' o 'modifica l'appuntamento con Bianchi di venerdì'.",
+            parameters: {
+              type: "object",
+              properties: {
+                clientId: {
+                  type: "string",
+                  description: "ID del cliente o nome del cliente con cui fissare l'appuntamento"
+                },
+                clientName: {
+                  type: "string",
+                  description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
+                },
+                subject: {
+                  type: "string",
+                  description: "Oggetto o titolo dell'appuntamento"
+                },
+                dateTime: {
+                  type: "string",
+                  description: "Data e ora dell'appuntamento in formato ISO (YYYY-MM-DDTHH:MM:SS) o descrizione testuale come 'domani alle 15'"
+                },
+                duration: {
+                  type: "string",
+                  description: "Durata dell'appuntamento in minuti (30, 60, 90, 120)"
+                },
+                location: {
+                  type: "string",
+                  description: "Luogo dell'appuntamento (zoom, ufficio, etc)"
+                },
+                notes: {
+                  type: "string",
+                  description: "Note aggiuntive sull'appuntamento"
+                }
+              },
+              required: ["clientId"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "prepareEditMeeting",
+            description: "Prepara i dati per modificare un appuntamento esistente",
+            parameters: {
+              type: "object",
+              properties: {
+                meetingId: {
+                  type: "string",
+                  description: "ID numerico dell'appuntamento da modificare"
+                },
+                clientName: {
+                  type: "string",
+                  description: "Nome del cliente dell'appuntamento da modificare"
+                },
+                date: {
+                  type: "string",
+                  description: "Data dell'appuntamento nel formato DD/MM/YYYY"
+                },
+                time: {
+                  type: "string",
+                  description: "Ora dell'appuntamento nel formato HH:MM"
+                }
+              },
+              required: [] // Almeno uno dei parametri deve essere fornito
+            }
+          }
         }
       ],
-      // Se è stata identificata una richiesta relativa a un cliente, forziamo l'uso del tool
-      tool_choice: clientName ? {
-        type: "function",
-        function: {
-          name: "getClientContext"
-        }
-      } : "auto",
+      // Utilizziamo forcedToolChoice invece di "auto" quando vogliamo forzare un tool specifico
+      tool_choice: forcedToolChoice,
       // Add other parameters like temperature, max_tokens if needed
     });
     
@@ -278,112 +418,323 @@ export const handleChat = async (req: Request, res: Response) => {
         args: toolCall.function.arguments.substring(0, 100) + '...' 
       });
       
-      if (toolCall.function.name === "getClientContext") {
-        functionCalls = [
-          {
-            name: "getClientContext",
-            arguments: JSON.parse(toolCall.function.arguments)
-          }
-        ];
-        
-        toolCallId = toolCall.id;
-        
-        // If there's no content, add a placeholder
-
+      // Imposta functionCalls per qualsiasi tipo di tool, non solo getClientContext
+      functionCalls = [
+        {
+          name: toolCall.function.name,
+          arguments: JSON.parse(toolCall.function.arguments)
+        }
+      ];
+      
+      toolCallId = toolCall.id;
+      
+      // If there's no content, add a placeholder
+      if (!aiResponse) {
+        aiResponse = 'Elaborazione della richiesta in corso...';
       }
     }
-
-    // Save assistant response to database
-    await db.insert(messagesTable).values({
-      conversationId: currentConversationId,
-      content: aiResponse,
-      role: 'assistant',
-      createdAt: new Date(),
-      functionCalls: functionCalls ? JSON.stringify(functionCalls) : null
-    });
 
     // Handle function calls if present
     let functionResults = null;
     if (functionCalls) {
-      // Process the getClientContext function call
-      if (functionCalls[0].name === "getClientContext") {
-        const args = functionCalls[0].arguments;
-        console.log('Chiamata funzione getClientContext con argomenti:', { 
-          clientName: args.clientName, 
-          query: args.query?.substring(0, 50) + '...' 
-        });
+      const functionName = functionCalls[0].name;
+      const args = functionCalls[0].arguments;
+      let result = null;
+      
+      try {
+        console.log(`[DEBUG] Iniziando esecuzione funzione ${functionName}`);
         
-        try {
-          console.log('Avvio recupero contesto cliente...');
-          const result = await getClientContext(
-            args.clientName,
-            args.query,
-            userId
-          );
+        // Esegui la funzione in base al nome
+        switch (functionName) {
+          case "getClientContext":
+            console.log(`[DEBUG] Chiamando getClientContext con: ${args.clientName}`);
+            result = await getClientContext(args.clientName, args.query, userId);
+            console.log('[DEBUG] Risultato getClientContext:', result);
+            console.log('Recupero contesto cliente completato:', { 
+              success: result.success,
+              client: result.success && result.clientInfo && result.clientInfo.personalInformation && result.clientInfo.personalInformation.data ? 
+                `${result.clientInfo.personalInformation.data.firstName.value} ${result.clientInfo.personalInformation.data.lastName.value}` : 
+                'Cliente trovato ma dati incompleti'
+            });
+            break;
           
-          console.log('Recupero contesto cliente completato:', { 
-            success: result.success,
-            client: result.success && result.clientInfo && result.clientInfo.personalInformation && result.clientInfo.personalInformation.data ? 
-              `${result.clientInfo.personalInformation.data.firstName.value} ${result.clientInfo.personalInformation.data.lastName.value}` : 
-              'Cliente trovato ma dati incompleti'
-          });
+          case "getMeetingsByDateRange":
+            console.log(`[DEBUG] Chiamando getMeetingsByDateRange con date: ${JSON.stringify(args.dateRange)}`);
+            result = await getMeetingsByDateRange(args.dateRange, userId);
+            console.log('[DEBUG] Risultato getMeetingsByDateRange:', result);
+            console.log('Ricerca appuntamenti per data completata:', { 
+              success: result.success,
+              count: result.success ? result.count : 0
+            });
+            break;
           
-          functionResults = [result];
-          
-          // If we have a tool call ID, send the result back to OpenAI
-          if (toolCallId) {
-            const toolMessages = [
-              ...apiMessages,
-              completion.choices[0].message,
-              {
-                role: "tool" as const,
-                tool_call_id: toolCallId,
-                content: JSON.stringify(result)
-              }
-            ];
+          case "getMeetingsByClientName":
+            console.log(`[DEBUG] Chiamando getMeetingsByClientName con: ${args.clientName}`);
+            result = await getMeetingsByClientName(args.clientName, userId);
+            console.log('[DEBUG] Risultato getMeetingsByClientName:', result);
+            console.log('Ricerca appuntamenti per cliente completata:', { 
+              success: result.success,
+              count: result.success ? result.count : 0
+            });
             
-            // Get a follow-up message from OpenAI with the function results
+            // Verifica se nel messaggio originale c'è una richiesta di modifica meeting
+            // Esempio: "modifica meeting con [clientName]" o "sposta appuntamento con [clientName]"
+            if (result.success && result.meetings && result.meetings.length > 0 && 
+                (messageText.includes("modif") || 
+                 messageText.includes("sposta") || 
+                 messageText.includes("cambia") || 
+                 messageText.includes("aggiorna"))) {
+              
+              console.log('[DEBUG] Rilevata richiesta di modifica meeting dopo getMeetingsByClientName');
+              
+              // Prendi il primo meeting trovato (assumiamo che sia quello da modificare)
+              const meetingToEdit = result.meetings[0];
+              
+              // Estrai potenziali nuove informazioni dal messaggio dell'utente
+              const editParams: any = {
+                meetingId: meetingToEdit.id
+              };
+              
+              // 1. Cerca una nuova data nel formato "il XX aprile" o "il XX/YY"
+              const dateRegex1 = /il\s+(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i;
+              const dateRegex2 = /il\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i;
+              
+              let dateMatch = messageText.match(dateRegex1);
+              if (dateMatch) {
+                const day = parseInt(dateMatch[1]);
+                const monthNames = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
+                const month = monthNames.findIndex(m => m.toLowerCase() === dateMatch[2].toLowerCase()) + 1;
+                
+                // Assumiamo l'anno corrente se non specificato
+                const year = new Date().getFullYear();
+                if (day > 0 && day <= 31 && month > 0) {
+                  editParams.newDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+                  console.log(`[DEBUG] Estratta nuova data dal testo: ${editParams.newDate}`);
+                }
+              } else {
+                dateMatch = messageText.match(dateRegex2);
+                if (dateMatch) {
+                  const day = parseInt(dateMatch[1]);
+                  const month = parseInt(dateMatch[2]);
+                  const year = dateMatch[3] ? parseInt(dateMatch[3]) : new Date().getFullYear();
+                  
+                  if (day > 0 && day <= 31 && month > 0 && month <= 12) {
+                    editParams.newDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
+                    console.log(`[DEBUG] Estratta nuova data dal testo: ${editParams.newDate}`);
+                  }
+                }
+              }
+              
+              // 2. Cerca una nuova ora nel formato "alle XX:YY" o "alle XX"
+              const timeRegex = /alle\s+(\d{1,2})[:\.]?(\d{0,2})/i;
+              const timeMatch = messageText.match(timeRegex);
+              
+              if (timeMatch) {
+                const hours = parseInt(timeMatch[1]);
+                const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+                
+                if (hours >= 0 && hours < 24) {
+                  editParams.newTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+                  console.log(`[DEBUG] Estratta nuova ora dal testo: ${editParams.newTime}`);
+                }
+              }
+              
+              // Chiamata a prepareEditMeeting con i parametri estratti
+              console.log('[DEBUG] Chiamata a prepareEditMeeting con parametri estratti:', editParams);
+              const editResult = await prepareEditMeeting(editParams, userId);
+              
+              console.log('[DEBUG] Risultato prepareEditMeeting auto dopo getMeetingsByClientName:', editResult);
+              
+              if (editResult.success) {
+                // Imposta il flag per mostrare il dialog di modifica meeting
+                showMeetingDialog = true;
+                meetingDialogData = editResult.meetingData;
+                // Aggiunge il flag per indicare che è una modifica
+                if (meetingDialogData) {
+                  meetingDialogData.isEdit = true;
+                }
+                console.log('[DEBUG] Impostato flag showMeetingDialog a true dopo auto-prepareEditMeeting');
+              }
+            }
+            break;
+          
+          case "prepareMeetingData":
+            console.log('[DEBUG] Chiamando prepareMeetingData');
+            result = await prepareMeetingData({
+              clientId: args.clientId,
+              clientName: args.clientName,
+              subject: args.subject,
+              dateTime: args.dateTime,
+              duration: args.duration,
+              location: args.location,
+              notes: args.notes
+            }, userId);
+            console.log('[DEBUG] Risultato prepareMeetingData:', result);
+            
+            // Se il risultato è positivo, imposta il flag per mostrare il dialog
+            if (result.success && result.meetingData) {
+              showMeetingDialog = true;
+              meetingDialogData = result.meetingData;
+              
+              // Se è presente una risposta suggerita, la impostiamo come risposta AI
+              if (result.suggestedResponse) {
+                aiResponse = result.suggestedResponse;
+                console.log('[DEBUG] Utilizzo della risposta suggerita dalla funzione');
+              }
+              
+              console.log('[DEBUG] Impostato flag showMeetingDialog a true con dati:', meetingDialogData);
+            }
+            
+            console.log('Preparazione dati appuntamento completata:', { 
+              success: result.success,
+              client: result.success && result.meetingData ? result.meetingData.clientName : 'Nessun cliente trovato'
+            });
+            break;
+          
+          case "prepareEditMeeting":
+            console.log('[DEBUG] Chiamando prepareEditMeeting');
+            result = await prepareEditMeeting(args, userId);
+            console.log('[DEBUG] Risultato prepareEditMeeting:', result);
+            
+            if (result.success) {
+              // Imposta il flag per mostrare il dialog di modifica meeting
+              showMeetingDialog = true;
+              meetingDialogData = result.meetingData;
+              // Aggiunge il flag per indicare che è una modifica
+              meetingDialogData.isEdit = true;
+              console.log('[DEBUG] Impostato flag showMeetingDialog a true con dati per modifica:', meetingDialogData);
+            }
+            break;
+        }
+        
+        console.log('[DEBUG] Funzione eseguita con successo, salvo il risultato');
+        
+        // Salva il risultato
+        functionResults = [result];
+      } catch (error) {
+        console.error(`[DEBUG] Errore durante l'esecuzione della funzione ${functionName}:`, error);
+        result = {
+          success: false,
+          error: `Si è verificato un errore durante l'esecuzione della funzione ${functionName}: ${error.message || 'Errore sconosciuto'}`
+        };
+        functionResults = [result];
+      }
+      
+      // Se abbiamo un tool call ID, invio il risultato a OpenAI per generare una risposta
+      if (toolCallId) {
+        console.log('[DEBUG] Costruisco toolMessages per OpenAI');
+        
+        // Verifica se è disponibile una risposta suggerita dalla funzione prepareMeetingData
+        // In questo caso, non è necessario chiamare nuovamente OpenAI
+        if (functionName === "prepareMeetingData" && result.success && result.suggestedResponse) {
+          console.log('[DEBUG] Utilizzata risposta suggerita da prepareMeetingData');
+          aiResponse = result.suggestedResponse;
+
+          // Salva la risposta suggerita nel database
+          console.log('[DEBUG] Salvo la risposta suggerita nel database');
+          try {
+            await db.insert(messagesTable).values({
+              conversationId: currentConversationId,
+              content: aiResponse,
+              role: 'assistant',
+              createdAt: new Date(),
+              functionResults: JSON.stringify(functionResults)
+            });
+            console.log('[DEBUG] Risposta salvata con successo nel database');
+          } catch (dbError) {
+            console.error('[DEBUG] Errore durante il salvataggio nel database:', dbError);
+            throw dbError;
+          }
+        } else {
+          // Altrimenti procedi con la chiamata a OpenAI come al solito
+          const toolMessages = [
+            ...apiMessages,
+            completion.choices[0].message,
+            {
+              role: "tool" as const,
+              tool_call_id: toolCallId,
+              content: JSON.stringify(result || {})
+            }
+          ];
+          
+          console.log('[DEBUG] Richiamo OpenAI per followUpCompletion');
+          
+          // Ottieni una risposta di follow-up da OpenAI con i risultati della funzione
+          try {
             const followUpCompletion = await openai.chat.completions.create({
               model: modelToUse, // Usa lo stesso modello per coerenza
               messages: toolMessages,
             });
             
-            // Update the AI response with the follow-up message
+            console.log('[DEBUG] Ricevuta risposta da OpenAI followUpCompletion');
+            
+            // Aggiorna la risposta dell'AI con il messaggio di follow-up
             if (followUpCompletion.choices[0]?.message?.content) {
               const followUpResponse = followUpCompletion.choices[0].message.content;
+              console.log('[DEBUG] Contenuto risposta OpenAI:', followUpResponse.substring(0, 100));
               
-              // Save the follow-up response to the database
-              await db.insert(messagesTable).values({
-                conversationId: currentConversationId,
-                content: followUpResponse,
-                role: 'assistant',
-                createdAt: new Date(),
-                functionResults: JSON.stringify(functionResults)
-              });
+              // Salva la risposta di follow-up nel database
+              console.log('[DEBUG] Salvo la risposta nel database');
+              try {
+                await db.insert(messagesTable).values({
+                  conversationId: currentConversationId,
+                  content: followUpResponse,
+                  role: 'assistant',
+                  createdAt: new Date(),
+                  functionResults: JSON.stringify(functionResults)
+                });
+                console.log('[DEBUG] Risposta salvata con successo nel database');
+              } catch (dbError) {
+                console.error('[DEBUG] Errore durante il salvataggio nel database:', dbError);
+                throw dbError;
+              }
               
-              // Update the response to include both messages
-              aiResponse = [aiResponse, followUpResponse].join('\n\n');
+              // Aggiorna la risposta per includere entrambi i messaggi
+              aiResponse = followUpResponse;
+              console.log('[DEBUG] aiResponse aggiornato con la risposta di follow-up');
+            } else {
+              console.log('[DEBUG] Nessun contenuto nella risposta di follow-up');
             }
+          } catch (openaiError) {
+            console.error('[DEBUG] Errore durante la chiamata OpenAI per follow-up:', openaiError);
+            throw openaiError;
           }
-        } catch (error) {
-          console.error("Error executing getClientContext function:", error);
-          functionResults = [{
-            success: false,
-            error: "Si è verificato un errore durante il recupero delle informazioni sul cliente"
-          }];
         }
+      } else {
+        console.log('[DEBUG] Non c\'è un toolCallId, quindi non richiamo OpenAI per il follow-up');
       }
     }
 
-    // Return response with conversationId and function info
-    res.json({ 
+    console.log('[DEBUG] Preparazione risposta finale per il client:', { 
       success: true, 
+      responseLength: aiResponse.length,
+      conversationId: currentConversationId,
+      hasFunctionCalls: !!functionCalls,
+      hasFunctionResults: !!functionResults
+    });
+
+    // Costruisci la risposta
+    const response = {
+      success: true,
       response: aiResponse,
       conversationId: currentConversationId,
-      functionCalls: functionCalls,
-      functionResults: functionResults,
-      model: modelToUse // Aggiungi il modello utilizzato nella risposta
+      model: modelToUse,
+      showMeetingDialog,
+      meetingDialogData,
+      functionResults // Aggiungi i risultati delle funzioni alla risposta
+    };
+
+    console.log('Invio risposta al client:', {
+      length: aiResponse.length,
+      showMeetingDialog,
+      hasMeetingData: !!meetingDialogData,
+      hasFunctionResults: !!functionResults
     });
+
+    // Return response with conversationId and function info
+    res.json(response);
+
+    console.log('[DEBUG] Risposta inviata al client con successo');
 
   } catch (error) {
     console.error('Error handling chat:', error);

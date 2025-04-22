@@ -19,7 +19,6 @@ import OnboardingSuccess from "@/pages/OnboardingSuccess";
 import Settings from "@/pages/Settings";
 import { Layout } from "@/components/dashboard/Layout";
 import ApprovalPending from "@/pages/Dashboard";
-import Spark from "@/pages/Spark";
 import AdminPanel from "@/pages/AdminPanel";
 import Market from "@/pages/MarketUpdate";
 import Calendar from './pages/Calendar';
@@ -149,14 +148,6 @@ function App() {
                   </ProtectedRoute>
                 </Route>
 
-                <Route path="/app/spark">
-                  <ProtectedRoute>
-                    <Layout>
-                      <Spark />
-                    </Layout>
-                  </ProtectedRoute>
-                </Route>
-
                 <Route path="/app/market">
                   <ProtectedRoute>
                     <Layout>
@@ -169,14 +160,6 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <Market />
-                    </Layout>
-                  </ProtectedRoute>
-                </Route>
-
-                <Route path="/spark">
-                  <ProtectedRoute>
-                    <Layout>
-                      <Spark />
                     </Layout>
                   </ProtectedRoute>
                 </Route>

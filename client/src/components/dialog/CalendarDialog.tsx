@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "@/hooks/use-toast";
 import { Calendar, Clock, MapPin, CalendarDays, Send } from "lucide-react";
@@ -64,22 +64,25 @@ export function CalendarDialog({
   const { toast } = useToast();
 
   // Stati del form
-  const [title, setTitle] = useState(event.title || "");
-  const [date, setDate] = useState<Date | undefined>(
+  const [title, setTitle] = useState(() => event.title || "");
+  const [date, setDate] = useState<Date | undefined>(() => 
     event.dateTime ? new Date(event.dateTime) : selectedDate
   );
-  const [time, setTime] = useState(
+  const [time, setTime] = useState(() => 
     event.dateTime 
       ? format(new Date(event.dateTime), "HH:mm") 
       : format(selectedDate, "HH:mm")
   );
-  const [duration, setDuration] = useState(event.duration || 60);
-  const [location, setLocation] = useState(event.location || "office");
-  const [notes, setNotes] = useState(event.notes || "");
+  const [duration, setDuration] = useState(() => event.duration || 60);
+  const [location, setLocation] = useState(() => event.location || "office");
+  const [notes, setNotes] = useState(() => event.notes || "");
   const [sendEmail, setSendEmail] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<number | undefined>(
+  const [selectedClientId, setSelectedClientId] = useState<number | undefined>(() =>
     clientId || event.clientId
   );
+
+  // Riferimento per tenere traccia dello stato precedente del dialog
+  const prevOpenRef = useRef(false);
 
   // Ottieni i dati del cliente dal clientId attualmente selezionato
   const { data: clientData, isLoading: isClientLoading } = useQuery({
@@ -117,9 +120,11 @@ export function CalendarDialog({
     staleTime: 60000, // Cache per 1 minuto
   });
 
-  // Inizializza form quando si apre il dialog o cambiano le props
+  // Reset completo dello stato quando il dialog passa da chiuso ad aperto
   useEffect(() => {
-    if (open) {
+    // Se il dialog passa da chiuso ad aperto
+    if (open && !prevOpenRef.current) {
+      // Inizializza tutti i valori del form in base alle props
       setTitle(event.title || "");
       setDate(event.dateTime ? new Date(event.dateTime) : selectedDate);
       setTime(event.dateTime 
@@ -129,15 +134,18 @@ export function CalendarDialog({
       setLocation(event.location || "office");
       setNotes(event.notes || "");
       setSelectedClientId(clientId || event.clientId);
+      setSendEmail(false);
       
-      // Log per debug
-      console.log(`Inizializzazione CalendarDialog:`, {
+      console.log(`Reset completo del CalendarDialog:`, {
+        mode,
         clientId,
-        useClientSelector,
         eventClientId: event.clientId
       });
     }
-  }, [open, event, selectedDate, clientId, useClientSelector]);
+    
+    // Aggiorna il ref per il prossimo render
+    prevOpenRef.current = open;
+  }, [open, event, selectedDate, clientId, mode]);
 
   // Costruisci la data/ora completa dal date + time
   const getDateTime = (): string => {

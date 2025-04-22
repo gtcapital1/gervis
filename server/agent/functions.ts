@@ -1,8 +1,11 @@
 import { OpenAI } from 'openai';
 import { db } from '../db';
-import { clients, aiProfiles, assets, mifid, recommendations, clientLogs, verifiedDocuments } from '../../shared/schema';
-import { eq, desc, and, or, like } from 'drizzle-orm';
+import { clients, aiProfiles, assets, mifid, recommendations, clientLogs, verifiedDocuments, meetings } from '../../shared/schema';
+import { eq, desc, and, or, like, gte, lte, between } from 'drizzle-orm';
 import { getCompleteClientData } from './clientDataFetcher';
+import { format, parse, parseISO, isValid, addDays, startOfDay, endOfDay, formatISO } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { findClientByName } from '../services/clientProfileService';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -101,3 +104,567 @@ function getTopInvestmentGoals(mifidData: any) {
 function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
+/**
+ * Cerca appuntamenti in un intervallo di date
+ * @param dateRange Intervallo di date in formato {"startDate": "YYYY-MM-DD", "endDate": "YYYY-MM-DD"}
+ * @param userId ID dell'utente (advisor) attualmente autenticato
+ * @returns Lista di appuntamenti nel periodo specificato
+ */
+export async function getMeetingsByDateRange(dateRange: { startDate: string; endDate: string }, userId: number) {
+  try {
+    console.log(`[DEBUG] Ricerca appuntamenti tra ${dateRange.startDate} e ${dateRange.endDate}`);
+    
+    // Converti le date in oggetti Date
+    const startDate = parseISO(dateRange.startDate);
+    const endDate = parseISO(dateRange.endDate);
+    
+    // Verifica che le date siano valide
+    if (!isValid(startDate) || !isValid(endDate)) {
+      return {
+        success: false,
+        error: "Formato date non valido. Utilizza il formato YYYY-MM-DD."
+      };
+    }
+    
+    // Assicurati che la data di inizio sia l'inizio della giornata e la data di fine sia la fine della giornata
+    const startDateTime = startOfDay(startDate);
+    const endDateTime = endOfDay(endDate);
+    
+    // Recupera gli appuntamenti dal database
+    const meetingsList = await db.select()
+      .from(meetings)
+      .where(
+        and(
+          eq(meetings.advisorId, userId),
+          gte(meetings.dateTime, startDateTime),
+          lte(meetings.dateTime, endDateTime)
+        )
+      )
+      .orderBy(meetings.dateTime);
+    
+    // Formatta i dati per la risposta
+    const formattedMeetings = meetingsList.map(meeting => ({
+      id: meeting.id,
+      clientId: meeting.clientId,
+      subject: meeting.subject,
+      dateTime: formatISO(meeting.dateTime),
+      duration: meeting.duration,
+      location: meeting.location,
+      notes: meeting.notes,
+      formattedDate: format(meeting.dateTime, 'dd/MM/yyyy', { locale: it }),
+      formattedTime: format(meeting.dateTime, 'HH:mm', { locale: it })
+    }));
+    
+    // Cerca i nomi dei clienti per gli appuntamenti trovati
+    const clientIds = formattedMeetings
+      .map(m => m.clientId)
+      .filter((id): id is number => id !== null && id !== undefined)
+      .filter((id, index, array) => array.indexOf(id) === index);
+    
+    // Se non ci sono clientIds, restituisci subito
+    if (clientIds.length === 0) {
+      return {
+        success: true,
+        meetings: [],
+        count: 0,
+        period: {
+          start: dateRange.startDate,
+          end: dateRange.endDate
+        }
+      };
+    }
+    
+    // Costruisci la condizione OR per ciascun ID cliente
+    const clientsData = await db.select({
+      id: clients.id,
+      firstName: clients.firstName, 
+      lastName: clients.lastName
+    })
+    .from(clients)
+    .where(
+      or(...clientIds.map(id => eq(clients.id, id)))
+    );
+    
+    // Crea una mappa per lookup veloce
+    const clientsMap = new Map();
+    clientsData.forEach(client => {
+      clientsMap.set(client.id, `${client.firstName} ${client.lastName}`);
+    });
+    
+    // Aggiungi i nomi dei clienti ai meeting
+    const meetingsWithClientNames = formattedMeetings.map(meeting => ({
+      ...meeting,
+      clientName: clientsMap.get(meeting.clientId) || "Cliente sconosciuto"
+    }));
+    
+    return {
+      success: true,
+      meetings: meetingsWithClientNames,
+      count: meetingsWithClientNames.length,
+      period: {
+        start: dateRange.startDate,
+        end: dateRange.endDate
+      }
+    };
+  } catch (error) {
+    console.error("Errore nella ricerca appuntamenti per data:", error);
+    return {
+      success: false,
+      error: "Errore nel recupero degli appuntamenti: " + (error instanceof Error ? error.message : "Errore sconosciuto")
+    };
+  }
+}
+
+/**
+ * Cerca appuntamenti per un cliente specifico
+ * @param clientName Nome del cliente (intero o parziale)
+ * @param userId ID dell'utente (advisor) attualmente autenticato
+ * @returns Lista di appuntamenti per il cliente specificato
+ */
+export async function getMeetingsByClientName(clientName: string, userId: number) {
+  try {
+    console.log(`[DEBUG] Ricerca appuntamenti per cliente: "${clientName}"`);
+    
+    // Utilizza la funzione helper findClientByName per trovare l'ID cliente
+    const clientId = await findClientByName(clientName);
+    
+    if (!clientId) {
+      return {
+        success: false,
+        error: `Nessun cliente trovato con il nome "${clientName}".`
+      };
+    }
+    
+    // Verifica che il cliente appartenga all'advisor corrente
+    const clientInfo = await db.select()
+      .from(clients)
+      .where(
+        and(
+          eq(clients.id, clientId),
+          eq(clients.advisorId, userId)
+        )
+      );
+    
+    if (clientInfo.length === 0) {
+      return {
+        success: false,
+        error: `Cliente trovato ma non appartiene all'advisor corrente.`
+      };
+    }
+    
+    // Cerca gli appuntamenti per questo cliente
+    const meetingsList = await db.select()
+      .from(meetings)
+      .where(
+        and(
+          eq(meetings.advisorId, userId),
+          eq(meetings.clientId, clientId)
+        )
+      )
+      .orderBy(meetings.dateTime);
+    
+    // Formatta i dati per la risposta
+    const formattedMeetings = meetingsList.map(meeting => ({
+      id: meeting.id,
+      clientId: meeting.clientId,
+      subject: meeting.subject,
+      dateTime: formatISO(meeting.dateTime),
+      duration: meeting.duration,
+      location: meeting.location,
+      notes: meeting.notes,
+      formattedDate: format(meeting.dateTime, 'dd/MM/yyyy', { locale: it }),
+      formattedTime: format(meeting.dateTime, 'HH:mm', { locale: it })
+    }));
+    
+    // Crea il nome cliente
+    const client = clientInfo[0];
+    const clientFullName = `${client.firstName} ${client.lastName}`;
+    
+    // Aggiungi i nomi dei clienti ai meeting
+    const meetingsWithClientNames = formattedMeetings.map(meeting => ({
+      ...meeting,
+      clientName: clientFullName
+    }));
+    
+    return {
+      success: true,
+      meetings: meetingsWithClientNames,
+      count: meetingsWithClientNames.length,
+      clients: [{
+        id: clientId,
+        name: clientFullName
+      }]
+    };
+  } catch (error) {
+    console.error("Errore nella ricerca appuntamenti per cliente:", error);
+    return {
+      success: false,
+      error: "Errore nel recupero degli appuntamenti: " + (error instanceof Error ? error.message : "Errore sconosciuto")
+    };
+  }
+}
+
+/**
+ * Prepara i dati per la creazione o modifica di un appuntamento
+ * @param meetingData Dati dell'appuntamento (clientId, subject, dateTime, duration, location, notes)
+ * @param userId ID dell'utente (advisor) attualmente autenticato
+ * @returns Dati dell'appuntamento formattati correttamente per il dialog di creazione/modifica
+ */
+export async function prepareMeetingData(meetingData: {
+  clientId: number | string;
+  clientName?: string;
+  subject?: string;
+  dateTime?: string;
+  duration?: number | string;
+  location?: string;
+  notes?: string;
+}, userId: number) {
+  try {
+    console.log(`[DEBUG] Preparazione dati appuntamento`);
+    
+    // Cerca il cliente nel database per confermare che esista e appartiene all'advisor
+    let clientId: number;
+    let clientObj;
+    
+    if ((typeof meetingData.clientId === 'string' && isNaN(parseInt(meetingData.clientId))) || meetingData.clientName) {
+      // Utilizza il nome cliente fornito, dando priorità a clientName se entrambi sono disponibili
+      const clientNameToSearch = meetingData.clientName || meetingData.clientId.toString();
+      
+      console.log(`[DEBUG] Ricerca cliente per nome: "${clientNameToSearch}"`);
+      
+      // Usa la funzione findClientByName per trovare l'ID cliente
+      const foundClientId = await findClientByName(clientNameToSearch);
+      
+      if (!foundClientId) {
+        return {
+          success: false,
+          error: `Nessun cliente trovato con il nome "${clientNameToSearch}".`
+        };
+      }
+      
+      // Poi recupera i dettagli completi del cliente
+      const matchingClient = await db.select()
+        .from(clients)
+        .where(
+          and(
+            eq(clients.id, foundClientId),
+            eq(clients.advisorId, userId)
+          )
+        )
+        .limit(1);
+      
+      if (matchingClient.length === 0) {
+        return {
+          success: false,
+          error: `Cliente trovato ma non appartiene all'advisor corrente.`
+        };
+      }
+      
+      clientObj = matchingClient[0];
+      clientId = clientObj.id;
+    } else {
+      // Altrimenti usa l'ID cliente fornito
+      clientId = typeof meetingData.clientId === 'string' ? parseInt(meetingData.clientId) : meetingData.clientId;
+      
+      if (isNaN(clientId)) {
+        return {
+          success: false,
+          error: "ID cliente non valido."
+        };
+      }
+      
+      const matchingClient = await db.select()
+        .from(clients)
+        .where(
+          and(
+            eq(clients.id, clientId),
+            eq(clients.advisorId, userId)
+          )
+        )
+        .limit(1);
+      
+      if (matchingClient.length === 0) {
+        return {
+          success: false,
+          error: `Nessun cliente trovato con ID ${clientId}.`
+        };
+      }
+      
+      clientObj = matchingClient[0];
+    }
+    
+    // Formatta la data e l'ora se specificati
+    let formattedDateTime = new Date();
+    if (meetingData.dateTime) {
+      const parsedDate = parseISO(meetingData.dateTime);
+      if (isValid(parsedDate)) {
+        formattedDateTime = parsedDate;
+      }
+    }
+    
+    // Prepara la durata
+    const duration = typeof meetingData.duration === 'string' ? parseInt(meetingData.duration) : (meetingData.duration || 60);
+    
+    // Prepara i dati formattati per il dialog
+    const preparedData = {
+      clientId: clientObj.id,
+      clientName: `${clientObj.firstName} ${clientObj.lastName}`,
+      subject: meetingData.subject || "",
+      dateTime: formatISO(formattedDateTime),
+      formattedDate: format(formattedDateTime, 'dd/MM/yyyy', { locale: it }),
+      formattedTime: format(formattedDateTime, 'HH:mm', { locale: it }),
+      duration: isNaN(duration) ? 60 : duration,
+      location: meetingData.location || "zoom",
+      notes: meetingData.notes || ""
+    };
+    
+    // Prepara un testo di risposta suggerita per l'AI
+    const locationText = preparedData.location === "zoom" ? "via Zoom" : 
+                     preparedData.location === "office" ? "in ufficio" :
+                     preparedData.location === "client_office" ? "presso l'ufficio del cliente" :
+                     preparedData.location === "phone" ? "telefonicamente" : 
+                     preparedData.location;
+    
+    const suggestedResponse = `Rivedi e conferma dettagli meeting per favore.`;
+    
+    return {
+      success: true,
+      meetingData: preparedData,
+      suggestedResponse: suggestedResponse
+    };
+  } catch (error) {
+    console.error("Errore nella preparazione dei dati dell'appuntamento:", error);
+    return {
+      success: false,
+      error: "Errore nella preparazione dei dati: " + (error instanceof Error ? error.message : "Errore sconosciuto")
+    };
+  }
+}
+
+/**
+ * Prepara i dati per la modifica di un appuntamento esistente
+ * @param searchParams Parametri per identificare l'appuntamento (id, clientName, date)
+ * @param userId ID dell'utente (advisor) attualmente autenticato
+ * @returns Dati dell'appuntamento da modificare, formattati per il dialog
+ */
+export async function prepareEditMeeting(searchParams: {
+  meetingId?: number | string;
+  clientName?: string;
+  date?: string;
+  time?: string;
+  newDate?: string;     // Nuova data per l'aggiornamento
+  newTime?: string;     // Nuova ora per l'aggiornamento
+  newLocation?: string; // Nuova location per l'aggiornamento
+  newDuration?: number | string; // Nuova durata per l'aggiornamento
+  newNotes?: string;    // Nuove note per l'aggiornamento
+}, userId: number) {
+  try {
+    console.log(`[DEBUG] Preparazione dati per modifica appuntamento`);
+    
+    let meetingToEdit;
+    
+    // Caso 1: Abbiamo l'ID del meeting - metodo più diretto
+    if (searchParams.meetingId) {
+      const meetingId = typeof searchParams.meetingId === 'string' 
+        ? parseInt(searchParams.meetingId) 
+        : searchParams.meetingId;
+      
+      if (isNaN(meetingId)) {
+        return {
+          success: false,
+          error: "ID appuntamento non valido."
+        };
+      }
+      
+      meetingToEdit = await db.select()
+        .from(meetings)
+        .where(
+          and(
+            eq(meetings.id, meetingId),
+            eq(meetings.advisorId, userId)
+          )
+        )
+        .limit(1);
+    }
+    // Caso 2: Abbiamo nome cliente e data - dobbiamo cercare
+    else if (searchParams.clientName && (searchParams.date || searchParams.time)) {
+      // Trova l'ID cliente dal nome
+      const clientId = await findClientByName(searchParams.clientName);
+      
+      if (!clientId) {
+        return {
+          success: false,
+          error: `Nessun cliente trovato con il nome "${searchParams.clientName}".`
+        };
+      }
+      
+      // Costruisci la query base
+      let query = db
+        .select()
+        .from(meetings)
+        .where(
+          and(
+            eq(meetings.advisorId, userId),
+            eq(meetings.clientId, clientId)
+          )
+        );
+      
+      // Se abbiamo una data, aggiungiamo un filtro per la data
+      if (searchParams.date) {
+        try {
+          // Analizza la data nel formato italiano
+          const dateParts = searchParams.date.split("/");
+          if (dateParts.length === 3) {
+            const [day, month, year] = dateParts;
+            const parsedDate = new Date(`${year}-${month}-${day}`);
+            
+            if (isValid(parsedDate)) {
+              const startOfSearchDay = startOfDay(parsedDate);
+              const endOfSearchDay = endOfDay(parsedDate);
+              
+              query = query.where(
+                and(
+                  gte(meetings.dateTime, startOfSearchDay),
+                  lte(meetings.dateTime, endOfSearchDay)
+                )
+              );
+            }
+          }
+        } catch (error) {
+          console.warn("Errore nell'analisi della data:", error);
+          // Continuiamo comunque, magari troveremo il meeting in base ad altri criteri
+        }
+      }
+      
+      // Ordinamento per data (più recente prima)
+      query = query.orderBy(desc(meetings.dateTime));
+      
+      // Esegui la query
+      const foundMeetings = await query.limit(5);
+      
+      // Se abbiamo anche l'ora, filtriamo ulteriormente
+      if (searchParams.time && foundMeetings.length > 1) {
+        // Formatta l'ora per confrontarla
+        const timeToFind = searchParams.time.trim();
+        
+        // Cerca il meeting che corrisponde all'ora specificata
+        for (const meeting of foundMeetings) {
+          const meetingTime = format(meeting.dateTime, 'HH:mm');
+          if (meetingTime === timeToFind) {
+            meetingToEdit = [meeting];
+            break;
+          }
+        }
+      } else if (foundMeetings.length > 0) {
+        // Prendiamo il meeting più recente
+        meetingToEdit = [foundMeetings[0]];
+      }
+    }
+    
+    // Verifica se abbiamo trovato un meeting
+    if (!meetingToEdit || meetingToEdit.length === 0) {
+      return {
+        success: false,
+        error: "Nessun appuntamento trovato con i criteri specificati."
+      };
+    }
+    
+    // Ottieni i dettagli del cliente
+    const meeting = meetingToEdit[0];
+    const clientInfo = await db.select()
+      .from(clients)
+      .where(eq(clients.id, meeting.clientId))
+      .limit(1);
+    
+    if (clientInfo.length === 0) {
+      return {
+        success: false,
+        error: "Cliente non trovato per questo appuntamento."
+      };
+    }
+    
+    const client = clientInfo[0];
+    
+    // Prepara i dati per il dialog di modifica
+    let formattedDateTime = new Date(meeting.dateTime);
+    
+    // Applica le nuove informazioni se specificate
+    if (searchParams.newDate || searchParams.newTime) {
+      // Se abbiamo una nuova data, la analizziamo e aggiorniamo
+      if (searchParams.newDate) {
+        try {
+          // Controllo se il formato è DD/MM/YYYY
+          if (searchParams.newDate.includes('/')) {
+            const [day, month, year] = searchParams.newDate.split('/').map(Number);
+            if (!isNaN(day) && !isNaN(month) && !isNaN(year)) {
+              // Aggiorna la data mantenendo l'ora attuale
+              formattedDateTime.setFullYear(year);
+              formattedDateTime.setMonth(month - 1); // Mesi in JavaScript partono da 0
+              formattedDateTime.setDate(day);
+            }
+          } else {
+            // Prova a interpretare come data ISO
+            const parsedDate = parseISO(searchParams.newDate);
+            if (isValid(parsedDate)) {
+              // Mantieni l'ora attuale ma aggiorna la data
+              formattedDateTime.setFullYear(parsedDate.getFullYear());
+              formattedDateTime.setMonth(parsedDate.getMonth());
+              formattedDateTime.setDate(parsedDate.getDate());
+            }
+          }
+        } catch (error) {
+          console.warn("Errore nell'analisi della nuova data:", error);
+        }
+      }
+      
+      // Se abbiamo una nuova ora, la analizziamo e aggiorniamo
+      if (searchParams.newTime) {
+        try {
+          // Formato standard HH:MM
+          const [hours, minutes] = searchParams.newTime.split(':').map(Number);
+          if (!isNaN(hours) && !isNaN(minutes)) {
+            formattedDateTime.setHours(hours);
+            formattedDateTime.setMinutes(minutes);
+          }
+        } catch (error) {
+          console.warn("Errore nell'analisi della nuova ora:", error);
+        }
+      }
+    }
+    
+    // Prepara la durata (originale o nuova se specificata)
+    const duration = typeof searchParams.newDuration === 'string' 
+      ? parseInt(searchParams.newDuration) 
+      : (searchParams.newDuration || meeting.duration || 60);
+    
+    const preparedData = {
+      id: meeting.id,
+      clientId: client.id,
+      clientName: `${client.firstName} ${client.lastName}`,
+      subject: meeting.subject || "",
+      dateTime: formatISO(formattedDateTime),
+      formattedDate: format(formattedDateTime, 'dd/MM/yyyy', { locale: it }),
+      formattedTime: format(formattedDateTime, 'HH:mm', { locale: it }),
+      duration: isNaN(duration) ? meeting.duration || 60 : duration,
+      location: searchParams.newLocation || meeting.location || "zoom",
+      notes: searchParams.newNotes || meeting.notes || ""
+    };
+    
+    // Prepara un testo di risposta breve per l'AI
+    const suggestedResponse = `Rivedi e conferma modifiche al meeting per favore.`;
+    
+    return {
+      success: true,
+      meetingData: preparedData,
+      isEdit: true,  // Flag per indicare che è una modifica
+      suggestedResponse: suggestedResponse
+    };
+  } catch (error) {
+    console.error("Errore nella preparazione dati per modifica appuntamento:", error);
+    return {
+      success: false,
+      error: "Errore nella preparazione dati: " + (error instanceof Error ? error.message : "Errore sconosciuto")
+    };
+  }
+}
+

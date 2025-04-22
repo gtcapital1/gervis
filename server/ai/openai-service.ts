@@ -181,9 +181,7 @@ export async function generateClientProfile(
     console.error('Error in generateClientProfile:', error);
     throw error;
   }
-}
-
-/**
+}/**
  * Crea un prompt dettagliato per GPT-4 utilizzando i dati completi del cliente da getCompleteClientData
  */
 function createClientProfileFromComplete(client: Client, completeClientData: any): string {
@@ -271,3 +269,4 @@ function createClientProfileFromComplete(client: Client, completeClientData: any
 
   return prompt;
 }
+

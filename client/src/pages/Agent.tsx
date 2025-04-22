@@ -9,6 +9,12 @@ import { apiRequest } from "@/lib/queryClient";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import '../styles/markdown.css';
+import { ToastAction } from "../components/ui/toast";
+import { CalendarDialog } from "../components/dialog/CalendarDialog";
+import { useQueryClient } from "@tanstack/react-query";
+import MeetingCard from "@/components/MeetingCard";
+import { format, parseISO } from 'date-fns';
+import { it } from 'date-fns/locale';
 
 // Tipo per i messaggi della chat
 interface Message {
@@ -17,6 +23,7 @@ interface Message {
   id?: number;
   createdAt?: string;
   model?: string;
+  functionResults?: string;
 }
 
 // Tipo per le conversazioni
@@ -25,6 +32,33 @@ interface Conversation {
   title: string;
   updatedAt: string;
 }
+
+// Funzione per ottenere il nome del luogo
+const getLocationName = (location: string) => {
+  switch (location) {
+    case 'office':
+      return 'Ufficio';
+    case 'client_office':
+      return 'Ufficio del cliente';
+    case 'zoom':
+      return 'Videochiamata Zoom';
+    case 'teams':
+      return 'Videochiamata Teams';
+    case 'phone':
+      return 'Telefonata';
+    default:
+      return location;
+  }
+};
+
+// Funzione per formattare la durata
+const formatDuration = (minutes: number) => {
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  if (remainingMinutes === 0) return hours === 1 ? '1h' : `${hours}h`;
+  return `${hours}h${remainingMinutes}m`;
+};
 
 // Modifica questa funzione per normalizzare gli spazi eccessivi e formattare correttamente gli elenchi
 const normalizeMarkdownText = (text: string) => {
@@ -56,6 +90,7 @@ const normalizeMarkdownText = (text: string) => {
 
 export default function AgentPage() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [showChat, setShowChat] = useState(false);
@@ -67,8 +102,12 @@ export default function AgentPage() {
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
-  const [currentModel, setCurrentModel] = useState<'gpt-4.1-mini' | 'gpt-4.1'>('gpt-4.1-mini');
+  const [currentModel, setCurrentModel] = useState<'gpt-4.1-mini' | 'gpt-4.1'>('gpt-4.1');
   const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
+  
+  // Calendario
+  const [showMeetingDialog, setShowMeetingDialog] = useState(false);
+  const [meetingData, setMeetingData] = useState<any>(null);
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -100,7 +139,7 @@ export default function AgentPage() {
   
   // Modelli OpenAI disponibili
   const AVAILABLE_MODELS = {
-    DEFAULT: 'gpt-4.1-mini' as const,
+    STANDARD: 'gpt-4.1-mini' as const,
     ADVANCED: 'gpt-4.1' as const
   };
   
@@ -221,10 +260,20 @@ export default function AgentPage() {
           content: response.response || "Non ho ricevuto una risposta dal server",
             role: 'assistant',
           createdAt: new Date().toISOString(),
-          model: response.model || currentModel
+          model: response.model || currentModel,
+          functionResults: response.functionResults ? JSON.stringify(response.functionResults) : undefined
         };
         
         setMessages(prev => [...prev, assistantMessage]);
+          
+        // Gestisci il dialog per la creazione di meeting se presente
+        if (response.showMeetingDialog && response.meetingDialogData) {
+          console.log('[Agent] Meeting dialog data:', response.meetingDialogData);
+          
+          // Mostra direttamente il dialog di creazione meeting
+          setMeetingData(response.meetingDialogData);
+          setShowMeetingDialog(true);
+          }
           
           // Aggiorna la lista delle conversazioni
           fetchConversations();
@@ -234,7 +283,7 @@ export default function AgentPage() {
             description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
             variant: "destructive",
           });
-      }
+        }
     } catch (error) {
       console.error("Errore nell'invio del messaggio:", error);
       toast({
@@ -244,6 +293,95 @@ export default function AgentPage() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+  
+  // Funzione per gestire la creazione dell'appuntamento
+  const handleCreateMeeting = async (event: any, sendEmail: boolean) => {
+    try {
+      console.log("Creazione meeting con dati:", event);
+      
+      const response = await apiRequest('/api/meetings', {
+        method: 'POST',
+        body: JSON.stringify({
+          clientId: event.clientId,
+          subject: event.title,
+          dateTime: event.dateTime,
+          duration: event.duration,
+          location: event.location || "zoom",
+          notes: event.notes || "",
+          sendEmail: sendEmail
+        })
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Appuntamento creato",
+          description: "L'appuntamento è stato creato con successo",
+        });
+        
+        // Aggiorna eventuali dati di calendario in cache
+        queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante la creazione dell'appuntamento",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nella creazione dell'appuntamento:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la creazione dell'appuntamento",
+        variant: "destructive",
+      });
+    } finally {
+      setShowMeetingDialog(false);
+    }
+  };
+  
+  // Funzione per gestire l'aggiornamento di un meeting esistente
+  const handleUpdateMeeting = async (event: any, sendEmail: boolean) => {
+    try {
+      console.log("Aggiornamento meeting con dati:", event);
+      
+      const response = await apiRequest(`/api/meetings/${event.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          clientId: event.clientId,
+          subject: event.title,
+          dateTime: event.dateTime,
+          duration: event.duration,
+          location: event.location || "zoom",
+          notes: event.notes || ""
+        })
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Appuntamento aggiornato",
+          description: "L'appuntamento è stato modificato con successo",
+        });
+        
+        // Aggiorna eventuali dati di calendario in cache
+        queryClient.invalidateQueries({ queryKey: ['/api/meetings'] });
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante l'aggiornamento dell'appuntamento",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'aggiornamento dell'appuntamento:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'aggiornamento dell'appuntamento",
+        variant: "destructive",
+      });
+    } finally {
+      setShowMeetingDialog(false);
     }
   };
   
@@ -340,8 +478,7 @@ export default function AgentPage() {
       setIsLoading(false);
       setIsDeleteAllDialogOpen(false);
     }
-  };
-  
+  };  
   // Gestisce l'invio del messaggio con il tasto invio
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -374,6 +511,52 @@ export default function AgentPage() {
   // Renderizza un messaggio
   const renderMessage = (message: Message, index: number) => {
     const isUser = message.role === 'user';
+    
+    // Verifica se i risultati delle funzioni contengono meeting
+    let meetings = null;
+    let meetingsCardTitle = "Appuntamenti";
+    let meetingsCardDescription = null;
+    // Variabile per tenere il messaggio originale
+    let originalContent = message.content;
+    
+    if (!isUser && message.functionResults) {
+      try {
+        const functionResults = JSON.parse(message.functionResults);
+        if (functionResults && functionResults.length > 0) {
+          const functionResult = functionResults[0];
+          
+          // Controlla se è un risultato da getMeetingsByDateRange
+          if (functionResult.meetings && Array.isArray(functionResult.meetings)) {
+            // Estrai i meeting
+            meetings = functionResult.meetings;
+            
+            // Prepara il messaggio con l'orizzonte temporale
+            let timeframe = "";
+            
+            // Se il risultato viene da getMeetingsByDateRange, aggiungi la descrizione del periodo
+            if (functionResult.dateRangeFormatted) {
+              meetingsCardDescription = functionResult.dateRangeFormatted;
+              timeframe = functionResult.dateRangeFormatted.toLowerCase();
+            } else if (functionResult.period) {
+              // Potrebbe contenere informazioni sul periodo in un altro formato
+              timeframe = `dal ${functionResult.period.start} al ${functionResult.period.end}`;
+              meetingsCardDescription = timeframe;
+            } else if (functionResult.clientName) {
+              // Se il risultato viene da getMeetingsByClientName, personalizza il titolo
+              meetingsCardTitle = `Appuntamenti con ${functionResult.clientName}`;
+              timeframe = `con ${functionResult.clientName}`;
+            }
+            
+            // Costruisci il messaggio
+            originalContent = timeframe 
+              ? `Eccoli!` 
+              : "Eccoli!";
+          }
+        }
+      } catch (e) {
+        console.error("Errore nel parsing dei risultati delle funzioni:", e);
+      }
+    }
     
     return (
       <motion.div
@@ -413,6 +596,7 @@ export default function AgentPage() {
                 message.content
               ) : (
                 <div className="markdown-content">
+                  {/* Prima mostriamo il messaggio, poi la card dei meeting */}
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
@@ -437,14 +621,8 @@ export default function AgentPage() {
                       ul: ({children}) => <ul style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ul>,
                       ol: ({children}) => <ol style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ol>,
                       li: ({children, ...props}) => {
-                        // Controlla se è un elemento di lista annidato esplorando i props del parent
-                        let isNested = false;
-                        if (props.node && props.node.parent && 
-                            props.node.parent.parent && 
-                            (props.node.parent.parent.type === 'listItem')) {
-                          isNested = true;
-                        }
-                        
+                        // La complessità del controllo per gli elementi annidati è stata rimossa
+                        // perché non è necessaria per lo stile visivo
                         return (
                           <li style={{
                             marginTop: '0.5em', 
@@ -458,9 +636,139 @@ export default function AgentPage() {
                       }
                     }}
                   >
-                    {normalizeMarkdownText(message.content)}
+                    {normalizeMarkdownText(originalContent)}
                   </ReactMarkdown>
+                  
+                  {/* Renderizza la card dei meeting se presente */}
+                  {meetings && meetings.length > 0 ? (
+                    <div className="mt-3">
+                      <MeetingCard 
+                        meetings={meetings} 
+                        title={meetingsCardTitle}
+                        description={meetingsCardDescription}
+                        onEditMeeting={(meeting) => {
+                          if (meeting.id) {
+                            setMeetingData({
+                              id: meeting.id,
+                              clientId: meeting.clientId || 0,
+                              subject: meeting.title,
+                              dateTime: meeting.dateTime,
+                              duration: meeting.duration,
+                              location: meeting.location || "zoom",
+                              notes: meeting.notes || "",
+                              isEdit: true
+                            });
+                            setShowMeetingDialog(true);
+                          }
+                        }}
+                        onPrepareMeeting={(meeting) => {
+                          // Avvia una nuova conversazione
+                          startNewConversation();
+                          setShowChat(true); // Assicuriamoci che la chat sia visibile
+                          
+                          // Costruisci un prompt dettagliato per la preparazione dell'appuntamento
+                          const clientName = meeting.clientName || 
+                            (meeting.client ? `${meeting.client.firstName} ${meeting.client.lastName}` : 
+                            (meeting.clientId ? `Cliente ${meeting.clientId}` : 'Cliente'));
+                          
+                          const meetingDate = parseISO(meeting.dateTime);
+                          const formattedDate = format(meetingDate, "EEEE d MMMM yyyy", { locale: it });
+                          const formattedTime = format(meetingDate, "HH:mm", { locale: it });
+                          const location = getLocationName(meeting.location || 'office');
+                          
+                          // Costruisci un prompt completo
+                          const prompt = `Preparami per il meeting con ${clientName} di ${formattedDate} alle ${formattedTime}.
+
+L'incontro avrà una durata di ${formatDuration(meeting.duration)} e si terrà presso ${location}.
+${meeting.notes ? `\nNote sull'appuntamento: ${meeting.notes}` : ''}
+
+Per favore aiutami con:
+1. Un riepilogo del profilo del cliente e dei suoi obiettivi finanziari
+2. Argomenti principali da affrontare durante l'incontro
+3. Eventuali documenti o materiali da preparare
+4. Suggerimenti per rendere produttivo l'incontro
+5. Possibili prodotti o servizi da proporre in base al profilo del cliente
+
+Grazie!`;
+                          
+                          // Utilizziamo un timeout più lungo per assicurare che l'interfaccia si aggiorni completamente
+                          setTimeout(() => {
+                            // Impostiamo l'input e forziamo l'invio del messaggio
+                            setInput(prompt);
+                            
+                            // Utilizziamo un secondo timeout più lungo per assicurarci che l'input sia stato aggiornato
+                            setTimeout(() => {
+                              // Invia il messaggio direttamente senza utilizzare lo stato
+                              const userMessage: Message = {
+                                content: prompt,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              
+                              setMessages(prev => [...prev, userMessage]);
+                              setInput('');
+                              setIsLoading(true);
+                              
+                              // Prepara i dati per la richiesta
+                              const requestData = {
+                                message: prompt,
+                                model: currentModel
+                              };
+                              
+                              // Invia la richiesta all'API
+                              apiRequest('/api/agent/chat', {
+                                method: 'POST',
+                                body: JSON.stringify(requestData)
+                              }).then(response => {
+                                if (response.success) {
+                                  // Aggiorna l'ID della conversazione se è una nuova
+                                  if (!currentConversationId && response.conversationId) {
+                                    setCurrentConversationId(response.conversationId);
+                                  }
+                                  
+                                  // Aggiungi la risposta dell'assistente
+                                  const assistantMessage: Message = {
+                                    content: response.response || "Non ho ricevuto una risposta dal server",
+                                    role: 'assistant',
+                                    createdAt: new Date().toISOString(),
+                                    model: response.model || currentModel,
+                                    functionResults: response.functionResults ? JSON.stringify(response.functionResults) : undefined
+                                  };
+                                  
+                                  setMessages(prev => [...prev, assistantMessage]);
+                                  
+                                  // Gestisci il dialog per la creazione di meeting se presente
+                                  if (response.showMeetingDialog && response.meetingDialogData) {
+                                    setMeetingData(response.meetingDialogData);
+                                    setShowMeetingDialog(true);
+                                  }
+                                  
+                                  // Aggiorna la lista delle conversazioni
+                                  fetchConversations();
+                                } else {
+                                  toast({
+                                    title: "Errore",
+                                    description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
+                                    variant: "destructive",
+                                  });
+                                }
+                              }).catch(error => {
+                                console.error("Errore nell'invio del messaggio:", error);
+                                toast({
+                                  title: "Errore",
+                                  description: "Si è verificato un errore nell'invio del messaggio",
+                                  variant: "destructive",
+                                });
+                              }).finally(() => {
+                                setIsLoading(false);
+                              });
+                            }, 300);
+                          }, 300);
+                        }}
+                      />
                         </div>
+                  ) : null}
+                      </div>
               )}
                       </div>
                       
@@ -470,8 +778,8 @@ export default function AgentPage() {
                   {formatTimestamp(message.createdAt)}
                       </div>
               )}
-                      </div>
                         </div>
+                      </div>
                       </div>
       </motion.div>
     );
@@ -505,14 +813,14 @@ export default function AgentPage() {
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
                     Gervis AI Assistant
                   </h1>
-                  <p className="text-sm text-muted-foreground">Il tuo assistente personale per consulenza finanziaria</p>
+                  <p className="text-sm text-muted-foreground">L'assistente di riferimento per consulenti finanziari</p>
                     </div>
               </div>
               </motion.div>
             )}
             
           {!showChat && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 w-full mb-6 auto-rows-auto">
               {capabilities.map((capability, index) => (
               <motion.div 
                   key={index}
@@ -522,18 +830,230 @@ export default function AgentPage() {
                   className="rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800 shadow-sm bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm hover:shadow-md transition-all"
                   whileHover={{ y: -2, transition: { duration: 0.2 } }}
                 >
-                  <div className="p-4">
-                    <div className={`inline-flex rounded-full bg-gradient-to-r ${capability.gradient} p-1.5 text-white shadow-sm mb-3`}>
-                      {capability.icon}
-                                </div>
-                      
-                    <h3 className="text-base font-medium mb-2 flex items-center">
-                      {capability.title}
-                      <Sparkles className="h-4 w-4 ml-1.5 text-blue-500" />
-                    </h3>
-                    
-                    <p className="text-sm text-muted-foreground">{capability.description}</p>
+                  <div className="p-3">
+                    <div>
+                      <div className={`inline-flex rounded-full bg-gradient-to-r ${capability.gradient} p-1.5 text-white shadow-sm mb-2`}>
+                        {capability.icon}
                       </div>
+                        
+                      <h3 className="text-base font-medium mb-1 flex items-center">
+                        {capability.title}
+                        <Sparkles className="h-4 w-4 ml-1.5 text-blue-500" />
+                      </h3>
+                      
+                      <p className="text-sm text-muted-foreground mb-2">{capability.description}</p>
+                    </div>
+                    
+                    {/* Example questions */}
+                    <div className="mt-2 space-y-1.5">
+                      <div className="border-t border-gray-100 dark:border-gray-800 pt-1 mb-1">
+                        <span className="text-xs text-muted-foreground">Esempi</span>
+                      </div>
+                      {index === 0 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Mi ricordi che esigenze ha Francesca Bianchi?";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <User className="h-3 w-3 mr-1.5 flex-shrink-0 text-blue-500" />
+                            <div className="whitespace-normal overflow-hidden">Mi ricordi che esigenze ha Francesca Bianchi?</div>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Dammi qualche idea da proporre a Mario Rossi";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <User className="h-3 w-3 mr-1.5 flex-shrink-0 text-blue-500" />
+                            <span className="whitespace-normal">Dammi qualche idea da proporre a Mario Rossi</span>
+                          </Button>
+                        </>
+                      )}
+                      
+                      {index === 1 && (
+                        <>
+                          <Button
+                            variant="outline" 
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Organizza meeting con Mario Rossi domani alle 18";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <Calendar className="h-3 w-3 mr-1.5 flex-shrink-0 text-purple-500" />
+                            <span className="whitespace-normal">Organizza meeting con Mario Rossi domani alle 18</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Che incontri abbiamo questa settimana?";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <Calendar className="h-3 w-3 mr-1.5 flex-shrink-0 text-purple-500" />
+                            <span className="whitespace-normal">Che incontri abbiamo questa settimana?</span>
+                          </Button>
+                        </>
+                      )}
+                      
+                      {index === 2 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "News dai mercati?";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <BarChart4 className="h-3 w-3 mr-1.5 flex-shrink-0 text-emerald-500" />
+                            <span className="whitespace-normal">News dai mercati?</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Genera qualche idea basata su news";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <BarChart4 className="h-3 w-3 mr-1.5 flex-shrink-0 text-emerald-500" />
+                            <span className="whitespace-normal">Genera qualche idea basata su news</span>
+                          </Button>
+                        </>
+                      )}
+                      
+                      {index === 3 && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Come aggiungo un nuovo cliente?";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <FileText className="h-3 w-3 mr-1.5 flex-shrink-0 text-amber-500" />
+                            <span className="whitespace-normal">Come aggiungo un nuovo cliente?</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
+                            onClick={() => {
+                              const message = "Come onboardo nuovo cliente?";
+                              setInput(message);
+                              // Send message directly with the value instead of relying on state update
+                              const userMessage: Message = {
+                                content: message,
+                                role: 'user',
+                                createdAt: new Date().toISOString()
+                              };
+                              setMessages(prev => [...prev, userMessage]);
+                              // Show chat immediately
+                              setShowChat(true);
+                              // Call the API
+                              handleDirectMessageSend(message);
+                            }}
+                          >
+                            <FileText className="h-3 w-3 mr-1.5 flex-shrink-0 text-amber-500" />
+                            <span className="whitespace-normal">Come onboardo nuovo cliente?</span>
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
                 </motion.div>
               ))}
                             </div>
@@ -547,7 +1067,7 @@ export default function AgentPage() {
                   <div className="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800">
                     <Bot className="h-3.5 w-3.5 mr-1.5 text-blue-600 dark:text-blue-400" />
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                      Modello in uso: {currentModel === AVAILABLE_MODELS.DEFAULT ? 'Standard' : 'Avanzato'}
+                      Modello in uso: {currentModel === AVAILABLE_MODELS.STANDARD ? 'Standard' : 'Avanzato'}
                     </span>
                         </div>
                       </div>
@@ -613,9 +1133,9 @@ export default function AgentPage() {
               <div className="text-sm font-medium mb-1">Seleziona il modello AI</div>
               <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
                 <button
-                  onClick={() => setCurrentModel(AVAILABLE_MODELS.DEFAULT)}
+                  onClick={() => setCurrentModel(AVAILABLE_MODELS.STANDARD)}
                   className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                    currentModel === AVAILABLE_MODELS.DEFAULT
+                    currentModel === AVAILABLE_MODELS.STANDARD
                       ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
                   }`}
@@ -730,6 +1250,88 @@ export default function AgentPage() {
         )}
       </AnimatePresence>
     );
+  };
+
+  // Handle direct message sending (used by example buttons)
+  const handleDirectMessageSend = async (message: string) => {
+    if (!message.trim() || isLoading) return;
+    
+    setIsLoading(true);
+    // Clear input after sending the message
+    setInput('');
+    
+    try {
+      // Prepare request data
+      const requestData: { message: string; conversationId?: number; model?: string } = {
+        message: message,
+        model: currentModel
+      };
+      
+      // Add conversationId if valid
+      if (typeof currentConversationId === 'number') {
+        requestData.conversationId = currentConversationId;
+      }
+      
+      // Send request to API
+      const response = await apiRequest('/api/agent/chat', {
+        method: 'POST',
+        body: JSON.stringify(requestData)
+      });
+      
+      // Debug response
+      console.log('------------- DEBUG RISPOSTA OPENAI -------------');
+      console.log('Response originale:', response);
+      if (response.response) {
+        console.log('CONTENUTO TESTO:');
+        console.log(response.response);
+        console.log('RAPPRESENTAZIONE ESCAPE PER VISUALIZZARE NEW LINE:');
+        console.log(JSON.stringify(response.response));
+      }
+      console.log('------------------------------------------------');
+      
+      if (response.success) {
+        // Update conversation ID if new
+        if (!currentConversationId && response.conversationId) {
+          setCurrentConversationId(response.conversationId);
+        }
+        
+        // Add assistant response
+        const assistantMessage: Message = {
+          content: response.response || "Non ho ricevuto una risposta dal server",
+          role: 'assistant',
+          createdAt: new Date().toISOString(),
+          model: response.model || currentModel,
+          functionResults: response.functionResults ? JSON.stringify(response.functionResults) : undefined
+        };
+        
+        setMessages(prev => [...prev, assistantMessage]);
+        
+        // Handle meeting dialog if present
+        if (response.showMeetingDialog && response.meetingDialogData) {
+          console.log('[Agent] Meeting dialog data:', response.meetingDialogData);
+          setMeetingData(response.meetingDialogData);
+          setShowMeetingDialog(true);
+        }
+        
+        // Update conversations list
+        fetchConversations();
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'invio del messaggio:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore nell'invio del messaggio",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -861,6 +1463,26 @@ export default function AgentPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Dialog per la creazione/modifica dell'appuntamento */}
+      {meetingData && (
+        <CalendarDialog
+          open={showMeetingDialog}
+          onOpenChange={setShowMeetingDialog}
+          mode={meetingData.isEdit ? "edit" : "create"}
+          event={{
+            id: meetingData.id,
+            clientId: meetingData.clientId,
+            title: meetingData.subject || "",
+            dateTime: meetingData.dateTime,
+            duration: meetingData.duration,
+            location: meetingData.location || "zoom",
+            notes: meetingData.notes || ""
+          }}
+          useClientSelector={!meetingData.isEdit}
+          onSubmit={meetingData.isEdit ? handleUpdateMeeting : handleCreateMeeting}
+        />
+      )}
     </div>
   );
 } 

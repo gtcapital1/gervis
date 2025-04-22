@@ -113,14 +113,6 @@ export function Layout({ children }: LayoutProps) {
       current: location === "/calendar",
       disabled: false,
     },
-
-    {
-      name: "Spark",
-      href: "/app/spark",
-      icon: Zap,
-      current: location === "/app/spark",
-      disabled: false,
-    },
     {
       name: "Settings",
       href: "/app/settings",
