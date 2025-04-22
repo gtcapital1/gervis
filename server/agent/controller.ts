@@ -269,7 +269,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "prepareMeetingData",
-            description: "Prepara i dati per creare o modificare un appuntamento. Utilizzare questa funzione quando l'utente vuole creare un nuovo appuntamento o modificarne uno esistente, ad esempio 'crea un appuntamento con Mario Rossi per domani alle 15' o 'modifica l'appuntamento con Bianchi di venerdì'.",
+            description: "Usare IMMEDIATAMENTE questa funzione quando l'utente chiede di creare, fissare o programmare un appuntamento con un cliente. Anche quando l'utente usa varianti come 'fissami', 'organizzami', 'preparami', 'vorrei un incontro', ecc. Raccoglie i dati essenziali dal messaggio dell'utente e mostra il dialog per creare l'appuntamento. Esempi: 'crea appuntamento con Mario Rossi', 'fissami un meeting con Bianchi domani', 'fissi un incontro con Signora Verdi alle 15', 'organizza meet con Colombo', ecc.",
             parameters: {
               type: "object",
               properties: {

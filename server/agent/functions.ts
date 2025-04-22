@@ -399,11 +399,46 @@ export async function prepareMeetingData(meetingData: {
     // Formatta la data e l'ora se specificati
     let formattedDateTime = new Date();
     if (meetingData.dateTime) {
-      const parsedDate = parseISO(meetingData.dateTime);
-      if (isValid(parsedDate)) {
-        formattedDateTime = parsedDate;
+      console.log(`[DEBUG] Ricevuto dateTime: ${meetingData.dateTime}`);
+      
+      // Verifica se l'input è un'espressione testuale come "domani alle 15" o "oggi alle 10:30"
+      const timeRegex = /alle\s+(\d{1,2})(?::(\d{1,2}))?/i;
+      const timeMatch = meetingData.dateTime.match(timeRegex);
+      
+      if (timeMatch) {
+        // Abbiamo trovato un'espressione "alle XX:YY"
+        const hours = parseInt(timeMatch[1]);
+        const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
+        
+        console.log(`[DEBUG] Estratta ora: ${hours}:${minutes} dall'espressione testuale`);
+        
+        // Mantieni la data attuale ma imposta l'ora specificata
+        formattedDateTime.setHours(hours);
+        formattedDateTime.setMinutes(minutes);
+        formattedDateTime.setSeconds(0);
+        formattedDateTime.setMilliseconds(0);
+        
+        // Gestisci espressioni come "domani" o "dopodomani"
+        if (meetingData.dateTime.toLowerCase().includes('domani')) {
+          formattedDateTime.setDate(formattedDateTime.getDate() + 1);
+          console.log(`[DEBUG] Impostata data a domani: ${formattedDateTime}`);
+        } else if (meetingData.dateTime.toLowerCase().includes('dopodomani')) {
+          formattedDateTime.setDate(formattedDateTime.getDate() + 2);
+          console.log(`[DEBUG] Impostata data a dopodomani: ${formattedDateTime}`);
+        }
+      } else {
+        // Prova a parsare come data ISO
+        const parsedDate = parseISO(meetingData.dateTime);
+        if (isValid(parsedDate)) {
+          console.log(`[DEBUG] Parsata data ISO: ${parsedDate}`);
+          formattedDateTime = parsedDate;
+        } else {
+          console.log(`[DEBUG] Impossibile parsare la data, uso la data corrente`);
+        }
       }
     }
+    
+    console.log(`[DEBUG] Data finale impostata: ${formattedDateTime} (${formattedDateTime.getHours()}:${formattedDateTime.getMinutes()})`);
     
     // Prepara la durata
     const duration = typeof meetingData.duration === 'string' ? parseInt(meetingData.duration) : (meetingData.duration || 60);
