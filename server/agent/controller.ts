@@ -109,9 +109,39 @@ export const handleChat = async (req: Request, res: Response) => {
     
     // Create correctly typed array for OpenAI
     const systemMessage: OpenAIMessage = {
-      role: 'system',
-      content: 'Tu sei Gervis, un assistente AI avanzato specializzato per consulenti finanziari. Il tuo scopo è aiutarli con le seguenti capacità: 1) Insight clienti e mail personalizzate: analizza i profili dei clienti e genera email personalizzate; 2) Gestione calendario e incontri: pianifica, prepara e fai follow-up degli incontri con i clienti; 3) Generazione idee basate su news recenti: fornisci suggerimenti di investimento basati sulle ultime notizie di mercato; 4) Assistenza generale: supporto con normative, template di documenti e utilizzo della piattaforma. Hai competenze in gestione patrimoniale, pianificazione finanziaria, relazioni con i clienti e strategie di investimento. Rispondi sempre in italiano in modo professionale e conciso, riflettendo le migliori pratiche del settore. Non aggiungere mai spazi extra all\'inizio delle tue risposte.'
-    };
+        role: 'system',
+        content: `
+      Tu sei Gervis, un assistente AI esperto progettato per supportare consulenti finanziari in modo professionale, conciso ed efficace. Le tue competenze coprono:
+      
+      1. **Insight sui clienti e comunicazione personalizzata**  
+         - Analizza i profili dei clienti  
+         - Redigi email su misura in base alle loro esigenze e al loro portafoglio
+      
+      2. **Gestione dell'agenda e degli incontri**  
+         - Pianifica, prepara e sintetizza riunioni con i clienti  
+         - Suggerisci follow-up puntuali e rilevanti
+      
+      3. **Idee di investimento basate su news recenti**  
+         - Interpreta notizie di mercato  
+         - Genera suggerimenti coerenti con il profilo del cliente
+      
+      4. **Assistenza normativa e operativa**  
+         - Fornisci template, sintesi normative, risposte su strumenti della piattaforma  
+      
+      Parli sempre in italiano.  
+      Adotta uno stile professionale, chiaro, sintetico, ispirato alle best practice del settore della consulenza finanziaria e wealth management.  
+      Se il messaggio dell'utente riguarda un cliente specifico, valuta se richiedere informazioni aggiuntive tramite strumenti esterni.
+      
+      Agisci come partner affidabile del consulente: **preciso, proattivo, strategico**.
+      Rispondi alle domande che ti vengono fatte, senza divagare se non necessario.
+
+      Formatta sempre le tue risposte usando markdown. Usa **grassetto** per evidenziare concetti chiave, *corsivo* per enfatizzare, ed elenchi puntati o numerati per chiarezza. Non aggiungere elementi HTML.
+      Non aggiungere emoji.
+      Nelle mail, non aggiungere firma consulenti o altre informazioni di contatto, perchè vengono aggiunte sepratamente.
+      
+      `.trim()
+      };
+      
     
     // Convert database messages to OpenAI format with proper types
     const historyOpenAIMessages: OpenAIMessage[] = historyMessages
@@ -132,15 +162,23 @@ export const handleChat = async (req: Request, res: Response) => {
     // Determiniamo se la richiesta sembra riferirsi a un cliente
     const messageText = userMessage.toLowerCase();
     
+    // Lista di parole comuni da escludere (saluti, verbi comuni, ecc.)
+    const excludedWords = ['ciao', 'salve', 'buongiorno', 'buonasera', 'parlami', 'dimmi', 'descrivimi', 'mostrami', 'visualizza', 'trova'];
+    
     // Regex per trovare possibili nomi di cliente nel formato "Nome Cognome"
-    const nameRegex = /\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/g;
+    const nameRegex = /\b([A-Z][a-z]{2,})\s+([A-Z][a-z]{2,})\b/g;
     
     // Estrai possibili nomi di clienti dal messaggio
     let clientNames = [];
     let match;
     const messageWithCapitalizedNames = userMessage.replace(/\b[a-z]/g, c => c.toUpperCase());
     while ((match = nameRegex.exec(messageWithCapitalizedNames)) !== null) {
-      clientNames.push(match[0]);
+      // Verifica che né il nome né il cognome siano nella lista di esclusione
+      const firstName = match[1].toLowerCase();
+      const lastName = match[2].toLowerCase();
+      if (!excludedWords.includes(firstName) && !excludedWords.includes(lastName)) {
+        clientNames.push(match[0]);
+      }
     }
     
     // Keywords che potrebbero indicare una richiesta relativa a un cliente
@@ -155,11 +193,21 @@ export const handleChat = async (req: Request, res: Response) => {
       const words = messageText.split(/\s+/);
       for (let i = 0; i < words.length; i++) {
         // Cerchiamo parole che iniziano con maiuscola e non sono all'inizio della frase
-        if (i > 0 && words[i].charAt(0) === words[i].charAt(0).toUpperCase() && words[i].length > 2) {
-          clientName = words[i];
+        // e non sono nella lista di esclusione
+        const word = words[i];
+        if (i > 0 && 
+            word.charAt(0) === word.charAt(0).toUpperCase() && 
+            word.length > 2 && 
+            !excludedWords.includes(word.toLowerCase())) {
+          clientName = word;
           break;
         }
       }
+    }
+    
+    // Controllo aggiuntivo: se il clientName è nella lista di esclusione, lo azzeriamo
+    if (clientName && excludedWords.includes(clientName.toLowerCase())) {
+      clientName = null;
     }
     
     console.log(`[DEBUG] Rilevato possibile nome cliente: "${clientName}"`);
@@ -206,6 +254,16 @@ export const handleChat = async (req: Request, res: Response) => {
       content: completion.choices[0]?.message?.content?.substring(0, 100) + '...',
       hasFunctionCalls: !!completion.choices[0]?.message?.tool_calls?.length
     });
+
+    // DEBUG: Stampo il formato esatto della risposta per debug
+    if (completion.choices[0]?.message?.content) {
+      console.log('------------- DEBUG FORMATO RISPOSTA OPENAI -------------');
+      console.log('RISPOSTA ORIGINALE:');
+      console.log(completion.choices[0].message.content);
+      console.log('RAPPRESENTAZIONE JSON CON ESCAPE PER VISUALIZZARE NEW LINE:');
+      console.log(JSON.stringify(completion.choices[0].message.content));
+      console.log('------------------------------------------------------');
+    }
 
     // Check if there's a tool call in the response
     let aiResponse = completion.choices[0]?.message?.content || '';

@@ -9,6 +9,7 @@ import { storage } from '../storage';
 import { Client, ClientLog, Mifid } from '@shared/schema';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
+import { getCompleteClientData } from '../agent/clientDataFetcher';
 
 /**
  * Genera il profilo arricchito per un cliente
@@ -75,12 +76,18 @@ export async function getClientProfile(req: Request, res: Response) {
     
     // Se è richiesto un refresh forzato o non esiste un profilo, genera un nuovo profilo
     if (forceRefresh || !existingProfile) {
-      // Recupera i dati necessari per generare il profilo
-      const clientLogs = await storage.getClientLogs(clientId);
-      const mifid = await storage.getMifidByClient(clientId);
+      // Recupera i dati completi del cliente utilizzando getCompleteClientData
+      const clientData = await getCompleteClientData(client.firstName, client.lastName);
       
-      // Genera un nuovo profilo arricchito utilizzando l'AI
-      const profileData = await generateClientProfile(client, mifid || null, clientLogs);
+      if (!clientData.success) {
+        return res.status(500).json({
+          success: false,
+          error: clientData.error || "Failed to retrieve client data"
+        });
+      }
+      
+      // Passa direttamente i dati completi a generateClientProfile
+      const profileData = await generateClientProfile(client, clientData);
       
       // Salva o aggiorna il profilo generato
       if (existingProfile) {
@@ -137,14 +144,15 @@ export async function generateEnrichedProfile(clientId: number, advisorId: numbe
       throw new Error(`Client with ID ${clientId} not found`);
     }
 
-    // Get MIFID data
-    const mifid = await storage.getMifidByClient(clientId);
+    // Ottieni i dati completi del cliente usando getCompleteClientData
+    const clientData = await getCompleteClientData(client.firstName, client.lastName);
     
-    // Get client logs
-    const clientLogs = await storage.getClientLogs(clientId);
+    if (!clientData.success) {
+      throw new Error(clientData.error || "Failed to retrieve client data");
+    }
     
-    // Generate profile
-    const profileData = await generateClientProfile(client, mifid || null, clientLogs);
+    // Passa direttamente l'oggetto clientData a generateClientProfile
+    const profileData = await generateClientProfile(client, clientData);
 
     // Save profile to storage
     await storage.createAiProfile({

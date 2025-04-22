@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Sparkles, Calendar, Mail, FileText, Users, BarChart4, Brain, Send, User, Plus, History, X, Trash2, AlertTriangle, Loader2 } from 'lucide-react';
+import { Bot, Sparkles, Calendar, Mail, FileText, Users, BarChart4, Brain, Send, User, Plus, History, X, Trash2, AlertTriangle, Loader2, Copy, Check } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import '../styles/markdown.css';
 
 // Tipo per i messaggi della chat
 interface Message {
@@ -23,6 +26,34 @@ interface Conversation {
   updatedAt: string;
 }
 
+// Modifica questa funzione per normalizzare gli spazi eccessivi e formattare correttamente gli elenchi
+const normalizeMarkdownText = (text: string) => {
+  // Pre-processing aggressivo del testo
+  let processed = text.trim();
+
+  // 1. Rimuovi le linee vuote in eccesso (più di 2 consecutive)
+  processed = processed.replace(/\n{3,}/g, '\n\n');
+  
+  // 2. RIMOSSO per mantenere i trattini originali
+  
+  // 3. Gestisci meglio i paragrafi con un solo a capo
+  processed = processed.replace(/([^\n])\n(?!\n|\s*[*-])([^\n])/g, '$1 $2');
+
+  // 4. Gestisci correttamente i titoli (assicurati che abbiano spazio adeguato)
+  processed = processed.replace(/\n(#{1,6}\s.+)\n(?!\n)/g, '\n\n$1\n\n');
+
+  // 5. RIMOSSO per mantenere i trattini originali
+  
+  // 6. Gestione corretta degli elenchi numerati
+  // Converti formati di elenchi numerati non standard in formato corretto di Markdown
+  processed = processed.replace(/^(\s*)(\d+)[\.\)]\s*(\n+|\s+)(.+)$/gm, '$1$2. $4');
+  
+  // 7. Assicurati che non ci siano a capo tra il numero e il testo dell'elenco
+  processed = processed.replace(/^(\s*)(\d+)\.\s*\n+\s*(.+)$/gm, '$1$2. $3');
+  
+  return processed;
+};
+
 export default function AgentPage() {
   const { toast } = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -37,6 +68,7 @@ export default function AgentPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isDeleteAllDialogOpen, setIsDeleteAllDialogOpen] = useState(false);
   const [currentModel, setCurrentModel] = useState<'gpt-4.1-mini' | 'gpt-4.1'>('gpt-4.1-mini');
+  const [copiedMessageIndex, setCopiedMessageIndex] = useState<number | null>(null);
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -74,7 +106,7 @@ export default function AgentPage() {
   
   // Carica le conversazioni esistenti all'avvio
   useEffect(() => {
-    fetchConversations();
+      fetchConversations();
   }, []);
   
   // Scorrimento automatico quando arrivano nuovi messaggi
@@ -137,18 +169,18 @@ export default function AgentPage() {
     
     // Mostra la chat se non è già visibile
     setShowChat(true);
-    
+      
     // Aggiungi il messaggio dell'utente
-    const userMessage: Message = {
-      content: input,
+      const userMessage: Message = {
+        content: input,
       role: 'user',
       createdAt: new Date().toISOString()
-    };
-    
+      };
+      
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-    
+      setInput('');
+      setIsLoading(true);
+      
     try {
       // Prepara i dati per la richiesta
       const requestData: { message: string; conversationId?: number; model?: string } = {
@@ -163,34 +195,45 @@ export default function AgentPage() {
       
       // Invia la richiesta all'API
       const response = await apiRequest('/api/agent/chat', {
-        method: 'POST',
+          method: 'POST',
         body: JSON.stringify(requestData)
       });
-      
-      if (response.success) {
-        // Aggiorna l'ID della conversazione se è una nuova
+        
+      // DEBUG: Mostro la risposta originale di OpenAI nel terminale
+      console.log('------------- DEBUG RISPOSTA OPENAI -------------');
+      console.log('Response originale:', response);
+      if (response.response) {
+        console.log('CONTENUTO TESTO:');
+        console.log(response.response);
+        console.log('RAPPRESENTAZIONE ESCAPE PER VISUALIZZARE NEW LINE:');
+        console.log(JSON.stringify(response.response));
+      }
+      console.log('------------------------------------------------');
+        
+        if (response.success) {
+          // Aggiorna l'ID della conversazione se è una nuova
         if (!currentConversationId && response.conversationId) {
-          setCurrentConversationId(response.conversationId);
+              setCurrentConversationId(response.conversationId);
         }
         
         // Aggiungi la risposta dell'assistente con il modello utilizzato
-        const assistantMessage: Message = {
+          const assistantMessage: Message = {
           content: response.response || "Non ho ricevuto una risposta dal server",
-          role: 'assistant',
+            role: 'assistant',
           createdAt: new Date().toISOString(),
           model: response.model || currentModel
         };
         
         setMessages(prev => [...prev, assistantMessage]);
-        
-        // Aggiorna la lista delle conversazioni
-        fetchConversations();
-      } else {
-        toast({
-          title: "Errore",
-          description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
-          variant: "destructive",
-        });
+          
+          // Aggiorna la lista delle conversazioni
+          fetchConversations();
+        } else {
+          toast({
+            title: "Errore",
+            description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
+            variant: "destructive",
+          });
       }
     } catch (error) {
       console.error("Errore nell'invio del messaggio:", error);
@@ -238,8 +281,8 @@ export default function AgentPage() {
           description: "La conversazione è stata eliminata con successo",
         });
       } else {
-        toast({
-          title: "Errore",
+      toast({
+        title: "Errore",
           description: response.message || "Si è verificato un errore durante l'eliminazione della conversazione",
           variant: "destructive",
         });
@@ -320,6 +363,14 @@ export default function AgentPage() {
     setIsDeleteDialogOpen(true);
   };
   
+  // Funzione per copiare il contenuto del messaggio
+  const copyMessageContent = (content: string, index: number) => {
+    navigator.clipboard.writeText(content).then(() => {
+      setCopiedMessageIndex(index);
+      setTimeout(() => setCopiedMessageIndex(null), 2000);
+    });
+  };
+  
   // Renderizza un messaggio
   const renderMessage = (message: Message, index: number) => {
     const isUser = message.role === 'user';
@@ -339,43 +390,97 @@ export default function AgentPage() {
             </AvatarFallback>
           </Avatar>
           
-          <div className={`
-            py-3 px-4 rounded-2xl 
-            ${isUser 
-              ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white' 
-              : 'bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700'}
+            <div className={`
+              py-3 px-4 rounded-2xl relative
+              ${isUser 
+                ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white' 
+                : 'bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700'}
           `}>
-            <div className="text-sm whitespace-pre-wrap break-words">
-              {message.content}
-            </div>
+            {!isUser && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => copyMessageContent(message.content, index)}
+                className={`absolute top-1 right-1 h-6 w-6 p-1 opacity-50 hover:opacity-100 hover:bg-blue-100/50 dark:hover:bg-blue-900/50 z-10 ${isUser ? 'text-white' : 'text-gray-500'}`}
+                title="Copia messaggio"
+              >
+                {copiedMessageIndex === index ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+              </Button>
+            )}
             
-            <div className="flex justify-between items-center mt-1">
-              {/* Mostra il modello utilizzato per messaggi dell'assistente */}
-              {!isUser && message.model && (
-                <div className="text-xs opacity-70">
-                  <span className="inline-flex items-center">
-                    <Sparkles className="h-3 w-3 mr-1 opacity-70" />
-                    Generato con {message.model}
-                  </span>
-                </div>
+            <div className="text-sm whitespace-pre-wrap break-words">
+              {isUser ? (
+                message.content
+              ) : (
+                <div className="markdown-content">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      // Personalizza i paragrafi per avere meno spazio
+                      p: ({children}) => {
+                        // Se il paragrafo è vuoto, non renderizzare nulla
+                        if (children === undefined || 
+                            (Array.isArray(children) && children.length === 0) ||
+                            children === '\n') {
+                          return null;
+                        }
+                        
+                        return <p style={{marginTop: '0.8em', marginBottom: '0.8em'}}>{children}</p>;
+                      },
+                      // Personalizza i titoli per ridurre lo spazio
+                      h1: ({children}) => <h1 style={{marginBottom: '0.8em'}}>{children}</h1>,
+                      h2: ({children}) => <h2 style={{marginBottom: '0.8em'}}>{children}</h2>,
+                      h3: ({children}) => <h3 style={{marginBottom: '0.8em'}}>{children}</h3>,
+                      // Gestisci i line break in modo più compatto
+                      br: () => <span style={{display: 'block', height: '1.2em'}} />,
+                      // Personalizza gli elenchi per garantire indentazione coerente
+                      ul: ({children}) => <ul style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ul>,
+                      ol: ({children}) => <ol style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ol>,
+                      li: ({children, ...props}) => {
+                        // Controlla se è un elemento di lista annidato esplorando i props del parent
+                        let isNested = false;
+                        if (props.node && props.node.parent && 
+                            props.node.parent.parent && 
+                            (props.node.parent.parent.type === 'listItem')) {
+                          isNested = true;
+                        }
+                        
+                        return (
+                          <li style={{
+                            marginTop: '0.5em', 
+                            marginBottom: '0.5em', 
+                            display: 'list-item',
+                            lineHeight: '2.2'
+                          }}>
+                            {children}
+                          </li>
+                        );
+                      }
+                    }}
+                  >
+                    {normalizeMarkdownText(message.content)}
+                  </ReactMarkdown>
+                        </div>
               )}
-              
+                      </div>
+                      
+            <div className="flex justify-end items-center mt-1">
               {message.createdAt && (
-                <div className="text-xs opacity-70 text-right ml-auto">
+                <div className="text-xs opacity-70 text-right">
                   {formatTimestamp(message.createdAt)}
-                </div>
+                      </div>
               )}
-            </div>
-          </div>
-        </div>
+                      </div>
+                        </div>
+                      </div>
       </motion.div>
     );
   };
-  
+            
   // Renderizza schermata delle capacità
   const renderMainScreen = () => {
     return (
-      <motion.div
+              <motion.div 
         key="capabilities-screen"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -401,15 +506,15 @@ export default function AgentPage() {
                     Gervis AI Assistant
                   </h1>
                   <p className="text-sm text-muted-foreground">Il tuo assistente personale per consulenza finanziaria</p>
-                </div>
+                    </div>
               </div>
-            </motion.div>
-          )}
-
+              </motion.div>
+            )}
+            
           {!showChat && (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 w-full mb-6">
               {capabilities.map((capability, index) => (
-                <motion.div
+              <motion.div 
                   key={index}
                   initial={{ y: 20, opacity: 0 }}
                   animate={{ y: 0, opacity: 1 }}
@@ -420,19 +525,19 @@ export default function AgentPage() {
                   <div className="p-4">
                     <div className={`inline-flex rounded-full bg-gradient-to-r ${capability.gradient} p-1.5 text-white shadow-sm mb-3`}>
                       {capability.icon}
-                    </div>
-                    
+                                </div>
+                      
                     <h3 className="text-base font-medium mb-2 flex items-center">
                       {capability.title}
                       <Sparkles className="h-4 w-4 ml-1.5 text-blue-500" />
                     </h3>
                     
                     <p className="text-sm text-muted-foreground">{capability.description}</p>
-                  </div>
+                      </div>
                 </motion.div>
               ))}
-            </div>
-          )}
+                            </div>
+                          )}
           
           {showChat && (
             <div className="w-full flex-grow overflow-y-auto mb-4 px-4 sm:px-0">
@@ -444,9 +549,9 @@ export default function AgentPage() {
                     <span className="text-xs font-medium text-blue-700 dark:text-blue-300">
                       Modello in uso: {currentModel === AVAILABLE_MODELS.DEFAULT ? 'Standard' : 'Avanzato'}
                     </span>
-                  </div>
-                </div>
-                
+                        </div>
+                      </div>
+                      
                 {messages
                   .filter(message => message.role !== 'system')
                   .map(renderMessage)}
@@ -456,62 +561,21 @@ export default function AgentPage() {
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '0ms' }}></div>
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '150ms' }}></div>
                       <div className="h-2 w-2 rounded-full bg-blue-500 animate-bounce" style={{ animationDelay: '300ms' }}></div>
-                    </div>
+                      </div>
                     <span>Gervis sta scrivendo...</span>
-                  </div>
+                      </div>
                 )}
                 <div ref={messagesEndRef} />
-              </div>
-            </div>
-          )}
-          
-          <motion.div 
+                    </div>
+                    </div>
+            )}
+            
+              <motion.div 
             className={`w-full ${showChat ? 'mt-auto' : 'mt-2'}`}
             initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            {/* Selettore di modello */}
-            <div className="flex justify-center max-w-6xl mx-auto mb-4">
-              <div className="flex flex-col items-center gap-1">
-                <div className="text-sm font-medium mb-1">Seleziona il modello AI</div>
-                <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-                  <button
-                    onClick={() => setCurrentModel(AVAILABLE_MODELS.DEFAULT)}
-                    className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
-                      currentModel === AVAILABLE_MODELS.DEFAULT
-                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Bot className="h-3.5 w-3.5 mr-1.5" />
-                      Standard (gpt-4.1-mini)
-                    </div>
-                    <div className="text-xs opacity-70 mt-0.5">
-                      Veloce e efficiente
-                    </div>
-                  </button>
-                  <button
-                    onClick={() => setCurrentModel(AVAILABLE_MODELS.ADVANCED)}
-                    className={`px-6 py-2 rounded-md text-sm font-medium ml-1 transition-all ${
-                      currentModel === AVAILABLE_MODELS.ADVANCED
-                        ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
-                        : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
-                    }`}
-                  >
-                    <div className="flex items-center">
-                      <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                      Avanzato (gpt-4.1)
-                    </div>
-                    <div className="text-xs opacity-70 mt-0.5">
-                      Più potente e preciso
-                    </div>
-                  </button>
-                </div>
-              </div>
-            </div>
-            
             <div className="relative max-w-6xl mx-auto">
               <input 
                 type="text" 
@@ -522,14 +586,14 @@ export default function AgentPage() {
                 onKeyDown={handleKeyDown}
                 disabled={isLoading}
               />
-              <Button 
+                      <Button 
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                 onClick={sendMessage}
                 disabled={isLoading || !input.trim()}
               >
                 <Send className="h-4 w-4" />
-              </Button>
-            </div>
+                      </Button>
+                </div>
             
             {!showChat && (
               <p className="text-xs text-muted-foreground mt-2 text-center">
@@ -537,8 +601,54 @@ export default function AgentPage() {
               </p>
             )}
           </motion.div>
-        </div>
-      </motion.div>
+          
+          {/* Selettore di modello spostato fuori dalla barra di input, dopo il messaggio di inizio */}
+              <motion.div 
+            className="flex justify-center max-w-6xl mx-auto mt-4"
+            initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+          >
+            <div className="flex flex-col items-center gap-1">
+              <div className="text-sm font-medium mb-1">Seleziona il modello AI</div>
+              <div className="flex p-1 bg-gray-100 dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                <button
+                  onClick={() => setCurrentModel(AVAILABLE_MODELS.DEFAULT)}
+                  className={`px-6 py-2 rounded-md text-sm font-medium transition-all ${
+                    currentModel === AVAILABLE_MODELS.DEFAULT
+                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Bot className="h-3.5 w-3.5 mr-1.5" />
+                    Standard (gpt-4.1-mini)
+                      </div>
+                  <div className="text-xs opacity-70 mt-0.5">
+                    Veloce e efficiente
+                                </div>
+                </button>
+                <button
+                  onClick={() => setCurrentModel(AVAILABLE_MODELS.ADVANCED)}
+                  className={`px-6 py-2 rounded-md text-sm font-medium ml-1 transition-all ${
+                    currentModel === AVAILABLE_MODELS.ADVANCED
+                      ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-400 shadow-sm border border-blue-200 dark:border-blue-800'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/50 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                    Avanzato (gpt-4.1)
+                                </div>
+                  <div className="text-xs opacity-70 mt-0.5">
+                    Più potente e preciso
+                              </div>
+                </button>
+                                </div>
+                                  </div>
+          </motion.div>
+                              </div>
+              </motion.div>
     );
   };
   
@@ -547,7 +657,7 @@ export default function AgentPage() {
     return (
       <AnimatePresence>
         {isConversationsOpen && (
-          <motion.div 
+              <motion.div 
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
@@ -557,8 +667,8 @@ export default function AgentPage() {
             <div className="p-3 border-b flex justify-between items-center">
               <h3 className="font-medium text-sm">Le tue conversazioni</h3>
               <div className="flex gap-1">
-                <Button 
-                  variant="ghost" 
+                                  <Button 
+                                    variant="ghost" 
                   size="icon"
                   onClick={() => setIsDeleteAllDialogOpen(true)}
                   className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50"
@@ -573,9 +683,9 @@ export default function AgentPage() {
                   className="h-7 w-7"
                 >
                   <X className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
+                                  </Button>
+                                </div>
+                            </div>
             
             <div className="overflow-y-auto flex-1 p-2">
               {isLoading ? (
@@ -602,21 +712,21 @@ export default function AgentPage() {
                       <div className="font-medium text-sm truncate pr-8">{conversation.title}</div>
                       <div className="text-xs text-muted-foreground">
                         {new Date(conversation.updatedAt).toLocaleDateString()}
-                      </div>
-                      <Button
+                    </div>
+                        <Button
                         size="icon"
                         variant="ghost" 
                         className="h-6 w-6 p-0 absolute top-3 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={(e) => handleDeleteClick(e, conversation)}
                       >
                         <Trash2 className="h-3.5 w-3.5 text-gray-500 hover:text-red-500" />
-                      </Button>
-                    </div>
+                        </Button>
+                      </div>
                   ))}
-                </div>
-              )}
-            </div>
-          </motion.div>
+                    </div>
+            )}
+        </div>
+      </motion.div>
         )}
       </AnimatePresence>
     );
@@ -637,27 +747,27 @@ export default function AgentPage() {
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setIsConversationsOpen(!isConversationsOpen)}
-            className="bg-white/70 dark:bg-black/70"
-          >
-            <History className="h-4 w-4 mr-2" />
-            Conversazioni
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={startNewConversation}
-            className="bg-white/70 dark:bg-black/70"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nuova chat
-          </Button>
-        </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setIsConversationsOpen(!isConversationsOpen)}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <History className="h-4 w-4 mr-2" />
+              Conversazioni
+            </Button>
+            
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={startNewConversation}
+              className="bg-white/70 dark:bg-black/70"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Nuova chat
+            </Button>
+          </div>
       </div>
       
       {/* Pannello laterale conversazioni */}
@@ -667,8 +777,8 @@ export default function AgentPage() {
       <div className={`flex-1 overflow-y-auto px-4 py-6 ${showChat ? 'flex flex-col' : ''}`}>
         <div className={`w-full ${showChat ? 'flex-grow flex flex-col' : ''}`}>
           {renderMainScreen()}
-        </div>
-      </div>
+                  </div>
+                  </div>
       
       {/* Dialog di conferma eliminazione conversazione */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -680,14 +790,14 @@ export default function AgentPage() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button 
+                    <Button
               variant="outline" 
               onClick={() => setIsDeleteDialogOpen(false)}
               disabled={isLoading}
             >
               Annulla
-            </Button>
-            <Button 
+                    </Button>
+          <Button 
               variant="destructive" 
               onClick={deleteConversation}
               disabled={isLoading}
@@ -703,11 +813,11 @@ export default function AgentPage() {
                   Elimina
                 </>
               )}
-            </Button>
+          </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
+
       {/* Dialog di conferma eliminazione di tutte le conversazioni */}
       <Dialog open={isDeleteAllDialogOpen} onOpenChange={setIsDeleteAllDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">

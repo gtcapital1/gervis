@@ -182,7 +182,7 @@ export async function generateInvestmentIdeas(req: Request, res: Response) {
     let openaiResponse;
     try {
       openaiResponse = await openai.chat.completions.create({
-        model: "gpt-4.1-mini",
+        model: "gpt-4.1",
         messages: [
           { 
             role: "system", 

@@ -1,0 +1,171 @@
+.markdown-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  line-height: 2.2;
+  color: #333;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  /* Renderizza meglio gli spazi nei blocchi di testo */
+  white-space: normal;
+}
+
+/* Regole generali per ridurre lo spazio verticale */
+.markdown-content * {
+  margin-top: 0.7em;
+  margin-bottom: 0.7em;
+}
+
+.markdown-content strong {
+  font-weight: 700;
+}
+
+.markdown-content em {
+  font-style: italic;
+}
+
+/* Regole generali per tutti gli elenchi - standardizza l'indentazione */
+.markdown-content ul,
+.markdown-content ol {
+  padding-left: 1.5em;
+  margin-top: 1em;
+  margin-bottom: 1em;
+}
+
+/* Regole specifiche per elenchi puntati */
+.markdown-content ul {
+  list-style-type: disc;
+}
+
+/* Regole specifiche per elenchi numerati */
+.markdown-content ol {
+  list-style-type: decimal;
+}
+
+/* Standardizza tutti gli elementi di elenco */
+.markdown-content li {
+  margin: 0.5em 0;
+  padding-left: 0;
+  display: list-item;
+  line-height: 2.2;
+}
+
+/* Corregge problemi specifici per gli elenchi numerati */
+.markdown-content ol > li {
+  text-indent: 0;
+  white-space: normal;
+}
+
+/* Stile specifico per evitare problemi di formattazione nei numeri */
+.markdown-content ol > li::marker {
+  font-weight: normal;
+  content: counter(list-item) ". ";
+}
+
+/* Indentazione coerente per liste annidate */
+.markdown-content li > ul,
+.markdown-content li > ol {
+  margin-top: 0.4em;
+  margin-bottom: 0.4em;
+  padding-left: 1.25rem;
+}
+
+/* Titoli */
+.markdown-content h1, 
+.markdown-content h2, 
+.markdown-content h3,
+.markdown-content h4, 
+.markdown-content h5, 
+.markdown-content h6 {
+  font-weight: 600;
+  margin-top: 1.6em;
+  margin-bottom: 1em;
+  line-height: 1.8;
+}
+
+.markdown-content h1 { font-size: 1.8em; }
+.markdown-content h2 { font-size: 1.5em; }
+.markdown-content h3 { font-size: 1.2em; }
+.markdown-content h4 { font-size: 1.1em; }
+
+.markdown-content a {
+  color: #3b82f6;
+  text-decoration: underline;
+}
+
+/* Paragrafi */
+.markdown-content p {
+  margin-top: 1em;
+  margin-bottom: 1em;
+  display: block;
+}
+
+/* Line breaks */
+.markdown-content br {
+  display: block;
+  content: "";
+  margin-top: 0.6em;
+}
+
+/* Rimuovi il margine tra paragrafi vuoti consecutivi */
+.markdown-content p:empty {
+  margin: 0;
+  height: 0;
+  display: none;
+}
+
+/* Gestione specifica per blocchi di testo dopo titoli */
+.markdown-content h1 + p,
+.markdown-content h2 + p,
+.markdown-content h3 + p,
+.markdown-content h4 + p {
+  margin-top: 0.4em;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid #cbd5e1;
+  padding-left: 1em;
+  margin: 1em 0;
+  font-style: italic;
+  color: #64748b;
+}
+
+.markdown-content code {
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+.markdown-content pre {
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 0.8em;
+  border-radius: 5px;
+  overflow-x: auto;
+  margin: 1em 0;
+}
+
+.markdown-content pre code {
+  background-color: transparent;
+  padding: 0;
+}
+
+/* Stili specifici per la dark mode */
+@media (prefers-color-scheme: dark) {
+  .markdown-content code {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+  
+  .markdown-content pre {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+  
+  .markdown-content a {
+    color: #60a5fa;
+  }
+  
+  .markdown-content blockquote {
+    border-left-color: #475569;
+    color: #94a3b8;
+  }
+} 
