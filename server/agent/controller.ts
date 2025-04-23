@@ -2,14 +2,13 @@ import { OpenAI } from 'openai';
 import { Request, Response } from 'express';
 import { db } from '../db'; // Import database instance
 import { conversations, messages as messagesTable } from '../../shared/schema'; // Rename to avoid conflict
-import { eq, and, asc } from 'drizzle-orm'; // Import query helpers and asc helper for sorting
-// Import necessary types from schema if needed later, e.g., for conversation history
-// import { Conversation, Message } from '../../shared/schema'; 
-import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, generateInvestmentIdeas } from './functions';
+import { eq, and, asc, desc, isNull } from 'drizzle-orm'; // Import query helpers
+import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews } from './functions';
 import { nanoid } from 'nanoid';
-import { isNull, desc } from 'drizzle-orm';
 import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
 import { ChatCompletionMessageParam } from 'openai';
+import express from 'express';
+import { handleFlow } from './flow';
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in your environment variables
@@ -145,21 +144,10 @@ export const handleChat = async (req: Request, res: Response) => {
       Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
       Questo perché l'utente dovrà confermare l'appuntamento tramite un'interfaccia grafica, quindi l'operazione non è ancora conclusa.
       
-      Per le idee di investimento, utilizza questa struttura precisa:
-      1. **Riepilogo notizia:** Breve descrizione della notizia su cui si basa l'idea, includendo SEMPRE il link alla notizia originale.
-      
-      2. **Idea di investimento:** Fornisci UNA singola idea di investimento concreta e specifica, con taglio pratico (non teorico). Deve includere:
-         - L'azione concreta da intraprendere (acquistare/vendere/mantenere specifici strumenti, sovrapesare/sottopesare settori, etc.)
-         - La logica di mercato che supporta questa decisione
-         - I settori coinvolti
-         - Il livello di rischio e perché è appropriato
-         - L'orizzonte temporale consigliato con giustificazione
-      
-      3. **Clienti interessati:** Elenca solo i clienti potenzialmente interessati, fornendo per CIASCUNO:
-         - Motivi SPECIFICI e INDIVIDUALI legati al loro profilo personale
-         - Come l'idea si allinea con i loro obiettivi concreti e specifici
-         - Eventuali considerazioni personalizzate rilevanti
-         MAI mostrare punteggi numerici o percentuali. Concentrati solo sulle spiegazioni verbali dettagliate.
+      Per le idee di investimento, devi sempre spiegare perche l'idea si allinea con i profili dei clienti.
+
+      Se usi una notizia, devi sempre citare la fonte e mettere il link alla notizia originale.
+      Le idee di investimento devono essere sempre specifiche, dettagliate e dovresti dare esempi per implementarle.
       
       Agisci come partner affidabile del consulente: **preciso, proattivo, strategico**.
       Rispondi alle domande che ti vengono fatte, senza divagare se non necessario.
@@ -249,31 +237,6 @@ export const handleChat = async (req: Request, res: Response) => {
                 }
               },
               required: []
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "generateInvestmentIdeas",
-            description: "Genera idee di investimento basate sulle notizie finanziarie e suggerisce clienti potenzialmente interessati .Usala quando l'utente chiede di generare idee di investimento per un cliente specifico basate sulle ultime newsapi, ad esempio 'Mi dai qualche idea per A basate sule ultime news?'",
-            parameters: {
-              type: "object",
-              properties: {
-                maxClients: {
-                  type: "number",
-                  description: "Numero massimo di clienti da suggerire (default: 5)"
-                },
-                userPrompt: {
-                  type: "string",
-                  description: "Testo del prompt per generare idee di investimento"
-                },
-                model: {
-                  type: "string",
-                  description: "Modello di AI da utilizzare per generare idee di investimento"
-                }
-              },
-              required: ["maxClients"]
             }
           }
         },
@@ -481,18 +444,6 @@ export const handleChat = async (req: Request, res: Response) => {
               success: result.success,
               count: result.success ? result.count : 0,
               totalAvailable: result.success ? result.totalAvailable : 0
-            });
-            break;
-          
-          case "generateInvestmentIdeas":
-            console.log(`[DEBUG] Chiamando generateInvestmentIdeas con maxClients: ${args.maxClients || 'default'}, userPrompt: ${args.userPrompt || userMessage}`);
-            // Usa userMessage come userPrompt se questo non è specificato
-            const userPromptForIdeas = args.userPrompt || userMessage;
-            result = await generateInvestmentIdeas(args.maxClients, userPromptForIdeas, userId, args.model);
-            console.log('[DEBUG] Risultato generateInvestmentIdeas:', {
-              success: result.success,
-              ideasGenerated: result.success && result.investmentIdeas ? result.investmentIdeas.length : 0,
-              suggestedClientsCount: result.success && result.suggestedClients ? result.suggestedClients.length : 0
             });
             break;
           
@@ -1061,3 +1012,22 @@ export const handleClientContext = async (req: Request, res: Response) => {
     });
   }
 };
+
+// Add flow request handler
+export const handleFlowRequest = async (req: Request, res: Response) => {
+  return handleFlow(req, res);
+}
+
+// Initialize the router and add flow endpoint
+export const agentRouter = express.Router();
+
+// Add routes for conversations
+agentRouter.post('/chat', handleChat);
+agentRouter.get('/conversations', getConversations);
+agentRouter.get('/conversations/:id', getConversationById);
+agentRouter.delete('/conversations/:id', deleteConversation);
+agentRouter.delete('/conversations', deleteAllConversations);
+agentRouter.post('/client-context', handleClientContext);
+
+// Add flow endpoint
+agentRouter.post('/flow', handleFlowRequest);
