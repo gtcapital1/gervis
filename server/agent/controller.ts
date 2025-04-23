@@ -206,7 +206,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "getClientContext",
-            description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', ecc.",
+            description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', 'Mi dai qualche idea per A?'",
             parameters: {
               type: "object",
               properties: {
@@ -256,7 +256,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "generateInvestmentIdeas",
-            description: "Genera idee di investimento basate sulle notizie finanziarie e suggerisce clienti potenzialmente interessati",
+            description: "Genera idee di investimento basate sulle notizie finanziarie e suggerisce clienti potenzialmente interessati .Usala quando l'utente chiede di generare idee di investimento per un cliente specifico basate sulle ultime newsapi, ad esempio 'Mi dai qualche idea per A basate sule ultime news?'",
             parameters: {
               type: "object",
               properties: {
