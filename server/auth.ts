@@ -8,6 +8,7 @@ import { storage } from "./storage";
 import { User as SelectUser } from "@shared/schema";
 import { sendVerificationPin } from "./email";
 import nodemailer from "nodemailer";
+import { isEmailWhitelisted } from "./whitelist";
 
 declare global {
   namespace Express {
@@ -293,6 +294,10 @@ export function setupAuth(app: Express) {
       const hashedPassword = await hashPassword(password);
       console.log("[Register] Password hashata con successo");
       
+      // Verifica se l'email è nella whitelist per l'approvazione automatica
+      const approvalStatus = isEmailWhitelisted(email) ? 'approved' : 'pending';
+      console.log(`[Register] Email ${email} nella whitelist? ${isEmailWhitelisted(email)}, stato approvazione: ${approvalStatus}`);
+      
       // Log the user object being created (without password)
       const userToCreate = {
         ...req.body,
@@ -304,7 +309,7 @@ export function setupAuth(app: Express) {
         verificationPin,
         isEmailVerified: false,
         registrationCompleted: false,
-        approvalStatus: 'pending'
+        approvalStatus
       };
       console.log("[Register] Dati utente preparati:", { 
         ...userToCreate, 
@@ -319,6 +324,171 @@ export function setupAuth(app: Express) {
           password: hashedPassword
         });
         console.log("[Register] Utente creato con successo:", user.id);
+        
+        // Creiamo automaticamente due clienti mock per il nuovo utente
+        try {
+          console.log("[Register] Creazione clienti mock per il nuovo utente");
+          
+          // Cliente 1: Segmento "vhnw" (Very High Net Worth)
+          const mockClient1 = await storage.createClient({
+            firstName: "Francesca",
+            lastName: "Bianchi",
+            name: "Francesca Bianchi",
+            email: "example@gervis.it",
+            taxCode: "",
+            advisorId: user.id,
+            totalAssets: 800000,
+            netWorth: 600000,
+            isOnboarded: true,
+            active: false,
+            onboardedAt: new Date(),
+            activatedAt: null,
+            clientSegment: "vhnw"
+          });
+          
+          // Cliente 2: Segmento "mass_market"
+          const mockClient2 = await storage.createClient({
+            firstName: "Mario",
+            lastName: "Rossi",
+            name: "Mario Rossi",
+            email: "example@gervis.it",
+            taxCode: "",
+            advisorId: user.id,
+            totalAssets: 70000,
+            netWorth: 70000,
+            isOnboarded: true,
+            active: false,
+            onboardedAt: new Date(),
+            activatedAt: null,
+            clientSegment: "mass_market"
+          });
+          
+          console.log("[Register] Clienti mock creati con successo:", 
+            { client1Id: mockClient1.id, client2Id: mockClient2.id });
+          
+          // Crea asset per il primo cliente (Francesca Bianchi)
+          await storage.createAsset({
+            clientId: mockClient1.id,
+            category: "real_estate",
+            value: 500000,
+            description: ""
+          });
+          
+          await storage.createAsset({
+            clientId: mockClient1.id,
+            category: "equity",
+            value: 100000,
+            description: ""
+          });
+          
+          await storage.createAsset({
+            clientId: mockClient1.id,
+            category: "bonds",
+            value: 200000,
+            description: ""
+          });
+          
+          // Crea asset per il secondo cliente (Mario Rossi)
+          await storage.createAsset({
+            clientId: mockClient2.id,
+            category: "real_estate",
+            value: 50000,
+            description: ""
+          });
+          
+          await storage.createAsset({
+            clientId: mockClient2.id,
+            category: "bonds",
+            value: 20000,
+            description: ""
+          });
+          
+          // Crea un log per ciascun cliente
+          const now = new Date();
+          
+          // Log per Francesca Bianchi (client_id 20)
+          await storage.createClientLog({
+            clientId: mockClient1.id,
+            type: "call",
+            title: "Azioni USA",
+            content: "Ciente si è dimostrata interessata a idea di riallocazione verso azionario USA post crollo dovuto ai dazi.",
+            logDate: now,
+            createdBy: user.id
+          });
+          
+          await storage.createClientLog({
+            clientId: mockClient1.id,
+            type: "call",
+            title: "Oro per hedge",
+            content: "Cliente ha valutato con attenzione acquisto di oro come hedge",
+            logDate: now,
+            createdBy: user.id
+          });
+          
+          // Aggiungi dati MIFID per il primo cliente
+          await storage.updateMifid(mockClient1.id, {
+            address: "Via Roma, 123",
+            phone: "123456789",
+            birthDate: "1990-01-01",
+            maritalStatus: "married",
+            employmentStatus: "employed",
+            educationLevel: "master",
+            annualIncome: 150000,
+            monthlyExpenses: 3000,
+            debts: 200000,
+            dependents: 2,
+            investmentHorizon: "medium_term",
+            retirementInterest: 4,
+            wealthGrowthInterest: 3,
+            incomeGenerationInterest: 1,
+            capitalPreservationInterest: 2,
+            estatePlanningInterest: 5,
+            investmentExperience: "expert",
+            pastInvestmentExperience: ["stocks", "bonds", "etf", "funds"],
+            financialEducation: ["university"],
+            riskProfile: "balanced",
+            portfolioDropReaction: "hold",
+            volatilityTolerance: "medium",
+            yearsOfExperience: "5_to_10",
+            investmentFrequency: "quarterly",
+            advisorUsage: "mostly_advisor",
+            monitoringTime: "quarterly"
+          });
+          
+          // Aggiungi dati MIFID per il secondo cliente
+          await storage.updateMifid(mockClient2.id, {
+            address: "Via Milano, 123",
+            phone: "987654321",
+            birthDate: "1965-01-01",
+            maritalStatus: "married",
+            employmentStatus: "employed",
+            educationLevel: "high_school",
+            annualIncome: 50000,
+            monthlyExpenses: 2000,
+            debts: 0,
+            dependents: 0,
+            investmentHorizon: "long_term",
+            retirementInterest: 1,
+            wealthGrowthInterest: 4,
+            incomeGenerationInterest: 3,
+            capitalPreservationInterest: 2,
+            estatePlanningInterest: 5,
+            investmentExperience: "none",
+            pastInvestmentExperience: ["bonds"],
+            financialEducation: ["none"],
+            riskProfile: "conservative",
+            portfolioDropReaction: "sell_all",
+            volatilityTolerance: "low",
+            yearsOfExperience: "more_than_10",
+            investmentFrequency: "occasional",
+            advisorUsage: "balanced",
+            monitoringTime: "rarely"
+          });
+          
+        } catch (mockClientError) {
+          // Non bloccare la registrazione se c'è un errore nella creazione dei clienti mock
+          console.error("[Register Error] Errore durante la creazione dei clienti mock:", mockClientError);
+        }
         
         // Send verification PIN email
         try {
@@ -353,7 +523,8 @@ export function setupAuth(app: Express) {
             success: true, 
             user,
             needsPinVerification: true,
-            message: "Ti abbiamo inviato un codice PIN di verifica. Per favore controlla la tua casella di posta e inserisci il codice per completare la registrazione."
+            message: "Ti abbiamo inviato un codice PIN di verifica. Per favore controlla la tua casella di posta e inserisci il codice per completare la registrazione.",
+            pendingApproval: user.approvalStatus === 'pending'
           });
         });
       } catch (createError: unknown) {
@@ -642,7 +813,7 @@ export function setupAuth(app: Express) {
       const isPending = updatedUser.approvalStatus === 'pending';
       const responseMessage = isPending
         ? "Email verificata con successo. In attesa di approvazione da parte del management di Gervis."
-        : "Email verificata con successo";
+        : "Email verificata con successo. Puoi iniziare a utilizzare la piattaforma immediatamente.";
         
       // Se l'utente è già loggato, aggiorniamo la sessione
       if (req.isAuthenticated() && req.user.id === user.id) {

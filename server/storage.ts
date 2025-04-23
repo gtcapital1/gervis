@@ -323,8 +323,127 @@ export class PostgresStorage implements IStorage {
   }
 
   async deleteUser(id: number): Promise<boolean> {
-    const result = await db.delete(users).where(eq(users.id, id)).returning();
-    return result.length > 0;
+    try {
+      console.log(`[Storage] Iniziando eliminazione utente con ID ${id}`);
+      
+      // Verifichiamo prima se l'utente esiste
+      const userExists = await db.select({ id: users.id }).from(users).where(eq(users.id, id));
+      if (userExists.length === 0) {
+        console.log(`[Storage] Utente con ID ${id} non trovato`);
+        return false;
+      }
+      
+      // Otteniamo tutti i clienti dell'utente da eliminare
+      const userClients = await db.select({ id: clients.id })
+        .from(clients)
+        .where(eq(clients.advisorId, id));
+      
+      const clientIds = userClients.map(client => client.id);
+      
+      console.log(`[Storage] Trovati ${clientIds.length} clienti collegati all'utente ${id}`);
+      
+      // Eliminazione degli elementi collegati ai clienti
+      if (clientIds.length > 0) {
+        // Elimina tutti i clienti dell'utente e i loro dati associati
+        for (const clientId of clientIds) {
+          await this.deleteClient(clientId);
+        }
+      }
+      
+      // Eliminazione delle conversazioni
+      const deletedConversations = await db.delete(conversations)
+        .where(eq(conversations.userId, id))
+        .returning({ id: conversations.id });
+        
+      console.log(`[Storage] Eliminate ${deletedConversations.length} conversazioni`);
+      
+      // Eliminazione degli advisor_suggestions
+      const deletedSuggestions = await db.delete(advisorSuggestions)
+        .where(eq(advisorSuggestions.advisorId, id))
+        .returning({ id: advisorSuggestions.id });
+        
+      console.log(`[Storage] Eliminati ${deletedSuggestions.length} suggerimenti`);
+      
+      // Eliminazione dei completed_tasks
+      const deletedTasks = await db.delete(completedTasks)
+        .where(eq(completedTasks.advisorId, id))
+        .returning({ id: completedTasks.id });
+        
+      console.log(`[Storage] Eliminati ${deletedTasks.length} task completati`);
+      
+      // Rimuove i riferimenti nelle tabelle dove l'utente potrebbe essere createdBy
+      // Imposta createdBy a NULL anziché eliminare i record
+      await db.update(clientLogs)
+        .set({ createdBy: null })
+        .where(eq(clientLogs.createdBy, id));
+        
+      await db.update(aiProfiles)
+        .set({ createdBy: null })
+        .where(eq(aiProfiles.createdBy, id));
+        
+      await db.update(verifiedDocuments)
+        .set({ createdBy: null })
+        .where(eq(verifiedDocuments.createdBy, id));
+      
+      // Finalmente, elimina l'utente
+      const result = await db.delete(users)
+        .where(eq(users.id, id))
+        .returning({ id: users.id });
+        
+      const success = result.length > 0;
+      console.log(`[Storage] Eliminazione utente ${id} completata con successo: ${success}`);
+      
+      return success;
+      
+    } catch (error) {
+      console.error(`[Storage] Errore durante l'eliminazione dell'utente ${id}:`, error);
+      
+      // In caso di fallimento, proviamo con un approccio SQL diretto
+      try {
+        console.log(`[Storage] Tentativo eliminazione diretta con SQL per l'utente ${id}`);
+        
+        // Utilizza SQL diretto per gestire le dipendenze
+        // Imposta a NULL i riferimenti nelle tabelle con foreign key
+        await db.execute(sql`UPDATE client_logs SET created_by = NULL WHERE created_by = ${id}`);
+        await db.execute(sql`UPDATE ai_profiles SET created_by = NULL WHERE created_by = ${id}`);
+        await db.execute(sql`UPDATE verified_documents SET created_by = NULL WHERE created_by = ${id}`);
+        
+        // Elimina le righe nelle tabelle con CASCADE
+        await db.execute(sql`DELETE FROM conversations WHERE "userId" = ${id}`);
+        await db.execute(sql`DELETE FROM advisor_suggestions WHERE advisor_id = ${id}`);
+        await db.execute(sql`DELETE FROM completed_tasks WHERE advisor_id = ${id}`);
+        
+        // Elimina i clienti associati all'utente
+        const clientsResult = await db.execute(sql`SELECT id FROM clients WHERE advisor_id = ${id}`);
+        if (clientsResult && clientsResult.length > 0) {
+          for (const row of clientsResult) {
+            const clientId = row.id;
+            await db.execute(sql`DELETE FROM assets WHERE client_id = ${clientId}`);
+            await db.execute(sql`DELETE FROM recommendations WHERE client_id = ${clientId}`);
+            await db.execute(sql`DELETE FROM ai_profiles WHERE client_id = ${clientId}`);
+            await db.execute(sql`DELETE FROM client_logs WHERE client_id = ${clientId}`);
+            await db.execute(sql`DELETE FROM mifid WHERE client_id = ${clientId}`);
+            await db.execute(sql`DELETE FROM clients WHERE id = ${clientId}`);
+          }
+        }
+        
+        // Infine, elimina l'utente
+        await db.execute(sql`DELETE FROM users WHERE id = ${id}`);
+        
+        // Verifica se l'utente è stato realmente eliminato
+        const verifyResult = await db.select({ count: sql<number>`count(*)` })
+          .from(users)
+          .where(eq(users.id, id));
+          
+        const success = verifyResult[0].count === 0;
+        console.log(`[Storage] Eliminazione SQL diretta dell'utente ${id} completata con successo: ${success}`);
+        
+        return success;
+      } catch (fallbackError) {
+        console.error(`[Storage] Anche il fallback SQL è fallito per l'utente ${id}:`, fallbackError);
+        throw error; // Rilancia l'errore originale
+      }
+    }
   }
 
   async isAdminEmail(email: string): Promise<boolean> {
