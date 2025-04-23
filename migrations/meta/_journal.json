@@ -64,6 +64,20 @@
       "when": 1743699493147,
       "tag": "0008_jittery_magik",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1745441550540,
+      "tag": "0009_chubby_changeling",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1745442811291,
+      "tag": "0010_peaceful_tarantula",
+      "breakpoints": true
     }
   ]
 }

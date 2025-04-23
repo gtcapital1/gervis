@@ -8,7 +8,9 @@ import {
   meetings, type Meeting, type InsertMeeting,
   LOG_TYPES, type LogType,
   completedTasks, type CompletedTask, type InsertCompletedTask,
-  mifid, type Mifid
+  mifid, type Mifid,
+  conversations, messages,
+  verifiedDocuments, advisorSuggestions
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql, desc, gte, lte, inArray, lt } from 'drizzle-orm';
@@ -227,6 +229,9 @@ export class PostgresStorage implements IStorage {
       case 'verificationToken':
         result = await db.select().from(users).where(eq(users.verificationToken, value));
         break;
+      case 'passwordResetToken':
+        result = await db.select().from(users).where(eq(users.passwordResetToken, value));
+        break;
       case 'email':
         result = await this.getUserByEmail(value);
         return result;
@@ -247,7 +252,8 @@ export class PostgresStorage implements IStorage {
       // Controllo dei tipi di dati prima dell'inserimento
       const validatedUser: any = {
         ...insertUser,
-        approvalStatus: 'pending' as const
+        // Use the passed approvalStatus or default to 'pending'
+        approvalStatus: insertUser.approvalStatus || 'pending'
       };
 
       // Rimuovi campi undefined che potrebbero causare problemi
@@ -350,7 +356,26 @@ export class PostgresStorage implements IStorage {
         }
       }
       
-      // Eliminazione delle conversazioni
+      // Ottieni le conversazioni dell'utente
+      const userConversations = await db.select().from(conversations)
+        .where(eq(conversations.userId, id));
+      
+      // Elimina prima i messaggi associati alle conversazioni
+      if (userConversations.length > 0) {
+        const conversationIds = userConversations.map(conv => conv.id);
+        console.log(`[Storage] Trovate ${conversationIds.length} conversazioni per l'utente ${id}`);
+        
+        // Elimina tutti i messaggi associati alle conversazioni dell'utente
+        const deletedMessages = await db.delete(messages)
+          .where(inArray(messages.conversationId, conversationIds))
+          .returning({ id: messages.id });
+          
+        console.log(`[Storage] Eliminati ${deletedMessages.length} messaggi`);
+      } else {
+        console.log(`[Storage] Nessuna conversazione trovata per l'utente ${id}`);
+      }
+      
+      // Ora elimina le conversazioni
       const deletedConversations = await db.delete(conversations)
         .where(eq(conversations.userId, id))
         .returning({ id: conversations.id });
@@ -408,8 +433,20 @@ export class PostgresStorage implements IStorage {
         await db.execute(sql`UPDATE ai_profiles SET created_by = NULL WHERE created_by = ${id}`);
         await db.execute(sql`UPDATE verified_documents SET created_by = NULL WHERE created_by = ${id}`);
         
-        // Elimina le righe nelle tabelle con CASCADE
+        // Elimina prima i messaggi associati alle conversazioni dell'utente
+        await db.execute(sql`
+          DELETE FROM messages 
+          WHERE "conversationId" IN (
+            SELECT id FROM conversations WHERE "userId" = ${id}
+          )
+        `);
+        console.log(`[Storage] Eliminati messaggi associati alle conversazioni dell'utente ${id} con SQL diretto`);
+        
+        // Ora elimina le conversazioni
         await db.execute(sql`DELETE FROM conversations WHERE "userId" = ${id}`);
+        console.log(`[Storage] Eliminate conversazioni dell'utente ${id} con SQL diretto`);
+        
+        // Elimina le righe nelle altre tabelle
         await db.execute(sql`DELETE FROM advisor_suggestions WHERE advisor_id = ${id}`);
         await db.execute(sql`DELETE FROM completed_tasks WHERE advisor_id = ${id}`);
         

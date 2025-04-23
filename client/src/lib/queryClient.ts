@@ -6,9 +6,34 @@ async function throwIfResNotOk(res: Response) {
     // Gestione degli errori di risposta
     try {
       const errorData = await res.json();
-      const error: any = new Error(errorData.message || `${res.status}: Errore`);
+      
+      // Crea un messaggio di errore più descrittivo quando possibile
+      let errorMessage = errorData.message;
+      
+      // Se abbiamo error_already_registered o altri codici specifici, assicuriamoci di mostrare il messaggio corretto
+      if (errorData.error === "email_already_registered") {
+        errorMessage = errorData.message || "Questa email è già registrata. Prova ad effettuare il login o recupera la password.";
+      } else if (errorData.error === "password_requirements_not_met") {
+        errorMessage = errorData.message || "La password non soddisfa i requisiti di sicurezza.";
+      } else if (errorData.error === "token_expired") {
+        errorMessage = errorData.message || "Il token è scaduto. Richiedi un nuovo link.";
+      } else if (errorData.error === "invalid_token") {
+        errorMessage = errorData.message || "Token non valido. Richiedi un nuovo link.";
+      } else if (res.status === 401) {
+        // Gestione specifica per errori di autenticazione
+        errorMessage = errorData.message || "Credenziali non valide. Verifica email e password.";
+      }
+      
+      // Crea un errore con messaggio specifico o fallback a status code
+      const error: any = new Error(errorMessage || `${res.status}: ${errorData.error || 'Errore'}`);
       error.status = res.status;
       error.data = errorData;
+      
+      // Log dettagliato per errori di registrazione
+      if (res.url.includes('/api/register')) {
+        console.log('[API DEBUG] Errore di registrazione completo:', errorData);
+      }
+      
       throw error;
     } catch (jsonError) {
       // Se non è JSON valido, controlla se è HTML
@@ -17,13 +42,33 @@ async function throwIfResNotOk(res: Response) {
         if (text.trim().toLowerCase().startsWith('<!doctype') || 
             text.trim().toLowerCase().startsWith('<html')) {
           
-          
-          
           throw new Error(`Il server ha restituito HTML invece di JSON. Status: ${res.status}`);
         } else {
+          // Per gli errori 401, assicuriamoci di mostrare un messaggio chiaro
+          if (res.status === 401) {
+            throw new Error("Credenziali non valide. Verifica email e password.");
+          }
+          // Per gli errori 400 di registrazione, miglioriamo il messaggio
+          if (res.status === 400 && res.url.includes('/api/register')) {
+            const error: any = new Error(text || "Errore nella registrazione. Verifica i dati inseriti.");
+            error.status = res.status;
+            error.data = { message: text };
+            throw error;
+          }
           throw new Error(`${res.status}: ${text || res.statusText}`);
         }
       } catch (textError) {
+        // Per gli errori 401, assicuriamoci di mostrare un messaggio chiaro anche qui
+        if (res.status === 401) {
+          throw new Error("Credenziali non valide. Verifica email e password.");
+        }
+        // Per gli errori 400 di registrazione, miglioriamo il messaggio
+        if (res.status === 400 && res.url.includes('/api/register')) {
+          const error: any = new Error("Errore nella registrazione. L'email potrebbe essere già registrata.");
+          error.status = res.status;
+          error.data = { message: "Errore nella registrazione. L'email potrebbe essere già registrata." };
+          throw error;
+        }
         throw new Error(`${res.status}: Errore nel processare la risposta`);
       }
     }

@@ -62,10 +62,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      // Verifica se l'errore contiene informazioni dettagliate
+      let title = "Login fallito";
+      let description = error.message;
+      
+      // Gestione specifica per errori conosciuti
+      if (error.data) {
+        if (error.status === 401) {
+          description = error.data.message || "Credenziali non valide. Verifica email e password.";
+        } else if (error.data.message) {
+          description = error.data.message;
+        }
+      }
+      
       toast({
-        title: "Login failed",
-        description: error.message,
+        title,
+        description,
         variant: "destructive",
       });
     },
@@ -73,19 +86,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const registerMutation = useMutation({
     mutationFn: (userData: InsertUser) => {
-      
       return httpRequest("POST", "/api/register", userData);
     },
     onSuccess: (data: { success: boolean; user: SelectUser; message?: string; needsPinVerification?: boolean }) => {
-      
       queryClient.setQueryData(["/api/user"], data);
       queryClient.invalidateQueries({ queryKey: ["/api/user"] });
     },
-    onError: (error: Error) => {
+    onError: (error: any) => {
+      console.error("Errore dettagliato registrazione:", {
+        message: error.message,
+        data: error.data,
+        status: error.status
+      });
+      
+      // Verifica se l'errore contiene informazioni dettagliate
+      let title = "Registrazione fallita";
+      let description = error.message;
+      
+      // Gestione specifica per errori conosciuti
+      if (error.data) {
+        if (error.data.error === "email_already_registered") {
+          description = error.data.message || "Questa email è già registrata. Prova ad effettuare il login o recupera la password.";
+        } else if (error.data.error === "password_requirements_not_met") {
+          description = error.data.message || "La password non soddisfa i requisiti di sicurezza.";
+          if (error.data.details?.requirements) {
+            description += " " + error.data.details.requirements.join(" ");
+          }
+        } else if (error.data.message) {
+          description = error.data.message;
+        }
+      }
+      
+      // Gestione speciale per errori 400 che potrebbero indicare email esistente
+      if (error.status === 400 && error.message.includes("Errore nel processare")) {
+        description = "Questa email potrebbe essere già registrata. Prova ad effettuare il login o recupera la password.";
+      }
       
       toast({
-        title: "Registration failed",
-        description: error.message,
+        title,
+        description,
         variant: "destructive",
       });
     },

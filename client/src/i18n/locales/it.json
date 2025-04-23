@@ -90,6 +90,7 @@
     "delete": "Elimina",
     "archived": "Archiviato",
     "active": "Attivo",
+    "confirm_logout": "Sei sicuro di voler uscire?",
     "onboarding_link": "Link Registrazione",
     "send_link": "Invia Link",
     "confirm_delete": "Sei sicuro di voler eliminare questo cliente?",

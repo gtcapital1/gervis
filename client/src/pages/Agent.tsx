@@ -880,7 +880,7 @@ Grazie!`;
                         size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
                             onClick={() => {
-                              const message = "Mi ricordi che esigenze ha Francesca Bianchi?";
+                              const message = "Mi ricordi che esigenze di investimentoo ha Francesca Bianchi?";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
                               const userMessage: Message = {
@@ -896,7 +896,7 @@ Grazie!`;
                             }}
                           >
                             <User className="h-3 w-3 mr-1.5 flex-shrink-0 text-blue-500" />
-                            <div className="whitespace-normal overflow-hidden">Mi ricordi che esigenze ha Francesca Bianchi?</div>
+                            <div className="whitespace-normal overflow-hidden">Mi ricordi che esigenze di investimentoo ha Francesca Bianchi?</div>
                       </Button>
                       <Button 
                             variant="outline"

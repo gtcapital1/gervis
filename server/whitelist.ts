@@ -12,6 +12,17 @@ export const whitelistedEmails: string[] = [
  * @returns true se l'email è nella whitelist, false altrimenti
  */
 export function isEmailWhitelisted(email: string): boolean {
-  if (!email) return false;
-  return whitelistedEmails.includes(email.toLowerCase().trim());
+  if (!email) {
+    console.log("[Whitelist] Email vuota o non definita");
+    return false;
+  }
+  
+  const normalizedEmail = email.toLowerCase().trim();
+  console.log(`[Whitelist] Controllo whitelist per email: "${normalizedEmail}"`);
+  console.log(`[Whitelist] Lista whitelist: ${JSON.stringify(whitelistedEmails)}`);
+  
+  const isWhitelisted = whitelistedEmails.includes(normalizedEmail);
+  console.log(`[Whitelist] Email "${normalizedEmail}" ${isWhitelisted ? 'è' : 'non è'} nella whitelist`);
+  
+  return isWhitelisted;
 } 

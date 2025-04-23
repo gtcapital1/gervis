@@ -36,6 +36,7 @@ export const users = pgTable("users", {
   verificationPin: text("verification_pin"), // PIN a 4 cifre per la verifica
   registrationCompleted: boolean("registration_completed").default(false), // Flag che indica se la registrazione è stata completata
   createdAt: timestamp("created_at").defaultNow(), // Data di creazione dell'utente
+  updatedAt: timestamp("updated_at").defaultNow(),
   
   // Impostazioni email SMTP personalizzate
   smtp_host: text("smtp_host"),
@@ -44,6 +45,9 @@ export const users = pgTable("users", {
   smtp_pass: text("smtp_pass"),
   smtp_from: text("smtp_from"),
   custom_email_enabled: boolean("custom_email_enabled").default(false),
+  // Aggiungi questi campi per il reset password
+  passwordResetToken: text("password_reset_token"),
+  passwordResetExpires: timestamp("password_reset_expires"),
 });
 
 export const insertUserSchema = createInsertSchema(users).pick({

@@ -13,6 +13,7 @@ import { VerificationAlert } from "@/components/VerificationAlert";
 import { PinVerificationDialog } from "@/components/PinVerificationDialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle, CheckCircle } from "lucide-react";
+import { httpRequest } from "@/lib/queryClient";
 
 // Components
 import {
@@ -73,6 +74,8 @@ export default function AuthPage() {
   const [verifyPinDialogOpen, setVerifyPinDialogOpen] = useState(false);
   const [registeredEmail, setRegisteredEmail] = useState("");
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
+  const [isSubmittingForgotPassword, setIsSubmittingForgotPassword] = useState(false);
   
   // Definiamo gli schemi di validazione con le traduzioni
   loginSchema = z.object({
@@ -133,6 +136,18 @@ export default function AuthPage() {
     },
   });
   
+  // Form per il recupero password
+  const forgotPasswordForm = useForm<{ email: string }>({
+    resolver: zodResolver(z.object({
+      email: z.string().email({
+        message: t('auth.validation.email_invalid'),
+      }),
+    })),
+    defaultValues: {
+      email: "",
+    },
+  });
+
   // Funzione per gestire la verifica PIN completata con successo
   const handleVerificationSuccess = () => {
     toast({
@@ -310,10 +325,18 @@ export default function AuthPage() {
               variant: "default",
             });
           }
+          // Gestione specifica per errori di autenticazione (401)
+          else if (error.status === 401) {
+            toast({
+              title: "Login fallito",
+              description: error.data?.message || "Credenziali non valide. Verifica email e password.",
+              variant: "destructive",
+            });
+          }
           else {
             toast({
               title: "Login fallito",
-              description: error.message || "Si è verificato un errore durante il login. Riprova più tardi.",
+              description: error.data?.message || error.message || "Si è verificato un errore durante il login. Riprova più tardi.",
               variant: "destructive",
             });
           }
@@ -400,23 +423,41 @@ export default function AuthPage() {
           }
         },
         onError: (error: any) => {
+          console.error("Errore registrazione:", error);
           
-          
-          // Gestione errori specifici
-          if (error.message && error.message.includes("Email already registered")) {
+          // Verifica se l'errore contiene informazioni dettagliate dalla risposta del server
+          if (error.data && error.data.error === "email_already_registered") {
             toast({
               title: "Registrazione fallita",
-              description: "Questa email è già registrata. Prova ad effettuare il login.",
+              description: error.data.message || "Questa email è già registrata. Prova ad effettuare il login o recupera la password.",
+              variant: "destructive",
+            });
+          } else if (error.data && error.data.message) {
+            // Mostra il messaggio di errore specifico dal server
+            toast({
+              title: "Registrazione fallita",
+              description: error.data.message,
+              variant: "destructive",
+            });
+          } else if (error.message && (
+            error.message.includes("email già registrata") || 
+            error.message.includes("email potrebbe essere già registrata") ||
+            error.message.toLowerCase().includes("email already"))) {
+            // Messaggio specifico per email già registrata
+            toast({
+              title: "Email già registrata",
+              description: "Questa email è già registrata. Prova ad effettuare il login o recupera la password.",
               variant: "destructive",
             });
           } else {
+            // Fallback al messaggio di errore generico
             toast({
               title: "Registrazione fallita",
-              description: error.message || "Si è verificato un errore durante la registrazione. Riprova più tardi.",
+              description: error.message || "Si è verificato un errore durante la registrazione. Riprova.",
               variant: "destructive",
             });
           }
-        },
+        }
       });
     } catch (error) {
       
@@ -425,6 +466,33 @@ export default function AuthPage() {
         description: "Si è verificato un errore imprevisto. Riprova più tardi.",
         variant: "destructive",
       });
+    }
+  }
+
+  // Funzione per gestire la richiesta di recupero password
+  async function onForgotPasswordSubmit(data: { email: string }) {
+    try {
+      setIsSubmittingForgotPassword(true);
+      
+      const response = await httpRequest("POST", "/api/forgot-password", { email: data.email });
+      
+      toast({
+        title: "Email inviata",
+        description: "Se l'email è registrata, riceverai un link per reimpostare la password",
+      });
+      
+      // Resetta il form e torna alla schermata di login
+      forgotPasswordForm.reset();
+      setShowForgotPassword(false);
+      
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'invio dell'email. Riprova più tardi.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingForgotPassword(false);
     }
   }
 
@@ -444,279 +512,348 @@ export default function AuthPage() {
       {/* Form Section */}
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-md">
-          <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
-              <TabsTrigger value="register">{t('auth.register')}</TabsTrigger>
-            </TabsList>
-            <div className="mt-6">
-              <TabsContent value="login">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t('auth.welcome_back')}</CardTitle>
-                    <CardDescription>{t('auth.login_description')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...loginForm}>
-                      <form
-                        onSubmit={loginForm.handleSubmit(onLoginSubmit)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={loginForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="email"
-                                  placeholder="Email..."
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={loginForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('auth.password')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="password"
-                                  placeholder={`${t('auth.password')}...`}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={loginMutation.isPending}
+          {showForgotPassword ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Recupera Password</CardTitle>
+                <CardDescription>Inserisci la tua email per ricevere un link di recupero password</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...forgotPasswordForm}>
+                  <form
+                    onSubmit={forgotPasswordForm.handleSubmit(onForgotPasswordSubmit)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={forgotPasswordForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="Inserisci la tua email..."
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={isSubmittingForgotPassword}
+                    >
+                      {isSubmittingForgotPassword ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Invio in corso...
+                        </>
+                      ) : (
+                        "Invia link di recupero"
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      className="w-full mt-2"
+                      onClick={() => setShowForgotPassword(false)}
+                    >
+                      Torna al login
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          ) : (
+            <Tabs defaultValue="login" value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">{t('auth.login')}</TabsTrigger>
+                <TabsTrigger value="register">{t('auth.register')}</TabsTrigger>
+              </TabsList>
+              <div className="mt-6">
+                <TabsContent value="login">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('auth.welcome_back')}</CardTitle>
+                      <CardDescription>{t('auth.login_description')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Form {...loginForm}>
+                        <form
+                          onSubmit={loginForm.handleSubmit(onLoginSubmit)}
+                          className="space-y-4"
                         >
-                          {loginMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              {t('auth.login')}...
-                            </>
-                          ) : (
-                            t('auth.login')
-                          )}
-                        </Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                  <CardFooter className="flex flex-col items-center">
-                    <div className="text-sm text-muted-foreground mt-2">
-                      {t('auth.no_account')}{" "}
-                      <Button
-                        variant="link"
-                        className="p-0"
-                        onClick={() => setActiveTab("register")}
-                      >
-                        {t('auth.register')}
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-              <TabsContent value="register">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>{t('auth.register_title')}</CardTitle>
-                    <CardDescription>{t('auth.register_description')}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <Form {...registerForm}>
-                      <form
-                        onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={registerForm.control}
-                          name="firstName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('onboarding.first_name')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={`${t('onboarding.first_name')}...`}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="lastName"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('onboarding.last_name')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={`${t('onboarding.last_name')}...`}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="company"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('contact.form.company')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={`${t('contact.form.company')}...`}
-                                  disabled={registerForm.watch("isIndependent")}
-                                  {...field}
-                                  onChange={(e) => {
-                                    if (!registerForm.watch("isIndependent")) {
-                                      field.onChange(e);
-                                    }
-                                  }}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="isIndependent"
-                          render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                              <FormControl>
-                                <Checkbox
-                                  checked={field.value}
-                                  onCheckedChange={(checked) => {
-                                    field.onChange(checked);
-                                    if (checked) {
-                                      registerForm.setValue("company", "");
-                                    }
-                                  }}
-                                />
-                              </FormControl>
-                              <div className="space-y-1 leading-none">
-                                <FormLabel>
-                                  {t('auth.independent_advisor')}
-                                </FormLabel>
-                              </div>
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('onboarding.email')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="email"
-                                  placeholder="Email..."
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="phone"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('onboarding.phone')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  placeholder={`${t('onboarding.phone')}...`}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="password"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('auth.password')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="password"
-                                  placeholder={`${t('auth.password')}...`}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <FormField
-                          control={registerForm.control}
-                          name="confirmPassword"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>{t('auth.confirm_password')}</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="password"
-                                  placeholder={t('auth.confirm_password_placeholder')}
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
+                          <FormField
+                            control={loginForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="email"
+                                    placeholder="Email..."
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={loginForm.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('auth.password')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    placeholder={`${t('auth.password')}...`}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={loginMutation.isPending}
+                          >
+                            {loginMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t('auth.login')}...
+                              </>
+                            ) : (
+                              t('auth.login')
+                            )}
+                          </Button>
+                          <div className="text-center mt-2">
+                            <Button
+                              variant="link"
+                              type="button"
+                              className="text-sm"
+                              onClick={() => setShowForgotPassword(true)}
+                            >
+                              Password dimenticata?
+                            </Button>
+                          </div>
+                        </form>
+                      </Form>
+                    </CardContent>
+                    <CardFooter className="flex flex-col items-center">
+                      <div className="text-sm text-muted-foreground mt-2">
+                        {t('auth.no_account')}{" "}
                         <Button
-                          type="submit"
-                          className="w-full"
-                          disabled={registerMutation.isPending}
+                          variant="link"
+                          className="p-0"
+                          onClick={() => setActiveTab("register")}
                         >
-                          {registerMutation.isPending ? (
-                            <>
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              {t('auth.register')}...
-                            </>
-                          ) : (
-                            t('auth.register')
-                          )}
+                          {t('auth.register')}
                         </Button>
-                      </form>
-                    </Form>
-                  </CardContent>
-                  <CardFooter className="flex flex-col items-center">
-                    <div className="text-sm text-muted-foreground mt-2">
-                      {t('auth.have_account')}{" "}
-                      <Button
-                        variant="link"
-                        className="p-0"
-                        onClick={() => setActiveTab("login")}
-                      >
-                        {t('auth.login')}
-                      </Button>
-                    </div>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-            </div>
-          </Tabs>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </TabsContent>
+                <TabsContent value="register">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>{t('auth.register_title')}</CardTitle>
+                      <CardDescription>{t('auth.register_description')}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Form {...registerForm}>
+                        <form
+                          onSubmit={registerForm.handleSubmit(onRegisterSubmit)}
+                          className="space-y-4"
+                        >
+                          <FormField
+                            control={registerForm.control}
+                            name="firstName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('onboarding.first_name')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={`${t('onboarding.first_name')}...`}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="lastName"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('onboarding.last_name')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={`${t('onboarding.last_name')}...`}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="company"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('contact.form.company')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={`${t('contact.form.company')}...`}
+                                    disabled={registerForm.watch("isIndependent")}
+                                    {...field}
+                                    onChange={(e) => {
+                                      if (!registerForm.watch("isIndependent")) {
+                                        field.onChange(e);
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="isIndependent"
+                            render={({ field }) => (
+                              <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                <FormControl>
+                                  <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={(checked) => {
+                                      field.onChange(checked);
+                                      if (checked) {
+                                        registerForm.setValue("company", "");
+                                      }
+                                    }}
+                                  />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                  <FormLabel>
+                                    {t('auth.independent_advisor')}
+                                  </FormLabel>
+                                </div>
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('onboarding.email')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="email"
+                                    placeholder="Email..."
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="phone"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('onboarding.phone')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    placeholder={`${t('onboarding.phone')}...`}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="password"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('auth.password')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    placeholder={`${t('auth.password')}...`}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormDescription className="text-xs mt-1">
+                                  La password deve contenere almeno 8 caratteri, una lettera maiuscola, una lettera minuscola, un numero e un carattere speciale.
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <FormField
+                            control={registerForm.control}
+                            name="confirmPassword"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>{t('auth.confirm_password')}</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="password"
+                                    placeholder={t('auth.confirm_password_placeholder')}
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button
+                            type="submit"
+                            className="w-full"
+                            disabled={registerMutation.isPending}
+                          >
+                            {registerMutation.isPending ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t('auth.register')}...
+                              </>
+                            ) : (
+                              t('auth.register')
+                            )}
+                          </Button>
+                        </form>
+                      </Form>
+                    </CardContent>
+                    <CardFooter className="flex flex-col items-center">
+                      <div className="text-sm text-muted-foreground mt-2">
+                        {t('auth.have_account')}{" "}
+                        <Button
+                          variant="link"
+                          className="p-0"
+                          onClick={() => setActiveTab("login")}
+                        >
+                          {t('auth.login')}
+                        </Button>
+                      </div>
+                    </CardFooter>
+                  </Card>
+                </TabsContent>
+              </div>
+            </Tabs>
+          )}
         </div>
       </div>
       
