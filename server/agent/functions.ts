@@ -22,7 +22,7 @@ const openai = new OpenAI({
  * Permette risposte più naturali e contestualizzate alle domande dell'utente 
  */
 export async function getClientContext(clientName: string, query: string, userId: number) {
-  console.log(`[DEBUG] Inizio ricerca contesto cliente: "${clientName}"`);
+  console.log(`[DEBUG SICUREZZA] Inizio ricerca contesto cliente: "${clientName}", userId: ${userId}`);
   try {
     // Dividi il nome per cercare di estrarre nome e cognome
     const nameParts = clientName.trim().split(/\s+/);
@@ -39,15 +39,46 @@ export async function getClientContext(clientName: string, query: string, userId
       lastName = nameParts[0];
     }
     
-    console.log(`[DEBUG] Ricerca cliente - Nome: "${firstName}", Cognome: "${lastName}"`);
+    console.log(`[DEBUG SICUREZZA] Ricerca cliente - Nome: "${firstName}", Cognome: "${lastName}", UserId: ${userId}`);
+    
+    // Tentiamo di cercare direttamente il cliente nel database usando findClientByName
+    console.log(`[DEBUG SICUREZZA] Tentativo ricerca diretta con findClientByName`);
+    const clientId = await findClientByName(clientName, userId, false);
+    
+    if (clientId) {
+      console.log(`[DEBUG SICUREZZA] Cliente trovato tramite findClientByName - ID: ${clientId}`);
+      
+      // Recupera i dati completi del cliente
+      const clientQuery = await db.select()
+        .from(clients)
+        .where(
+          and(
+            eq(clients.id, clientId),
+            eq(clients.advisorId, userId)
+          )
+        );
+        
+      if (clientQuery.length > 0) {
+        console.log(`[DEBUG SICUREZZA] Dati cliente recuperati dal DB - Nome: ${clientQuery[0].firstName} ${clientQuery[0].lastName}, AdvisorId: ${clientQuery[0].advisorId}`);
+      } else {
+        console.log(`[DEBUG SICUREZZA] ERRORE: Cliente con ID ${clientId} non trovato nel database o non appartiene a userId ${userId}`);
+      }
+    } else {
+      console.log(`[DEBUG SICUREZZA] Cliente NON trovato tramite findClientByName`);
+    }
     
     // Utilizziamo la nuova funzione per ottenere i dati completi del cliente
-    const result = await getCompleteClientData(firstName, lastName);
+    console.log(`[DEBUG SICUREZZA] Chiamata a getCompleteClientData con firstName: "${firstName}", lastName: "${lastName}", userId: ${userId}`);
+    const result = await getCompleteClientData(firstName, lastName, userId);
+    
+    console.log(`[DEBUG SICUREZZA] Risultato getCompleteClientData: success=${result.success}, errorMessage=${result.error || 'N/A'}`);
     
     if (!result.success || !result.clientData) {
+      const errMessage = result.error || `Cliente "${clientName}" non trovato o dati incompleti.`;
+      console.log(`[DEBUG SICUREZZA] Errore in getClientContext: ${errMessage}`);
       return {
         success: false,
-        error: result.error || `Cliente "${clientName}" non trovato o dati incompleti.`,
+        error: errMessage,
         query: query
       };
     }
@@ -57,6 +88,7 @@ export async function getClientContext(clientName: string, query: string, userId
     
     // Assicuriamoci che le informazioni di base esistano
     if (!clientData.personalInformation || !clientData.personalInformation.data) {
+      console.log(`[DEBUG SICUREZZA] Errore: Dati personali cliente mancanti`);
       return {
         success: false,
         error: `Dati del cliente "${clientName}" incompleti o non disponibili.`,
@@ -65,6 +97,8 @@ export async function getClientContext(clientName: string, query: string, userId
     }
     
     const personalInfo = clientData.personalInformation.data;
+    console.log(`[DEBUG SICUREZZA] Dati cliente ottenuti - ID: ${personalInfo.id?.value}, Nome: ${personalInfo.firstName?.value} ${personalInfo.lastName?.value}`);
+    
     const client = {
       id: personalInfo.id?.value || 0,
       firstName: personalInfo.firstName?.value || firstName,
@@ -80,7 +114,7 @@ export async function getClientContext(clientName: string, query: string, userId
     };
     
   } catch (error) {
-    console.error("Errore nel recupero del contesto del cliente:", error);
+    console.error("[DEBUG SICUREZZA] Errore nel recupero del contesto del cliente:", error);
     return {
       success: false,
       error: "Errore nel recupero delle informazioni sul cliente: " + (error instanceof Error ? error.message : "Errore sconosciuto"),
@@ -232,7 +266,7 @@ export async function getMeetingsByClientName(clientName: string, userId: number
     console.log(`[DEBUG] Ricerca appuntamenti per cliente: "${clientName}"`);
     
     // Utilizza la funzione helper findClientByName per trovare l'ID cliente
-    const clientId = await findClientByName(clientName, undefined, false);
+    const clientId = await findClientByName(clientName, userId, false);
     
     if (!clientId) {
       return {
@@ -339,7 +373,7 @@ export async function prepareMeetingData(meetingData: {
       console.log(`[DEBUG] Ricerca cliente per nome: "${clientNameToSearch}"`);
       
       // Usa la funzione findClientByName per trovare l'ID cliente
-      const foundClientId = await findClientByName(clientNameToSearch, undefined, false);
+      const foundClientId = await findClientByName(clientNameToSearch, userId, false);
       
       if (!foundClientId) {
         return {
@@ -532,7 +566,7 @@ export async function prepareEditMeeting(searchParams: {
     // Caso 2: Abbiamo nome cliente e data - dobbiamo cercare
     else if (searchParams.clientName && (searchParams.date || searchParams.time)) {
       // Trova l'ID cliente dal nome
-      const clientId = await findClientByName(searchParams.clientName, undefined, false);
+      const clientId = await findClientByName(searchParams.clientName, userId, false);
       
       if (!clientId) {
         return {

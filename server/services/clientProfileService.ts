@@ -423,19 +423,25 @@ function calculateCompletenessScore(client: any, mifidData: any | null): number 
  * @param options Opzioni di ricerca (limit, advisorId, onlyActive, etc.)
  * @returns Array di clienti trovati con punteggio di corrispondenza
  */
-export async function findClients(searchTerm: string, options?: {
+export async function findClients(searchTerm: string, options: {
   limit?: number;        // Numero massimo di risultati da restituire
-  advisorId?: number;    // Filtra per advisor specifico
+  advisorId: number;     // PARAMETRO OBBLIGATORIO: Filtra per advisor specifico
   onlyActive?: boolean;  // Solo clienti attivi
   exactMatch?: boolean;  // Cerca corrispondenza esatta
 }) {
   try {
     const {
       limit = 1,                  // Default: restituisce solo il primo risultato
-      advisorId = undefined,      // Default: cerca tra tutti gli advisor
+      advisorId,                  // OBBLIGATORIO: ora è un parametro richiesto
       onlyActive = false,         // Default: cerca tra tutti i clienti
       exactMatch = false          // Default: cerca corrispondenze parziali
-    } = options || {};
+    } = options;
+
+    // Controllo di sicurezza: advisorId deve essere definito
+    if (advisorId === undefined || advisorId === null) {
+      console.error("[SECURITY] Tentativo di ricerca clienti senza specificare advisorId");
+      return [];
+    }
 
     // Normalizza il termine di ricerca
     const normalizedTerm = searchTerm.trim().toLowerCase();
@@ -527,10 +533,8 @@ export async function findClients(searchTerm: string, options?: {
     // Applica le condizioni di ricerca
     query = query.where(or(...searchConditions));
     
-    // Filtra per advisor se specificato
-    if (advisorId !== undefined) {
-      query = query.where(eq(clients.advisorId, advisorId));
-    }
+    // SICUREZZA: Filtra SEMPRE per advisor specificato
+    query = query.where(eq(clients.advisorId, advisorId));
     
     // Filtra solo clienti attivi se richiesto
     if (onlyActive) {
@@ -635,31 +639,37 @@ export async function findClients(searchTerm: string, options?: {
  * Utility per trovare un singolo cliente per nome
  * Mantiene compatibilità con il vecchio findClientByName ma usa la nuova implementazione
  * @param clientName Nome o parte del nome
- * @param advisorId ID dell'advisor (opzionale)
+ * @param advisorId ID dell'advisor (OBBLIGATORIO)
  * @param onlyActive Se cercare solo clienti attivi (default: false, cerca tutti)
  * @returns ID del cliente, se trovato
  */
-export async function findClientByName(clientName: string, advisorId?: number, onlyActive: boolean = false): Promise<number | null> {
+export async function findClientByName(clientName: string, advisorId: number, onlyActive: boolean = false): Promise<number | null> {
   try {
-    console.log(`[DEBUG] findClientByName - Ricerca cliente: "${clientName}", advisorId: ${advisorId}, onlyActive: ${onlyActive}`);
+    // Log dettagliati per debug
+    console.log(`[DEBUG SICUREZZA] findClientByName - INPUT - clientName: "${clientName}", advisorId: ${advisorId}, onlyActive: ${onlyActive}`);
     
+    // Controllo di sicurezza: advisorId deve essere definito
+    if (advisorId === undefined || advisorId === null) {
+      console.error("[SECURITY] Tentativo di ricerca cliente per nome senza specificare advisorId:", clientName);
+      return null;
+    }
+
     // Imposta un limite maggiore per la ricerca iniziale
     const results = await findClients(clientName, {
       limit: 10, // Aumenta il limite per vedere più risultati potenziali
-      advisorId,
+      advisorId, // OBBLIGATORIO
       onlyActive
     });
     
-    // Log per debug
-    console.log(`[DEBUG] findClientByName - Risultati trovati: ${results.length}`);
+    // Log dettagliati dei risultati
+    console.log(`[DEBUG SICUREZZA] findClientByName - Risultati trovati: ${results.length}`);
     if (results.length > 0) {
-      console.log(`[DEBUG] findClientByName - Primi 3 risultati:`);
+      console.log(`[DEBUG SICUREZZA] findClientByName - Primi 3 risultati:`);
       results.slice(0, 3).forEach((client, idx) => {
-        console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score})`);
+        console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score}, advisorId: ${client.advisorId})`);
       });
     } else {
-      // Se non abbiamo trovato risultati, proviamo una ricerca più permissiva
-      console.log(`[DEBUG] findClientByName - Nessun risultato, provo una ricerca più flessibile`);
+      console.log(`[DEBUG SICUREZZA] findClientByName - Nessun risultato nel database - searchTerm: "${clientName}", advisorId: ${advisorId}`);
       
       // Prova ricerca ultra-permissiva
       const parts = clientName.toLowerCase().trim().split(/\s+/);
@@ -684,10 +694,8 @@ export async function findClientByName(clientName: string, advisorId?: number, o
         if (searchConditions.length > 0) {
           let query = db.select().from(clients).where(or(...searchConditions));
           
-          // Filtra per advisor se specificato
-          if (advisorId !== undefined) {
-            query = query.where(eq(clients.advisorId, advisorId));
-          }
+          // SICUREZZA: Filtra SEMPRE per advisor specificato
+          query = query.where(eq(clients.advisorId, advisorId));
           
           // Filtra solo clienti attivi se richiesto
           if (onlyActive) {
@@ -698,7 +706,10 @@ export async function findClientByName(clientName: string, advisorId?: number, o
           flexResults = await query.limit(50);
           
           // Log dei risultati
-          console.log(`[DEBUG] findClientByName - Ricerca flessibile ha trovato: ${flexResults.length} risultati`);
+          console.log(`[DEBUG SICUREZZA] findClientByName - Ricerca flessibile ha trovato: ${flexResults.length} risultati`);
+          
+          // Stampa una rappresentazione della query SQL per debug
+          console.log(`[DEBUG SICUREZZA] Query SQL approssimativa: SELECT * FROM clients WHERE (${searchConditions.map(() => 'firstName ILIKE ? OR lastName ILIKE ?').join(' OR ')}) AND advisorId = ${advisorId} ${onlyActive ? 'AND active = true' : ''} LIMIT 50`);
           
           // Calcola un punteggio di corrispondenza rudimentale
           flexResults = flexResults.map(client => {
@@ -724,26 +735,33 @@ export async function findClientByName(clientName: string, advisorId?: number, o
           
           // Log dei migliori risultati
           if (flexResults.length > 0) {
-            console.log(`[DEBUG] findClientByName - Migliori risultati ricerca flessibile:`);
+            console.log(`[DEBUG SICUREZZA] findClientByName - Migliori risultati ricerca flessibile:`);
             flexResults.slice(0, 3).forEach((client, idx) => {
-              console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score})`);
+              console.log(`  ${idx+1}. ${client.firstName} ${client.lastName} (ID: ${client.id}, Score: ${client.score}, advisorId: ${client.advisorId})`);
             });
           }
         }
       } catch (flexError) {
-        console.error(`[DEBUG] findClientByName - Errore durante la ricerca flessibile:`, flexError);
+        console.error(`[DEBUG SICUREZZA] findClientByName - Errore durante la ricerca flessibile:`, flexError);
       }
       
       // Se abbiamo trovato risultati con la ricerca flessibile, usali
       if (flexResults.length > 0) {
+        console.log(`[DEBUG SICUREZZA] findClientByName - Restituzione risultato ricerca flessibile: ID: ${flexResults[0].id}, Nome: ${flexResults[0].firstName} ${flexResults[0].lastName}`);
         return flexResults[0].id;
       }
     }
     
     // Se abbiamo trovato almeno un cliente con la ricerca normale, restituisci il suo ID
-    return results.length > 0 ? results[0].id : null;
+    if (results.length > 0) {
+      console.log(`[DEBUG SICUREZZA] findClientByName - Restituzione risultato: ID: ${results[0].id}, Nome: ${results[0].firstName} ${results[0].lastName}`);
+      return results[0].id;
+    }
+    
+    console.log(`[DEBUG SICUREZZA] findClientByName - Nessun cliente trovato con nome "${clientName}" per advisorId ${advisorId}`);
+    return null;
   } catch (error) {
-    console.error("Errore nella ricerca del cliente per nome:", error);
+    console.error("[DEBUG SICUREZZA] Errore nella ricerca del cliente per nome:", error);
     return null;
   }
 } 

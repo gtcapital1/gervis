@@ -1008,7 +1008,7 @@ export const handleClientContext = async (req: Request, res: Response) => {
       });
     }
 
-    const { clientName, query } = req.body;
+    const { clientName, query, _requireClientOwnershipCheck } = req.body;
     
     if (!clientName) {
       return res.status(400).json({
@@ -1017,7 +1017,28 @@ export const handleClientContext = async (req: Request, res: Response) => {
       });
     }
 
+    // SICUREZZA: Se la richiesta proviene da un endpoint che richiede verifica di proprietà,
+    // eseguiamo la query con verifica di sicurezza
     const result = await getClientContext(clientName, query || "", req.user.id);
+    
+    // SICUREZZA: Se è richiesta la verifica di proprietà e il risultato è positivo,
+    // verifichiamo che il cliente appartenga all'advisor corrente
+    if (_requireClientOwnershipCheck && result.success && result.clientInfo?.personalInformation?.data?.id) {
+      const clientId = result.clientInfo.personalInformation.data.id.value;
+      const advisorId = result.clientInfo.personalInformation.data.advisorId?.value;
+      
+      if (advisorId !== req.user.id) {
+        // Log del tentativo di accesso non autorizzato
+        console.error(`[SECURITY VIOLATION] Utente ${req.user.id} ha tentato di accedere ai dati del cliente ${clientId} appartenente all'advisor ${advisorId}`);
+        
+        return res.status(403).json({
+          success: false,
+          message: 'Non sei autorizzato ad accedere ai dati di questo cliente'
+        });
+      }
+      
+      console.log(`[SECURITY] Accesso verificato: utente ${req.user.id} autorizzato ad accedere al cliente ${clientId}`);
+    }
     
     if (result.success) {
       res.json({

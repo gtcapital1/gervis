@@ -7,20 +7,40 @@ import { findClientByName } from "../services/clientProfileService";
  * Comprehensive function to fetch all client-related data with field descriptions
  * @param firstName The client's first name
  * @param lastName The client's last name
+ * @param advisorId Optional advisor ID to restrict search to a specific advisor's clients
  * @returns A complete structured data object with metadata and descriptions
  */
-export async function getCompleteClientData(firstName: string, lastName: string) {
+export async function getCompleteClientData(firstName: string, lastName: string, advisorId?: number) {
   try {
-    console.log(`[INFO] Fetching comprehensive data for client: ${firstName} ${lastName}`);
+    console.log(`[DEBUG SICUREZZA] getCompleteClientData - Ricerca per: ${firstName} ${lastName}, advisorId: ${advisorId || 'non specificato'}`);
     
     // 1. Find the client using the improved findClientByName function
     const fullName = `${firstName} ${lastName}`.trim();
-    const clientId = await findClientByName(fullName, undefined, false);
     
-    if (!clientId) {
+    // PROBLEMA CRITICO: Se advisor non è specificato, la funzione non può trovare clienti
+    // dopo le modifiche di sicurezza introdotte
+    if (!advisorId) {
+      console.error(`[CRITICAL SECURITY ERROR] getCompleteClientData chiamata senza advisorId! Questo è un bug che deve essere corretto.`);
+      console.error(`[CRITICAL SECURITY ERROR] Stack trace:`, new Error().stack);
+      
+      // Se siamo chiamati direttamente da getClientContext, possiamo leggere il userId dai parametri
+      // altrimenti dobbiamo restituire un errore
       return {
         success: false,
-        error: `Client "${firstName} ${lastName}" not found in the database.`
+        error: `Client "${firstName} ${lastName}" not found in the database. Security error: Missing advisorId parameter.`
+      };
+    }
+    
+    const clientId = await findClientByName(fullName, advisorId, false);
+    
+    console.log(`[DEBUG SICUREZZA] getCompleteClientData - Risultato findClientByName: clientId=${clientId || 'non trovato'}`);
+    
+    if (!clientId) {
+      const errMsg = `Client "${firstName} ${lastName}" not found in the database.`;
+      console.log(`[DEBUG SICUREZZA] getCompleteClientData - Errore: ${errMsg}`);
+      return {
+        success: false,
+        error: errMsg
       };
     }
     
@@ -28,14 +48,26 @@ export async function getCompleteClientData(firstName: string, lastName: string)
     const clientData = await db.select().from(clients).where(eq(clients.id, clientId));
     
     if (!clientData.length) {
+      const errMsg = `Client with ID ${clientId} not found in the database. This is unusual and might indicate a database inconsistency.`;
+      console.log(`[DEBUG SICUREZZA] getCompleteClientData - Errore: ${errMsg}`);
       return {
         success: false,
-        error: `Client with ID ${clientId} not found in the database. This is unusual and might indicate a database inconsistency.`
+        error: errMsg
       };
     }
     
     const client = clientData[0];
-    console.log(`[INFO] Client found: ID ${client.id} - ${client.firstName} ${client.lastName}`);
+    console.log(`[DEBUG SICUREZZA] getCompleteClientData - Cliente trovato: ID ${client.id}, Nome: ${client.firstName} ${client.lastName}, AdvisorId: ${client.advisorId}`);
+    
+    // CONTROLLO DI SICUREZZA: Verifica che il cliente appartiene all'advisor specificato
+    if (advisorId && client.advisorId !== advisorId) {
+      const errMsg = `Security violation: client ID ${client.id} belongs to advisor ${client.advisorId}, not authorized for advisor ${advisorId}`;
+      console.error(`[SECURITY VIOLATION] ${errMsg}`);
+      return {
+        success: false,
+        error: `Client "${firstName} ${lastName}" not found in the database.` // Messaggio generico per evitare data leakage
+      };
+    }
     
     // 2. Fetch all related data for the client
     const clientAssets = await db.select().from(assets).where(eq(assets.clientId, client.id));
