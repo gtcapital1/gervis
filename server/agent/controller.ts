@@ -146,6 +146,7 @@ export const handleChat = async (req: Request, res: Response) => {
       
       Per le idee di investimento, devi sempre spiegare perche l'idea si allinea con i profili dei clienti.
 
+      Se l'user chiede di usare notizie, devi SEMPRE chiamare la funzione getFinancialNews ed usare quelle notizie.
       Se usi una notizia, devi sempre citare la fonte e mettere il link alla notizia originale.
       Le idee di investimento devono essere sempre specifiche, dettagliate e dovresti dare esempi per implementarle.
       
