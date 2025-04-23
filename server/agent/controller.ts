@@ -1,14 +1,15 @@
 import { OpenAI } from 'openai';
 import { Request, Response } from 'express';
 import { db } from '../db'; // Import database instance
-import { conversations, messages as messagesTable } from '../../shared/schema'; // Rename to avoid conflict
-import { eq, and, asc, desc, isNull } from 'drizzle-orm'; // Import query helpers
+import { conversations, messages as messagesTable, clients } from '../../shared/schema'; // Rename to avoid conflict
+import { eq, and, asc, desc, isNull, or, ilike } from 'drizzle-orm'; // Import query helpers
 import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews } from './functions';
 import { nanoid } from 'nanoid';
 import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
 import { ChatCompletionMessageParam } from 'openai';
 import express from 'express';
 import { handleFlow } from './flow';
+import { findClientByName } from '../services/clientProfileService';
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in your environment variables
@@ -41,9 +42,11 @@ export const handleChat = async (req: Request, res: Response) => {
   }
 
   try {
-    // Aggiungiamo una variabile per indicare se mostrare il dialog nel frontend
+    // Aggiungiamo variabili per indicare se mostrare i dialog nel frontend
     let showMeetingDialog = false;
     let meetingDialogData = null;
+    let showEmailDialog = false;
+    let emailDialogData = null;
     
     const { message: userMessage, conversationId, model: requestedModel } = req.body; // Aggiungi il parametro model
 
@@ -140,9 +143,13 @@ export const handleChat = async (req: Request, res: Response) => {
       Adotta uno stile professionale, chiaro, sintetico, ispirato alle best practice del settore della consulenza finanziaria e wealth management.  
       Se il messaggio dell'utente riguarda un cliente specifico, valuta se richiedere informazioni aggiuntive tramite strumenti esterni.
       
-      IMPORTANTE: Quando l'utente chiede di creare un appuntamento/meeting, NON usare frasi che indicano che l'operazione è già completata (come "Ho creato un appuntamento" o "L'appuntamento è stato fissato"). 
+      IMPORTANTE PER APPUNTAMENTI: Quando l'utente chiede di creare un appuntamento/meeting, NON usare frasi che indicano che l'operazione è già completata (come "Ho creato un appuntamento" o "L'appuntamento è stato fissato"). 
       Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
       Questo perché l'utente dovrà confermare l'appuntamento tramite un'interfaccia grafica, quindi l'operazione non è ancora conclusa.
+      
+      IMPORTANTE PER EMAIL: chiamare la funzione composeEmailData SOLO se utente ha chiesto esplicitamente di INVIARE la mail. Se utente chiede di preparare mail, rispondi normalmente senza chiamare funzione composeEmailData.;
+      Ad esempio: "INVIA un'email a Mario Rossi" o "INVIA messaggio di follow-up a Bianchi". 
+      In questi casi, chiama la funzione composeEmailData con i dettagli dell'email. Non suggerire di inviare email se l'utente non ha usato la parola "INVIA" esplicitamente.
       
       MOLTO IMPORTANTE PER GLI APPUNTAMENTI: 
       1. Quando l'utente chiede di VISUALIZZARE appuntamenti esistenti (con frasi come "mostrami gli appuntamenti", "che meeting ho", "incontri di questa settimana", ecc.), devi SEMPRE chiamare una di queste funzioni:
@@ -203,6 +210,11 @@ export const handleChat = async (req: Request, res: Response) => {
     const timeframePattern = /(oggi|questa\s+settimana|domani|prossima\s+settimana|questo\s+mese)/i;
     const clientNamePattern = /(con|per|di|cliente)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
     
+    // Pattern per rilevare richieste di email con la parola INVIA in maiuscolo
+    // Deve essere esplicito per evitare falsi positivi
+    const emailPattern = /INVIA\s+(una|un\'|un|la)?\s*(email|mail|messaggio|comunicazione)/i;
+    const hasEmailKeyword = userMessage.toUpperCase().includes("INVIA");
+    
     let toolChoice: any = "auto";
     
     // Se l'utente sta chiedendo appuntamenti in un periodo, forziamo getMeetingsByDateRange
@@ -219,6 +231,14 @@ export const handleChat = async (req: Request, res: Response) => {
       toolChoice = {
         type: "function",
         function: { name: "getMeetingsByClientName" }
+      };
+    }
+    // Se l'utente ha usato "INVIA" nel messaggio e contiene email/mail/messaggio, forziamo composeEmailData
+    else if (hasEmailKeyword && emailPattern.test(userMessage)) {
+      console.log('[DEBUG] Forcing composeEmailData for email request');
+      toolChoice = {
+        type: "function",
+        function: { name: "composeEmailData" }
       };
     }
     
@@ -244,6 +264,39 @@ export const handleChat = async (req: Request, res: Response) => {
                 }
               },
               required: ["clientName", "query"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "composeEmailData",
+            description: "Prepara una email in base al prompt dell'utente. Deve essere chiamata SOLO quando l'utente usa esplicitamente la parola 'INVIA' nel suo messaggio (ad esempio 'INVIA una email a Mario', 'INVIA mail di follow-up', ecc). Questa funzione mostra un dialog per consentire all'utente di rivedere e inviare la mail.",
+            parameters: {
+              type: "object",
+              properties: {
+                clientId: {
+                  type: "string",
+                  description: "ID del cliente o nome del cliente a cui inviare l'email"
+                },
+                clientName: {
+                  type: "string",
+                  description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
+                },
+                subject: {
+                  type: "string",
+                  description: "Oggetto dell'email"
+                },
+                emailType: {
+                  type: "string",
+                  description: "Tipo di email (follow-up, proposta, richiesta, ecc.)"
+                },
+                content: {
+                  type: "string",
+                  description: "Corpo dell'email, formattato in markdown"
+                }
+              },
+              required: ["clientName", "subject", "content"]
             }
           }
         },
@@ -324,7 +377,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "prepareMeetingData",
-            description: "Usare IMMEDIATAMENTE questa funzione quando l'utente chiede di creare, fissare o programmare un appuntamento con un cliente. Anche quando l'utente usa varianti come 'fissami', 'organizzami', 'preparami', 'vorrei un incontro', ecc. Raccoglie i dati essenziali dal messaggio dell'utente e mostra il dialog per creare l'appuntamento. Esempi: 'crea appuntamento con Mario Rossi', 'fissami un meeting con Bianchi domani', 'fissi un incontro con Signora Verdi alle 15', 'organizza meet con Colombo', ecc.",
+            description: "Usare questa funzione quando l'utente chiede di creare, fissare o programmare un appuntamento con un cliente.",
             parameters: {
               type: "object",
               properties: {
@@ -630,6 +683,37 @@ export const handleChat = async (req: Request, res: Response) => {
               console.log('[DEBUG] Impostato flag showMeetingDialog a true con dati per modifica:', meetingDialogData);
             }
             break;
+
+          case "composeEmailData":
+            console.log('[DEBUG] Chiamando composeEmailData');
+            result = await composeEmailData({
+              clientId: args.clientId,
+              clientName: args.clientName,
+              subject: args.subject,
+              emailType: args.emailType,
+              content: args.content
+            }, userId);
+            console.log('[DEBUG] Risultato composeEmailData:', result);
+            
+            // Se il risultato è positivo, imposta il flag per mostrare il dialog
+            if (result.success && result.emailData) {
+              showEmailDialog = true;
+              emailDialogData = result.emailData;
+              
+              // Se è presente una risposta suggerita, la impostiamo come risposta AI
+              if (result.suggestedResponse) {
+                aiResponse = result.suggestedResponse;
+                console.log('[DEBUG] Utilizzo della risposta suggerita dalla funzione');
+              }
+              
+              console.log('[DEBUG] Impostato flag showEmailDialog a true con dati:', emailDialogData);
+            }
+            
+            console.log('Preparazione dati email completata:', { 
+              success: result.success,
+              client: result.success && result.emailData ? result.emailData.clientName : 'Nessun cliente trovato'
+            });
+            break;
         }
         
         console.log('[DEBUG] Funzione eseguita con successo, salvo il risultato');
@@ -762,6 +846,8 @@ Il tono deve essere quello di un consulente finanziario esperto che parla a un c
       model: modelToUse,
       showMeetingDialog,
       meetingDialogData,
+      showEmailDialog,
+      emailDialogData,
       functionResults // Aggiungi i risultati delle funzioni alla risposta
     };
 
@@ -1067,3 +1153,124 @@ agentRouter.post('/client-context', handleClientContext);
 
 // Add flow endpoint
 agentRouter.post('/flow', handleFlowRequest);
+
+// Funzione per preparare i dati di una email
+async function composeEmailData(args: {
+  clientId?: string;
+  clientName?: string;
+  subject?: string;
+  emailType?: string;
+  content?: string;
+}, userId: number) {
+  console.log('[DEBUG composeEmailData] Input ricevuti:', args);
+  
+  try {
+    // Verifica presenza di dati obbligatori
+    if (!args.clientName && !args.clientId) {
+      return {
+        success: false,
+        error: 'È necessario specificare il nome del cliente o l\'ID del cliente.'
+      };
+    }
+    
+    if (!args.subject) {
+      return {
+        success: false,
+        error: 'È necessario specificare l\'oggetto dell\'email.'
+      };
+    }
+    
+    if (!args.content) {
+      return {
+        success: false,
+        error: 'È necessario specificare il contenuto dell\'email.'
+      };
+    }
+    
+    let clientId = null;
+    let clientName = args.clientName || '';
+    
+    // Se è stato passato un ID cliente direttamente, usiamo quello
+    if (args.clientId && !isNaN(parseInt(args.clientId))) {
+      clientId = parseInt(args.clientId);
+    } 
+    // Altrimenti, cerchiamo il cliente per nome usando findClientByName
+    else if (args.clientName) {
+      console.log(`[DEBUG composeEmailData] Cercando cliente con nome: ${args.clientName}`);
+      
+      try {
+        // Utilizziamo findClientByName per ottenere l'ID del cliente
+        clientId = await findClientByName(args.clientName, userId, false);
+        
+        if (!clientId) {
+          return {
+            success: false,
+            error: `Nessun cliente trovato con il nome "${args.clientName}".`
+          };
+        }
+        
+        // Recupera i dati completi del cliente per ottenere nome e cognome
+        const clientData = await db.select({
+          id: clients.id,
+          firstName: clients.firstName,
+          lastName: clients.lastName
+        })
+        .from(clients)
+        .where(
+          and(
+            eq(clients.id, clientId),
+            eq(clients.advisorId, userId)
+          )
+        );
+        
+        if (clientData.length === 0) {
+          return {
+            success: false,
+            error: `Cliente trovato ma impossibile recuperare i dettagli completi.`
+          };
+        }
+        
+        // Imposta il nome completo
+        clientName = `${clientData[0].firstName} ${clientData[0].lastName}`;
+        console.log(`[DEBUG composeEmailData] Cliente trovato: ${clientName} (ID: ${clientId})`);
+      } catch (dbError) {
+        console.error('[ERROR composeEmailData] Errore ricerca cliente:', dbError);
+        return {
+          success: false,
+          error: `Errore durante la ricerca del cliente: ${dbError.message || 'Database error'}`
+        };
+      }
+    }
+    
+    if (!clientId) {
+      return {
+        success: false,
+        error: 'Impossibile identificare il cliente in modo univoco.'
+      };
+    }
+    
+    // Prepara i dati per il dialog
+    const emailData = {
+      clientId,
+      clientName,
+      subject: args.subject,
+      emailType: args.emailType || 'general',
+      content: args.content
+    };
+    
+    // Componi una risposta suggerita da mostrare all'utente
+    const suggestedResponse = `Ho preparato l'email per ${clientName}. Puoi rivederla e inviarla tramite il pannello di controllo.`;
+    
+    return {
+      success: true,
+      emailData,
+      suggestedResponse
+    };
+  } catch (error) {
+    console.error('[ERROR composeEmailData]', error);
+    return {
+      success: false,
+      error: `Si è verificato un errore durante la preparazione dell'email: ${error.message || 'Errore sconosciuto'}`
+    };
+  }
+}

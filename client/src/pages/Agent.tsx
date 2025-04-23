@@ -15,6 +15,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import MeetingCard from "@/components/MeetingCard";
 import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { EmailDialog } from "@/components/dialog/EmailDialog";
+import { EmailFormData } from "@/types/email";
 
 // Tipo per i messaggi della chat
 interface Message {
@@ -108,6 +110,10 @@ export default function AgentPage() {
   // Calendario
   const [showMeetingDialog, setShowMeetingDialog] = useState(false);
   const [meetingData, setMeetingData] = useState<any>(null);
+  
+  // Email
+  const [showEmailDialog, setShowEmailDialog] = useState(false);
+  const [emailData, setEmailData] = useState<any>(null);
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -273,10 +279,19 @@ export default function AgentPage() {
           // Mostra direttamente il dialog di creazione meeting
           setMeetingData(response.meetingDialogData);
           setShowMeetingDialog(true);
-          }
+        }
           
-          // Aggiorna la lista delle conversazioni
-          fetchConversations();
+        // Gestisci il dialog per la creazione di email se presente
+        if (response.showEmailDialog && response.emailDialogData) {
+          console.log('[Agent] Email dialog data:', response.emailDialogData);
+          
+          // Mostra direttamente il dialog di creazione email
+          setEmailData(response.emailDialogData);
+          setShowEmailDialog(true);
+        }
+          
+        // Aggiorna la lista delle conversazioni
+        fetchConversations();
         } else {
           toast({
             title: "Errore",
@@ -1271,6 +1286,40 @@ Grazie!`;
     );
   };
 
+  // Funzione per gestire l'invio dell'email
+  const handleSendEmail = async (emailFormData: EmailFormData) => {
+    try {
+      console.log("Invio email con dati:", emailFormData);
+      
+      const response = await apiRequest('/api/emails', {
+        method: 'POST',
+        body: JSON.stringify(emailFormData)
+      });
+      
+      if (response.success) {
+        toast({
+          title: "Email inviata",
+          description: "L'email è stata inviata con successo",
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: response.message || "Si è verificato un errore durante l'invio dell'email",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("Errore nell'invio dell'email:", error);
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante l'invio dell'email",
+        variant: "destructive",
+      });
+    } finally {
+      setShowEmailDialog(false);
+    }
+  };
+
   // Handle direct message sending (used by example buttons)
   const handleDirectMessageSend = async (message: string) => {
     if (!message.trim() || isLoading) return;
@@ -1330,6 +1379,13 @@ Grazie!`;
           console.log('[Agent] Meeting dialog data:', response.meetingDialogData);
           setMeetingData(response.meetingDialogData);
           setShowMeetingDialog(true);
+        }
+        
+        // Handle email dialog if present
+        if (response.showEmailDialog && response.emailDialogData) {
+          console.log('[Agent] Email dialog data:', response.emailDialogData);
+          setEmailData(response.emailDialogData);
+          setShowEmailDialog(true);
         }
         
         // Update conversations list
@@ -1398,8 +1454,8 @@ Grazie!`;
       <div className={`flex-1 overflow-y-auto px-4 py-6 ${showChat ? 'flex flex-col' : ''}`}>
         <div className={`w-full ${showChat ? 'flex-grow flex flex-col' : ''}`}>
           {renderMainScreen()}
-                  </div>
-                  </div>
+        </div>
+      </div>
       
       {/* Dialog di conferma eliminazione conversazione */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -1500,6 +1556,21 @@ Grazie!`;
           }}
           useClientSelector={!meetingData.isEdit}
           onSubmit={meetingData.isEdit ? handleUpdateMeeting : handleCreateMeeting}
+        />
+      )}
+      
+      {/* Dialog per la creazione dell'email */}
+      {emailData && (
+        <EmailDialog
+          open={showEmailDialog}
+          onOpenChange={setShowEmailDialog}
+          clientId={emailData.clientId}
+          title="Prepara un'email"
+          presetSubject={emailData.subject || ""}
+          presetMessage={emailData.content || ""}
+          includeCustomFooter={true}
+          useClientSelector={!emailData.clientId}
+          onSubmit={handleSendEmail}
         />
       )}
     </div>
