@@ -516,7 +516,7 @@ export default function AgentPage() {
     let meetings = null;
     let meetingsCardTitle = "Appuntamenti";
     let meetingsCardDescription = null;
-    // Variabile per tenere il messaggio originale
+    // Manteniamo solo il messaggio originale fornito da OpenAI
     let originalContent = message.content;
     
     if (!isUser && message.functionResults) {
@@ -547,10 +547,7 @@ export default function AgentPage() {
               timeframe = `con ${functionResult.clientName}`;
             }
             
-            // Costruisci il messaggio
-            originalContent = timeframe 
-              ? `Eccoli!` 
-              : "Eccoli!";
+            // Manteniamo solo il messaggio originale fornito da OpenAI
           }
         }
       } catch (e) {
@@ -704,9 +701,7 @@ ${meeting.notes ? `\nNote sull'appuntamento: ${meeting.notes}` : ''}
 Per favore aiutami con:
 1. Un riepilogo del profilo del cliente e dei suoi obiettivi finanziari
 2. Argomenti principali da affrontare durante l'incontro
-3. Eventuali documenti o materiali da preparare
-4. Suggerimenti per rendere produttivo l'incontro
-5. Possibili prodotti o servizi da proporre in base al profilo del cliente
+3. Possibili prodotti o servizi da proporre in base al profilo del cliente
 
 Grazie!`;
                           

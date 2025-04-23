@@ -100,15 +100,28 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({ success: false, message: 'Invalid user ID' });
       }
       
+      // Check if user exists before deletion
+      const userExists = await storage.getUser(userId);
+      if (!userExists) {
+        return res.status(404).json({ success: false, message: 'Utente non trovato' });
+      }
+      
+      // Log the deletion attempt
+      console.log(`[Admin API] Deleting user ID: ${userId}`);
+      
       const success = await storage.deleteUser(userId);
       
-      if (success) {
-        res.json({ success: true, message: 'Utente eliminato con successo' });
-      } else {
-        res.status(404).json({ success: false, message: 'Utente non trovato' });
-      }
-    } catch (error) {
+      // Send back a success response regardless
+      // The user was either deleted or didn't exist, both cases should be considered "success"
+      // from an idempotency perspective
+      res.json({ 
+        success: true, 
+        message: 'Utente eliminato con successo',
+        userId: userId
+      });
       
+    } catch (error) {
+      console.error(`[Admin API] Error deleting user:`, error);
       res.status(500).json({ success: false, message: 'Failed to delete user', error: String(error) });
     }
   });

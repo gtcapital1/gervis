@@ -144,6 +144,17 @@ export const handleChat = async (req: Request, res: Response) => {
       Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
       Questo perché l'utente dovrà confermare l'appuntamento tramite un'interfaccia grafica, quindi l'operazione non è ancora conclusa.
       
+      MOLTO IMPORTANTE PER GLI APPUNTAMENTI: 
+      1. Quando l'utente chiede di VISUALIZZARE appuntamenti esistenti (con frasi come "mostrami gli appuntamenti", "che meeting ho", "incontri di questa settimana", ecc.), devi SEMPRE chiamare una di queste funzioni:
+         - getMeetingsByDateRange: per richieste relative a periodi di tempo (oggi, questa settimana, questo mese, ecc.)
+         - getMeetingsByClientName: per richieste relative a un cliente specifico
+      
+      2. ESEMPI:
+         - Se l'utente chiede "Che meeting ho questa settimana?", chiama getMeetingsByDateRange con la settimana corrente
+         - Se l'utente chiede "Mostrami gli appuntamenti con Mario Rossi", chiama getMeetingsByClientName
+      
+      3. Una volta ottenuti i dati, fornisci SOLO un breve messaggio introduttivo come "Ecco gli appuntamenti richiesti" o "Ho trovato N appuntamenti per il periodo specificato" senza elencare i dettagli, poiché verranno visualizzati automaticamente in una card separata nell'interfaccia.
+      
       Per le idee di investimento, devi sempre spiegare perche l'idea si allinea con i profili dei clienti.
 
       Se l'user chiede di usare notizie, devi SEMPRE chiamare la funzione getFinancialNews ed usare quelle notizie.
@@ -186,6 +197,30 @@ export const handleChat = async (req: Request, res: Response) => {
     // Rimuoviamo l'analisi delle keyword e lasciamo che OpenAI scelga automaticamente
     // il tool giusto da chiamare in base al contesto del messaggio
     const forcedToolChoice = "auto";
+    
+    // Analizziamo il messaggio per vedere se riguarda la visualizzazione di appuntamenti
+    const showMeetingsPattern = /(mostra|visualizza|vedi|che|quali|quanti|dammi|hai|ho|lista|elenco)\s+(meeting|appuntamenti|incontri)/i;
+    const timeframePattern = /(oggi|questa\s+settimana|domani|prossima\s+settimana|questo\s+mese)/i;
+    const clientNamePattern = /(con|per|di|cliente)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
+    
+    let toolChoice: any = "auto";
+    
+    // Se l'utente sta chiedendo appuntamenti in un periodo, forziamo getMeetingsByDateRange
+    if (showMeetingsPattern.test(userMessage) && timeframePattern.test(userMessage)) {
+      console.log('[DEBUG] Forcing getMeetingsByDateRange for timeframe-based meeting query');
+      toolChoice = {
+        type: "function",
+        function: { name: "getMeetingsByDateRange" }
+      };
+    }
+    // Se l'utente sta chiedendo appuntamenti con un cliente, forziamo getMeetingsByClientName
+    else if (showMeetingsPattern.test(userMessage) && clientNamePattern.test(userMessage)) {
+      console.log('[DEBUG] Forcing getMeetingsByClientName for client-based meeting query');
+      toolChoice = {
+        type: "function",
+        function: { name: "getMeetingsByClientName" }
+      };
+    }
     
     const completion = await openai.chat.completions.create({
       model: modelToUse, // Usa il modello selezionato
@@ -245,7 +280,7 @@ export const handleChat = async (req: Request, res: Response) => {
           type: "function",
           function: {
             name: "getMeetingsByDateRange",
-            description: "Recupera gli appuntamenti in un intervallo di date specifico",
+            description: "Recupera gli appuntamenti in un intervallo di date specifico. USARE QUESTA FUNZIONE quando l'utente chiede appuntamenti per un periodo di tempo, come 'mostrami gli appuntamenti di questa settimana', 'che incontri ho oggi', 'meeting del mese', ecc. Questa è la funzione principale per mostrare l'agenda all'utente.",
             parameters: {
               type: "object",
               properties: {
@@ -356,8 +391,8 @@ export const handleChat = async (req: Request, res: Response) => {
           }
         }
       ],
-      // Utilizziamo sempre "auto" per lasciare a OpenAI la scelta del tool più appropriato
-      tool_choice: forcedToolChoice,
+      // Utilizziamo la scelta del tool che abbiamo determinato
+      tool_choice: toolChoice,
       // Add other parameters like temperature, max_tokens if needed
     });
     

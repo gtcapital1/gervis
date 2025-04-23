@@ -160,6 +160,7 @@ export function UserManagement() {
   // Delete user mutation
   const deleteMutation = useMutation({
     mutationFn: (userId: number) => {
+      console.log(`[Admin] Attempting to delete user with ID: ${userId}`);
       return apiRequest(`/api/admin/users/${userId}`, {
         method: "DELETE",
       });
@@ -173,9 +174,24 @@ export function UserManagement() {
       setShowDialog(false);
     },
     onError: (error: Error) => {
+      // Log the error details for debugging
+      console.error("[Admin] Error deleting user:", {
+        message: error.message,
+        status: (error as any).status,
+        data: (error as any).data
+      });
+      
+      // Handle different error types with more specific messages
+      let errorMessage = error.message;
+      
+      // If it's a 404 error, provide a clearer message
+      if ((error as any).status === 404) {
+        errorMessage = "L'utente non esiste o è già stato eliminato";
+      }
+      
       toast({
         title: t("error.title"),
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     }

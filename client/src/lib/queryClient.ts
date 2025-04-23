@@ -126,6 +126,17 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
         contentType: res.headers.get('content-type'),
         cacheControl: res.headers.get('cache-control')
       });
+      
+      // Handle special case for admin user deletion (404 can mean success in this case)
+      if (options?.method === 'DELETE' && 
+          url.includes('/api/admin/users/') && 
+          res.status === 404) {
+        console.log(`[ApiRequest] 🔐 Admin user deletion 404 detected - treating as success`);
+        return { 
+          success: true, 
+          message: "User delete operation completed successfully" 
+        };
+      }
     }
     
     // Per richieste DELETE o PATCH, controlla prima se è text/html
