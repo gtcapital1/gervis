@@ -3,7 +3,7 @@ export const whitelistedEmails: string[] = [
   "gianmarco.trapasso@gmail.com",
   "rsansone.eo@gmail.com",
   "roberto.rescina@gmail.com",
-  "giammi.kr@gmail.com"
+  "gt@gervis.it"
 ];
 
 /**
