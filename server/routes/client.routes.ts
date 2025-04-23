@@ -623,4 +623,94 @@ export function registerClientRoutes(app: Express) {
       handleErrorResponse(res, error, 'Impossibile aggiornare lo stato del cliente');
     }
   });
+
+  // Update MIFID data and assets for a client
+  app.patch('/api/clients/:id/mifid', isAuthenticated, async (req, res) => {
+    try {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ success: false, message: 'Non autorizzato' });
+      }
+      
+      const clientId = parseInt(req.params.id);
+      if (isNaN(clientId)) {
+        return res.status(400).json({ success: false, message: 'ID cliente non valido' });
+      }
+      
+      // Get client from database
+      const client = await storage.getClient(clientId);
+      
+      if (!client) {
+        return res.status(404).json({ success: false, message: 'Cliente non trovato' });
+      }
+      
+      // Check if this client belongs to the current advisor
+      if (client.advisorId !== req.user.id) {
+        safeLog('Tentativo di aggiornamento non autorizzato dei dati MIFID', 
+          { userId: req.user.id, clientId, clientOwner: client.advisorId }, 'error');
+        return res.status(403).json({ success: false, message: 'Non autorizzato a modificare questo cliente' });
+      }
+      
+      const { assets: requestAssets, ...mifidData } = req.body;
+      
+      // Update MIFID data
+      const updatedMifid = await storage.updateMifid(clientId, mifidData);
+      
+      // Update assets
+      if (Array.isArray(requestAssets)) {
+        // Prima elimina tutti gli asset esistenti per questo cliente
+        await storage.deleteAssetsByClient(clientId);
+        
+        // Poi inserisci i nuovi asset
+        const newAssets = [];
+        for (const asset of requestAssets) {
+          if (asset.value > 0) {
+            const assetData = {
+              clientId,
+              category: asset.category,
+              description: asset.description || '',
+              value: asset.value || 0
+            };
+            
+            const newAsset = await storage.createAsset(assetData);
+            newAssets.push(newAsset);
+          }
+        }
+        
+        // Calcola e aggiorna il patrimonio netto e la fascia del cliente
+        const totalAssets = requestAssets.reduce((sum, asset) => sum + (asset.value || 0), 0);
+        const debts = mifidData.debts || 0;
+        const netWorth = totalAssets - debts;
+        
+        // Determina la fascia del cliente in base al patrimonio netto
+        let clientSegment = 'mass_market';
+        if (netWorth >= 1000000) clientSegment = 'uhnw';
+        else if (netWorth >= 500000) clientSegment = 'vhnw';
+        else if (netWorth >= 250000) clientSegment = 'hnw';
+        else if (netWorth >= 100000) clientSegment = 'affluent';
+        
+        // Aggiorna il cliente con il nuovo patrimonio netto e la fascia
+        await storage.updateClient(clientId, { 
+          totalAssets, 
+          netWorth, 
+          clientSegment: clientSegment as any 
+        });
+        
+        // Ritorna i dati MIFID aggiornati e i nuovi asset
+        res.json({ 
+          success: true, 
+          mifid: updatedMifid,
+          assets: newAssets
+        });
+      } else {
+        // Se non ci sono asset nella richiesta, ritorna solo i dati MIFID aggiornati
+        res.json({ 
+          success: true, 
+          mifid: updatedMifid
+        });
+      }
+    } catch (error) {
+      safeLog('Errore durante l\'aggiornamento dei dati MIFID', error, 'error');
+      handleErrorResponse(res, error, 'Impossibile aggiornare i dati MIFID');
+    }
+  });
 } 

@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { db } from "../db";
-import { mifid, clients } from "@shared/schema";
+import { mifid, clients, assets, type InsertAsset } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { safeLog, handleErrorResponse, typedCatch } from "../routes";
 
@@ -120,6 +120,30 @@ async function saveOnboardingData(clientId: number, data: any) {
       .where(eq(clients.id, clientId));
 
     safeLog('Patrimonio netto e segmento cliente aggiornati', { clientId, netWorth, clientSegment }, 'info');
+    
+    // Salva gli asset nella tabella assets
+    if (data.assets && Array.isArray(data.assets)) {
+      safeLog('Salvataggio assets', { count: data.assets.length, clientId }, 'info');
+      
+      // Elimina eventuali asset esistenti per questo cliente (opzionale, dipende dal comportamento desiderato)
+      // await db.delete(assets).where(eq(assets.clientId, clientId));
+      
+      for (const asset of data.assets) {
+        // Procedi solo se l'asset ha un valore maggiore di zero
+        if (asset.value > 0) {
+          const assetData: InsertAsset = {
+            clientId,
+            category: asset.category,
+            description: asset.description || "",
+            value: parseInt(asset.value) || 0
+          };
+          
+          await db.insert(assets).values(assetData);
+        }
+      }
+      
+      safeLog('Assets salvati', { clientId }, 'info');
+    }
     
     return { success: true };
   } catch (error: unknown) {

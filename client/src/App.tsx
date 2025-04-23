@@ -107,6 +107,15 @@ function App() {
                   </ProtectedRoute>
                 </Route>
 
+                {/* Add route for MIFID editing */}
+                <Route path="/app/clients/:id/edit-mifid">
+                  <ProtectedRoute>
+                    <Layout>
+                      <EditMifidForm />
+                    </Layout>
+                  </ProtectedRoute>
+                </Route>
+
                 <Route path="/app/clients">
                   <ProtectedRoute>
                     <Layout>

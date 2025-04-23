@@ -356,13 +356,8 @@ export default function EditMifidForm() {
       
       
       try {
-        // Salva i dati MIFID
-        
-        
-        
-        
-        // Assicuriamoci che tutti i campi siano nel formato corretto
-        const mifidPayload = {
+        // Prepariamo un unico payload che include sia i dati MIFID che gli asset
+        const payload = {
           ...processedMifidData,
           // Assicuriamoci che i campi numerici siano effettivamente numeri
           annualIncome: Number(processedMifidData.annualIncome) || 0,
@@ -374,44 +369,23 @@ export default function EditMifidForm() {
           incomeGenerationInterest: Number(processedMifidData.incomeGenerationInterest) || 0,
           capitalPreservationInterest: Number(processedMifidData.capitalPreservationInterest) || 0,
           estatePlanningInterest: Number(processedMifidData.estatePlanningInterest) || 0,
-        };
-        
-        
-        
-        const mifidResponse = await apiRequest(`/api/clients/${clientId}/mifid`, {
-          method: "PATCH",
-          body: JSON.stringify(mifidPayload),
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-        
-
-        // Salva gli asset
-        
-        
-        
-        
-        // Assicuriamoci che gli asset siano nel formato corretto
-        const assetsPayload = {
+          // Includiamo gli assets nello stesso payload
           assets: processedAssets.map(asset => ({
             ...asset,
             value: Number(asset.value) || 0,
           }))
         };
         
-        
-        
-        const assetsResponse = await apiRequest(`/api/clients/${clientId}/assets`, {
-          method: "PUT",
-          body: JSON.stringify(assetsPayload),
+        // Una sola chiamata API per inviare tutti i dati
+        const response = await apiRequest(`/api/clients/${clientId}/mifid`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
           headers: {
             'Content-Type': 'application/json',
           },
         });
-        
 
-        return { success: true };
+        return response;
       } catch (error: unknown) {
         
         if (error instanceof Error) {
@@ -456,6 +430,36 @@ export default function EditMifidForm() {
     
     
     mutation.mutate(data);
+  }
+
+  // Funzione per aggiungere un nuovo asset
+  function addAsset() {
+    const assets = form.getValues().assets;
+    
+    // Creiamo un array delle categorie già presenti
+    const existingCategories = assets.map(asset => asset.category);
+    
+    // Troviamo una categoria che non è ancora stata utilizzata
+    const unusedCategory = ASSET_CATEGORIES.find(category => !existingCategories.includes(category));
+    
+    form.setValue("assets", [
+      ...assets, 
+      { category: unusedCategory || "cash", value: 0, description: "" }
+    ]);
+  }
+  
+  // Funzione per rimuovere un asset
+  function removeAsset(index: number) {
+    const assets = form.getValues().assets;
+    if (assets.length > 1) {
+      form.setValue("assets", assets.filter((_, i) => i !== index));
+    } else {
+      toast({
+        title: "Non è possibile rimuovere",
+        description: "È necessario avere almeno un asset",
+        variant: "destructive"
+      });
+    }
   }
 
   if (isLoading) {
@@ -1466,9 +1470,9 @@ export default function EditMifidForm() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="pt-4">
-                <h3 className="text-md font-semibold mb-2">I tuoi asset principali</h3>
+                <h3 className="text-md font-semibold mb-2">Gestione dei tuoi asset</h3>
                 <FormDescription className="mb-4">
-                  Indica il valore approssimativo dei tuoi principali asset (immobiliari, mobiliari, liquidi)
+                  Puoi modificare il valore degli asset esistenti, cambiare la categoria, rimuoverli o aggiungere nuovi asset
                 </FormDescription>
                 
                 {/* Mostra gli asset esistenti */}
@@ -1480,11 +1484,23 @@ export default function EditMifidForm() {
                       render={({ field }) => (
                         <FormItem className="flex-[2]">
                           <FormControl>
-                            <Input
-                              value={t(`asset_categories.${field.value}`)}
-                              disabled
-                              className="bg-muted"
-                            />
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Categoria" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {categoryOptions.map(category => (
+                                  <SelectItem key={category} value={category}>
+                                    {t(`asset_categories.${category}`)}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </FormControl>
                         </FormItem>
                       )}
@@ -1509,20 +1525,26 @@ export default function EditMifidForm() {
                     
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="outline"
                       size="icon"
-                      onClick={() => {
-                        const currentAssets = form.getValues("assets");
-                        form.setValue(
-                          "assets",
-                          currentAssets.filter((_, i) => i !== index)
-                        );
-                      }}
+                      className="flex-[0]"
+                      onClick={() => removeAsset(index)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-2"
+                  onClick={addAsset}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Aggiungi asset
+                </Button>
                 
                 <div className="mt-4 p-4 bg-muted rounded-md">
                   <div className="flex justify-between items-center">

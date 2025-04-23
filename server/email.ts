@@ -147,40 +147,9 @@ async function getTransporter(userId: number | null) {
         throw configError;
       }
     } else {
-      // Configurazione email di default per utenti senza configurazioni personalizzate
-      console.log('[DEBUG] getTransporter - Using default SMTP settings');
-      const defaultConfig = {
-        host: process.env.SMTP_HOST || 'smtp.gmail.com',
-        port: parseInt(process.env.SMTP_PORT || '587', 10),
-        secure: process.env.SMTP_PORT === '465',
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || '',
-        from: process.env.SMTP_USER || ''
-      };
-      
-      console.log('[DEBUG] getTransporter - Default config:', { 
-        host: defaultConfig.host,
-        port: defaultConfig.port,
-        secure: defaultConfig.secure,
-        hasUser: !!defaultConfig.user,
-        hasPass: !!defaultConfig.pass
-      });
-      
-      console.log('[DEBUG] getTransporter - Creating default transporter');
-      const transporter = createTransporter(defaultConfig);
-      
-      // Dati utente per la firma
-      const userData = {
-        firstName: user?.firstName || '',
-        lastName: user?.lastName || '',
-        email: user?.email || '',
-        company: user?.company || undefined,
-        phone: user?.phone || undefined,
-        role: user?.role || 'Consulente Finanziario'
-      };
-      
-      console.log('[DEBUG] getTransporter - Returning default transporter with user data');
-      return { transporter, config: defaultConfig, userData };
+      // Rimuoviamo completamente il fallback e generiamo un errore esplicito
+      console.error('[DEBUG] getTransporter - No valid SMTP configuration found for user');
+      throw new Error("Configurazione email mancante. Per inviare email, configura le tue impostazioni SMTP nel tab Impostazioni.");
     }
   } catch (error) {
     // Rilancia l'errore per informare il chiamante del problema

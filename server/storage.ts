@@ -72,6 +72,7 @@ export interface IStorage {
   
   // AI Profile Methods
   getAiProfile(clientId: number): Promise<AiProfile | undefined>;
+  getAiProfileByClient(clientId: number): Promise<AiProfile | null>;
   createAiProfile(profile: InsertAiProfile): Promise<AiProfile>;
   updateAiProfile(clientId: number, profileData: any): Promise<AiProfile>;
   deleteAiProfile(clientId: number): Promise<boolean>;
@@ -100,6 +101,9 @@ export interface IStorage {
   getMifidByClient(clientId: number): Promise<Mifid | undefined>;
   getAllMifidByClients(clientIds: number[]): Promise<Mifid[]>;
   updateMifid(clientId: number, mifidData: Partial<Mifid>): Promise<Mifid>;
+
+  // Asset methods
+  deleteAssetsByClient(clientId: number): Promise<boolean>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1058,6 +1062,18 @@ export class PostgresStorage implements IStorage {
     }
   }
   
+  async getAiProfileByClient(clientId: number): Promise<AiProfile | null> {
+    try {
+      const result = await db.select()
+        .from(aiProfiles)
+        .where(eq(aiProfiles.clientId, clientId));
+      return result[0] || null;
+    } catch (error) {
+      
+      throw error;
+    }
+  }
+  
   async createAiProfile(profile: InsertAiProfile): Promise<AiProfile> {
     try {
       const result = await db.insert(aiProfiles)
@@ -1581,6 +1597,26 @@ export class PostgresStorage implements IStorage {
       console.log(`Created advisor suggestions for advisor ${data.advisorId}`);
     } catch (error) {
       console.error(`Error creating advisor suggestions for advisor ${data.advisorId}:`, error);
+      throw error;
+    }
+  }
+
+  // Asset methods
+  async deleteAssetsByClient(clientId: number): Promise<boolean> {
+    try {
+      // Eliminiamo gli asset del cliente
+      const deletedAssets = await db.delete(assets)
+        .where(eq(assets.clientId, clientId))
+        .returning({ id: assets.id });
+      
+      // Aggiorniamo il totalAssets del cliente
+      await db.update(clients)
+        .set({ totalAssets: 0 })
+        .where(eq(clients.id, clientId));
+      
+      return deletedAssets.length > 0;
+    } catch (error) {
+      
       throw error;
     }
   }
