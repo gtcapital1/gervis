@@ -1,10 +1,6 @@
 import { Express, Request, Response } from 'express';
 import { 
-  getMarketIndices, 
-  getTickerData, 
-  validateTicker, 
   getFinancialNews, 
-  getTickerSuggestions 
 } from '../market-api';
 import { rateLimit, isAuthenticated, safeLog, handleErrorResponse } from '../routes';
 
@@ -25,33 +21,6 @@ export function registerMarketRoutes(app: Express): void {
     max: 60 // 60 richieste per finestra
   });
 
-  // Rotte per i dati di mercato accessibili a utenti autenticati
-  app.get('/api/market/indices', marketRateLimit, isAuthenticated, (req: Request, res: Response) => {
-    try {
-      safeLog('Richiesta dati indici di mercato');
-      getMarketIndices(req, res);
-    } catch (error) {
-      handleErrorResponse(res, error, 'Errore nel recupero degli indici di mercato');
-    }
-  });
-
-  app.get('/api/market/tickers', marketRateLimit, isAuthenticated, (req: Request, res: Response) => {
-    try {
-      safeLog('Richiesta dati ticker specifici', { symbols: req.query.symbols });
-      getTickerData(req, res);
-    } catch (error) {
-      handleErrorResponse(res, error, 'Errore nel recupero dei dati dei ticker');
-    }
-  });
-
-  app.get('/api/market/validate-ticker', marketRateLimit, isAuthenticated, (req: Request, res: Response) => {
-    try {
-      safeLog('Richiesta validazione ticker', { symbol: req.query.symbol });
-      validateTicker(req, res);
-    } catch (error) {
-      handleErrorResponse(res, error, 'Errore nella validazione del ticker');
-    }
-  });
 
   app.get('/api/market/news', marketRateLimit, isAuthenticated, (req: Request, res: Response) => {
     try {
@@ -59,15 +28,6 @@ export function registerMarketRoutes(app: Express): void {
       getFinancialNews(req, res);
     } catch (error) {
       handleErrorResponse(res, error, 'Errore nel recupero delle notizie finanziarie');
-    }
-  });
-
-  app.get('/api/market/ticker-suggestions', marketRateLimit, isAuthenticated, (req: Request, res: Response) => {
-    try {
-      safeLog('Richiesta suggerimenti ticker', { query: req.query.query });
-      getTickerSuggestions(req, res);
-    } catch (error) {
-      handleErrorResponse(res, error, 'Errore nel recupero dei suggerimenti per i ticker');
     }
   });
 

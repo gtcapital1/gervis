@@ -1,9 +1,5 @@
 /**
- * API per dati di mercato e notizie finanziarie
- * Fornisce accesso a:
- * - Indici di mercato principali
- * - Ticker personalizzati
- * - Notizie finanziarie
+ * API per notizie finanziarie utilizzando News API
  */
 
 import { Request, Response } from 'express';
@@ -38,46 +34,7 @@ async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000)
   }
 }
 
-// Sistema di cache in memoria per ridurre le chiamate API e garantire stabilità dei dati
-const cacheStore: Record<string, { data: any, expiry: number }> = {};
-
-function getFromCache(key: string): any | null {
-  const cached = cacheStore[key];
-  if (cached && cached.expiry > Date.now()) {
-    return cached.data;
-  }
-  return null;
-}
-
-function saveToCache(key: string, data: any, ttlMs: number): void {
-  cacheStore[key] = {
-    data,
-    expiry: Date.now() + ttlMs
-  };
-}
-
-// Tipi per i dati di mercato
-interface MarketIndex {
-  symbol: string;
-  name: string;
-  price: number | null;
-  change: number | null;
-  changePercent: number | null;
-  country: string;
-  dataUnavailable?: boolean;
-  currency?: string;
-}
-
-interface StockTicker {
-  symbol: string;
-  name: string;
-  price: number | null;
-  change: number | null;
-  changePercent: number | null;
-  currency?: string;
-  dataUnavailable?: boolean;
-}
-
+// Tipo per le notizie
 interface NewsItem {
   title: string;
   description: string;
@@ -86,644 +43,158 @@ interface NewsItem {
   publishedAt: string;
   source: {
     name: string;
+    domain?: string;
+    country?: string;
   };
+  author?: string;
+  content?: string;
 }
 
-// Indici principali da monitorare
-const MAIN_INDICES = [
-  { symbol: "^GSPC", name: "S&P 500", country: "us" },
-  { symbol: "^DJI", name: "Dow Jones", country: "us" },
-  { symbol: "^IXIC", name: "NASDAQ", country: "us" },
-  { symbol: "^FTSE", name: "FTSE 100", country: "gb" },
-  { symbol: "^FTSEMIB.MI", name: "FTSE MIB", country: "it" },
-  { symbol: "^GDAXI", name: "DAX", country: "de" },
-  { symbol: "^FCHI", name: "CAC 40", country: "fr" },
-  { symbol: "^VIX", name: "VIX", country: "us" },
-  { symbol: "^HSI", name: "Hang Seng", country: "hk" }
-];
-
-// Chiavi API utilizzate
-// Queste variabili servono solo per il logging debug
-const API_KEYS: Record<string, string | undefined> = {
-  FINANCIAL_API_KEY: process.env.FINANCIAL_API_KEY,
-  FINANCIAL_NEWS_API_KEY: process.env.FINANCIAL_NEWS_API_KEY
-};
-
-// Dati fissi per indici di mercato (non cambiano ad ogni richiesta)
-const FIXED_INDICES_DATA: Record<string, { price: number, changePercent: number, currency: string }> = {
-  "^GSPC": { price: 5071.63, changePercent: 0.42, currency: "$" },
-  "^DJI": { price: 38239.85, changePercent: 0.68, currency: "$" },
-  "^IXIC": { price: 15927.90, changePercent: 0.32, currency: "$" },
-  "^FTSE": { price: 7930.96, changePercent: 0.18, currency: "£" },
-  "^FTSEMIB.MI": { price: 33987.03, changePercent: 0.85, currency: "€" },
-  "^GDAXI": { price: 17842.85, changePercent: 0.23, currency: "€" },
-  "^FCHI": { price: 8142.72, changePercent: 0.54, currency: "€" },
-  "^VIX": { price: 14.08, changePercent: -2.36, currency: "$" },
-  "^HSI": { price: 16512.92, changePercent: -0.43, currency: "HK$" }
-};
-
-// Funzione per recuperare i dati degli indici principali
-export async function getMarketIndices(req: Request, res: Response) {
+// Funzione per recuperare le notizie finanziarie da News API
+export async function getFinancialNews(req: Request, res: Response) {
   try {
+    console.log("[INFO] Richiesta notizie finanziarie da News API");
     
-    
-    // Utilizziamo la Financial Modeling Prep API per ottenere dati reali
-    const apiKey = process.env.FINANCIAL_API_KEY;
-    
-    // Verifichiamo che la chiave API sia disponibile
+    // Configura News API
+    const apiKey = process.env.NEWS_API_KEY || process.env.FINANCIAL_NEWS_API_KEY;
     if (!apiKey) {
-      
-      throw new Error("API key not found");
-    }
-    
-    
-    
-    // Per migliorare la stabilità, utilizziamo un sistema di cache in memoria
-    // che mantiene i dati per un certo periodo di tempo (30 minuti)
-    const cacheKey = 'market_indices';
-    const cachedData = getFromCache(cacheKey);
-    
-    if (cachedData) {
-      
-      return res.json(cachedData);
-    }
-    
-    
-    
-    // Prepariamo le richieste per tutti gli indici
-    
-    
-    const fetchPromises = MAIN_INDICES.map(async (index) => {
-      try {
-        
-        
-        // Il piano gratuito di Financial Modeling Prep è limitato solo alle azioni americane
-        // Quindi controlliamo se l'indice è americano
-        if (index.country !== 'us') {
-          
-          // Per indici non americani, mostriamo N/A invece di dati fissi
-          return {
-            symbol: index.symbol,
-            name: index.name,
-            price: null,
-            change: null,
-            changePercent: null,
-            country: index.country,
-            dataUnavailable: true
-          };
-        }
-        
-        // Normalizziamo il simbolo per la API per indici americani
-        let apiSymbol = index.symbol;
-        
-        // Rimuoviamo il prefisso ^ che potrebbe esserci nel simbolo
-        if (apiSymbol.startsWith("^")) {
-          apiSymbol = apiSymbol.substring(1);
-        }
-        
-        const apiKey = process.env.FINANCIAL_API_KEY;
-        if (!apiKey) {
-          throw new Error("API key not found");
-        }
-        
-        const url = `https://financialmodelingprep.com/api/v3/quote/${apiSymbol}?apikey=${apiKey}`;
-        
-        
-        // Utilizziamo la nuova funzione fetchWithTimeout
-        
-        
-        const response = await fetchWithTimeout(url);
-        
-        
-        
-        
-        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-          const data = response.data[0];
-          
-          return {
-            symbol: index.symbol,
-            name: index.name,
-            price: typeof data.price === 'number' ? parseFloat(data.price.toFixed(2)) : data.price,
-            change: typeof data.change === 'number' ? parseFloat(data.change.toFixed(2)) : data.change,
-            changePercent: typeof data.changesPercentage === 'number' ? parseFloat(data.changesPercentage.toFixed(2)) : data.changesPercentage,
-            country: index.country,
-            currency: "$"
-          };
-        } else {
-          
-          // Se non abbiamo dati, mostriamo N/A
-          return {
-            symbol: index.symbol,
-            name: index.name,
-            price: null,
-            change: null,
-            changePercent: null,
-            country: index.country,
-            dataUnavailable: true
-          };
-        }
-      } catch (err) {
-        
-        // In caso di errore, mostriamo N/A
-        return {
-          symbol: index.symbol,
-          name: index.name,
-          price: null,
-          change: null,
-          changePercent: null,
-          country: index.country,
-          dataUnavailable: true
-        };
-      }
-    });
-    
-    // Attendiamo che tutte le richieste siano completate
-    const indices = await Promise.all(fetchPromises);
-    
-    // Salviamo nella cache
-    saveToCache(cacheKey, indices, 30 * 60 * 1000); // Cache valida per 30 minuti
-    
-    res.json(indices);
-  } catch (error) {
-    
-    
-    // In caso di errore generale, mostriamo N/A per tutti gli indici
-    const indices: MarketIndex[] = MAIN_INDICES.map(index => {
-      return {
-        symbol: index.symbol,
-        name: index.name,
-        price: null,
-        change: null,
-        changePercent: null,
-        country: index.country,
-        dataUnavailable: true
-      };
-    });
-    
-    res.json(indices);
-  }
-}
-
-// Dati fissi per ticker popolari (fallback in caso di API non disponibile)
-const FIXED_TICKER_DATA: Record<string, { price: number, changePercent: number, currency: string }> = {
-  "AAPL": { price: 169.96, changePercent: 0.24, currency: "$" },
-  "MSFT": { price: 416.78, changePercent: 0.32, currency: "$" },
-  "GOOGL": { price: 146.95, changePercent: 0.41, currency: "$" },
-  "AMZN": { price: 176.84, changePercent: 0.65, currency: "$" },
-  "META": { price: 486.18, changePercent: 0.72, currency: "$" },
-  "TSLA": { price: 171.05, changePercent: -0.42, currency: "$" },
-  "NVDA": { price: 879.19, changePercent: 0.84, currency: "$" },
-  "NFLX": { price: 612.32, changePercent: 0.28, currency: "$" },
-  "PYPL": { price: 62.41, changePercent: -0.16, currency: "$" },
-  "INTC": { price: 40.96, changePercent: -0.35, currency: "$" },
-  "AMD": { price: 170.48, changePercent: 0.64, currency: "$" },
-  "CSCO": { price: 48.56, changePercent: 0.12, currency: "$" },
-  "ADBE": { price: 465.32, changePercent: 0.54, currency: "$" },
-  "DIS": { price: 114.92, changePercent: 0.38, currency: "$" },
-  "V": { price: 277.45, changePercent: 0.28, currency: "$" },
-  "MA": { price: 458.19, changePercent: 0.31, currency: "$" },
-  "JPM": { price: 196.62, changePercent: 0.48, currency: "$" },
-  "BAC": { price: 36.54, changePercent: 0.21, currency: "$" },
-  "WMT": { price: 59.87, changePercent: 0.15, currency: "$" },
-  "JNJ": { price: 152.05, changePercent: -0.14, currency: "$" },
-  "PG": { price: 161.24, changePercent: 0.08, currency: "$" },
-  "KO": { price: 60.93, changePercent: 0.24, currency: "$" },
-  "PEP": { price: 170.85, changePercent: 0.16, currency: "$" },
-  "ENI.MI": { price: 14.55, changePercent: 0.42, currency: "€" },
-  "ENEL.MI": { price: 6.13, changePercent: 0.26, currency: "€" },
-  "ISP.MI": { price: 3.05, changePercent: 0.59, currency: "€" },
-  "UCG.MI": { price: 30.17, currency: "€", changePercent: 0.85 },
-  "STM.MI": { price: 41.92, changePercent: 0.64, currency: "€" },
-  "TIT.MI": { price: 0.235, changePercent: -0.32, currency: "€" }
-};
-
-// Funzione per recuperare dati per ticker specifici
-export async function getTickerData(req: Request, res: Response) {
-  try {
-    
-    
-    // Ottieni la lista di ticker dalla query (es. ?symbols=AAPL,MSFT,GOOGL)
-    const symbols = req.query.symbols ? (req.query.symbols as string).split(',') : [];
-    
-    
-    
-    if (!symbols.length) {
-      
-      return res.status(400).json({ error: "Nessun ticker specificato" });
-    }
-    
-    // Utilizziamo la Financial Modeling Prep API per ottenere dati reali
-    const apiKey = process.env.FINANCIAL_API_KEY;
-    
-    // Verifichiamo che la chiave API sia disponibile
-    if (!apiKey) {
-      
-      throw new Error("API key not found");
-    }
-    
-    
-    
-    // Verifica se abbiamo dati nella cache
-    const cacheKey = `tickers_${symbols.join('_')}`;
-    const cachedData = getFromCache(cacheKey);
-    
-    if (cachedData) {
-      
-      return res.json(cachedData);
-    }
-    
-    
-    
-    // Separa i ticker americani da quelli non americani
-    // Il piano gratuito di Financial Modeling Prep supporta solo azioni americane
-    const usSymbols: string[] = [];
-    const nonUsSymbols: string[] = [];
-    
-    symbols.forEach(symbol => {
-      // Consideriamo non-US tutte le azioni con .MI (Milano), .PA (Parigi), ecc.
-      if (symbol.includes('.')) {
-        nonUsSymbols.push(symbol);
-      } else {
-        usSymbols.push(symbol);
-      }
-    });
-    
-    // Array per i risultati
-    let apiTickers: StockTicker[] = [];
-    
-    // Per i ticker non americani, mostriamo N/A invece di dati fissi
-    nonUsSymbols.forEach(symbol => {
-      const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-      
-      apiTickers.push({
-        symbol,
-        name: tickerInfo ? tickerInfo.name : symbol,
-        price: null,
-        change: null,
-        changePercent: null,
-        dataUnavailable: true
-      });
-    });
-    
-    // Per i ticker americani, proviamo a ottenere dati reali
-    if (usSymbols.length > 0) {
-      try {
-        const symbolsString = usSymbols.join(',');
-        
-        // Impostiamo un timeout più lungo per problemi di rete su AWS
-        
-        
-        const tickerApiKey = process.env.FINANCIAL_API_KEY;
-        if (!tickerApiKey) {
-          throw new Error("API key not found");
-        }
-        
-        const tickerUrl = `https://financialmodelingprep.com/api/v3/quote/${symbolsString}?apikey=${tickerApiKey}`;
-        
-        
-        // Utilizziamo la nuova funzione fetchWithTimeout
-        const response = await fetchWithTimeout(tickerUrl);
-        
-        
-        
-        
-        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-          // Trasformiamo i dati nel formato atteso
-          const usTickers: StockTicker[] = response.data.map((item: any) => {
-            return {
-              symbol: item.symbol,
-              name: item.name,
-              price: typeof item.price === 'number' ? parseFloat(item.price.toFixed(2)) : item.price,
-              change: typeof item.change === 'number' ? parseFloat(item.change.toFixed(2)) : item.change,
-              changePercent: typeof item.changesPercentage === 'number' ? parseFloat(item.changesPercentage.toFixed(2)) : item.changesPercentage,
-              currency: "$"
-            };
-          });
-          
-          // Combiniamo i ticker US con quelli non-US
-          apiTickers = [...apiTickers, ...usTickers];
-          
-          // Verifichiamo se abbiamo tutti i ticker americani richiesti
-          const foundSymbols = usTickers.map(t => t.symbol);
-          const missingSymbols = usSymbols.filter(s => !foundSymbols.includes(s));
-          
-          // Aggiungiamo i ticker americani mancanti come dati non disponibili
-          for (const symbol of missingSymbols) {
-            const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-            
-            apiTickers.push({
-              symbol,
-              name: tickerInfo ? tickerInfo.name : symbol,
-              price: null,
-              change: null,
-              changePercent: null,
-              dataUnavailable: true
-            });
-          }
-        } else {
-          // Se non abbiamo dati dall'API, mostriamo N/A per tutti i ticker americani
-          for (const symbol of usSymbols) {
-            const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-            
-            apiTickers.push({
-              symbol,
-              name: tickerInfo ? tickerInfo.name : symbol,
-              price: null,
-              change: null,
-              changePercent: null,
-              dataUnavailable: true
-            });
-          }
-        }
-      } catch (apiError) {
-        
-        
-        // In caso di errore dell'API, mostriamo N/A per tutti i ticker americani
-        for (const symbol of usSymbols) {
-          const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-          
-          apiTickers.push({
-            symbol,
-            name: tickerInfo ? tickerInfo.name : symbol,
-            price: null,
-            change: null,
-            changePercent: null,
-            dataUnavailable: true
-          });
-        }
-      }
-    }
-    
-    // Ritorno dei dati al client
-    res.json(apiTickers);
-  } catch (error) {
-    
-    
-    // In caso di errore generale, restituire dati non disponibili
-    const tickers: StockTicker[] = (req.query.symbols as string).split(',').map(symbol => {
-      const tickerInfo = POPULAR_TICKERS.find(t => t.symbol === symbol);
-      
-      return {
-        symbol,
-        name: tickerInfo ? tickerInfo.name : symbol,
-        price: null,
-        change: null,
-        changePercent: null,
-        dataUnavailable: true
-      };
-    });
-    
-    res.json(tickers);
-  }
-}
-
-// Suggerimenti di ticker popolari per simulare l'autocompletamento
-const POPULAR_TICKERS = [
-  { symbol: "AAPL", name: "Apple Inc." },
-  { symbol: "MSFT", name: "Microsoft Corporation" },
-  { symbol: "GOOGL", name: "Alphabet Inc." },
-  { symbol: "AMZN", name: "Amazon.com Inc." },
-  { symbol: "META", name: "Meta Platforms Inc." },
-  { symbol: "TSLA", name: "Tesla Inc." },
-  { symbol: "NVDA", name: "NVIDIA Corporation" },
-  { symbol: "NFLX", name: "Netflix Inc." },
-  { symbol: "PYPL", name: "PayPal Holdings Inc." },
-  { symbol: "INTC", name: "Intel Corporation" },
-  { symbol: "AMD", name: "Advanced Micro Devices Inc." },
-  { symbol: "CSCO", name: "Cisco Systems Inc." },
-  { symbol: "ADBE", name: "Adobe Inc." },
-  { symbol: "DIS", name: "The Walt Disney Company" },
-  { symbol: "CMCSA", name: "Comcast Corporation" },
-  { symbol: "V", name: "Visa Inc." },
-  { symbol: "MA", name: "Mastercard Incorporated" },
-  { symbol: "JPM", name: "JPMorgan Chase & Co." },
-  { symbol: "BAC", name: "Bank of America Corporation" },
-  { symbol: "WMT", name: "Walmart Inc." },
-  { symbol: "JNJ", name: "Johnson & Johnson" },
-  { symbol: "PG", name: "Procter & Gamble Co." },
-  { symbol: "HD", name: "The Home Depot Inc." },
-  { symbol: "VZ", name: "Verizon Communications Inc." },
-  { symbol: "T", name: "AT&T Inc." },
-  { symbol: "KO", name: "The Coca-Cola Company" },
-  { symbol: "PEP", name: "PepsiCo Inc." },
-  { symbol: "ENI.MI", name: "Eni S.p.A." },
-  { symbol: "ENEL.MI", name: "Enel S.p.A." },
-  { symbol: "ISP.MI", name: "Intesa Sanpaolo S.p.A." },
-  { symbol: "UCG.MI", name: "UniCredit S.p.A." },
-  { symbol: "STM.MI", name: "STMicroelectronics N.V." },
-  { symbol: "TIT.MI", name: "Telecom Italia S.p.A." },
-  { symbol: "FCA.MI", name: "Stellantis N.V." }
-];
-
-// Funzione per ottenere suggerimenti ticker in base alla query
-export async function getTickerSuggestions(req: Request, res: Response) {
-  try {
-    const query = req.query.q as string;
-    
-    if (!query || query.length < 1) {
+      console.error("[ERROR] API key per News API non configurata");
       return res.json([]);
     }
     
-    // Filtra i ticker che corrispondono alla query (ignora case)
-    const suggestions = POPULAR_TICKERS.filter(ticker => 
-      ticker.symbol.toLowerCase().includes(query.toLowerCase()) || 
-      ticker.name.toLowerCase().includes(query.toLowerCase())
-    ).slice(0, 5); // Limita a 5 risultati
+    // Combina notizie da diverse categorie rilevanti
+    console.log("[INFO] Recupero notizie da più categorie per aumentare il numero");
     
-    res.json(suggestions);
-  } catch (error) {
+    // Prima richiesta: business
+    const businessUrl = `https://newsapi.org/v2/top-headlines?category=business&pageSize=50&apiKey=${apiKey}`;
+    console.log(`[INFO] 1. Chiamata Business: ${businessUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    const businessResponse = await fetchWithTimeout(businessUrl);
     
-    res.status(500).json({ error: "Errore nel recupero dei suggerimenti ticker" });
-  }
-}
-
-// Funzione per validare se un ticker esiste
-export async function validateTicker(req: Request, res: Response) {
-  try {
-    const { symbol } = req.body;
+    // Seconda richiesta: technology (rilevante per mercati)
+    const techUrl = `https://newsapi.org/v2/top-headlines?category=technology&pageSize=30&apiKey=${apiKey}`;
+    console.log(`[INFO] 2. Chiamata Technology: ${techUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    const techResponse = await fetchWithTimeout(techUrl);
     
-    if (!symbol) {
-      return res.status(400).json({ error: "Simbolo ticker non fornito" });
-    }
+    // Terza richiesta: general (può contenere notizie finanziarie importanti)
+    const generalUrl = `https://newsapi.org/v2/top-headlines?category=general&pageSize=20&apiKey=${apiKey}`;
+    console.log(`[INFO] 3. Chiamata General: ${generalUrl.replace(apiKey, 'API_KEY_HIDDEN')}`);
+    const generalResponse = await fetchWithTimeout(generalUrl);
     
-    // Verifichiamo se il ticker esiste nella nostra lista
-    const tickerExists = POPULAR_TICKERS.some(ticker => 
-      ticker.symbol.toLowerCase() === symbol.toLowerCase()
-    );
+    // Combinazione dei risultati
+    let allArticles: any[] = [];
     
-    // Se esiste nella lista, lo consideriamo valido
-    // Altrimenti consideriamo comunque valido (per facilità d'uso)
-    const isValid = true;
-    
-    // Recupera il nome completo se disponibile
-    const tickerInfo = POPULAR_TICKERS.find(ticker => 
-      ticker.symbol.toLowerCase() === symbol.toLowerCase()
-    );
-    
-    // Simuliamo un ritardo di risposta per rendere l'applicazione più realistica
-    setTimeout(() => {
-      res.json({ 
-        valid: isValid, 
-        symbol: symbol.toUpperCase(),
-        name: tickerInfo ? tickerInfo.name : symbol.toUpperCase()
-      });
-    }, 300);
-  } catch (error) {
-    
-    res.status(500).json({ error: "Errore nella validazione del ticker" });
-  }
-}
-
-// Funzione per recuperare le notizie finanziarie da Financial Modeling Prep API
-export async function getFinancialNews(req: Request, res: Response) {
-  try {
-    // Ottieni il parametro di filtro per le notizie (globale o italia)
-    const filter = req.query.filter as string || 'global';
-    // Ottieni il parametro limit se presente
-    const limit = req.query.limit as string || '20'; // Default 20 se non specificato
-    
-    
-    
-    // Riattivazione del codice originale
-    const cacheKey = `financial_news_${filter}`;
-    
-    // Controlla se abbiamo dati cached
-    const cachedData = getFromCache(cacheKey);
-    if (cachedData) {
-      
-      return res.json(cachedData);
-    }
-    
-    
-    
-    const apiKey = process.env.FINANCIAL_API_KEY;
-    if (!apiKey) {
-      
-      throw new Error("API key non configurata per Financial Modeling Prep");
-    }
-    
-    
-    
-    let newsItems: NewsItem[] = [];
-    let apiUrl = '';
-    
-    if (filter === 'italia') {
-      // Per notizie italiane, utilizziamo i ticker italiani
-      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?tickers=ISP.MI,ENI.MI,ENEL.MI,UCG.MI,TIT.MI&limit=100&apikey=${apiKey}`;
-    } else {
-      // Per notizie globali
-      apiUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=100&apikey=${apiKey}`;
-    }
-    
-    
-    
-    // Impostiamo un timeout più lungo per problemi di rete su AWS
-    
-    
-    // Utilizziamo la nuova funzione fetchWithTimeout
-    
-    
-    const response = await fetchWithTimeout(apiUrl);
-    
-    
-    
-    
-    // Con axios, il corpo della risposta è già in response.data
-    const data = response.data;
-    
-    
-    if (Array.isArray(data)) {
-      
-      
-      // Whitelist delle testate giornalistiche più rilevanti
-      const trustedSourcesWhitelist = [
-        // Pubblicazioni tradizionali
-        'Bloomberg', 
-        'Reuters', 
-        'CNBC', 
-        'Wall Street Journal', 
-        'Financial Times', 
-        'MarketWatch',
-        'The Economist',
-        'Fortune',
-        'Barron\'s',
-        'Business Insider',
-        'Il Sole 24 Ore',
-        'Milano Finanza',
-        
-        // Domini comuni delle fonti di notizie finanziarie
-        'seekingalpha',
-        'fool.com',
-        'yahoo',
-        'investing.com',
-        'globenewswire',
-        'prnewswire',
-        'accessnewswire',
-        '247wallst',
-        'finbold',
-        
-        // Domini di agenzie stampa
-        'reuters.com',
-        'bloomberg.com',
-        'cnbc.com',
-        'wsj.com',
-        'ft.com'
-      ];
-      
-      // Filtra le notizie solo dalle fonti attendibili (case-insensitive)
-      const filteredData = data.filter((item: any) => {
-        if (!item.site) return false;
-        const lowercaseSite = item.site.toLowerCase();
-        return trustedSourcesWhitelist.some(source => 
-          lowercaseSite.includes(source.toLowerCase())
-        );
-      });
-      
-      
-      
-      // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
-      let finalData = filteredData;
-      
-      // Se non ci sono notizie dalle fonti whitelist, utilizza le più recenti in generale
-      if (filteredData.length === 0) {
-        finalData = data;
+    if (businessResponse.ok && businessResponse.data) {
+      const businessData = businessResponse.data as any;
+      if (businessData.status === 'ok' && businessData.articles && Array.isArray(businessData.articles)) {
+        console.log(`[INFO] Trovati ${businessData.articles.length} articoli business`);
+        allArticles = [...allArticles, ...businessData.articles];
       }
-      
-      // Applica il limite se specificato
-      if (limit && finalData.length > 0) {
-        const limitNum = parseInt(limit);
-        if (!isNaN(limitNum)) {
-          finalData = finalData.slice(0, limitNum);
-        }
+    }
+    
+    if (techResponse.ok && techResponse.data) {
+      const techData = techResponse.data as any;
+      if (techData.status === 'ok' && techData.articles && Array.isArray(techData.articles)) {
+        console.log(`[INFO] Trovati ${techData.articles.length} articoli tech`);
+        allArticles = [...allArticles, ...techData.articles];
       }
+    }
+    
+    if (generalResponse.ok && generalResponse.data) {
+      const generalData = generalResponse.data as any;
+      if (generalData.status === 'ok' && generalData.articles && Array.isArray(generalData.articles)) {
+        console.log(`[INFO] Trovati ${generalData.articles.length} articoli general`);
+        allArticles = [...allArticles, ...generalData.articles];
+      }
+    }
+    
+    console.log(`[INFO] Totale articoli combinati: ${allArticles.length}`);
+    
+    // Rimuovi duplicati (stesso titolo)
+    const uniqueArticles = Array.from(new Map(allArticles.map(item => 
+      [item.title, item]
+    )).values());
+    
+    console.log(`[INFO] Articoli dopo rimozione duplicati: ${uniqueArticles.length}`);
+    
+    // Procedi con la logica esistente considerando uniqueArticles come gli articoli da processare
+    if (uniqueArticles.length > 0) {
+      console.log(`[INFO] Processamento di ${uniqueArticles.length} articoli`);
       
-      newsItems = finalData.map((item: any) => ({
-        title: item.title,
-        description: item.text,
-        url: item.url,
-        urlToImage: item.image || "",
-        publishedAt: item.publishedDate,
+      // Trasforma i risultati nel formato atteso
+      const newsItems: NewsItem[] = uniqueArticles.map((item: any) => ({
+        title: item.title || "",
+        description: item.description || "",
+        url: item.url || "",
+        urlToImage: item.urlToImage || "",
+        publishedAt: item.publishedAt || new Date().toISOString(),
         source: {
-          name: item.site
-        }
+          name: item.source?.name || "News",
+          domain: extractDomain(item.url) || "",
+          country: ""
+        },
+        author: item.author || "",
+        content: item.content || ""
       }));
       
-      // Cache dei risultati per 15 minuti (900000 ms)
-      saveToCache(cacheKey, newsItems, 900000);
+      // Restituiamo tutte le notizie senza filtrarle per categoria
+      console.log(`[INFO] Restituendo tutte le ${newsItems.length} notizie senza filtri`);
+      return res.json(newsItems);
+      } else {
+      console.error("[ERROR] Nessun articolo trovato in tutte le categorie");
       
-    } else {
+      // Se non abbiamo articoli, prova con l'endpoint everything come ultima risorsa
+      try {
+        console.log("[INFO] Tentativo con endpoint everything");
+        const everythingUrl = `https://newsapi.org/v2/everything?q=finance OR business&language=en&sortBy=publishedAt&pageSize=50&apiKey=${apiKey}`;
+        
+        const altResponse = await fetchWithTimeout(everythingUrl);
+        
+        if (altResponse.ok && altResponse.data) {
+          const altApiResponse = altResponse.data as any; 
+          
+          if (altApiResponse.status === 'ok' && altApiResponse.articles && altApiResponse.articles.length > 0) {
+            console.log(`[INFO] Everything: trovati ${altApiResponse.articles.length} articoli`);
+            
+            const newsItems: NewsItem[] = altApiResponse.articles.map((item: any) => ({
+              title: item.title || "",
+              description: item.description || "",
+              url: item.url || "",
+              urlToImage: item.urlToImage || "",
+              publishedAt: item.publishedAt || new Date().toISOString(),
+              source: {
+                name: item.source?.name || "News",
+                domain: extractDomain(item.url) || "",
+                country: ""
+              },
+              author: item.author || "",
+              content: item.content || ""
+            }));
+            
+            // Restituiamo tutte le notizie alternative senza filtri
+            console.log(`[INFO] Restituendo tutte le ${newsItems.length} notizie alternative senza filtri`);
+            return res.json(newsItems);
+          }
+        }
+      } catch (error) {
+        console.error("[ERROR] Anche il tentativo con everything è fallito:", error);
+      }
       
-      throw new Error("Formato di risposta API inatteso");
+      // Se tutto fallisce, restituisci array vuoto
+      return res.json([]);
     }
-    
-    
-    res.json(newsItems);
   } catch (error) {
-    
-    
-    // In caso di errore, restituiamo un array vuoto di notizie
-    // piuttosto che dati fittizi, seguendo il principio di data integrity
-    
-    res.json([]);
+    console.error("[ERROR] Eccezione:", error);
+    return res.json([]);
+  }
+}
+
+// Funzione per estrarre il dominio da un URL
+function extractDomain(url: string): string {
+  if (!url) return "";
+  try {
+    const domain = new URL(url).hostname;
+    return domain.startsWith('www.') ? domain.substring(4) : domain;
+  } catch (e) {
+    return "";
   }
 }

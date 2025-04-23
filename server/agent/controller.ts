@@ -5,13 +5,11 @@ import { conversations, messages as messagesTable } from '../../shared/schema'; 
 import { eq, and, asc } from 'drizzle-orm'; // Import query helpers and asc helper for sorting
 // Import necessary types from schema if needed later, e.g., for conversation history
 // import { Conversation, Message } from '../../shared/schema'; 
-import { getClientContext, getSiteDocumentation } from './functions';
+import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, generateInvestmentIdeas } from './functions';
 import { nanoid } from 'nanoid';
 import { isNull, desc } from 'drizzle-orm';
 import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
 import { ChatCompletionMessageParam } from 'openai';
-import { getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting } from './functions';
-import { findClientByName } from '../services/clientProfileService';
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in your environment variables
@@ -21,7 +19,7 @@ const openai = new OpenAI({
 
 // Modelli OpenAI disponibili
 const AVAILABLE_MODELS = {
-  DEFAULT: 'gpt-4.1-mini',
+  STANDARD: 'gpt-4.1-mini',
   ADVANCED: 'gpt-4.1'
 };
 
@@ -61,7 +59,7 @@ export const handleChat = async (req: Request, res: Response) => {
     // Controlla che il modello richiesto sia valido
     const modelToUse = requestedModel === AVAILABLE_MODELS.ADVANCED 
       ? AVAILABLE_MODELS.ADVANCED 
-      : AVAILABLE_MODELS.DEFAULT;
+      : AVAILABLE_MODELS.STANDARD;
 
     // Get user ID from req.user - ensure it exists
     // This is set by the isAuthenticated middleware
@@ -147,6 +145,22 @@ export const handleChat = async (req: Request, res: Response) => {
       Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
       Questo perché l'utente dovrà confermare l'appuntamento tramite un'interfaccia grafica, quindi l'operazione non è ancora conclusa.
       
+      Per le idee di investimento, utilizza questa struttura precisa:
+      1. **Riepilogo notizia:** Breve descrizione della notizia su cui si basa l'idea, includendo SEMPRE il link alla notizia originale.
+      
+      2. **Idea di investimento:** Fornisci UNA singola idea di investimento concreta e specifica, con taglio pratico (non teorico). Deve includere:
+         - L'azione concreta da intraprendere (acquistare/vendere/mantenere specifici strumenti, sovrapesare/sottopesare settori, etc.)
+         - La logica di mercato che supporta questa decisione
+         - I settori coinvolti
+         - Il livello di rischio e perché è appropriato
+         - L'orizzonte temporale consigliato con giustificazione
+      
+      3. **Clienti interessati:** Elenca solo i clienti potenzialmente interessati, fornendo per CIASCUNO:
+         - Motivi SPECIFICI e INDIVIDUALI legati al loro profilo personale
+         - Come l'idea si allinea con i loro obiettivi concreti e specifici
+         - Eventuali considerazioni personalizzate rilevanti
+         MAI mostrare punteggi numerici o percentuali. Concentrati solo sulle spiegazioni verbali dettagliate.
+      
       Agisci come partner affidabile del consulente: **preciso, proattivo, strategico**.
       Rispondi alle domande che ti vengono fatte, senza divagare se non necessario.
 
@@ -224,8 +238,50 @@ export const handleChat = async (req: Request, res: Response) => {
         {
           type: "function",
           function: {
+            name: "getFinancialNews",
+            description: "Recupera le ultime notizie finanziarie. Utilizzare questa funzione SOLO quando l'utente chiede di visualizzare o leggere notizie finanziarie, senza alcuna necessità di analizzarle o collegarle ai clienti. Esempi: 'quali sono le ultime notizie finanziarie?', 'dimmi le novità del mercato'.",
+            parameters: {
+              type: "object",
+              properties: {
+                maxResults: {
+                  type: "number",
+                  description: "Numero massimo di notizie da recuperare (default: 5, max: 10)"
+                }
+              },
+              required: []
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "generateInvestmentIdeas",
+            description: "Genera idee di investimento basate sulle notizie finanziarie e suggerisce clienti potenzialmente interessati",
+            parameters: {
+              type: "object",
+              properties: {
+                maxClients: {
+                  type: "number",
+                  description: "Numero massimo di clienti da suggerire (default: 5)"
+                },
+                userPrompt: {
+                  type: "string",
+                  description: "Testo del prompt per generare idee di investimento"
+                },
+                model: {
+                  type: "string",
+                  description: "Modello di AI da utilizzare per generare idee di investimento"
+                }
+              },
+              required: ["maxClients"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
             name: "getMeetingsByDateRange",
-            description: "Cerca gli appuntamenti in un intervallo di date specificato. Utilizzare questa funzione quando l'utente chiede di vedere gli appuntamenti per un certo periodo, ad esempio 'mostra gli appuntamenti di questa settimana' o 'appuntamenti dal 10 al 15 maggio'.",
+            description: "Recupera gli appuntamenti in un intervallo di date specifico",
             parameters: {
               type: "object",
               properties: {
@@ -234,11 +290,11 @@ export const handleChat = async (req: Request, res: Response) => {
                   properties: {
                     startDate: {
                       type: "string",
-                      description: "Data di inizio in formato YYYY-MM-DD"
+                      description: "Data di inizio nel formato YYYY-MM-DD"
                     },
                     endDate: {
                       type: "string",
-                      description: "Data di fine in formato YYYY-MM-DD"
+                      description: "Data di fine nel formato YYYY-MM-DD"
                     }
                   },
                   required: ["startDate", "endDate"]
@@ -418,6 +474,28 @@ export const handleChat = async (req: Request, res: Response) => {
             });
             break;
           
+          case "getFinancialNews":
+            console.log(`[DEBUG] Chiamando getFinancialNews con maxResults: ${args.maxResults || 'default'}`);
+            result = await getFinancialNews(args.maxResults);
+            console.log('[DEBUG] Risultato getFinancialNews:', {
+              success: result.success,
+              count: result.success ? result.count : 0,
+              totalAvailable: result.success ? result.totalAvailable : 0
+            });
+            break;
+          
+          case "generateInvestmentIdeas":
+            console.log(`[DEBUG] Chiamando generateInvestmentIdeas con maxClients: ${args.maxClients || 'default'}, userPrompt: ${args.userPrompt || userMessage}`);
+            // Usa userMessage come userPrompt se questo non è specificato
+            const userPromptForIdeas = args.userPrompt || userMessage;
+            result = await generateInvestmentIdeas(args.maxClients, userPromptForIdeas, userId, args.model);
+            console.log('[DEBUG] Risultato generateInvestmentIdeas:', {
+              success: result.success,
+              ideasGenerated: result.success && result.investmentIdeas ? result.investmentIdeas.length : 0,
+              suggestedClientsCount: result.success && result.suggestedClients ? result.suggestedClients.length : 0
+            });
+            break;
+          
           case "getMeetingsByDateRange":
             console.log(`[DEBUG] Chiamando getMeetingsByDateRange con date: ${JSON.stringify(args.dateRange)}`);
             result = await getMeetingsByDateRange(args.dateRange, userId);
@@ -585,28 +663,36 @@ export const handleChat = async (req: Request, res: Response) => {
         console.log('[DEBUG] Costruisco toolMessages per OpenAI');
         
         // Verifica se è disponibile una risposta suggerita dalla funzione prepareMeetingData
-        // In questo caso, non è necessario chiamare nuovamente OpenAI
-        if (functionName === "prepareMeetingData" && result.success && result.suggestedResponse) {
+        if (functionName === "prepareMeetingData" && result?.success && result?.suggestedResponse) {
           console.log('[DEBUG] Utilizzata risposta suggerita da prepareMeetingData');
           aiResponse = result.suggestedResponse;
-
-          // Salva la risposta suggerita nel database
-          console.log('[DEBUG] Salvo la risposta suggerita nel database');
-          try {
-            await db.insert(messagesTable).values({
-              conversationId: currentConversationId,
-              content: aiResponse,
-              role: 'assistant',
-              createdAt: new Date(),
-              functionResults: JSON.stringify(functionResults)
-            });
-            console.log('[DEBUG] Risposta salvata con successo nel database');
-          } catch (dbError) {
-            console.error('[DEBUG] Errore durante il salvataggio nel database:', dbError);
-            throw dbError;
-          }
         } else {
-          // Altrimenti procedi con la chiamata a OpenAI come al solito
+          // Per TUTTE le altre funzioni, inclusa generateInvestmentIdeas
+          // Prepara un messaggio specifico per la funzione
+          let systemInstruction = "";
+          
+          if (functionName === "generateInvestmentIdeas") {
+            systemInstruction = `
+Presenta le idee di investimento in modo molto concreto e orientato all'azione:
+
+1. Nel riepilogo della notizia, includi SEMPRE il link alla fonte originale.
+
+2. Fornisci UNA sola idea di investimento per ogni notizia, molto specifica e pratica:
+   - Indica esattamente cosa fare (es. "Acquistare azioni di [azienda]" o "Aumentare l'esposizione al settore X")
+   - Spiega il razionale concreto basato sulla notizia
+   - Specifica perché questo è il momento giusto per questa azione
+
+3. Per ogni cliente suggerito:
+   - Fornisci motivazioni DETTAGLIATE e SPECIFICHE al profilo individuale del cliente
+   - Spiega come l'idea si allinea ai suoi obiettivi e restrizioni personali
+   - Adatta il linguaggio al livello di sofisticazione finanziaria del cliente
+   - Non includere MAI punteggi numerici o percentuali
+
+Il tono deve essere quello di un consulente finanziario esperto che parla a un collega professionista.
+`;
+          }
+          
+          // Aggiungi l'istruzione al tool message se necessario
           const toolMessages = [
             ...apiMessages,
             completion.choices[0].message,
@@ -616,6 +702,14 @@ export const handleChat = async (req: Request, res: Response) => {
               content: JSON.stringify(result || {})
             }
           ];
+          
+          // Se abbiamo un'istruzione specifica per questa funzione, aggiungiamo un messaggio di sistema
+          if (systemInstruction) {
+            toolMessages.push({
+              role: "system" as const,
+              content: systemInstruction
+            });
+          }
           
           console.log('[DEBUG] Richiamo OpenAI per followUpCompletion');
           

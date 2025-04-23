@@ -114,6 +114,13 @@ export function Layout({ children }: LayoutProps) {
       disabled: false,
     },
     {
+      name: "News",
+      href: "/market",
+      icon: Globe,
+      current: location === "/market" || location === "/app/market",
+      disabled: false,
+    },
+    {
       name: "Settings",
       href: "/app/settings",
       icon: Settings,

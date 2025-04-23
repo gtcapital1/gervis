@@ -23,7 +23,7 @@ import {
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
-import { getMarketIndices, getTickerData, validateTicker, getFinancialNews, getTickerSuggestions } from "./market-api";
+import { getFinancialNews } from "./market-api";
 import { getClientProfile, updateClientProfile } from "./ai/profile-controller";
 import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-controller';
 import nodemailer from 'nodemailer';

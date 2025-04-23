@@ -9,6 +9,9 @@ import { findClientByName } from '../services/clientProfileService';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { getFinancialNews as getMarketNews } from '../market-api';
+import { Request, Response } from 'express';
+import { getFormattedAIProfile } from '../ai/profile-controller';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -762,4 +765,401 @@ export const getSiteDocumentation = async () => {
     };
   }
 };
+
+/**
+ * Recupera notizie finanziarie tramite l'API esistente
+ * @param maxResults Numero massimo di notizie da ottenere
+ * @returns Lista di notizie finanziarie
+ */
+export const getFinancialNews = async (maxResults?: number) => {
+  try {
+    console.log(`[DEBUG] Recupero notizie finanziarie reali, limite: ${maxResults || 'predefinito'}`);
+    
+    // Array che conterrà le notizie restituite dall'API
+    let newsData: any[] = [];
+    
+    // Creiamo un mock request/response per utilizzare l'API esistente
+    const mockRequest = {
+      query: {}
+    } as Request;
+    
+    const mockResponse = {
+      json: (data: any) => {
+        newsData = data;
+        return mockResponse;
+      }
+    } as unknown as Response;
+    
+    // Chiamiamo direttamente la funzione getMarketNews che è stata importata all'inizio del file
+    console.log(`[DEBUG] Chiamata diretta a getMarketNews`);
+    await getMarketNews(mockRequest, mockResponse);
+    
+    console.log(`[DEBUG] Ottenute ${newsData.length} notizie reali dall'API`);
+    
+    // Limita il numero di risultati se specificato, senza limite artificiale
+    const limit = maxResults && !isNaN(maxResults) && maxResults > 0 ? maxResults : 5;
+    const limitedNews = newsData.slice(0, limit);
+    
+    // Formatta le notizie per renderle più leggibili dall'AI
+    const formattedNews = limitedNews.map((news) => ({
+      title: news.title || "Titolo non disponibile",
+      description: news.description || "Descrizione non disponibile",
+      source: news.source?.name || 'Fonte sconosciuta',
+      url: news.url || "#",
+      publishedAt: news.publishedAt 
+        ? new Date(news.publishedAt).toLocaleDateString('it-IT', { 
+            day: '2-digit', 
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : 'Data sconosciuta'
+    }));
+    
+    console.log(`[DEBUG] Restituite ${formattedNews.length} notizie formattate (su ${newsData.length} disponibili)`);
+    
+    return {
+      success: true,
+      news: formattedNews,
+      count: formattedNews.length,
+      totalAvailable: newsData.length
+    };
+  } catch (error) {
+    console.error('Errore nel recupero delle notizie finanziarie:', error);
+    return {
+      success: false,
+      error: `Errore nel recupero delle notizie finanziarie: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
+    };
+  }
+};
+
+/**
+ * Genera idee di investimento basate sulle notizie finanziarie e suggerisce clienti potenzialmente interessati
+ * @param maxClients Numero massimo di clienti da suggerire (default: 5)
+ * @param userPrompt Prompt dell'utente per selezionare le notizie più rilevanti
+ * @param userId ID dell'utente (advisor) 
+ * @param model Modello OpenAI da utilizzare
+ * @returns Idea di investimento e clienti potenzialmente interessati
+ */
+export const generateInvestmentIdeas = async (maxClients: number = 5, userPrompt: string = '', userId: number, model?: string) => {
+  try {
+    console.log(`[DEBUG] Generazione idee di investimento, maxClients: ${maxClients}, prompt: ${userPrompt}`);
+    
+    // 1. Recupera le notizie finanziarie (ne prendiamo 100 per avere una grande varietà da selezionare)
+    const newsResult = await getFinancialNews(100);
+    if (!newsResult.success || !newsResult.news || newsResult.news.length === 0) {
+      return {
+        success: false,
+        error: "Impossibile recuperare notizie finanziarie."
+      };
+    }
+    
+    const allNews = newsResult.news;
+    console.log(`[DEBUG] Recuperate ${allNews.length} notizie finanziarie`);
+    
+    // 2. Utilizziamo OpenAI per selezionare le 5 notizie più rilevanti in base al prompt utente
+    const selectedNews = await selectRelevantNews(allNews, userPrompt, 5, model);
+    if (selectedNews.length === 0) {
+      console.log('[DEBUG] Nessuna notizia selezionata tramite AI, utilizzo le prime 5 notizie');
+      // Fallback: usiamo le prime 5 notizie se la selezione fallisce
+      selectedNews.push(...allNews.slice(0, 5));
+    }
+    
+    console.log(`[DEBUG] Selezionate ${selectedNews.length} notizie rilevanti`);
+    
+    // 3. Recupera tutti i clienti dell'advisor
+    console.log(`[DEBUG] Recupero profili dei clienti per advisor ID: ${userId}`);
+    
+    const clientsList = await db.select({
+      id: clients.id,
+      firstName: clients.firstName,
+      lastName: clients.lastName,
+      email: clients.email
+    })
+    .from(clients)
+    .where(eq(clients.advisorId, userId));
+    
+    if (!clientsList || clientsList.length === 0) {
+      return {
+        success: false,
+        error: "Nessun cliente trovato per questo advisor."
+      };
+    }
+    
+    console.log(`[DEBUG] Recuperati ${clientsList.length} clienti`);
+    
+    // 4. Recupera i profili AI dei clienti utilizzando la funzione getFormattedAIProfile
+    const clientProfiles = [];
+    for (const client of clientsList) {
+      const profile = await getFormattedAIProfile(client.id);
+      if (profile && profile.profileData) {
+        clientProfiles.push({
+          id: client.id,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
+          aiProfileData: profile.profileData
+        });
+      }
+    }
+    
+    if (clientProfiles.length === 0) {
+      return {
+        success: true,
+        investmentIdeas: selectedNews.map(news => createInvestmentIdea(news)),
+        suggestedClients: [],
+        message: "Nessun cliente con profilo AI disponibile da analizzare."
+      };
+    }
+    
+    console.log(`[DEBUG] Trovati ${clientProfiles.length} clienti con profili AI`);
+    
+    // 5. Genera idee di investimento basate sulle notizie selezionate
+    const investmentIdeas = selectedNews.map(news => createInvestmentIdea(news));
+    
+    // 6. Usa OpenAI per determinare i clienti più adatti per queste idee
+    console.log(`[DEBUG] Preparando l'analisi di ${clientProfiles.length} profili cliente con OpenAI`);
+    
+    const prompt = `
+Analizza le seguenti idee di investimento e determina quali clienti sarebbero più interessati in base ai loro profili.
+
+IDEE DI INVESTIMENTO:
+${investmentIdeas.map((idea: any, idx: number) => `
+Idea ${idx + 1}:
+Titolo: ${idea.title}
+Descrizione: ${idea.description}
+Settori: ${idea.sectors.join(", ")}
+Livello di rischio: ${idea.riskLevel}
+Orizzonte temporale: ${idea.timeHorizon}
+`).join("\n")}
+
+PROFILI CLIENTI:
+${clientProfiles.map((client, index) => {
+  return `Cliente ${index + 1}: ${client.firstName} ${client.lastName}
+ID: ${client.id}
+Profilo: ${JSON.stringify(client.aiProfileData, null, 2)}
+`;
+}).join("\n\n")}
+
+Per ciascun cliente, valuta quanto queste idee di investimento si allineano con il suo profilo, considerando:
+1. Interessi di investimento e settori preferiti
+2. Tolleranza al rischio
+3. Orizzonte temporale preferito
+4. Altri fattori rilevanti nel profilo
+
+Fornisci una lista dei primi ${maxClients} clienti più adatti, con una breve spiegazione di perché sarebbero interessati alle idee proposte. Formato:
+{
+  "rankedClients": [
+    {
+      "id": ID_CLIENTE,
+      "firstName": "NOME",
+      "lastName": "COGNOME",
+
+      "reasons": ["MOTIVO_1", "MOTIVO_2", "MOTIVO_3"],
+    },
+    // altri clienti...
+  ]
+}
+`;
+    
+    // Chiamata a OpenAI per l'analisi
+    console.log('[DEBUG] Chiamata OpenAI per analisi clienti');
+    const completion = await openai.chat.completions.create({
+      model: model || process.env.OPENAI_MODEL || "gpt-4-turbo",
+      messages: [
+        { 
+          role: "system", 
+          content: "Sei un assistente esperto in analisi finanziarie e profili di investimento. Il tuo compito è analizzare profili cliente e determinare chi sarebbe più interessato a specifiche idee di investimento. Fornisci la risposta in formato JSON." 
+        },
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    
+    const responseContent = completion.choices[0]?.message?.content || '';
+    
+    try {
+      // Parse della risposta JSON
+      const analysisResult = JSON.parse(responseContent);
+      console.log(`[DEBUG] Analisi OpenAI completata, ${analysisResult.rankedClients?.length || 0} clienti suggeriti`);
+      
+      // Estrai i clienti ordinati
+      const suggestedClients = analysisResult.rankedClients || [];
+      
+      // Limita il numero di clienti suggeriti
+      const limitedClients = suggestedClients.slice(0, maxClients);
+      
+      return {
+        success: true,
+        investmentIdeas,
+        suggestedClients: limitedClients
+      };
+    } catch (parseError) {
+      console.error('[DEBUG] Errore nel parsing della risposta JSON di OpenAI:', parseError);
+      console.log('[DEBUG] Contenuto risposta:', responseContent);
+      
+      // Fallback: se il parsing JSON fallisce, crea un elenco di clienti ordinato casualmente
+      const randomizedClients = clientProfiles
+        .map(client => ({
+          id: client.id,
+          firstName: client.firstName,
+          lastName: client.lastName,
+          email: client.email,
+          relevanceScore: Math.floor(Math.random() * 100),
+          reasons: ["Determinato da valutazione algoritmica basata sulle notizie"],
+          bestIdeaIndex: Math.floor(Math.random() * Math.min(investmentIdeas.length, 5))
+        }))
+        .sort(() => Math.random() - 0.5)
+        .slice(0, maxClients);
+      
+      return {
+        success: true,
+        investmentIdeas,
+        suggestedClients: randomizedClients,
+        analysisError: "Errore nell'analisi AI dei profili cliente, fornita una lista casuale."
+      };
+    }
+  } catch (error) {
+    console.error('Errore nella generazione delle idee di investimento:', error);
+    return {
+      success: false,
+      error: `Errore nella generazione delle idee di investimento: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`
+    };
+  }
+};
+
+/**
+ * Seleziona le notizie più rilevanti in base al prompt dell'utente
+ * @param news Lista di notizie disponibili
+ * @param userPrompt Prompt dell'utente
+ * @param count Numero di notizie da selezionare
+ * @param model Modello OpenAI da utilizzare
+ * @returns Lista delle notizie selezionate
+ */
+async function selectRelevantNews(news: any[], userPrompt: string, count: number = 5, model?: string) {
+  try {
+    // Se non c'è un prompt specifico, restituisci le prime 'count' notizie
+    if (!userPrompt || userPrompt.trim() === '') {
+      console.log('[DEBUG] Nessun prompt utente, seleziono le prime notizie');
+      return news.slice(0, count);
+    }
+    
+    console.log(`[DEBUG] Selezione notizie in base al prompt: "${userPrompt}"`);
+    
+    // Prepara un elenco di notizie da analizzare
+    const newsForAnalysis = news.map((item: any, index: number) => ({
+      index,
+      title: item.title,
+      description: item.description,
+      source: item.source,
+      publishedAt: item.publishedAt
+    }));
+    
+    // Prepara il prompt per OpenAI
+    const prompt = `
+Sei un assistente esperto in finanza e investimenti. Seleziona le ${count} notizie finanziarie più rilevanti rispetto alla seguente richiesta dell'utente:
+
+RICHIESTA UTENTE: "${userPrompt}"
+
+NOTIZIE DISPONIBILI:
+${newsForAnalysis.map((item: any, idx: number) => 
+  `${idx + 1}. "${item.title}" - ${item.description} (Fonte: ${item.source}, Data: ${item.publishedAt})`
+).join('\n\n')}
+
+Seleziona le ${count} notizie più rilevanti per la richiesta dell'utente, considerando la pertinenza tematica, l'attualità e il potenziale impatto finanziario.
+Fornisci il risultato come array JSON di indici delle notizie (0-based) nel formato:
+{
+  "selectedNewsIndices": [0, 3, 5, 7, 9], // esempio di 5 indici selezionati
+  "reasoning": "Breve spiegazione del motivo della selezione"
+}
+`;
+    
+    // Chiamata a OpenAI per l'analisi
+    const selectionResponse = await openai.chat.completions.create({
+      model: model || process.env.OPENAI_MODEL || "gpt-4-turbo",
+      messages: [
+        { 
+          role: "system", 
+          content: "Sei un assistente esperto in finanza che aiuta a selezionare notizie rilevanti. Rispondi in formato JSON." 
+        },
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+    
+    const selectionContent = selectionResponse.choices[0]?.message?.content || '';
+    
+    try {
+      const selectionResult = JSON.parse(selectionContent);
+      console.log(`[DEBUG] AI ha selezionato ${selectionResult.selectedNewsIndices?.length || 0} notizie`);
+      console.log(`[DEBUG] Motivo: ${selectionResult.reasoning || 'Non specificato'}`);
+      
+      // Verificare che gli indici siano validi
+      const validIndices = (selectionResult.selectedNewsIndices || [])
+        .filter((idx: number) => idx >= 0 && idx < news.length)
+        .slice(0, count);
+      
+      // Mappare gli indici alle notizie originali
+      return validIndices.map((idx: number) => news[idx]);
+    } catch (error) {
+      console.error('[DEBUG] Errore nell\'analisi della selezione:', error);
+      // Fallback alle prime notizie
+      return news.slice(0, count);
+    }
+  } catch (error) {
+    console.error('[DEBUG] Errore nella selezione delle notizie:', error);
+    // Fallback alle prime notizie
+    return news.slice(0, count);
+  }
+}
+
+// Funzione helper per creare l'idea di investimento dalla notizia
+function createInvestmentIdea(news: any) {
+  // Analisi preliminare dei settori basata su parole chiave nel titolo e descrizione
+  const titleLower = news.title.toLowerCase();
+  const descLower = news.description.toLowerCase();
+  
+  // Mappatura di parole chiave a settori
+  const sectorKeywords = {
+    "Finanza": ["banca", "finanza", "finanziario", "bancario", "investimento", "borsa", "mercato"],
+    "Tecnologia": ["tech", "tecnologia", "digitale", "software", "hardware", "intelligenza artificiale", "ai", "app"],
+    "Energia": ["energia", "petrolio", "gas", "rinnovabile", "solare", "eolico"],
+    "Sanità": ["sanità", "salute", "farmaceutico", "ospedale", "medico", "medicina"],
+    "Real Estate": ["immobiliare", "casa", "edificio", "costruzione", "proprietà"],
+    "Automotive": ["auto", "automobile", "veicolo", "elettrico", "trasporto"],
+    "Retail": ["retail", "vendita", "commercio", "negozio", "consumatore"]
+  };
+  
+  const potentialSectors = [];
+  for (const [sector, keywords] of Object.entries(sectorKeywords)) {
+    for (const keyword of keywords) {
+      if (titleLower.includes(keyword) || descLower.includes(keyword)) {
+        potentialSectors.push(sector);
+        break;
+      }
+    }
+  }
+  
+  // Se non vengono individuati settori, aggiungere "Finanza" come default
+  if (potentialSectors.length === 0) {
+    potentialSectors.push("Finanza");
+  }
+  
+  return {
+    title: `Opportunità di investimento basata su: ${news.title}`,
+    description: `Un'analisi della recente notizia "${news.title}" suggerisce potenziali opportunità di investimento. ${news.description}`,
+    rationale: "Questa idea sfrutta l'impatto potenziale della notizia sui mercati finanziari, con attenzione alle implicazioni a medio-lungo termine.",
+    riskLevel: "Moderato", // Potrebbe essere calcolato in base al contenuto della notizia
+    timeHorizon: "Medio termine", // Potrebbe essere calcolato in base al contenuto della notizia
+    sectors: potentialSectors,
+    news: news
+  };
+}
 

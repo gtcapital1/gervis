@@ -9,7 +9,6 @@ import { storage } from '../storage';
 import { Client, ClientLog, Mifid } from '@shared/schema';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
-import { getCompleteClientData } from '../agent/clientDataFetcher';
 
 /**
  * Genera il profilo arricchito per un cliente
@@ -76,18 +75,12 @@ export async function getClientProfile(req: Request, res: Response) {
     
     // Se è richiesto un refresh forzato o non esiste un profilo, genera un nuovo profilo
     if (forceRefresh || !existingProfile) {
-      // Recupera i dati completi del cliente utilizzando getCompleteClientData
-      const clientData = await getCompleteClientData(client.firstName, client.lastName);
+      // Recupera i dati necessari per generare il profilo
+      const clientLogs = await storage.getClientLogs(clientId);
+      const mifid = await storage.getMifidByClient(clientId);
       
-      if (!clientData.success) {
-        return res.status(500).json({
-          success: false,
-          error: clientData.error || "Failed to retrieve client data"
-        });
-      }
-      
-      // Passa direttamente i dati completi a generateClientProfile
-      const profileData = await generateClientProfile(client, clientData);
+      // Genera un nuovo profilo arricchito utilizzando l'AI
+      const profileData = await generateClientProfile(client, mifid || null, clientLogs);
       
       // Salva o aggiorna il profilo generato
       if (existingProfile) {
@@ -144,15 +137,14 @@ export async function generateEnrichedProfile(clientId: number, advisorId: numbe
       throw new Error(`Client with ID ${clientId} not found`);
     }
 
-    // Ottieni i dati completi del cliente usando getCompleteClientData
-    const clientData = await getCompleteClientData(client.firstName, client.lastName);
+    // Get MIFID data
+    const mifid = await storage.getMifidByClient(clientId);
     
-    if (!clientData.success) {
-      throw new Error(clientData.error || "Failed to retrieve client data");
-    }
+    // Get client logs
+    const clientLogs = await storage.getClientLogs(clientId);
     
-    // Passa direttamente l'oggetto clientData a generateClientProfile
-    const profileData = await generateClientProfile(client, clientData);
+    // Generate profile
+    const profileData = await generateClientProfile(client, mifid || null, clientLogs);
 
     // Save profile to storage
     await storage.createAiProfile({
@@ -300,5 +292,51 @@ export async function getAllClientProfiles(req: Request, res: Response) {
       success: false,
       error: "Failed to retrieve client profiles: " + (error.message || "Unknown error")
     });
+  }
+}
+
+/**
+ * Recupera e standardizza il profilo AI di un cliente
+ * @param clientId ID del cliente
+ * @returns Oggetto profilo AI in formato standardizzato
+ */
+export async function getFormattedAIProfile(clientId: number) {
+  try {
+    // Recupera il profilo AI dal database
+    const aiProfile = await storage.getAiProfile(clientId);
+    
+    // Se non c'è profilo, restituisci null
+    if (!aiProfile) {
+      return null;
+    }
+    
+    // Standardizza il formato del profilo
+    let profileData: any = null;
+    
+    // Gestisci diversi tipi di dati
+    if (aiProfile.profileData) {
+      // Se profileData è già un oggetto JavaScript, usalo direttamente
+      if (typeof aiProfile.profileData === 'object' && aiProfile.profileData !== null) {
+        profileData = aiProfile.profileData;
+      } 
+      // Se è una stringa, prova a fare il parse
+      else if (typeof aiProfile.profileData === 'string') {
+        try {
+          profileData = JSON.parse(aiProfile.profileData);
+        } catch (e) {
+          console.error(`[ERROR] Errore nel parsing del profilo AI per il cliente ${clientId}:`, e);
+          profileData = null;
+        }
+      }
+    }
+    
+    return {
+      clientId,
+      profileData,
+      lastGenerated: aiProfile.lastGeneratedAt
+    };
+  } catch (error) {
+    console.error(`[ERROR] Errore nel recupero del profilo AI per il cliente ${clientId}:`, error);
+    return null;
   }
 }

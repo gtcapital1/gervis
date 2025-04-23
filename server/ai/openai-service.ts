@@ -5,9 +5,10 @@
  * Utilizzato per generare il profilo arricchito del cliente basato su dati esistenti.
  */
 
-import { Client, ClientLog, MifidType } from '@shared/schema';
+import { Client, ClientLog } from '@shared/schema';
 import OpenAI from 'openai';
 import fetch from 'node-fetch';
+import { storage } from '../storage';
 
 // Controlla se esiste una chiave API OpenAI
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -94,16 +95,121 @@ export interface AiClientProfile {
   lastUpdated?: string;
 }
 
+// Interfaccia per i dati MIFID
+export interface MifidType {
+  id?: number;
+  clientId?: number;
+  riskProfile?: string;
+  investmentHorizon?: string;
+  investmentExperience?: string;
+  yearsOfExperience?: number;
+  investmentFrequency?: string;
+  advisorUsage?: string;
+  monitoringTime?: string;
+  pastInvestmentExperience?: string[] | string;
+  financialEducation?: string[] | string;
+  portfolioDropReaction?: string;
+  volatilityTolerance?: string;
+  retirementInterest?: number;
+  wealthGrowthInterest?: number;
+  incomeGenerationInterest?: number;
+  capitalPreservationInterest?: number;
+  estatePlanningInterest?: number;
+  annualIncome?: number;
+  monthlyExpenses?: number;
+  debts?: number;
+  dependents?: number;
+  employmentStatus?: string;
+  birthDate?: string;
+  educationLevel?: string;
+  assets?: Array<{category: string, value: number, description?: string}>;
+}
+
+/**
+ * Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
+ */
+function createClientProfilePrompt(client: Client, mifid: MifidType | null, logs: ClientLog[]): string {
+  // Funzione helper per controllare e formattare i valori
+  const formatValue = (value: any, type = 'string') => {
+    if (value === null || value === undefined || value === '') {
+      return "Non specificato";
+    }
+    
+    if (type === 'money' && typeof value === 'number') {
+      return `€${value.toLocaleString()}`;
+    }
+    
+    return value;
+  };
+
+  // Formatta i dati del cliente in un prompt strutturato
+  let prompt = `
+# Profilo Cliente
+- Nome: ${formatValue(client.name)}
+- Email: ${formatValue(client.email)}
+${mifid ? `
+- Profilo di rischio: ${formatValue(mifid.riskProfile)}
+- Reddito annuale: ${formatValue(mifid.annualIncome, 'money')}
+- Spese mensili: ${formatValue(mifid.monthlyExpenses, 'money')}
+- Debiti: ${formatValue(mifid.debts, 'money')}
+- Dipendenti: ${formatValue(mifid.dependents)}
+- Stato occupazione: ${formatValue(mifid.employmentStatus)}
+- Data di nascita: ${formatValue(mifid.birthDate)}
+- Livello di istruzione: ${formatValue(mifid.educationLevel)}
+
+## Profilo di Investimento
+- Orizzonte temporale: ${formatValue(mifid.investmentHorizon)}
+- Esperienza di investimento: ${formatValue(mifid.investmentExperience)}
+- Anni di esperienza: ${formatValue(mifid.yearsOfExperience)}
+- Frequenza di investimento: ${formatValue(mifid.investmentFrequency)}
+- Utilizzo consulente: ${formatValue(mifid.advisorUsage)}
+- Tempo dedicato al monitoraggio: ${formatValue(mifid.monitoringTime)}
+
+## Esperienza Passata e Formazione
+- Esperienze di investimento passate: ${formatValue(Array.isArray(mifid.pastInvestmentExperience) ? mifid.pastInvestmentExperience.join(', ') : mifid.pastInvestmentExperience)}
+- Educazione finanziaria: ${formatValue(Array.isArray(mifid.financialEducation) ? mifid.financialEducation.join(', ') : mifid.financialEducation)}
+
+## Tolleranza al Rischio
+- Reazione al calo del portafoglio: ${formatValue(mifid.portfolioDropReaction)}
+- Tolleranza alla volatilità: ${formatValue(mifid.volatilityTolerance)}
+
+## Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
+- Pensione: ${formatValue(mifid.retirementInterest)}
+- Crescita del patrimonio: ${formatValue(mifid.wealthGrowthInterest)}
+- Generazione di reddito: ${formatValue(mifid.incomeGenerationInterest)}
+- Preservazione del capitale: ${formatValue(mifid.capitalPreservationInterest)}
+- Pianificazione patrimoniale: ${formatValue(mifid.estatePlanningInterest)}
+
+## Asset Attuali
+${mifid.assets && Array.isArray(mifid.assets) ? mifid.assets.map(asset => 
+  `- ${asset.category}: ${formatValue(asset.value, 'money')}${asset.description ? ` (${asset.description})` : ''}`
+).join('\n') : 'Nessun asset registrato'}
+` : ''}`;
+
+  // Aggiungi la cronologia delle interazioni se disponibile
+  if (logs && logs.length > 0) {
+    prompt += "\n# Cronologia Interazioni\n";
+    logs.forEach((log, index) => {
+      prompt += `\n## Interazione ${index + 1} (${log.type}) - ${new Date(log.logDate).toLocaleDateString()}\n`;
+      prompt += `Titolo: ${log.title}\n`;
+      prompt += `Contenuto: ${log.content}\n`;
+    });
+  }
+
+  return prompt;
+}
+
 /**
  * Genera un profilo client arricchito utilizzando OpenAI
- * Utilizza esclusivamente il nuovo formato completo da getCompleteClientData
  * @param client Il cliente per cui generare il profilo
- * @param completeClientData L'oggetto completo restituito da getCompleteClientData
+ * @param mifid Il profilo di rischio del cliente
+ * @param logs I log delle interazioni con il cliente
  * @returns Profilo arricchito con approfondimenti e suggerimenti
  */
 export async function generateClientProfile(
   client: Client, 
-  completeClientData: any
+  mifid: MifidType | null,
+  logs: ClientLog[]
 ): Promise<AiClientProfile> {
   // Verifica se la chiave API OpenAI è impostata
   if (!OPENAI_API_KEY) {
@@ -111,8 +217,8 @@ export async function generateClientProfile(
   }
 
   try {
-    // Crea un prompt utilizzando i dati completi del cliente
-    const prompt = createClientProfileFromComplete(client, completeClientData);
+    // Crea un prompt dettagliato per GPT-4 utilizzando i dati del cliente e i log
+    const prompt = createClientProfilePrompt(client, mifid, logs);
     
     // Crea un'istanza OpenAI
     const openai = new OpenAI({
@@ -181,92 +287,4 @@ export async function generateClientProfile(
     console.error('Error in generateClientProfile:', error);
     throw error;
   }
-}/**
- * Crea un prompt dettagliato per GPT-4 utilizzando i dati completi del cliente da getCompleteClientData
- */
-function createClientProfileFromComplete(client: Client, completeClientData: any): string {
-  // Funzione helper per controllare e formattare i valori
-  const formatValue = (value: any, type = 'string') => {
-    if (value === null || value === undefined || value === '') {
-      return "Non specificato";
-    }
-    
-    if (type === 'money' && typeof value === 'number') {
-      return `€${value.toLocaleString()}`;
-    }
-    
-    return value;
-  };
-  
-  const clientData = completeClientData.clientData;
-  if (!clientData) {
-    throw new Error("Invalid complete client data format");
-  }
-  
-  // Estrai i dati personali
-  const personalInfo = clientData.personalInformation?.data || {};
-  // Estrai i dati finanziari
-  const financialInfo = clientData.financialOverview?.data || {};
-  // Estrai i dati del profilo di investimento
-  const investmentProfile = clientData.investmentProfile?.data || {};
-  // Estrai gli asset
-  const assets = clientData.assetDetails?.data || [];
-  // Estrai le attività recenti
-  const recentActivities = clientData.recentActivities?.data || [];
-  
-  // Costruisci il prompt con i dati estratti
-  let prompt = `
-# Profilo Cliente
-- Nome: ${formatValue(personalInfo.firstName?.value)} ${formatValue(personalInfo.lastName?.value)}
-- Email: ${formatValue(personalInfo.email?.value)}
-- Data di nascita: ${formatValue(personalInfo.birthDate?.value)}
-- Telefono: ${formatValue(personalInfo.phone?.value)}
-- Indirizzo: ${formatValue(personalInfo.address?.value)}
-- Segmento cliente: ${formatValue(personalInfo.clientSegment?.value)}
-
-# Informazioni Finanziarie
-- Patrimonio netto: ${formatValue(financialInfo.netWorth?.value, 'money')}
-- Asset totali: ${formatValue(financialInfo.totalAssets?.value, 'money')}
-- Reddito annuale: ${formatValue(financialInfo.annualIncome?.value, 'money')}
-- Spese mensili: ${formatValue(financialInfo.monthlyExpenses?.value, 'money')}
-- Debiti: ${formatValue(financialInfo.debts?.value, 'money')}
-
-# Profilo di Investimento
-- Profilo di rischio: ${formatValue(investmentProfile.riskProfile?.value)}
-- Orizzonte temporale: ${formatValue(investmentProfile.investmentHorizon?.value)}
-- Esperienza di investimento: ${formatValue(investmentProfile.investmentExperience?.value)}
-- Obiettivi di investimento: ${formatValue(investmentProfile.investmentGoals?.value)}
-
-# Interessi Specifici (da 1 a 5 dove 1 è massimo interesse)
-- Pensione: ${formatValue(investmentProfile.retirementInterest?.value)}
-- Crescita del patrimonio: ${formatValue(investmentProfile.wealthGrowthInterest?.value)}
-- Generazione di reddito: ${formatValue(investmentProfile.incomeGenerationInterest?.value)}
-- Preservazione del capitale: ${formatValue(investmentProfile.capitalPreservationInterest?.value)}
-- Pianificazione patrimoniale: ${formatValue(investmentProfile.estatePlanningInterest?.value)}
-
-# Tolleranza al Rischio
-- Reazione al calo del portafoglio: ${formatValue(investmentProfile.portfolioDropReaction?.value)}
-- Tolleranza alla volatilità: ${formatValue(investmentProfile.volatilityTolerance?.value)}
-`;
-
-  // Aggiungi asset
-  if (assets && assets.length > 0) {
-    prompt += "\n# Asset Attuali\n";
-    assets.forEach((asset: any) => {
-      prompt += `- ${formatValue(asset.category?.value)}: ${formatValue(asset.value?.value, 'money')}${asset.description?.value ? ` (${asset.description.value})` : ''}\n`;
-    });
-  }
-
-  // Aggiungi la cronologia delle interazioni
-  if (recentActivities && recentActivities.length > 0) {
-    prompt += "\n# Cronologia Interazioni\n";
-    recentActivities.forEach((log: any, index: number) => {
-      prompt += `\n## Interazione ${index + 1} (${log.type?.value}) - ${log.date?.value ? new Date(log.date.value).toLocaleDateString() : 'Data non specificata'}\n`;
-      prompt += `Titolo: ${formatValue(log.title?.value)}\n`;
-      prompt += `Contenuto: ${formatValue(log.content?.value)}\n`;
-    });
-  }
-
-  return prompt;
 }
-
