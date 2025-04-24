@@ -378,9 +378,9 @@ export function setupAuth(app: Express) {
             totalAssets: 800000,
             netWorth: 600000,
             isOnboarded: true,
-            active: false,
+            active: true,
             onboardedAt: new Date(),
-            activatedAt: null,
+            activatedAt: new Date(),
             clientSegment: "vhnw"
           });
           
@@ -395,9 +395,9 @@ export function setupAuth(app: Express) {
             totalAssets: 70000,
             netWorth: 70000,
             isOnboarded: true,
-            active: false,
+            active: true,
             onboardedAt: new Date(),
-            activatedAt: null,
+            activatedAt: new Date(),
             clientSegment: "mass_market"
           });
           

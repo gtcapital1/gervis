@@ -330,286 +330,286 @@ export default function Settings() {
           title={t('dashboard.settings')}
           subtitle={t('settings.settings_description', 'Manage your account settings and preferences.')}
         />
-
+          
         {/* Account Information */}
-        <Card>
-          <CardHeader>
+            <Card>
+              <CardHeader>
             <CardTitle>Informazioni Profilo</CardTitle>
-            <CardDescription>
+                <CardDescription>
               Visualizza le informazioni del tuo profilo
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium">Username</h3>
-                  <p className="text-muted-foreground">{user?.username}</p>
-                </div>
-                <div>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-medium">Username</h3>
+                      <p className="text-muted-foreground">{user?.username}</p>
+                    </div>
+                    <div>
                   <h3 className="font-medium">Nome</h3>
                   <p className="text-muted-foreground">{user?.name || "Non specificato"}</p>
-                </div>
-                <div>
-                  <h3 className="font-medium">Email</h3>
+                    </div>
+                    <div>
+                      <h3 className="font-medium">Email</h3>
                   <p className="text-muted-foreground">{user?.email || "Non specificato"}</p>
-                </div>
-                <div>
+                    </div>
+                    <div>
                   <h3 className="font-medium">Tipo di Account</h3>
-                  <p className="text-muted-foreground">
-                    {user?.isPro ? (
-                      <span className="text-accent font-semibold">Gervis PRO</span>
-                    ) : (
-                      "Standard"
-                    )}
-                  </p>
+                      <p className="text-muted-foreground">
+                        {user?.isPro ? (
+                          <span className="text-accent font-semibold">Gervis PRO</span>
+                        ) : (
+                          "Standard"
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
+              </CardContent>
+            </Card>
+            
         {/* Email Settings Section */}
         <div id="email-settings" ref={emailSectionRef}>
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Impostazioni Email</CardTitle>
-              <CardDescription>
-                Configura il tuo server SMTP per l'invio di email personalizzate ai clienti.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {(savedEmailSettings.custom_email_enabled) ? (
-                <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
-                  <h3 className="text-green-800 font-medium mb-2">Server email personalizzato attivo</h3>
-                  <p className="text-green-700 text-sm">
-                    Il tuo server SMTP personalizzato è configurato e attivo. Le email verranno inviate utilizzando le impostazioni specificate.
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
-                  <h3 className="text-amber-800 font-medium mb-2">Configurazione richiesta</h3>
-                  <p className="text-amber-700 text-sm">
-                    È necessario configurare un server SMTP per poter inviare email ai clienti. 
-                    Il sistema non utilizza più un server predefinito. Se non configuri queste impostazioni, 
-                    non sarà possibile inviare email ai clienti.
-                  </p>
-                </div>
-              )}
-              
-              <Form {...emailSettingsForm}>
-                <form onSubmit={(e) => {
-                  e.preventDefault();
-                  const values = emailSettingsForm.getValues();
-                  
-                  // Se customEmailEnabled è false, bypassa la validazione
-                  if (!values.customEmailEnabled) {
-                    const clearedData = {
-                      ...values,
-                      smtpHost: '',
-                      smtpPort: 465,
-                      smtpUser: '',
-                      smtpPass: '',
-                    };
-                    emailSettingsMutation.mutate(clearedData);
-                  } else {
-                    // Altrimenti usa la validazione standard
-                    emailSettingsForm.handleSubmit(onEmailSettingsSubmit)(e);
-                  }
-                }} className="space-y-5">
-                  <FormField
-                    control={emailSettingsForm.control}
-                    name="customEmailEnabled"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-white">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={(checked) => {
-                              console.log("Checkbox changed to:", checked);
-                              field.onChange(checked);
-                            }}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>Abilita server email personalizzato</FormLabel>
-                          <FormDescription>
-                            Attiva questa opzione per utilizzare il tuo server SMTP. <span className="font-semibold">Questa impostazione deve essere attivata per inviare email.</span>
-                          </FormDescription>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
-                  
-                  {/* SMTP Configuration - Only shown when custom email is enabled */}
-                  {emailSettingsForm.watch('customEmailEnabled') && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-medium mb-4">Configurazione Server SMTP</h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <FormField
-                          control={emailSettingsForm.control}
-                          name="smtpHost"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Host SMTP</FormLabel>
-                              <FormControl>
-                                <Input placeholder="es. smtp.example.com" {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                L'indirizzo del server SMTP (es. smtp.gmail.com)
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={emailSettingsForm.control}
-                          name="smtpPort"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Porta SMTP</FormLabel>
-                              <FormControl>
-                                <Input type="number" placeholder="465" {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                La porta del server SMTP (es. 465, 587, 25)
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                        <FormField
-                          control={emailSettingsForm.control}
-                          name="smtpUser"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Username SMTP</FormLabel>
-                              <FormControl>
-                                <Input placeholder="es. info@example.com" {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                L'username/email per accedere al server SMTP
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        
-                        <FormField
-                          control={emailSettingsForm.control}
-                          name="smtpPass"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Password SMTP</FormLabel>
-                              <FormControl>
-                                <Input type="password" placeholder="Password" {...field} />
-                              </FormControl>
-                              <FormDescription>
-                                La password per accedere al server SMTP
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                    <Button 
-                      type="submit"
-                      disabled={emailSettingsMutation.isPending}
-                    >
-                      {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
-                    </Button>
+            <Card className="w-full">
+              <CardHeader>
+                <CardTitle>Impostazioni Email</CardTitle>
+                <CardDescription>
+                  Configura il tuo server SMTP per l'invio di email personalizzate ai clienti.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(savedEmailSettings.custom_email_enabled) ? (
+                  <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+                    <h3 className="text-green-800 font-medium mb-2">Server email personalizzato attivo</h3>
+                    <p className="text-green-700 text-sm">
+                      Il tuo server SMTP personalizzato è configurato e attivo. Le email verranno inviate utilizzando le impostazioni specificate.
+                    </p>
                   </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
+                ) : (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
+                    <h3 className="text-amber-800 font-medium mb-2">Configurazione richiesta</h3>
+                    <p className="text-amber-700 text-sm">
+                      È necessario configurare un server SMTP per poter inviare email ai clienti. 
+                      Il sistema non utilizza più un server predefinito. Se non configuri queste impostazioni, 
+                      non sarà possibile inviare email ai clienti.
+                    </p>
+                  </div>
+                )}
+                
+                <Form {...emailSettingsForm}>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const values = emailSettingsForm.getValues();
+                    
+                    // Se customEmailEnabled è false, bypassa la validazione
+                    if (!values.customEmailEnabled) {
+                      const clearedData = {
+                        ...values,
+                        smtpHost: '',
+                        smtpPort: 465,
+                        smtpUser: '',
+                        smtpPass: '',
+                      };
+                      emailSettingsMutation.mutate(clearedData);
+                    } else {
+                      // Altrimenti usa la validazione standard
+                      emailSettingsForm.handleSubmit(onEmailSettingsSubmit)(e);
+                    }
+                  }} className="space-y-5">
+                    <FormField
+                      control={emailSettingsForm.control}
+                      name="customEmailEnabled"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-white">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={(checked) => {
+                                console.log("Checkbox changed to:", checked);
+                                field.onChange(checked);
+                              }}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>Abilita server email personalizzato</FormLabel>
+                            <FormDescription>
+                              Attiva questa opzione per utilizzare il tuo server SMTP. <span className="font-semibold">Questa impostazione deve essere attivata per inviare email.</span>
+                            </FormDescription>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* SMTP Configuration - Only shown when custom email is enabled */}
+                    {emailSettingsForm.watch('customEmailEnabled') && (
+                      <div className="mt-6">
+                        <h3 className="text-lg font-medium mb-4">Configurazione Server SMTP</h3>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <FormField
+                            control={emailSettingsForm.control}
+                            name="smtpHost"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Host SMTP</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="es. smtp.example.com" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  L'indirizzo del server SMTP (es. smtp.gmail.com)
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={emailSettingsForm.control}
+                            name="smtpPort"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Porta SMTP</FormLabel>
+                                <FormControl>
+                                  <Input type="number" placeholder="465" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  La porta del server SMTP (es. 465, 587, 25)
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                          <FormField
+                            control={emailSettingsForm.control}
+                            name="smtpUser"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Username SMTP</FormLabel>
+                                <FormControl>
+                                  <Input placeholder="es. info@example.com" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  L'username/email per accedere al server SMTP
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          
+                          <FormField
+                            control={emailSettingsForm.control}
+                            name="smtpPass"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Password SMTP</FormLabel>
+                                <FormControl>
+                                  <Input type="password" placeholder="Password" {...field} />
+                                </FormControl>
+                                <FormDescription>
+                                  La password per accedere al server SMTP
+                                </FormDescription>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                      <Button 
+                        type="submit"
+                        disabled={emailSettingsMutation.isPending}
+                      >
+                        {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
+                      </Button>
+                    </div>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
         </div>
 
-        {/* Security Section */}
-        <Card>
-          <CardHeader>
+          {/* Security Section */}
+            <Card>
+              <CardHeader>
             <CardTitle>Cambia Password</CardTitle>
-            <CardDescription>
+                <CardDescription>
               Aggiorna la tua password per mantenere sicuro il tuo account
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="currentPassword"
-                  render={({ field }) => (
-                    <FormItem>
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...form}>
+                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField
+                      control={form.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
                       <FormLabel>Password attuale</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
+                          <FormControl>
+                            <Input
+                              type="password"
                           placeholder="Inserisci la tua password attuale"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="newPassword"
-                  render={({ field }) => (
-                    <FormItem>
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
                       <FormLabel>Nuova Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
+                          <FormControl>
+                            <Input
+                              type="password"
                           placeholder="Inserisci la tua nuova password"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormDescription>
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormDescription>
                         La password deve essere lunga almeno 8 caratteri
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
+                          </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="confirmPassword"
+                      render={({ field }) => (
+                        <FormItem>
                       <FormLabel>Conferma Nuova Password</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="password"
+                          <FormControl>
+                            <Input
+                              type="password"
                           placeholder="Conferma la tua nuova password"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <Button
-                  type="submit"
-                  disabled={passwordMutation.isPending}
-                  className="mt-4"
-                >
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={passwordMutation.isPending}
+                      className="mt-4"
+                    >
                   {passwordMutation.isPending ? "Aggiornando..." : "Aggiorna Password"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
       </div>
       
       {/* Upgrade Dialog */}
