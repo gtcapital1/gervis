@@ -1,7 +1,7 @@
 import { OpenAI } from 'openai';
 import { Request, Response } from 'express';
 import { db } from '../db'; // Import database instance
-import { conversations, messages as messagesTable, clients } from '../../shared/schema'; // Rename to avoid conflict
+import { conversations, messages as messagesTable, clients, users } from '../../shared/schema'; // Rename to avoid conflict
 import { eq, and, asc, desc, isNull, or, ilike } from 'drizzle-orm'; // Import query helpers
 import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews } from './functions';
 import { nanoid } from 'nanoid';
@@ -707,6 +707,10 @@ export const handleChat = async (req: Request, res: Response) => {
               }
               
               console.log('[DEBUG] Impostato flag showEmailDialog a true con dati:', emailDialogData);
+            } else if (result.errorCode === 'SMTP_CONFIG_MISSING') {
+              // Caso speciale: configurazione SMTP mancante
+              aiResponse = `Per poter inviare email, è necessario configurare le impostazioni SMTP nel tab Impostazioni. Vai su Impostazioni → Email e compila i dati del tuo server SMTP.`;
+              console.log('[DEBUG] Rilevata configurazione SMTP mancante, mostrato messaggio informativo');
             }
             
             console.log('Preparazione dati email completata:', { 
@@ -1249,6 +1253,28 @@ async function composeEmailData(args: {
       };
     }
     
+    // Verifica la configurazione SMTP dell'utente
+    try {
+      // Tenta di recuperare le impostazioni email dell'utente
+      const user = await db.select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      
+      // Se l'utente non ha configurato SMTP, notifica subito senza tentare l'invio
+      if (!user[0]?.custom_email_enabled || !user[0]?.smtp_host || !user[0]?.smtp_user) {
+        console.log('[DEBUG composeEmailData] Configurazione SMTP mancante per l\'utente', userId);
+        return {
+          success: false,
+          error: 'Per inviare email, configura le tue impostazioni SMTP nel tab Impostazioni.',
+          errorCode: 'SMTP_CONFIG_MISSING'
+        };
+      }
+    } catch (error) {
+      console.error('[ERROR composeEmailData] Errore verifica configurazione SMTP:', error);
+      // Continuiamo comunque, lasceremo che il servizio email rilevi l'errore se necessario
+    }
+    
     // Prepara i dati per il dialog
     const emailData = {
       clientId,
@@ -1268,6 +1294,16 @@ async function composeEmailData(args: {
     };
   } catch (error) {
     console.error('[ERROR composeEmailData]', error);
+    
+    // Verifica se l'errore è relativo alla configurazione SMTP mancante
+    if (error instanceof Error && error.message.includes('Configurazione email mancante')) {
+      return {
+        success: false,
+        error: 'Per inviare email, configura le tue impostazioni SMTP nel tab Impostazioni.',
+        errorCode: 'SMTP_CONFIG_MISSING'
+      };
+    }
+    
     return {
       success: false,
       error: `Si è verificato un errore durante la preparazione dell'email: ${error.message || 'Errore sconosciuto'}`

@@ -28,6 +28,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Settings } from "lucide-react";
 
 // Struttura base del cliente
 interface Client {
@@ -117,6 +119,20 @@ export function EmailDialog({
     enabled: open && useClientSelector,
     staleTime: 60000, // Cache per 1 minuto
   });
+
+  // Ottieni le impostazioni email dell'utente per verificare la configurazione SMTP
+  const { data: emailSettings, isLoading: isEmailSettingsLoading } = useQuery({
+    queryKey: ['email-settings'],
+    queryFn: async () => {
+      const response = await apiRequest('/api/user/email-settings');
+      return response.emailSettings || {};
+    },
+    enabled: open,
+    staleTime: 60000, // Cache per 1 minuto
+  });
+
+  // Verifica se l'utente ha configurato SMTP
+  const hasSmtpConfigured = emailSettings?.custom_email_enabled === true;
 
   // Monitora lo stato della query cliente
   useEffect(() => {
@@ -346,6 +362,15 @@ export function EmailDialog({
 
         <div className="p-6">
           <div className="space-y-4">
+            {!hasSmtpConfigured && !isEmailSettingsLoading && (
+              <Alert className="bg-amber-50 border-amber-200 text-amber-800">
+                <AlertDescription className="flex flex-row items-center gap-2">
+                  <Settings className="h-4 w-4" />
+                  <span>Per inviare email, configura le impostazioni SMTP nel tab Impostazioni</span>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <div className="space-y-2">
               <Label htmlFor="recipient-name" className="text-sm font-medium flex items-center">
                 <User className="h-4 w-4 mr-2 text-blue-500" />
@@ -412,14 +437,24 @@ export function EmailDialog({
           >
             {t("Annulla")}
           </Button>
-          <Button 
-            onClick={handleSubmit}
-            disabled={isSending || !subject.trim() || !message.trim() || (selectedClientId ? isClientLoading : false)}
-            className="bg-blue-600 hover:bg-blue-700 gap-2"
-          >
-            <Mail className="h-4 w-4" />
-            {isSending ? t("Invio in corso...") : t("Invia email")}
-          </Button>
+          {hasSmtpConfigured ? (
+            <Button 
+              onClick={handleSubmit}
+              disabled={isSending || !subject.trim() || !message.trim() || (selectedClientId ? isClientLoading : false)}
+              className="bg-blue-600 hover:bg-blue-700 gap-2"
+            >
+              <Mail className="h-4 w-4" />
+              {isSending ? t("Invio in corso...") : t("Invia email")}
+            </Button>
+          ) : (
+            <Button 
+              className="bg-amber-600 hover:bg-amber-700 gap-2"
+              onClick={() => window.location.href = '/settings?tab=email'}
+            >
+              <Settings className="h-4 w-4" />
+              {t("Configura SMTP in Impostazioni")}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

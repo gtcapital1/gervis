@@ -464,7 +464,17 @@ export function registerClientRoutes(app: Express) {
         // Log dettagliato dell'errore
         console.error('[EMAIL DEBUG] Errore nell\'invio dell\'email:', emailError);
         
-        // Estrazione dettagli errore più specifici
+        // Verifica se si tratta di errore di configurazione SMTP mancante
+        if (emailError.message && emailError.message.includes("Configurazione email mancante")) {
+          // Restituisci un errore user-friendly per la mancanza di configurazione SMTP
+          return res.status(400).json({
+            success: false,
+            message: "Per inviare email, configura le tue impostazioni SMTP nel tab Impostazioni.",
+            errorCode: "SMTP_CONFIG_MISSING"
+          });
+        }
+        
+        // Estrazione dettagli errore più specifici per altri tipi di errore
         const errorDetails = {
           message: emailError.message || "Errore sconosciuto",
           code: emailError.code || "UNKNOWN_ERROR",
