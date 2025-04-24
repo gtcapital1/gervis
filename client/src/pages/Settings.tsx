@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -106,6 +106,24 @@ export default function Settings() {
   const [savedEmailSettings, setSavedEmailSettings] = useState<{custom_email_enabled: boolean}>({
     custom_email_enabled: false
   });
+  
+  // Riferimento alla sezione email per lo scroll
+  const emailSectionRef = useRef<HTMLDivElement>(null);
+  
+  // Verifica se dobbiamo scrollare alla sezione email (da parametro URL)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get('tab');
+      
+      if (tabParam === 'email' && emailSectionRef.current) {
+        // Scroll alla sezione email con un piccolo ritardo per assicurarsi che la pagina sia caricata
+        setTimeout(() => {
+          emailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, []);
   
   // Form setup with default values
   const form = useForm<PasswordFormValues>({
@@ -314,36 +332,6 @@ export default function Settings() {
       emailSettingsMutation.mutate(data);
     }
   }
-
-  // Downgrade to Base plan mutation
-  const downgradeMutation = useMutation({
-    mutationFn: () => {
-      return apiRequest(`/api/users/${user?.id}/downgrade`, {
-        method: "POST",
-      });
-    },
-    onSuccess: () => {
-      toast({
-        title: "Account downgraded",
-        description: "Your account has been downgraded to Base successfully.",
-      });
-      
-      // Clear cache and refresh user data
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
-      
-      // Force a page reload to ensure all UI elements update properly
-      setTimeout(() => {
-        window.location.reload();
-      }, 500);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to downgrade account",
-        variant: "destructive",
-      });
-    },
-  });
   
   // Password change mutation
   const passwordMutation = useMutation({
@@ -529,539 +517,441 @@ export default function Settings() {
           title={t('dashboard.settings')}
           subtitle={t('settings.settings_description', 'Manage your account settings and preferences.')}
         />
-        <Tabs defaultValue="account" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="account">{t('settings.account', 'Account')}</TabsTrigger>
-            <TabsTrigger value="email">{t('settings.email', 'Email')}</TabsTrigger>
-          </TabsList>
-          
-          {/* Account tab - existing content */}
-          <TabsContent value="account" className="space-y-4">
-            {/* Account Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Profile Information</CardTitle>
-                <CardDescription>
-                  View and update your profile information
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <h3 className="font-medium">Username</h3>
-                      <p className="text-muted-foreground">{user?.username}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Name</h3>
-                      <p className="text-muted-foreground">{user?.name || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Email</h3>
-                      <p className="text-muted-foreground">{user?.email || "Not provided"}</p>
-                    </div>
-                    <div>
-                      <h3 className="font-medium">Account Type</h3>
-                      <p className="text-muted-foreground">
-                        {user?.isPro ? (
-                          <span className="text-accent font-semibold">Gervis PRO</span>
-                        ) : (
-                          "Standard"
-                        )}
-                      </p>
-                    </div>
-                  </div>
+
+        {/* Account Information */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informazioni Profilo</CardTitle>
+            <CardDescription>
+              Visualizza le informazioni del tuo profilo
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-medium">Username</h3>
+                  <p className="text-muted-foreground">{user?.username}</p>
                 </div>
-              </CardContent>
-            </Card>
-            
-            {/* Subscription Section */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Subscription Management</CardTitle>
-                <CardDescription>
-                  Manage your subscription and billing
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="mb-6">
-                    <h3 className="font-medium text-lg">Current Plan</h3>
-                    <div className="flex items-center justify-between mt-2 p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">
-                          {user?.isPro ? "Gervis PRO Plan" : "Standard Plan"}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {user?.isPro
-                            ? "Access to all premium features"
-                            : "Basic features only"}
-                        </p>
+                <div>
+                  <h3 className="font-medium">Nome</h3>
+                  <p className="text-muted-foreground">{user?.name || "Non specificato"}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Email</h3>
+                  <p className="text-muted-foreground">{user?.email || "Non specificato"}</p>
+                </div>
+                <div>
+                  <h3 className="font-medium">Tipo di Account</h3>
+                  <p className="text-muted-foreground">
+                    {user?.isPro ? (
+                      <span className="text-accent font-semibold">Gervis PRO</span>
+                    ) : (
+                      "Standard"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Email Settings Section */}
+        <div id="email-settings" ref={emailSectionRef}>
+          <Card className="w-full">
+            <CardHeader>
+              <CardTitle>Impostazioni Email</CardTitle>
+              <CardDescription>
+                Configura il tuo server SMTP per l'invio di email personalizzate ai clienti.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {(savedEmailSettings.custom_email_enabled) ? (
+                <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
+                  <h3 className="text-green-800 font-medium mb-2">Server email personalizzato attivo</h3>
+                  <p className="text-green-700 text-sm">
+                    Il tuo server SMTP personalizzato è configurato e attivo. Le email verranno inviate utilizzando le impostazioni specificate.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
+                  <h3 className="text-amber-800 font-medium mb-2">Configurazione richiesta</h3>
+                  <p className="text-amber-700 text-sm">
+                    È necessario configurare un server SMTP per poter inviare email ai clienti. 
+                    Il sistema non utilizza più un server predefinito. Se non configuri queste impostazioni, 
+                    non sarà possibile inviare email ai clienti.
+                  </p>
+                </div>
+              )}
+              
+              <Form {...emailSettingsForm}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  const values = emailSettingsForm.getValues();
+                  
+                  // Se customEmailEnabled è false, bypassa la validazione
+                  if (!values.customEmailEnabled) {
+                    const clearedData = {
+                      ...values,
+                      smtpHost: '',
+                      smtpPort: 465,
+                      smtpUser: '',
+                      smtpPass: '',
+                    };
+                    emailSettingsMutation.mutate(clearedData);
+                  } else {
+                    // Altrimenti usa la validazione standard
+                    emailSettingsForm.handleSubmit(onEmailSettingsSubmit)(e);
+                  }
+                }} className="space-y-5">
+                  <FormField
+                    control={emailSettingsForm.control}
+                    name="customEmailEnabled"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-white">
+                        <FormControl>
+                          <Checkbox
+                            checked={field.value}
+                            onCheckedChange={(checked) => {
+                              console.log("Checkbox changed to:", checked);
+                              field.onChange(checked);
+                            }}
+                          />
+                        </FormControl>
+                        <div className="space-y-1 leading-none">
+                          <FormLabel>Abilita server email personalizzato</FormLabel>
+                          <FormDescription>
+                            Attiva questa opzione per utilizzare il tuo server SMTP. <span className="font-semibold">Questa impostazione deve essere attivata per inviare email.</span>
+                          </FormDescription>
+                        </div>
+                      </FormItem>
+                    )}
+                  />
+                  
+                  {/* SMTP Configuration - Only shown when custom email is enabled */}
+                  {emailSettingsForm.watch('customEmailEnabled') && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium mb-4">Configurazione Server SMTP</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpHost"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Host SMTP</FormLabel>
+                              <FormControl>
+                                <Input placeholder="es. smtp.example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                L'indirizzo del server SMTP (es. smtp.gmail.com)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpPort"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Porta SMTP</FormLabel>
+                              <FormControl>
+                                <Input type="number" placeholder="465" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                La porta del server SMTP (es. 465, 587, 25)
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
                       </div>
-                      {!user?.isPro && (
-                        <Button 
-                          disabled={true}
-                          variant="outline"
-                          className="border-amber-500 text-amber-600 hover:bg-amber-50 cursor-not-allowed"
-                        >
-                          <span className="mr-2 text-xs font-bold bg-amber-200 text-amber-800 px-2 py-0.5 rounded-full">Coming Soon</span>
-                          Upgrade to Gervis PRO
-                        </Button>
-                      )}
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpUser"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Username SMTP</FormLabel>
+                              <FormControl>
+                                <Input placeholder="es. info@example.com" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                L'username/email per accedere al server SMTP
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        
+                        <FormField
+                          control={emailSettingsForm.control}
+                          name="smtpPass"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Password SMTP</FormLabel>
+                              <FormControl>
+                                <Input type="password" placeholder="Password" {...field} />
+                              </FormControl>
+                              <FormDescription>
+                                La password per accedere al server SMTP
+                              </FormDescription>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
+                  )}
+                  
+                  <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                    <Button 
+                      type="submit"
+                      disabled={emailSettingsMutation.isPending}
+                    >
+                      {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Email Signature Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Firma Email</CardTitle>
+            <CardDescription>
+              Personalizza la tua firma per le comunicazioni con i clienti
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...signatureForm}>
+              <form onSubmit={signatureForm.handleSubmit(onSignatureSubmit)} className="space-y-4">
+                <FormField
+                  control={signatureForm.control}
+                  name="signature"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>La tua firma</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Inserisci la tua firma professionale"
+                          {...field}
+                          className="min-h-[100px]"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Questa firma apparirà alla fine di tutte le tue comunicazioni con i clienti
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={signatureMutation.isPending}
+                  className="mt-4"
+                >
+                  {signatureMutation.isPending ? "Salvando..." : "Salva firma"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Company Logo Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Logo Aziendale</CardTitle>
+            <CardDescription>
+              Carica il logo della tua azienda da utilizzare nei documenti PDF
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...logoForm}>
+              <form onSubmit={logoForm.handleSubmit(onLogoSubmit)} className="space-y-4">
+                <div className="flex flex-col space-y-6">
+                  {/* Logo preview */}
+                  {previewLogo && (
+                    <div className="mb-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-medium">Anteprima Logo</h3>
+                        {user?.companyLogo && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="text-red-500 border-red-200 hover:bg-red-50"
+                            disabled={deleteLogoMutation.isPending}
+                            onClick={() => deleteLogoMutation.mutate()}
+                          >
+                            {deleteLogoMutation.isPending ? "Eliminando..." : "Elimina Logo"}
+                          </Button>
+                        )}
+                      </div>
+                      <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
+                        <img 
+                          src={previewLogo} 
+                          alt="Company Logo Preview" 
+                          className="max-h-[150px] max-w-full object-contain"
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Upload input for logo */}
+                  <div>
+                    <FormLabel>Seleziona file logo (max 2MB)</FormLabel>
+                    <div className="mt-2">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="cursor-pointer"
+                      />
+                    </div>
+                    <FormDescription>
+                      Il logo verrà utilizzato come filigrana nell'intestazione dei tuoi documenti PDF
+                    </FormDescription>
                   </div>
                   
-                  {user?.isPro && (
-                    <>
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-medium text-lg">Premium Features</h3>
-                        <Button 
-                          variant="outline"
-                          onClick={() => downgradeMutation.mutate()}
-                          disabled={downgradeMutation.isPending}
-                          className="text-red-500 border-red-200 hover:bg-red-50"
-                        >
-                          {downgradeMutation.isPending ? "Downgrading..." : "Downgrade to Base"}
-                        </Button>
-                      </div>
-                      <ul className="mt-2 space-y-2">
-                        <li className="flex items-center">
-                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Advanced financial analytics
-                        </li>
-                        <li className="flex items-center">
-                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Personalized investment recommendations
-                        </li>
-                        <li className="flex items-center">
-                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Priority customer support
-                        </li>
-                        <li className="flex items-center">
-                          <svg className="h-5 w-5 text-green-500 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Portfolio optimization tools
-                        </li>
-                      </ul>
-                    </>
-                  )}
+                  <Button
+                    type="submit"
+                    disabled={logoMutation.isPending || !previewLogo}
+                    className="mt-4"
+                  >
+                    {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
+                  </Button>
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Company Logo Section */}
-          <TabsContent value="company">
-            <Card>
-              <CardHeader>
-                <CardTitle>Logo Aziendale</CardTitle>
-                <CardDescription>
-                  Carica il logo della tua azienda da utilizzare nei documenti PDF
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...logoForm}>
-                  <form onSubmit={logoForm.handleSubmit(onLogoSubmit)} className="space-y-4">
-                    <div className="flex flex-col space-y-6">
-                      {/* Logo preview */}
-                      {previewLogo && (
-                        <div className="mb-4">
-                          <div className="flex justify-between items-center mb-2">
-                            <h3 className="font-medium">Anteprima Logo</h3>
-                            {user?.companyLogo && (
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="text-red-500 border-red-200 hover:bg-red-50"
-                                disabled={deleteLogoMutation.isPending}
-                                onClick={() => deleteLogoMutation.mutate()}
-                              >
-                                {deleteLogoMutation.isPending ? "Eliminando..." : "Elimina Logo"}
-                              </Button>
-                            )}
-                          </div>
-                          <div className="border rounded-md p-4 flex items-center justify-center bg-gray-50">
-                            <img 
-                              src={previewLogo} 
-                              alt="Company Logo Preview" 
-                              className="max-h-[150px] max-w-full object-contain"
-                            />
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Upload input for logo */}
-                      <div>
-                        <FormLabel>Seleziona file logo (max 2MB)</FormLabel>
-                        <div className="mt-2">
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleLogoUpload}
-                            className="cursor-pointer"
-                          />
-                        </div>
-                        <FormDescription>
-                          Il logo verrà utilizzato come filigrana nell'intestazione dei tuoi documenti PDF
-                        </FormDescription>
-                      </div>
-                      
-                      <Button
-                        type="submit"
-                        disabled={logoMutation.isPending || !previewLogo}
-                        className="mt-4"
-                      >
-                        {logoMutation.isPending ? "Salvando..." : "Salva Logo"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Company Info Section */}
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informazioni Societarie</CardTitle>
-                <CardDescription>
-                  Inserisci le informazioni societarie che appariranno nei documenti PDF
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...companyInfoForm}>
-                  <form onSubmit={companyInfoForm.handleSubmit(onCompanyInfoSubmit)} className="space-y-4">
-                    <FormField
-                      control={companyInfoForm.control}
-                      name="companyInfo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Informazioni societarie</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Inserisci i dettagli della società (indirizzo, telefono, email, P.IVA, ecc.)"
-                              {...field}
-                              className="min-h-[150px]"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Queste informazioni appariranno nell'intestazione dei documenti PDF sotto il logo aziendale
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={companyInfoMutation.isPending}
-                      className="mt-4"
-                    >
-                      {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Email Settings Tab */}
-          <TabsContent value="email" className="space-y-6">
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Impostazioni Email</CardTitle>
-                <CardDescription>
-                  Configura il tuo server SMTP per l'invio di email personalizzate ai clienti.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                {(savedEmailSettings.custom_email_enabled) ? (
-                  <div className="bg-green-50 border border-green-200 rounded-md p-4 mb-6">
-                    <h3 className="text-green-800 font-medium mb-2">Server email personalizzato attivo</h3>
-                    <p className="text-green-700 text-sm">
-                      Il tuo server SMTP personalizzato è configurato e attivo. Le email verranno inviate utilizzando le impostazioni specificate.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-amber-50 border border-amber-200 rounded-md p-4 mb-6">
-                    <h3 className="text-amber-800 font-medium mb-2">Configurazione richiesta</h3>
-                    <p className="text-amber-700 text-sm">
-                      È necessario configurare un server SMTP per poter inviare email ai clienti. 
-                      Il sistema non utilizza più un server predefinito. Se non configuri queste impostazioni, 
-                      non sarà possibile inviare email ai clienti.
-                    </p>
-                  </div>
-                )}
-                
-                <Form {...emailSettingsForm}>
-                  <form onSubmit={(e) => {
-                    e.preventDefault();
-                    const values = emailSettingsForm.getValues();
-                    
-                    // Se customEmailEnabled è false, bypassa la validazione
-                    if (!values.customEmailEnabled) {
-                      const clearedData = {
-                        ...values,
-                        smtpHost: '',
-                        smtpPort: 465,
-                        smtpUser: '',
-                        smtpPass: '',
-                      };
-                      emailSettingsMutation.mutate(clearedData);
-                    } else {
-                      // Altrimenti usa la validazione standard
-                      emailSettingsForm.handleSubmit(onEmailSettingsSubmit)(e);
-                    }
-                  }} className="space-y-5">
-                    <FormField
-                      control={emailSettingsForm.control}
-                      name="customEmailEnabled"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 bg-white">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={(checked) => {
-                                console.log("Checkbox changed to:", checked);
-                                field.onChange(checked);
-                              }}
-                            />
-                          </FormControl>
-                          <div className="space-y-1 leading-none">
-                            <FormLabel>Abilita server email personalizzato</FormLabel>
-                            <FormDescription>
-                              Attiva questa opzione per utilizzare il tuo server SMTP. <span className="font-semibold">Questa impostazione deve essere attivata per inviare email.</span>
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                    
-                    {/* SMTP Configuration - Only shown when custom email is enabled */}
-                    {emailSettingsForm.watch('customEmailEnabled') && (
-                      <div className="mt-6">
-                        <h3 className="text-lg font-medium mb-4">Configurazione Server SMTP</h3>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <FormField
-                            control={emailSettingsForm.control}
-                            name="smtpHost"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Host SMTP</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="es. smtp.example.com" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  L'indirizzo del server SMTP (es. smtp.gmail.com)
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={emailSettingsForm.control}
-                            name="smtpPort"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Porta SMTP</FormLabel>
-                                <FormControl>
-                                  <Input type="number" placeholder="465" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  La porta del server SMTP (es. 465, 587, 25)
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                          <FormField
-                            control={emailSettingsForm.control}
-                            name="smtpUser"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Username SMTP</FormLabel>
-                                <FormControl>
-                                  <Input placeholder="es. info@example.com" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  L'username/email per accedere al server SMTP
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          
-                          <FormField
-                            control={emailSettingsForm.control}
-                            name="smtpPass"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Password SMTP</FormLabel>
-                                <FormControl>
-                                  <Input type="password" placeholder="Password" {...field} />
-                                </FormControl>
-                                <FormDescription>
-                                  La password per accedere al server SMTP
-                                </FormDescription>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    
-                    <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                      <Button 
-                        type="submit"
-                        disabled={emailSettingsMutation.isPending}
-                      >
-                        {emailSettingsMutation.isPending ? "Salvando..." : "Salva impostazioni"}
-                      </Button>
-                    </div>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-          
-          {/* Email Signature Section */}
-          <TabsContent value="subscription">
-            <Card>
-              <CardHeader>
-                <CardTitle>Email Signature</CardTitle>
-                <CardDescription>
-                  Customize your signature for client communications
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...signatureForm}>
-                  <form onSubmit={signatureForm.handleSubmit(onSignatureSubmit)} className="space-y-4">
-                    <FormField
-                      control={signatureForm.control}
-                      name="signature"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Your Signature</FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Enter your professional signature"
-                              {...field}
-                              className="min-h-[100px]"
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            This signature will appear at the end of all your client communications
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={signatureMutation.isPending}
-                      className="mt-4"
-                    >
-                      {signatureMutation.isPending ? "Saving..." : "Save Signature"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
 
-          {/* Security Section */}
-          <TabsContent value="security">
-            <Card>
-              <CardHeader>
-                <CardTitle>Change Password</CardTitle>
-                <CardDescription>
-                  Update your password to keep your account secure
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Form {...form}>
-                  <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField
-                      control={form.control}
-                      name="currentPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Current Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter your current password"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="newPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>New Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Enter your new password"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormDescription>
-                            Password must be at least 8 characters long
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="confirmPassword"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Confirm New Password</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="password"
-                              placeholder="Confirm your new password"
-                              {...field}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <Button
-                      type="submit"
-                      disabled={passwordMutation.isPending}
-                      className="mt-4"
-                    >
-                      {passwordMutation.isPending ? "Updating..." : "Update Password"}
-                    </Button>
-                  </form>
-                </Form>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {/* Company Info Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Informazioni Societarie</CardTitle>
+            <CardDescription>
+              Inserisci le informazioni societarie che appariranno nei documenti PDF
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...companyInfoForm}>
+              <form onSubmit={companyInfoForm.handleSubmit(onCompanyInfoSubmit)} className="space-y-4">
+                <FormField
+                  control={companyInfoForm.control}
+                  name="companyInfo"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Informazioni societarie</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Inserisci i dettagli della società (indirizzo, telefono, email, P.IVA, ecc.)"
+                          {...field}
+                          className="min-h-[150px]"
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Queste informazioni appariranno nell'intestazione dei documenti PDF sotto il logo aziendale
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={companyInfoMutation.isPending}
+                  className="mt-4"
+                >
+                  {companyInfoMutation.isPending ? "Salvando..." : "Salva Informazioni"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        {/* Security Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Cambia Password</CardTitle>
+            <CardDescription>
+              Aggiorna la tua password per mantenere sicuro il tuo account
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password attuale</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Inserisci la tua password attuale"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Nuova Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Inserisci la tua nuova password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        La password deve essere lunga almeno 8 caratteri
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Conferma Nuova Password</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="password"
+                          placeholder="Conferma la tua nuova password"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  type="submit"
+                  disabled={passwordMutation.isPending}
+                  className="mt-4"
+                >
+                  {passwordMutation.isPending ? "Aggiornando..." : "Aggiorna Password"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
       </div>
       
       {/* Upgrade Dialog */}
