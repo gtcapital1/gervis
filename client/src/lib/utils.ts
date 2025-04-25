@@ -23,12 +23,12 @@ export function formatNumber(value: number): string {
   }).format(value)
 }
 
-export function formatPercent(value: number): string {
-  // Format as percentage with 1 decimal place
+export function formatPercent(value: number, decimals: number = 1): string {
+  // Format as percentage with specified number of decimal places
   return new Intl.NumberFormat('it-IT', {
     style: 'percent',
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
   }).format(value / 100)
 }
 

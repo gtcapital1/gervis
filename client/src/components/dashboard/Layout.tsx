@@ -22,6 +22,7 @@ import {
   Server,
   AlertTriangle,
   Bot,
+  Briefcase,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -107,6 +108,13 @@ export function Layout({ children }: LayoutProps) {
       disabled: false,
     },
     {
+      name: "Model Portfolios",
+      href: "/model-portfolios",
+      icon: Briefcase,
+      current: location === "/model-portfolios",
+      disabled: false,
+    },
+    {
       name: "Calendar",
       href: "/calendar",
       icon: Calendar,
@@ -168,7 +176,9 @@ export function Layout({ children }: LayoutProps) {
                   }}
                 >
                   <Icon className="mr-3 h-5 w-5" />
-                  {t(`dashboard.${item.name.toLowerCase()}`)}
+                  {item.name.toLowerCase() === "model portfolios" 
+                    ? t("portfolio.model_portfolios")
+                    : t(`dashboard.${item.name.toLowerCase()}`)}
                 </div>
               </Link>
             </div>

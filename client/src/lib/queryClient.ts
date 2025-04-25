@@ -76,7 +76,10 @@ async function throwIfResNotOk(res: Response) {
 }
 
 // Funzione principale per le richieste API
-export async function apiRequest(url: string, options?: RequestInit): Promise<any> {
+export async function apiRequest(
+  url: string, 
+  options?: RequestInit & { isFormData?: boolean }
+): Promise<any> {
   try {
     // Aggiungiamo timestamp per evitare caching
     const urlWithTimestamp = `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}`;
@@ -101,19 +104,24 @@ export async function apiRequest(url: string, options?: RequestInit): Promise<an
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "X-No-HTML-Response": "true", // Header speciale per indicare che vogliamo solo JSON
         "X-Requested-With": "XMLHttpRequest", // Aggiungiamo sempre questo header per indicare che è una richiesta AJAX
-        ...(options?.body ? { "Content-Type": "application/json" } : {})
+        // Se non è FormData, setta il Content-Type a 'application/json'
+        ...(options?.body && !options?.isFormData ? { "Content-Type": "application/json" } : {})
       },
       credentials: "include", // Importante per inviare i cookie di autenticazione
       ...options
     };
+    
+    // Rimuoviamo la proprietà isFormData dalla richiesta finali 
+    // perché non fa parte delle opzioni standard di RequestInit
+    if ('isFormData' in requestOptions) {
+      delete (requestOptions as any).isFormData;
+    }
     
     // Se è una richiesta PATCH o DELETE, aggiungi ulteriori header anti-cache e specifici
     if (options?.method === 'DELETE' || options?.method === 'PATCH') {
       (requestOptions.headers as Record<string, string>)["Pragma"] = "no-cache";
       (requestOptions.headers as Record<string, string>)["Expires"] = "0";
       (requestOptions.headers as Record<string, string>)["X-Api-Call"] = "true";
-      
-      
     }
     
     // Esecuzione della richiesta

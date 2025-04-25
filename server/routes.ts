@@ -19,7 +19,10 @@ import {
   insertAssetSchema,
   insertRecommendationSchema,
   signatureSessions,
-  verifiedDocuments
+  verifiedDocuments,
+  productsPublicDatabase,
+  portfolioProducts,
+  userProducts
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
@@ -29,7 +32,7 @@ import { generateInvestmentIdeas, getPromptForDebug } from './investment-ideas-c
 import nodemailer from 'nodemailer';
 import { db, sql as pgClient } from './db'; // Importa pgClient correttamente
 import crypto from 'crypto';
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or, inArray } from "drizzle-orm";
 import express from 'express';
 import fileUpload, { UploadedFile } from 'express-fileupload';
 import { trendService } from './trends-service';
@@ -46,6 +49,9 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import PDFMerger from 'pdf-merger-js';
+import os from 'os'; // Aggiungi import per os
+import cookieParser from "cookie-parser";
+import session from "express-session";
 
 // Import routes modules
 import { registerAuthRoutes } from './routes/auth.routes';
@@ -61,6 +67,7 @@ import { registerPublicRoutes } from './routes/public.routes';
 import { registerOnboardingRoutes } from './routes/onboarding.routes';
 import { registerMeetingRoutes } from './routes/meeting.routes';
 import { registerAgentRoutes } from './routes/agent.routes';
+import { registerPortfolioRoutes } from './routes/portfolio.routes';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -68,6 +75,12 @@ type e = Error;
 // Aggiungi questa definizione all'inizio del file, dopo le importazioni
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Crea una directory temporanea dedicata all'interno del progetto
+const tempDir = path.join(__dirname, '../private/temp');
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
 
 // Auth middleware
 export function isAuthenticated(req: Request, res: Response, next: Function) {
@@ -364,8 +377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use(fileUpload({
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max file size
-    useTempFiles: true, // Usa file temporanei invece di caricare in memoria
-    tempFileDir: '/tmp/',
+    useTempFiles: false, // Gestisci i file in memoria anziché in file temporanei
     createParentPath: true,
     abortOnLimit: true,
     responseOnLimit: "Il file è troppo grande (limite: 100MB)",
@@ -412,6 +424,126 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerOnboardingRoutes(app);
   registerMeetingRoutes(app);
   registerAgentRoutes(app);
+  registerPortfolioRoutes(app);
+  
+  // Aggiungi la rotta per recuperare prodotti dal database pubblico
+  app.get('/api/portfolio/public-products', isAuthenticated, async (req, res) => {
+    try {
+      // Recupera tutti i prodotti dal database pubblico
+      const products = await db.select().from(productsPublicDatabase).orderBy(productsPublicDatabase.name);
+      
+      return res.status(200).json({
+        success: true,
+        products
+      });
+    } catch (error) {
+      console.error("Errore nel recupero dei prodotti pubblici:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Errore nel recupero dei prodotti dal database pubblico."
+      });
+    }
+  });
+  
+  // Aggiungi la rotta per importare prodotti dal database pubblico
+  app.post('/api/portfolio/products/import-from-public', isAuthenticated, async (req, res) => {
+    try {
+      const { isins } = req.body;
+      const userId = req.user!.id;
+      
+      if (!isins || !Array.isArray(isins) || isins.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Devi fornire un array di codici ISIN."
+        });
+      }
+      
+      // Recupera i prodotti pubblici selezionati
+      const publicProducts = await db
+        .select()
+        .from(productsPublicDatabase)
+        .where(inArray(productsPublicDatabase.isin, isins));
+      
+      if (publicProducts.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Nessun prodotto trovato con gli ISIN specificati."
+        });
+      }
+      
+      // Controlla quali prodotti sono già stati importati
+      const existingProducts = await db
+        .select({ isin: portfolioProducts.isin })
+        .from(portfolioProducts)
+        .where(and(
+          inArray(portfolioProducts.isin, isins),
+          eq(portfolioProducts.createdBy, userId)
+        ));
+      
+      const existingIsins = existingProducts.map((p: { isin: string }) => p.isin);
+      
+      // Filtra solo i prodotti che non sono già stati importati
+      const productsToImport = publicProducts.filter(p => !existingIsins.includes(p.isin));
+      
+      // Importa i prodotti rimanenti
+      if (productsToImport.length > 0) {
+        const productsData = productsToImport.map(p => ({
+          isin: p.isin,
+          name: p.name,
+          category: p.category,
+          description: p.description,
+          benchmark: p.benchmark,
+          dividend_policy: p.dividend_policy,
+          currency: p.currency,
+          sri_risk: p.sri_risk,
+          entry_cost: p.entry_cost,
+          exit_cost: p.exit_cost,
+          ongoing_cost: p.ongoing_cost,
+          transaction_cost: p.transaction_cost,
+          performance_fee: p.performance_fee,
+          recommended_holding_period: p.recommended_holding_period,
+          target_market: p.target_market,
+          kid_file_path: p.kid_file_path,
+          kid_processed: p.kid_processed,
+          createdBy: userId
+        }));
+        
+        await db.insert(portfolioProducts).values(productsData);
+        
+        // Aggiungi prodotti alla lista dell'utente
+        const insertedProducts = await db
+          .select({ id: portfolioProducts.id })
+          .from(portfolioProducts)
+          .where(and(
+            inArray(portfolioProducts.isin, productsToImport.map((p: any) => p.isin)),
+            eq(portfolioProducts.createdBy, userId)
+          ));
+        
+        const userProductsData = insertedProducts.map((p: { id: number }) => ({
+          userId: userId,
+          productId: p.id
+        }));
+        
+        if (userProductsData.length > 0) {
+          await db.insert(userProducts).values(userProductsData);
+        }
+      }
+      
+      return res.status(200).json({
+        success: true,
+        message: `Importati ${productsToImport.length} prodotti. ${existingIsins.length} prodotti erano già presenti.`,
+        imported: productsToImport.length,
+        alreadyExisting: existingIsins.length
+      });
+      
+    } catch (error) {
+      console.error("Errore nell'importazione dei prodotti pubblici:", error);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Errore nell'importazione dei prodotti dal database pubblico."
+      });
+    }
+  });
   
   // Create and return the server
   const server = createServer(app);

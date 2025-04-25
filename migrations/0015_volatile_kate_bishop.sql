@@ -1,0 +1,1 @@
+ALTER TABLE "portfolio_products" DROP COLUMN "available_to_everyone";

@@ -154,6 +154,24 @@ export default function AgentPage() {
       fetchConversations();
   }, []);
   
+  // Check for portfolio creation prompt
+  useEffect(() => {
+    const portfolioPrompt = localStorage.getItem('portfolioCreationPrompt');
+    if (portfolioPrompt) {
+      // Set up the UI for showing chat
+      setShowChat(true);
+      
+      // Set the prompt to input and clear it from localStorage
+      setInput(portfolioPrompt);
+      localStorage.removeItem('portfolioCreationPrompt');
+      
+      // Auto-send the message after a short delay to ensure UI is ready
+      setTimeout(() => {
+        sendMessage();
+      }, 500);
+    }
+  }, []);
+  
   // Scorrimento automatico quando arrivano nuovi messaggi
   useEffect(() => {
     if (messagesEndRef.current) {

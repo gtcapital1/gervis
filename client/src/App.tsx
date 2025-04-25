@@ -24,6 +24,7 @@ import MobileVerification from "@/pages/MobileVerification";
 import OpportunitiesPage from "@/pages/OpportunitiesPage";
 import Agent from "@/pages/Agent";
 import ResetPasswordPage from "@/pages/reset-password";
+import ModelPortfolios from "@/pages/ModelPortfolios";
 
 // Create ProtectedRoute component here until we can fix the imports
 function ProtectedRoute({ children, adminRequired = false }: { children: React.ReactNode, adminRequired?: boolean }) {
@@ -201,6 +202,14 @@ function App() {
                     <ProtectedRoute>
                       <Layout>
                         <Calendar />
+                      </Layout>
+                    </ProtectedRoute>
+                  </Route>
+
+                  <Route path="/model-portfolios">
+                    <ProtectedRoute>
+                      <Layout>
+                        <ModelPortfolios />
                       </Layout>
                     </ProtectedRoute>
                   </Route>

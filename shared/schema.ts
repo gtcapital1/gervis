@@ -470,3 +470,84 @@ export type Conversation = typeof conversations.$inferSelect;
 export type Message = typeof messages.$inferSelect;
 export type InsertConversation = typeof conversations.$inferInsert;
 export type InsertMessage = typeof messages.$inferInsert;
+
+// Model Portfolio Products Schema
+export const portfolioProducts = pgTable("portfolio_products", {
+  id: serial("id").primaryKey(),
+  isin: text("isin").notNull(),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  description: text("description"),
+  benchmark: text("benchmark"),
+  dividend_policy: text("dividend_policy"),  // ACC or DIST
+  currency: text("currency"),
+  sri_risk: integer("sri_risk"),  // 1-7 scale
+  entry_cost: numeric("entry_cost").default("0"),
+  exit_cost: numeric("exit_cost").default("0"), 
+  ongoing_cost: numeric("ongoing_cost").default("0"),
+  transaction_cost: numeric("transaction_cost").default("0"),
+  performance_fee: numeric("performance_fee").default("0"), // Performance fees
+  recommended_holding_period: text("recommended_holding_period"),
+  target_market: text("target_market"),
+  kid_file_path: text("kid_file_path"),  // Store path to uploaded KID
+  kid_processed: boolean("kid_processed").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Model Portfolios Schema
+export const modelPortfolios = pgTable("model_portfolios", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description").notNull(),
+  clientProfile: text("client_profile").notNull(),
+  riskLevel: text("risk_level").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  createdBy: integer("created_by").references(() => users.id),
+});
+
+// Model Portfolio Allocations Schema
+export const portfolioAllocations = pgTable("portfolio_allocations", {
+  id: serial("id").primaryKey(),
+  portfolioId: integer("portfolio_id").references(() => modelPortfolios.id, { onDelete: "cascade" }),
+  productId: integer("product_id").references(() => portfolioProducts.id, { onDelete: "cascade" }),
+  percentage: numeric("percentage").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// User-Product associations (prodotti aggiunti da ciascun utente)
+export const userProducts = pgTable("user_products", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
+  productId: integer("product_id").references(() => portfolioProducts.id, { onDelete: "cascade" }),
+  addedAt: timestamp("added_at").defaultNow(),
+});
+
+export type PortfolioProduct = typeof portfolioProducts.$inferSelect;
+export type ModelPortfolio = typeof modelPortfolios.$inferSelect;
+export type PortfolioAllocation = typeof portfolioAllocations.$inferSelect;
+export type UserProduct = typeof userProducts.$inferSelect;
+
+// Tabella centralizzata dei prodotti (database pubblico)
+export const productsPublicDatabase = pgTable('products_public_database', {
+  isin: text('isin').notNull().primaryKey(),
+  name: text('name').notNull(),
+  category: text('category').notNull(),
+  description: text('description'),
+  benchmark: text('benchmark'),
+  dividend_policy: text('dividend_policy'),
+  currency: text('currency'),
+  sri_risk: integer('sri_risk'),
+  entry_cost: text('entry_cost'),
+  exit_cost: text('exit_cost'),
+  ongoing_cost: text('ongoing_cost'),
+  transaction_cost: text('transaction_cost'),
+  performance_fee: text('performance_fee'),
+  recommended_holding_period: text('recommended_holding_period'),
+  target_market: text('target_market'),
+  kid_file_path: text('kid_file_path'),
+  kid_processed: boolean('kid_processed').default(false),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
