@@ -1005,13 +1005,14 @@
     "long_term": "Lungo termine (7+ anni)"
   },
   "asset_categories": {
-    "real_estate": "Immobili",
+    "real_estate": "Immobiliare",
     "equity": "Azioni e Titoli",
     "bonds": "Obbligazioni e Reddito Fisso",
     "cash": "Liquidità",
     "private_equity": "Private Equity",
     "venture_capital": "Venture Capital",
     "cryptocurrencies": "Criptovalute",
+    "commodities": "Materie Prime",
     "other": "Altri Asset"
   },
   "personal_interests": {

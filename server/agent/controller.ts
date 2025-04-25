@@ -3,7 +3,7 @@ import { Request, Response } from 'express';
 import { db } from '../db'; // Import database instance
 import { conversations, messages as messagesTable, clients, users } from '../../shared/schema'; // Rename to avoid conflict
 import { eq, and, asc, desc, isNull, or, ilike } from 'drizzle-orm'; // Import query helpers
-import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews } from './functions';
+import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, handlePortfolioGeneration } from './functions';
 import { nanoid } from 'nanoid';
 import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
 import { ChatCompletionMessageParam } from 'openai';
@@ -139,9 +139,18 @@ export const handleChat = async (req: Request, res: Response) => {
       4. **Assistenza normativa e operativa**  
          - Fornisci template, sintesi normative, risposte su strumenti della piattaforma  
       
+      5. **Generazione e analisi di portafogli**
+         - Quando generi un portafoglio di investimento, riepiloga SEMPRE le metriche calcolate:
+           - Rischio medio ponderato (scala 1-7)
+           - Orizzonte temporale medio (in anni)
+           - Distribuzione percentuale per asset class (equity, bonds, cash, ecc.)
+         - Presenta le allocazioni in formato tabellare ben organizzato
+         - Spiega la logica della costruzione del portafoglio
+      
       Parli sempre in italiano.  
       Adotta uno stile professionale, chiaro, sintetico, ispirato alle best practice del settore della consulenza finanziaria e wealth management.  
       Se il messaggio dell'utente riguarda un cliente specifico, valuta se richiedere informazioni aggiuntive tramite strumenti esterni.
+      Se utente chiede di generare un portafoglio usa sempre la funzione generatePortfolio. 
       
       IMPORTANTE PER APPUNTAMENTI: Quando l'utente chiede di creare un appuntamento/meeting, NON usare frasi che indicano che l'operazione è già completata (come "Ho creato un appuntamento" o "L'appuntamento è stato fissato"). 
       Invece, usa frasi che indicano che l'operazione è in preparazione (ad esempio "Sto preparando un appuntamento con [cliente]" o "Ho compilato i dettagli per l'appuntamento").
@@ -150,6 +159,13 @@ export const handleChat = async (req: Request, res: Response) => {
       IMPORTANTE PER EMAIL: chiamare la funzione composeEmailData SOLO se utente ha chiesto esplicitamente di INVIARE la mail. Se utente chiede di preparare mail, rispondi normalmente senza chiamare funzione composeEmailData.;
       Ad esempio: "INVIA un'email a Mario Rossi" o "INVIA messaggio di follow-up a Bianchi". 
       In questi casi, chiama la funzione composeEmailData con i dettagli dell'email. Non suggerire di inviare email se l'utente non ha usato la parola "INVIA" esplicitamente.
+      
+      IMPORTANTE PER PORTAFOGLI:
+      Quando generi un portafoglio di investimento, informa l'utente che può:
+      - Visualizzare i dettagli completi del portafoglio nell'interfaccia dedicata
+      - Aggiungere il portafoglio ai modelli salvati tramite il pulsante dedicato
+      - Chiedere modifiche specifiche al portafoglio per adattarlo ulteriormente
+      Sottolinea che l'utente può continuare a interagire con il portafoglio nella chat.
       
       MOLTO IMPORTANTE PER GLI APPUNTAMENTI: 
       1. Quando l'utente chiede di VISUALIZZARE appuntamenti esistenti (con frasi come "mostrami gli appuntamenti", "che meeting ho", "incontri di questa settimana", ecc.), devi SEMPRE chiamare una di queste funzioni:
@@ -264,6 +280,45 @@ export const handleChat = async (req: Request, res: Response) => {
                 }
               },
               required: ["clientName", "query"]
+            }
+          }
+        },
+        {
+          type: "function",
+          function: {
+            name: "generatePortfolio",
+            description: "Genera un portafoglio di investimento ottimizzato in base al profilo del cliente, al livello di rischio e all'orizzonte temporale. Utilizza l'AI per creare un'allocazione ottimale utilizzando solo i prodotti disponibili per l'utente. Chiamare questa funzione quando l'utente richiede di generare un portafoglio di investimento.",
+            parameters: {
+              type: "object",
+              properties: {
+                portfolioDescription: {
+                  type: "string",
+                  description: "Descrizione del portafoglio da generare, specificando l'obiettivo e le caratteristiche principali"
+                },
+                clientProfile: {
+                  type: "string",
+                  description: "Descrizione del profilo del cliente per cui è destinato il portafoglio"
+                },
+                riskLevel: {
+                  type: "string",
+                  description: "Livello di rischio desiderato per il portafoglio (conservative, moderate, balanced, growth, aggressive)",
+                  enum: ["conservative", "moderate", "balanced", "growth", "aggressive"]
+                },
+                investmentHorizon: {
+                  type: "string",
+                  description: "Orizzonte temporale degli investimenti (short_term, medium_term, long_term)",
+                  enum: ["short_term", "medium_term", "long_term"]
+                },
+                objectives: {
+                  type: "array",
+                  description: "Obiettivi di investimento",
+                  items: {
+                    type: "string",
+                    enum: ["growth", "income", "preservation", "tax_efficiency", "liquidity", "sustainability"]
+                  }
+                }
+              },
+              required: ["portfolioDescription", "clientProfile"]
             }
           }
         },
@@ -534,6 +589,27 @@ export const handleChat = async (req: Request, res: Response) => {
               count: result.success ? result.count : 0,
               totalAvailable: result.success ? result.totalAvailable : 0
             });
+            break;
+          
+          case "generatePortfolio":
+            console.log(`[DEBUG] Chiamando generatePortfolio`);
+            result = await handlePortfolioGeneration({
+              portfolioDescription: args.portfolioDescription,
+              clientProfile: args.clientProfile,
+              riskLevel: args.riskLevel,
+              investmentHorizon: args.investmentHorizon,
+              objectives: args.objectives
+            }, userId);
+            console.log('[DEBUG] Risultato generatePortfolio:', {
+              success: result.success,
+              portfolioName: result.success && result.portfolio ? result.portfolio.name : 'Nessun portafoglio generato'
+            });
+            
+            // Se è disponibile una risposta suggerita, la impostiamo come risposta AI
+            if (result.success && result.suggestedResponse) {
+              aiResponse = result.suggestedResponse;
+              console.log('[DEBUG] Utilizzata risposta suggerita da handlePortfolioGeneration');
+            }
             break;
           
           case "getMeetingsByDateRange":

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
-import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews } from './functions';
+import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, handlePortfolioGeneration } from './functions';
 
 // Definizioni dei tipi
 export type FlowVariable = {
@@ -201,6 +201,15 @@ async function executeFunctionByName(functionName: string, args: any, userId: nu
       
     case 'prepareEditMeeting':
       return prepareEditMeeting(args, userId);
+      
+    case 'generatePortfolio':
+      return handlePortfolioGeneration({
+        portfolioDescription: args.portfolioDescription,
+        clientProfile: args.clientProfile, 
+        riskLevel: args.riskLevel,
+        investmentHorizon: args.investmentHorizon,
+        objectives: args.objectives
+      }, userId);
       
     default:
       return {

@@ -17,6 +17,18 @@ import { format, parseISO } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { EmailDialog } from "@/components/dialog/EmailDialog";
 import { EmailFormData } from "@/types/email";
+import { useTranslation } from 'react-i18next';
+import { Separator } from '@/components/ui/separator';
+import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { MessagesSquare } from 'lucide-react';
+import { useLocation } from 'wouter';
+import api from '@/lib/api';
+import ChatMeetingDialog from '@/components/chat/ChatMeetingDialog';
+import ChatEmailDialog from '@/components/chat/ChatEmailDialog';
+import ChatPortfolioDialog from '@/components/chat/ChatPortfolioDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { PortfolioAllocation, PortfolioMetrics } from '@/components/chat/ChatPortfolioDialog';
 
 // Tipo per i messaggi della chat
 interface Message {
@@ -90,7 +102,46 @@ const normalizeMarkdownText = (text: string) => {
   return processed;
 };
 
+// Types for chat functionality
+type ChatState = 'idle' | 'sending' | 'loading' | 'error';
+
+// Types for meetings
+interface MeetingDialogData {
+  id?: number;
+  clientId: number;
+  clientName: string;
+  subject: string;
+  dateTime: string;
+  formattedDate: string;
+  formattedTime: string;
+  duration: number;
+  location: string;
+  notes: string;
+  isEdit?: boolean;
+}
+
+// Types for emails
+interface EmailDialogData {
+  clientId: number;
+  clientName: string;
+  subject: string;
+  emailType: string;
+  content: string;
+}
+
+// Types for generated portfolio
+interface GeneratedPortfolio {
+  name: string;
+  description: string;
+  clientProfile: string;
+  riskLevel: string;
+  investmentHorizon: string;
+  allocation: PortfolioAllocation[];
+  generationLogic: string;
+}
+
 export default function AgentPage() {
+  const { t } = useTranslation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -114,6 +165,11 @@ export default function AgentPage() {
   // Email
   const [showEmailDialog, setShowEmailDialog] = useState(false);
   const [emailData, setEmailData] = useState<any>(null);
+
+  // Portfolio
+  const [showPortfolioDialog, setShowPortfolioDialog] = useState(false);
+  const [portfolioData, setPortfolioData] = useState<GeneratedPortfolio | null>(null);
+  const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -262,7 +318,7 @@ export default function AgentPage() {
         body: JSON.stringify(requestData)
       });
         
-      // DEBUG: Mostro la risposta originale di OpenAI nel terminale
+      // Debug response
       console.log('------------- DEBUG RISPOSTA OPENAI -------------');
       console.log('Response originale:', response);
       if (response.response) {
@@ -310,6 +366,19 @@ export default function AgentPage() {
           
         // Aggiorna la lista delle conversazioni
         fetchConversations();
+        
+        // Handle portfolio data if present
+        if (response.data && response.data.functionResults && response.data.functionResults.length > 0) {
+          const portfolioResult = response.data.functionResults.find(
+            (result: any) => result && result.portfolio
+          );
+          
+          if (portfolioResult && portfolioResult.portfolio && portfolioResult.portfolioMetrics) {
+            setPortfolioData(portfolioResult.portfolio);
+            setPortfolioMetrics(portfolioResult.portfolioMetrics);
+            setShowPortfolioDialog(true);
+          }
+        }
         } else {
           toast({
             title: "Errore",
@@ -1279,7 +1348,7 @@ Grazie!`;
                           ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' 
                           : 'hover:bg-gray-100 dark:hover:bg-gray-900 border-transparent'
                       } border`}
-                      onClick={() => loadConversation(conversation.id)}
+                      onClick={() => loadConversation(conversation)}
                     >
                       <div className="font-medium text-sm truncate pr-8">{conversation.title}</div>
                       <div className="text-xs text-muted-foreground">
@@ -1408,6 +1477,19 @@ Grazie!`;
         
         // Update conversations list
         fetchConversations();
+        
+        // Handle portfolio data if present
+        if (response.data && response.data.functionResults && response.data.functionResults.length > 0) {
+          const portfolioResult = response.data.functionResults.find(
+            (result: any) => result && result.portfolio
+          );
+          
+          if (portfolioResult && portfolioResult.portfolio && portfolioResult.portfolioMetrics) {
+            setPortfolioData(portfolioResult.portfolio);
+            setPortfolioMetrics(portfolioResult.portfolioMetrics);
+            setShowPortfolioDialog(true);
+          }
+        }
       } else {
         toast({
           title: "Errore",
@@ -1424,6 +1506,39 @@ Grazie!`;
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Handle portfolio saved to models
+  const handlePortfolioSaved = async () => {
+    if (!portfolioData) return;
+    
+    try {
+      // Prepare data for API
+      const payload = {
+        name: portfolioData.name,
+        description: portfolioData.description,
+        clientProfile: portfolioData.clientProfile,
+        riskLevel: portfolioData.riskLevel,
+        allocation: portfolioData.allocation
+      };
+      
+      // Save to model portfolios
+      await api.post('/portfolio/models', payload);
+      
+      // Close dialog and show success message
+      setShowPortfolioDialog(false);
+      toast({
+        title: t('portfolio.portfolio_saved'),
+        description: t('portfolio.portfolio_saved_success')
+      });
+    } catch (error) {
+      console.error('Error saving portfolio:', error);
+      toast({
+        title: t('portfolio.portfolio_saved_error'),
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: "destructive"
+      });
     }
   };
 
@@ -1589,6 +1704,17 @@ Grazie!`;
           includeCustomFooter={true}
           useClientSelector={!emailData.clientId}
           onSubmit={handleSendEmail}
+        />
+      )}
+      
+      {/* Portfolio Dialog */}
+      {showPortfolioDialog && portfolioData && portfolioMetrics && (
+        <ChatPortfolioDialog
+          isOpen={showPortfolioDialog}
+          onClose={() => setShowPortfolioDialog(false)}
+          portfolio={portfolioData}
+          portfolioMetrics={portfolioMetrics}
+          onSaveToModels={handlePortfolioSaved}
         />
       )}
     </div>

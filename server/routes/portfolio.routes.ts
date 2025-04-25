@@ -13,6 +13,7 @@ import OpenAI from 'openai';
 import { PDFDocument } from 'pdf-lib';
 import parsePDF from '../lib/pdf-parser';
 import { v4 as uuidv4 } from 'uuid';
+import { createPortfolioWithAI, getPortfolioMetrics } from '../ai/portfolio-controller';
 
 // ES modules compatible __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -2138,6 +2139,12 @@ Rispondi in formato JSON
       }
     });
   }
+
+  // Create a portfolio using AI
+  app.post('/api/portfolio/generate-with-ai', isAuthenticated, createPortfolioWithAI);
+
+  // Get metrics for an existing portfolio
+  app.get('/api/portfolio/models/:id/metrics', isAuthenticated, getPortfolioMetrics);
 
   console.log('[Routes] Portfolio routes registered');
 } 

@@ -12,6 +12,7 @@ import { fileURLToPath } from 'url';
 import { getFinancialNews as getMarketNews } from '../market-api';
 import { Request, Response } from 'express';
 import { getFormattedAIProfile } from '../ai/profile-controller';
+import { generatePortfolioTool } from '../ai/portfolio-controller';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -1006,5 +1007,53 @@ function createInvestmentIdea(news: any) {
     sectors: potentialSectors,
     news: news
   };
+}
+
+/**
+ * Function for portfolio generation
+ * This function is called from the AI agent when generating a portfolio
+ */
+export async function handlePortfolioGeneration(args: {
+  portfolioDescription: string;
+  clientProfile: string;
+  riskLevel?: string;
+  investmentHorizon?: string;
+  objectives?: string[];
+}, userId: number) {
+  try {
+    const result = await generatePortfolioTool({
+      portfolioDescription: args.portfolioDescription,
+      clientProfile: args.clientProfile,
+      riskLevel: args.riskLevel,
+      investmentHorizon: args.investmentHorizon,
+      objectives: args.objectives,
+      userId: userId
+    });
+    
+    // Log success
+    console.log(`[DEBUG handlePortfolioGeneration] Generated portfolio: ${result.success ? 'success' : 'failed'}`);
+    
+    // Add helpful message on how to interact with the portfolio
+    const suggestedResponse = `
+Ho generato un portafoglio di investimento in base alle tue specifiche. 
+Puoi visualizzarlo nell'interfaccia dedicata, salvarlo tra i tuoi modelli, 
+o chiedermi modifiche specifiche per adattarlo ulteriormente.
+
+Puoi continuare a interagire con il portafoglio direttamente in questa chat.
+`;
+
+    return {
+      success: result.success,
+      portfolio: result.portfolio,
+      portfolioMetrics: result.portfolioMetrics,
+      suggestedResponse: suggestedResponse
+    };
+  } catch (error) {
+    console.error('Error in handlePortfolioGeneration:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
 }
 
