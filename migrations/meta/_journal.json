@@ -127,6 +127,27 @@
       "when": 1745622575641,
       "tag": "0017_omniscient_phil_sheldon",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1745786236436,
+      "tag": "0018_omniscient_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1745787467737,
+      "tag": "0019_youthful_lady_mastermind",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1745790270684,
+      "tag": "0020_odd_galactus",
+      "breakpoints": true
     }
   ]
 }

@@ -468,13 +468,9 @@ export function setupAuth(app: Express) {
             address: "Via Roma, 123",
             phone: "123456789",
             birthDate: "1990-01-01",
-            maritalStatus: "married",
             employmentStatus: "employed",
             educationLevel: "master",
-            annualIncome: 150000,
-            monthlyExpenses: 3000,
-            debts: 200000,
-            dependents: 2,
+            annualIncome: '>120,000€',
             investmentHorizon: "medium_term",
             retirementInterest: 4,
             wealthGrowthInterest: 3,
@@ -490,7 +486,8 @@ export function setupAuth(app: Express) {
             yearsOfExperience: "5_to_10",
             investmentFrequency: "quarterly",
             advisorUsage: "mostly_advisor",
-            monitoringTime: "quarterly"
+            monitoringTime: "quarterly",
+            etfObjectiveQuestion: "correct"
           });
           
           // Aggiungi dati MIFID per il secondo cliente
@@ -498,13 +495,11 @@ export function setupAuth(app: Express) {
             address: "Via Milano, 123",
             phone: "987654321",
             birthDate: "1965-01-01",
-            maritalStatus: "married",
             employmentStatus: "employed",
             educationLevel: "high_school",
-            annualIncome: 50000,
-            monthlyExpenses: 2000,
-            debts: 0,
-            dependents: 0,
+            annualIncome: "30000-50000€",
+            monthlyExpenses: "1000-2500€",
+            debts: "0-5000€",
             investmentHorizon: "long_term",
             retirementInterest: 1,
             wealthGrowthInterest: 4,
@@ -520,7 +515,8 @@ export function setupAuth(app: Express) {
             yearsOfExperience: "more_than_10",
             investmentFrequency: "occasional",
             advisorUsage: "balanced",
-            monitoringTime: "rarely"
+            monitoringTime: "rarely",
+            etfObjectiveQuestion: "dontknow"
           });
           
           // Crea profili AI per ciascun cliente

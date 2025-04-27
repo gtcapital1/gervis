@@ -626,7 +626,8 @@
     "traditional_signature": "Firma tradizionale",
     "document_preview": "Anteprima documento",
     "choose_signature_type": "Scegli il tipo di firma",
-    "average_time": "Tempo medio"
+    "average_time": "Tempo medio",
+    "back_to_clients": "Torna all'elenco clienti"
   },
   "client_edit": {
     "email": "Indirizzo Email",
@@ -1253,6 +1254,9 @@
     "recommended_horizon": "Orizzonte consigliato medio",
     "asset_allocation": "Allocazione Asset",
     "risk_indicator": "SRI",
+    "dividend_policy": "Politica Dividendi",
+    "dividend_types.distributing": "Distribuisce dividendi",
+    "dividend_types.accumulating": "Accumulazione dividendi",
     "holding_period": "Periodo di detenzione consigliato",
     "total_cost": "TER",
     "construction_logic": "Logica di Costruzione",

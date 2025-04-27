@@ -277,6 +277,7 @@ Grazie per la tua fiducia e collaborazione.`;
               variant="ghost"
               size="icon"
               onClick={onBackToClients}
+              title="Torna all'elenco clienti"
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
@@ -316,7 +317,17 @@ Grazie per la tua fiducia e collaborazione.`;
                     <Button 
                       variant="default" 
                       size="lg"
-                      onClick={() => window.open(onboardingLink, '_blank')}
+                      onClick={() => {
+                        const newWindow = window.open(onboardingLink, '_blank');
+                        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+                          toast({
+                            title: "Apertura bloccata",
+                            description: "Il browser ha bloccato l'apertura della finestra. Usa il pulsante 'Copia' per copiare il link e aprirlo manualmente.",
+                            variant: "destructive",
+                            duration: 5000
+                          });
+                        }
+                      }}
                       className="bg-blue-600 hover:bg-blue-700 text-white"
                     >
                       <ExternalLink className="mr-2 h-4 w-4" />

@@ -1,0 +1,1 @@
+ALTER TABLE "mifid" ADD COLUMN "investment_horizon" text NOT NULL;

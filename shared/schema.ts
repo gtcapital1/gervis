@@ -309,39 +309,28 @@ export const mifid = pgTable("mifid", {
   address: text("address").notNull(),
   phone: text("phone").notNull(),
   birthDate: text("birth_date").notNull(),
-  maritalStatus: text("marital_status").notNull(),
   employmentStatus: text("employment_status").notNull(),
   educationLevel: text("education_level").notNull(),
-  annualIncome: integer("annual_income").notNull(),
-  monthlyExpenses: integer("monthly_expenses").notNull(),
-  debts: integer("debts").notNull(),
-  dependents: integer("dependents").notNull(),
-
+  
   // Sezione 2: Situazione Finanziaria Attuale
-  assets: jsonb("assets").notNull().$default(() => []), // Array vuoto come default
-
+  annualIncome: text("annual_income").notNull(),
+  monthlyExpenses: text("monthly_expenses").notNull(),
+  debts: text("debts").notNull(),
+  netWorth: text("net_worth").notNull(),
+  
   // Sezione 3: Obiettivi d'Investimento
+  investmentObjective: text("investment_objective").notNull(),
   investmentHorizon: text("investment_horizon").notNull(),
-  retirementInterest: integer("retirement_interest").notNull(),
-  wealthGrowthInterest: integer("wealth_growth_interest").notNull(),
-  incomeGenerationInterest: integer("income_generation_interest").notNull(),
-  capitalPreservationInterest: integer("capital_preservation_interest").notNull(),
-  estatePlanningInterest: integer("estate_planning_interest").notNull(),
-
+  
   // Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari
   investmentExperience: text("investment_experience").notNull(),
   pastInvestmentExperience: jsonb("past_investment_experience").notNull(), // Array di stringhe
   financialEducation: jsonb("financial_education").notNull(), // Array di stringhe
+  etfObjectiveQuestion: text("etf_objective_question").notNull(),
 
   // Sezione 5: Tolleranza al Rischio
   riskProfile: text("risk_profile").notNull(),
-  portfolioDropReaction: text("portfolio_drop_reaction").notNull(),
-  volatilityTolerance: text("volatility_tolerance").notNull(),
-  yearsOfExperience: text("years_of_experience").notNull(),
-  investmentFrequency: text("investment_frequency").notNull(),
-  advisorUsage: text("advisor_usage").notNull(),
-  monitoringTime: text("monitoring_time").notNull(),
-  specificQuestions: text("specific_questions"),
+  portfolioDropReaction: text("portfolio_drop_reaction").notNull()
 });
 
 // Define the MIFID type
@@ -572,3 +561,28 @@ export const productsPublicDatabase = pgTable('products_public_database', {
 });
 
 export type InsertUserProduct = typeof userProducts.$inferInsert;
+
+export type MifidInsertSchema = z.infer<typeof mifidInsertSchema>;
+export const mifidInsertSchema = createInsertSchema(mifid, {
+  address: z.string().min(1, "L'indirizzo è obbligatorio").max(255),
+  phone: z.string().min(1, "Il numero di telefono è obbligatorio").max(20),
+  birthDate: z.string().min(1, "La data di nascita è obbligatoria"),
+  employmentStatus: z.string().min(1, "La situazione lavorativa è obbligatoria"),
+  educationLevel: z.string().min(1, "Il livello di istruzione è obbligatorio"),
+  
+  annualIncome: z.string().min(1, "Il reddito annuale è obbligatorio"),
+  monthlyExpenses: z.string().min(1, "Le spese mensili sono obbligatorie"),
+  debts: z.string().min(1, "I debiti sono obbligatori"),
+  netWorth: z.string().min(1, "Il patrimonio netto è obbligatorio"),
+  
+  investmentObjective: z.string().min(1, "L'obiettivo di investimento è obbligatorio"),
+  investmentHorizon: z.string().min(1, "L'orizzonte temporale è obbligatorio"),
+  
+  investmentExperience: z.string().min(1, "L'esperienza di investimento è obbligatoria"),
+  pastInvestmentExperience: z.array(z.string()).min(1, "Seleziona almeno un'esperienza passata"),
+  financialEducation: z.array(z.string()).min(1, "Seleziona almeno un'opzione"),
+  etfObjectiveQuestion: z.string().min(1, "La risposta sulla conoscenza degli ETF è obbligatoria"),
+  
+  riskProfile: z.string().min(1, "Il profilo di rischio è obbligatorio"),
+  portfolioDropReaction: z.string().min(1, "La reazione a un calo del portafoglio è obbligatoria"),
+});

@@ -40,9 +40,34 @@ import {
 } from "@shared/schema";
 import { Loader2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { MIFID_SCHEMA, type MifidData } from "@shared/schemas";
 import { useAuth } from "@/hooks/use-auth";
 import React from "react";
+
+// Definisci il tipo MifidData in base allo schema del form
+type MifidData = {
+  id?: string;
+  clientId?: number;
+  address: string;
+  phone: string;
+  birthDate: string;
+  employmentStatus: string;
+  educationLevel: string;
+  annualIncome: string;
+  monthlyExpenses: string;
+  debts: string;
+  netWorth: string;
+  investmentHorizon: string;
+  investmentInterests?: string[];
+  investmentExperience: string;
+  pastInvestmentExperience: string[];
+  financialEducation: string[];
+  etfObjectiveQuestion: string;
+  riskProfile: string;
+  portfolioDropReaction: string;
+  volatilityTolerance?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
 
 // Define the form schema
 const assetSchema = z.object({
@@ -76,45 +101,35 @@ type ClientQueryResponse = {
 };
 
 const mifidFormSchema = z.object({
-  // Personal Information
+  // Sezione 1: Dati Anagrafici e Informazioni Personali
   address: z.string().min(1, "L'indirizzo è obbligatorio"),
   phone: z.string().min(1, "Il numero di telefono è obbligatorio"),
   birthDate: z.string().min(1, "La data di nascita è obbligatoria"),
-  maritalStatus: z.string().min(1, "Lo stato civile è obbligatorio"),
   employmentStatus: z.string().min(1, "Lo stato occupazionale è obbligatorio"),
   educationLevel: z.string().min(1, "Il livello di istruzione è obbligatorio"),
-  annualIncome: z.coerce.number().min(0, "Il reddito annuale non può essere negativo"),
-  monthlyExpenses: z.coerce.number().min(0, "Le spese mensili non possono essere negative"),
-  debts: z.coerce.number().min(0, "I debiti non possono essere negativi"),
-  dependents: z.coerce.number().min(0, "Il numero di dipendenti non può essere negativo"),
   
-  // Investment Profile
-  riskProfile: z.string().min(1, "Il profilo di rischio è obbligatorio"),
+  // Sezione 2: Situazione Finanziaria Attuale - cambiati da numeri a range
+  annualIncome: z.string().min(1, "Il reddito annuale è obbligatorio"),
+  monthlyExpenses: z.string().min(1, "Le spese mensili sono obbligatorie"),
+  debts: z.string().min(1, "L'informazione sui debiti è obbligatoria"),
+  netWorth: z.string().min(1, "Il patrimonio netto è obbligatorio"),
+  
+  // Sezione 3: Obiettivi d'Investimento
+  investmentHorizon: z.string().min(1, "L'orizzonte temporale è obbligatorio"),
+  investmentInterests: z.array(z.string()).optional(),
+  
+  // Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari
   investmentExperience: z.string().min(1, "Il livello di esperienza è obbligatorio"),
-  investmentHorizon: z.string().min(1, "L'orizzonte di investimento è obbligatorio"),
-
-  // Past Investment Experience
-  pastInvestmentExperience: z.array(z.string()).min(1, "Seleziona almeno un'esperienza di investimento"),
+  pastInvestmentExperience: z.array(z.string()).min(1, "Seleziona almeno un'esperienza passata"),
   financialEducation: z.array(z.string()).min(1, "Seleziona almeno un tipo di formazione finanziaria"),
+  etfObjectiveQuestion: z.string().min(1, "La risposta alla domanda sull'obiettivo degli ETF è obbligatoria"),
   
-  // Investment Interests (scala 1-5)
-  retirementInterest: z.coerce.number().min(1).max(5, "Il valore deve essere tra 1 e 5"),
-  wealthGrowthInterest: z.coerce.number().min(1).max(5, "Il valore deve essere tra 1 e 5"),
-  incomeGenerationInterest: z.coerce.number().min(1).max(5, "Il valore deve essere tra 1 e 5"),
-  capitalPreservationInterest: z.coerce.number().min(1).max(5, "Il valore deve essere tra 1 e 5"),
-  estatePlanningInterest: z.coerce.number().min(1).max(5, "Il valore deve essere tra 1 e 5"),
+  // Sezione 5: Tolleranza al Rischio
+  riskProfile: z.string().min(1, "Il profilo di rischio è obbligatorio"),
+  portfolioDropReaction: z.string().min(1, "La reazione al calo del portafoglio è obbligatoria"),
+  volatilityTolerance: z.string().optional(),
   
-  // Risk Tolerance
-  portfolioDropReaction: z.string().min(1, "Seleziona come reagiresti a un calo del portafoglio"),
-  volatilityTolerance: z.string().min(1, "Seleziona la tua tolleranza alla volatilità"),
-  
-  // Investment Behavior
-  yearsOfExperience: z.string().min(1, "Gli anni di esperienza sono obbligatori"),
-  investmentFrequency: z.string().min(1, "La frequenza di investimento è obbligatoria"),
-  advisorUsage: z.string().min(1, "Seleziona come utilizzi la consulenza finanziaria"),
-  monitoringTime: z.string().min(1, "Il tempo di monitoraggio è obbligatorio"),
-  
-  // Assets
+  // Campo per asset
   assets: z.array(z.object({
     id: z.number().optional(),
     clientId: z.number().optional(),
@@ -208,173 +223,94 @@ export default function EditMifidForm() {
       address: mifidData?.address || "",
       phone: mifidData?.phone || "",
       birthDate: mifidData?.birthDate || "",
-      maritalStatus: mifidData?.maritalStatus || "",
       employmentStatus: mifidData?.employmentStatus || "",
       educationLevel: mifidData?.educationLevel || "",
-      annualIncome: mifidData?.annualIncome || 0,
-      monthlyExpenses: mifidData?.monthlyExpenses || 0,
-      debts: mifidData?.debts || 0,
-      dependents: mifidData?.dependents || 0,
+      annualIncome: mifidData?.annualIncome || "",
+      monthlyExpenses: mifidData?.monthlyExpenses || "",
+      debts: mifidData?.debts || "",
+      netWorth: mifidData?.netWorth || "",
       
       // Investment Profile
-      riskProfile: mifidData?.riskProfile || "balanced",
-      investmentExperience: mifidData?.investmentExperience || "none",
-      investmentHorizon: mifidData?.investmentHorizon || "medium_term",
+      investmentHorizon: mifidData?.investmentHorizon || "",
+      investmentInterests: mifidData?.investmentInterests || [],
       
       // Nuovi campi per esperienze di investimento
+      investmentExperience: mifidData?.investmentExperience || "",
       pastInvestmentExperience: mifidData?.pastInvestmentExperience || [],
       financialEducation: mifidData?.financialEducation || [],
+      etfObjectiveQuestion: mifidData?.etfObjectiveQuestion || "",
       
-      // Obiettivi di investimento con rank 1-5
-      retirementInterest: mifidData?.retirementInterest || 3,
-      wealthGrowthInterest: mifidData?.wealthGrowthInterest || 3,
-      incomeGenerationInterest: mifidData?.incomeGenerationInterest || 3,
-      capitalPreservationInterest: mifidData?.capitalPreservationInterest || 3,
-      estatePlanningInterest: mifidData?.estatePlanningInterest || 3,
+      // Tolleranza al rischio
+      riskProfile: mifidData?.riskProfile || "balanced",
+      portfolioDropReaction: mifidData?.portfolioDropReaction || "",
+      volatilityTolerance: mifidData?.volatilityTolerance || "",
       
       // Assets (precompilati con i dati esistenti dalla tabella assets)
       assets: clientData?.assets || [],
-
-      // Nuovi campi per la tolleranza al rischio
-      portfolioDropReaction: mifidData?.portfolioDropReaction || "",
-      volatilityTolerance: mifidData?.volatilityTolerance || "",
-
-      // Campi per la sezione 6: Esperienza e Comportamento d'Investimento
-      yearsOfExperience: mifidData?.yearsOfExperience || "",
-      investmentFrequency: mifidData?.investmentFrequency || "",
-      advisorUsage: mifidData?.advisorUsage || "",
-      monitoringTime: mifidData?.monitoringTime || "",
     }
   });
-
-  // Funzione per calcolare il patrimonio netto
-  const calculateNetWorth = () => {
-    const assets = form.watch("assets") || [];
-    const totalAssets = assets.reduce((sum, asset) => sum + (asset.value || 0), 0);
-    const debts = form.watch("debts") || 0;
-    return totalAssets - debts;
-  };
-
-  // Funzione per controllare se ci sono priorità duplicate
-  const hasDuplicatePriorities = () => {
-    const values = form.getValues();
-    const priorities = [
-      values.retirementInterest,
-      values.wealthGrowthInterest,
-      values.incomeGenerationInterest,
-      values.capitalPreservationInterest,
-      values.estatePlanningInterest
-    ].filter(Boolean); // Filtra i valori undefined/null
-    
-    return priorities.length !== new Set(priorities).size;
-  };
 
   // Update form values when MIFID data is loaded
   useEffect(() => {
     if (mifidData) {
-      
-      
       const formData = {
         // Sezione 1: Dati Anagrafici e Informazioni Personali
         address: mifidData.address,
         phone: mifidData.phone,
         birthDate: mifidData.birthDate,
-        maritalStatus: mifidData.maritalStatus,
         employmentStatus: mifidData.employmentStatus,
         educationLevel: mifidData.educationLevel,
+        
+        // Sezione 2: Situazione Finanziaria Attuale
         annualIncome: mifidData.annualIncome,
         monthlyExpenses: mifidData.monthlyExpenses,
         debts: mifidData.debts,
-        dependents: mifidData.dependents,
+        netWorth: mifidData.netWorth,
         assets: clientData?.assets || [], // Usa gli asset dalla tabella assets
 
         // Sezione 3: Obiettivi d'Investimento
         investmentHorizon: mifidData.investmentHorizon,
-        retirementInterest: mifidData.retirementInterest,
-        wealthGrowthInterest: mifidData.wealthGrowthInterest,
-        incomeGenerationInterest: mifidData.incomeGenerationInterest,
-        capitalPreservationInterest: mifidData.capitalPreservationInterest,
-        estatePlanningInterest: mifidData.estatePlanningInterest,
+        investmentInterests: mifidData.investmentInterests || [],
 
         // Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari
         investmentExperience: mifidData.investmentExperience,
         pastInvestmentExperience: mifidData.pastInvestmentExperience,
         financialEducation: mifidData.financialEducation,
+        etfObjectiveQuestion: mifidData.etfObjectiveQuestion || "",
 
         // Sezione 5: Tolleranza al Rischio
         riskProfile: mifidData.riskProfile,
         portfolioDropReaction: mifidData.portfolioDropReaction,
         volatilityTolerance: mifidData.volatilityTolerance,
-
-        // Sezione 6: Esperienza e Comportamento d'Investimento
-        yearsOfExperience: mifidData.yearsOfExperience,
-        investmentFrequency: mifidData.investmentFrequency,
-        advisorUsage: mifidData.advisorUsage,
-        monitoringTime: mifidData.monitoringTime,
       };
 
-      
       form.reset(formData);
       
       // Verifica i valori dopo il reset
-      const formValues = form.getValues();
-      
+      console.log("Form values after reset:", form.getValues());
     }
   }, [mifidData, clientData, form]);
 
   // Handle form submission
   const mutation = useMutation({
     mutationFn: async (data: MifidFormValues) => {
-      
-      
+      console.log("Submitting form data:", data);
       
       // Estrai gli asset dai dati del form
       const { assets, ...mifidData } = data;
       
-      
-      
-      // Assicurati che i dati numerici siano numeri
-      const processedMifidData = {
-        ...mifidData,
-        annualIncome: Number(mifidData.annualIncome),
-        monthlyExpenses: Number(mifidData.monthlyExpenses),
-        debts: Number(mifidData.debts),
-        dependents: Number(mifidData.dependents),
-        retirementInterest: Number(mifidData.retirementInterest),
-        wealthGrowthInterest: Number(mifidData.wealthGrowthInterest),
-        incomeGenerationInterest: Number(mifidData.incomeGenerationInterest),
-        capitalPreservationInterest: Number(mifidData.capitalPreservationInterest),
-        estatePlanningInterest: Number(mifidData.estatePlanningInterest),
-      };
-      
-
-      // Assicurati che gli asset abbiano i valori numerici
-      const processedAssets = assets.map(asset => ({
-        ...asset,
-        value: Number(asset.value),
-      }));
-      
-      
       try {
         // Prepariamo un unico payload che include sia i dati MIFID che gli asset
         const payload = {
-          ...processedMifidData,
-          // Assicuriamoci che i campi numerici siano effettivamente numeri
-          annualIncome: Number(processedMifidData.annualIncome) || 0,
-          monthlyExpenses: Number(processedMifidData.monthlyExpenses) || 0,
-          debts: Number(processedMifidData.debts) || 0,
-          dependents: Number(processedMifidData.dependents) || 0,
-          retirementInterest: Number(processedMifidData.retirementInterest) || 0,
-          wealthGrowthInterest: Number(processedMifidData.wealthGrowthInterest) || 0,
-          incomeGenerationInterest: Number(processedMifidData.incomeGenerationInterest) || 0,
-          capitalPreservationInterest: Number(processedMifidData.capitalPreservationInterest) || 0,
-          estatePlanningInterest: Number(processedMifidData.estatePlanningInterest) || 0,
+          ...mifidData,
           // Includiamo gli assets nello stesso payload
-          assets: processedAssets.map(asset => ({
+          assets: assets.map(asset => ({
             ...asset,
             value: Number(asset.value) || 0,
           }))
         };
+        
+        console.log("Sending payload to API:", payload);
         
         // Una sola chiamata API per inviare tutti i dati
         const response = await apiRequest(`/api/clients/${clientId}/mifid`, {
@@ -387,17 +323,11 @@ export default function EditMifidForm() {
 
         return response;
       } catch (error: unknown) {
-        
-        if (error instanceof Error) {
-          
-          
-          
-        }
+        console.error("Error submitting form:", error);
         throw error;
       }
     },
     onSuccess: (response) => {
-      
       setFormSuccess(true);
       toast({
         title: t('client.mifid_updated'),
@@ -408,10 +338,7 @@ export default function EditMifidForm() {
       }, 1500);
     },
     onError: (error: unknown) => {
-      
-      if (error instanceof Error) {
-        
-      }
+      console.error("Form submission error:", error);
       setFormError(error instanceof Error ? error.message : "Si è verificato un errore durante il salvataggio");
     }
   });
@@ -614,34 +541,6 @@ export default function EditMifidForm() {
               
               <FormField
                 control={form.control}
-                name="maritalStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stato civile</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona il tuo stato civile" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="single">Celibe/Nubile</SelectItem>
-                        <SelectItem value="married">Sposato/a</SelectItem>
-                        <SelectItem value="divorced">Divorziato/a</SelectItem>
-                        <SelectItem value="widowed">Vedovo/a</SelectItem>
-                        <SelectItem value="civil_union">Unione civile</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
                 name="employmentStatus"
                 render={({ field }) => (
                   <FormItem>
@@ -720,17 +619,56 @@ export default function EditMifidForm() {
                   name="annualIncome"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Reddito annuale</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="50000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
-                      </FormControl>
+                      <FormLabel>Reddito annuo netto</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona il tuo reddito annuo" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0-30,000€">0-30,000€</SelectItem>
+                          <SelectItem value="30,000-50,000€">30,000-50,000€</SelectItem>
+                          <SelectItem value="50,000-80,000€">50,000-80,000€</SelectItem>
+                          <SelectItem value="80,000-120,000€">80,000-120,000€</SelectItem>
+                          <SelectItem value="over-120,000€">{'>'}120,000€</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        Il tuo reddito annuale lordo
+                        Indicare l'ammontare medio netto percepito annualmente, considerando tutte le fonti di reddito
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="netWorth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Patrimonio netto</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona il tuo patrimonio netto" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0-10,000€">0-10,000€</SelectItem>
+                          <SelectItem value="10,000-30,000€">10,000-30,000€</SelectItem>
+                          <SelectItem value="30,000-100,000€">30,000-100,000€</SelectItem>
+                          <SelectItem value="over-100000€">{'>'}100,000€</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Indicare il valore approssimativo del patrimonio complessivo (immobili, investimenti, liquidità, ecc.)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -743,16 +681,25 @@ export default function EditMifidForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Spese mensili</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="2000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
-                      </FormControl>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona le tue spese mensili" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0-500€">0-500€</SelectItem>
+                          <SelectItem value="500-1,000€">500-1,000€</SelectItem>
+                          <SelectItem value="1,000-2,500€">1,000-2,500€</SelectItem>
+                          <SelectItem value="2,500-5,000€">2,500-5,000€</SelectItem>
+                          <SelectItem value="over-5,000€">{'>'}5,000€</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        La somma delle tue spese ricorrenti mensili
+                        Indicare le spese mensili medie (affitto/mutuo, bollette, altre spese)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -764,39 +711,26 @@ export default function EditMifidForm() {
                   name="debts"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Debiti e obblighi finanziari</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="50000"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
-                      </FormControl>
+                      <FormLabel>Passività totali</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Seleziona le tue passività totali" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="0-5,000€">0-5,000€</SelectItem>
+                          <SelectItem value="5,000-15,000€">5,000-15,000€</SelectItem>
+                          <SelectItem value="15,000-30,000€">15,000-30,000€</SelectItem>
+                          <SelectItem value="30,000-50,000€">30,000-50,000€</SelectItem>
+                          <SelectItem value="over-50,000€">{'>'}50,000€</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormDescription>
-                        L'importo totale di eventuali mutui, prestiti personali, fidi bancari o altre forme di debito in essere
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="dependents"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Numero di dipendenti</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          placeholder="0"
-                          {...field}
-                          onChange={e => field.onChange(e.target.valueAsNumber)}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Numero di persone economicamente dipendenti da te
+                        Indicare l'ammontare totale dei debiti (mutui, prestiti personali, finanziamenti)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
@@ -852,24 +786,25 @@ export default function EditMifidForm() {
                 name="investmentHorizon"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Orizzonte di investimento</FormLabel>
+                    <FormLabel>Orizzonte temporale</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
-                      value={field.value}
+                      defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleziona il tuo orizzonte di investimento" />
+                          <SelectValue placeholder="Seleziona l'orizzonte temporale" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="short_term">Breve termine (0-3 anni)</SelectItem>
-                        <SelectItem value="medium_term">Medio termine (3-7 anni)</SelectItem>
-                        <SelectItem value="long_term">Lungo termine (7+ anni)</SelectItem>
+                        <SelectItem value="0-2-anni">0-2 anni</SelectItem>
+                        <SelectItem value="2-5-anni">2-5 anni</SelectItem>
+                        <SelectItem value="5-10-anni">5-10 anni</SelectItem>
+                        <SelectItem value="over-10-anni">Più di 10 anni</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
-                      Il periodo di tempo durante il quale prevedi di mantenere i tuoi investimenti
+                      Periodo durante il quale prevedi di mantenere gli investimenti
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -879,107 +814,53 @@ export default function EditMifidForm() {
               {/* Interessi di Investimento */}
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <FormLabel className="text-base">Priorità degli obiettivi d'investimento</FormLabel>
+                  <FormLabel className="text-base">Interessi di investimento</FormLabel>
                   <FormDescription className="mb-4">
-                    Ordina gli obiettivi per importanza (1 = più importante, 5 = meno importante).
-                    <span className="text-gray-500"> Ogni numero deve essere assegnato a un solo obiettivo.</span>
+                    Seleziona massimo 2 obiettivi di investimento che sono più importanti per te.
                   </FormDescription>
                 </div>
-                
-                {hasDuplicatePriorities() && (
-                  <div className="mb-4 p-3 border border-red-400 bg-red-50 rounded-md text-red-700">
-                    <p className="text-sm font-medium">
-                      Attenzione: hai assegnato lo stesso numero di priorità a più obiettivi. Per procedere, assicurati che ogni obiettivo abbia un valore di priorità unico.
-                    </p>
-                  </div>
-                )}
 
                 <div className="space-y-4">
-                  {[
-                    { 
-                      name: "retirementInterest" as const, 
-                      label: "Pianificazione della pensione",
-                      description: "Costruire un capitale sufficiente per mantenere il tuo tenore di vita dopo il pensionamento"
-                    },
-                    { 
-                      name: "wealthGrowthInterest" as const, 
-                      label: "Crescita del capitale",
-                      description: "Aumentare il valore complessivo del tuo patrimonio nel medio-lungo periodo"
-                    },
-                    { 
-                      name: "incomeGenerationInterest" as const, 
-                      label: "Generazione di reddito",
-                      description: "Ottenere flussi di cassa periodici dagli investimenti per integrare le entrate correnti"
-                    },
-                    { 
-                      name: "capitalPreservationInterest" as const, 
-                      label: "Protezione del capitale",
-                      description: "Difendere il valore del tuo patrimonio dall'inflazione e da perdite potenziali"
-                    },
-                    { 
-                      name: "estatePlanningInterest" as const, 
-                      label: "Pianificazione ereditaria",
-                      description: "Organizzare il trasferimento efficiente del patrimonio ai tuoi eredi o enti benefici"
-                    }
-                  ].map((goal, index) => (
-                    <FormField
-                      key={goal.name}
-                      control={form.control}
-                      name={goal.name}
-                      render={({ field }) => {
-                        const currentValue = field.value;
-                        const allValues = form.getValues();
-                        const isNumberUsed = (num: number) => {
-                          return Object.entries(allValues).some(([key, value]) => 
-                            key !== goal.name && value === num
-                          );
-                        };
+                  {INVESTMENT_GOALS.map((goal) => {
+                    const isSelected = form.watch("investmentInterests")?.includes(goal);
+                    const selectedCount = form.watch("investmentInterests")?.length || 0;
 
-                        return (
-                          <FormItem>
-                            <div className="flex items-center gap-4">
-                              <div className="flex flex-col items-center gap-1">
-                                {index === 0 && (
-                                  <div className="flex gap-2">
-                                    <div className="w-8 text-center text-xs text-gray-500">Massima priorità</div>
-                                    <div className="w-8"></div>
-                                    <div className="w-8"></div>
-                                    <div className="w-8"></div>
-                                    <div className="w-8 text-center text-xs text-gray-500">Minima priorità</div>
-                                  </div>
-                                )}
-                                <div className="flex gap-2">
-                                  {[1, 2, 3, 4, 5].map((num) => (
-                                    <button
-                                      key={num}
-                                      type="button"
-                                      onClick={() => field.onChange(num)}
-                                      className={`w-8 h-8 flex items-center justify-center border-2 rounded-md ${
-                                        currentValue === num 
-                                          ? hasDuplicatePriorities() && Object.entries(allValues).some(([key, value]) => 
-                                              key !== goal.name && value === num
-                                            )
-                                            ? 'border-red-500 bg-red-500 text-white'
-                                            : 'border-blue-500 bg-blue-500 text-white'
-                                          : 'border-gray-300 text-gray-400 hover:border-gray-500 hover:text-gray-600'
-                                      }`}
-                                    >
-                                      {num}
-                                    </button>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="flex-1">
-                                <FormLabel>{goal.label}</FormLabel>
-                                <FormDescription>{goal.description}</FormDescription>
-                              </div>
-                            </div>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  ))}
+                    return (
+                      <div key={goal} className="flex items-center space-x-2">
+                        <Checkbox 
+                          id={`interest-${goal}`}
+                          checked={isSelected}
+                          disabled={!isSelected && selectedCount >= 2}
+                          onCheckedChange={(checked) => {
+                            const currentInterests = form.getValues("investmentInterests") || [];
+                            if (checked) {
+                              if (currentInterests.length < 2) {
+                                form.setValue("investmentInterests", [...currentInterests, goal]);
+                              }
+                            } else {
+                              form.setValue("investmentInterests", currentInterests.filter(i => i !== goal));
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor={`interest-${goal}`}
+                          className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {goal === "retirement" && "Pianificazione della pensione"}
+                          {goal === "wealth_growth" && "Crescita del capitale"}
+                          {goal === "income_generation" && "Generazione di reddito"}
+                          {goal === "capital_preservation" && "Protezione del capitale"}
+                          {goal === "estate_planning" && "Pianificazione ereditaria"}
+                        </label>
+                      </div>
+                    );
+                  })}
+                  
+                  {form.formState.errors.investmentInterests && (
+                    <p className="text-sm text-red-500">
+                      {form.formState.errors.investmentInterests.message?.toString()}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -1268,189 +1149,33 @@ export default function EditMifidForm() {
             <CardContent className="space-y-6">
               <FormField
                 control={form.control}
-                name="yearsOfExperience"
+                name="etfObjectiveQuestion"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Anni di esperienza di investimento</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona gli anni di esperienza" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">Nessuna esperienza</SelectItem>
-                        <SelectItem value="less_than_1">Meno di 1 anno</SelectItem>
-                        <SelectItem value="1_to_3">Da 1 a 3 anni</SelectItem>
-                        <SelectItem value="3_to_5">Da 3 a 5 anni</SelectItem>
-                        <SelectItem value="more_than_5">Più di 5 anni</SelectItem>
-                        <SelectItem value="more_than_10">Più di 10 anni</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="investmentFrequency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Frequenza di investimento</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      value={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleziona la frequenza di investimento" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="daily">Quotidianamente</SelectItem>
-                        <SelectItem value="weekly">Settimanalmente</SelectItem>
-                        <SelectItem value="monthly">Mensilmente</SelectItem>
-                        <SelectItem value="quarterly">Trimestralmente</SelectItem>
-                        <SelectItem value="yearly">Annualmente</SelectItem>
-                        <SelectItem value="occasional">Occasionalmente</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="advisorUsage"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Utilizzo di consulenza finanziaria</FormLabel>
-                    <FormDescription>
-                      Ti affidi a consulenti per le decisioni d'investimento o operi in autonomia?
+                    <FormLabel>Risposta alla domanda sull'obiettivo degli ETF</FormLabel>
+                    <FormDescription className="mb-3">
+                      Qual è il tuo obiettivo principale quando investi in ETF?
                     </FormDescription>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {[
+                        { id: "growth", label: "Crescita del capitale" },
+                        { id: "income", label: "Generazione di reddito" },
+                        { id: "diversification", label: "Diversificazione del portafoglio" },
+                        { id: "none", label: "Nessun obiettivo specifico" }
+                      ].map((item) => (
+                        <FormItem key={item.id} className="flex items-center space-x-2">
                           <FormControl>
-                            <RadioGroupItem value="full_autonomy" />
+                            <Checkbox
+                              checked={field.value === item.id}
+                              onCheckedChange={() => field.onChange(item.id)}
+                            />
                           </FormControl>
-                          <FormLabel className="font-normal">
-                            Opero completamente in autonomia
+                          <FormLabel className="font-normal cursor-pointer">
+                            {item.label}
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="mostly_autonomy" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Opero principalmente in autonomia, con occasionale consulenza
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="balanced" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Equilibrio tra decisioni autonome e consulenza
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="mostly_advisor" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Mi affido principalmente a consulenti, con alcune decisioni autonome
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="full_advisor" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Mi affido completamente ai consulenti
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="monitoringTime"
-                render={({ field }) => (
-                  <FormItem className="space-y-3">
-                    <FormLabel>Tempo dedicato al monitoraggio degli investimenti</FormLabel>
-                    <FormDescription>
-                      Quanto tempo dedichi alla gestione e all'analisi del portafoglio?
-                    </FormDescription>
-                    <FormControl>
-                      <RadioGroup
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        className="flex flex-col space-y-1"
-                      >
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="daily_hours" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Più ore al giorno
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="daily_minutes" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Alcuni minuti ogni giorno
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="weekly" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Qualche ora a settimana
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="monthly" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Qualche ora al mese
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="quarterly" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Solo trimestralmente
-                          </FormLabel>
-                        </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="rarely" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Raramente o mai
-                          </FormLabel>
-                        </FormItem>
-                      </RadioGroup>
-                    </FormControl>
+                      ))}
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -1494,7 +1219,7 @@ export default function EditMifidForm() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {categoryOptions.map(category => (
+                                {ASSET_CATEGORIES.map(category => (
                                   <SelectItem key={category} value={category}>
                                     {t(`asset_categories.${category}`)}
                                   </SelectItem>
@@ -1548,11 +1273,13 @@ export default function EditMifidForm() {
                 
                 <div className="mt-4 p-4 bg-muted rounded-md">
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">Patrimonio netto stimato:</span>
-                    <span className="font-bold">€{calculateNetWorth().toLocaleString()}</span>
+                    <span className="font-medium">Patrimonio totale degli asset:</span>
+                    <span className="font-bold">
+                      €{form.watch("assets")?.reduce((sum, asset) => sum + (Number(asset.value) || 0), 0).toLocaleString()}
+                    </span>
                   </div>
                   <FormDescription className="mt-2">
-                    Calcolato come differenza tra il valore totale degli asset e i debiti
+                    Valore totale di tutti gli asset inseriti
                   </FormDescription>
                 </div>
               </div>
