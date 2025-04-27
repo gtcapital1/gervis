@@ -34,8 +34,8 @@ interface PortfolioProduct {
 }
 
 // Interfaccia per l'allocazione del portafoglio
-interface PortfolioAllocation {
-  isinId: number;
+interface PortfolioAllocation { // Campo legacy, mantenuto per compatibilità
+  productId: number; // Campo principale da usare
   isin: string;
   name: string;
   category: string;
@@ -53,6 +53,12 @@ export interface GeneratedPortfolio {
   generationLogic: string;
   averageRisk: number;
   averageDuration: number | null;
+  totalExpenseRatio: number;
+  entryCost: number;
+  exitCost: number;
+  ongoingCost: number;
+  transactionCost: number;
+  assetAllocation: Array<{category: string, percentage: number}>; // Distribuzione per categorie di asset
 }
 
 /**
@@ -64,6 +70,7 @@ export interface GeneratedPortfolio {
  * @param riskLevel Livello di rischio desiderato per il portafoglio
  * @param investmentHorizon Orizzonte temporale degli investimenti
  * @param objectives Obiettivi di investimento (array di stringhe)
+ * @param productInstructions Istruzioni specifiche per i prodotti
  * @returns Portafoglio generato con allocazioni e logica di costruzione
  */
 export async function generatePortfolio(
@@ -72,7 +79,8 @@ export async function generatePortfolio(
   clientProfile: string,
   riskLevel: string = 'balanced',
   investmentHorizon: string = 'medium_term',
-  objectives: string[] = ['growth']
+  objectives: string[] = ['growth'],
+  productInstructions: string = ''
 ): Promise<GeneratedPortfolio> {
   // Verifica se la chiave API OpenAI è impostata
   if (!OPENAI_API_KEY) {
@@ -117,7 +125,8 @@ export async function generatePortfolio(
       riskLevel,
       investmentHorizon,
       objectives,
-      availableProducts
+      availableProducts,
+      productInstructions
     );
     
     // Inizializza OpenAI
@@ -133,9 +142,38 @@ export async function generatePortfolio(
           role: 'system',
           content: `Sei un consulente finanziario esperto specializzato nella creazione di portafogli di investimento. 
                     Il tuo compito è creare un portafoglio diversificato ottimale utilizzando solo i prodotti disponibili per il cliente.
-                    Calcola la duration media e il rischio medio del portafoglio.
+                    IMPORTANTE: Calcola TUTTI i valori ponderati per i pesi di allocazione, in particolare:
+                    - Calcola il rischio medio ponderato basato sui valori sri_risk dei prodotti
+                    - Calcola la duration media ponderata basata sui recommended_holding_period
+                    - Calcola il Total Expense Ratio (TER) con la formula: (entry_cost + exit_cost) / holding_period + ongoing_cost + transaction_cost
                     Assicurati che il portafoglio sia coerente con il livello di rischio, l'orizzonte temporale e gli obiettivi specificati.
-                    Devi fornire una risposta in formato JSON con le allocazioni percentuali e la logica di costruzione.`
+                    Devi fornire una risposta in formato JSON con le allocazioni percentuali e la logica di costruzione.
+                    La risposta DEVE avere il seguente formato JSON:
+                    {
+                      "name": "Nome del portafoglio",
+                      "description": "Breve descrizione del portafoglio",
+                      "clientProfile": "Profilo cliente target",
+                      "riskLevel": "Livello di rischio (1-7)",
+                      "investmentHorizon": "Orizzonte temporale consigliato",
+                      "allocation": [
+                        {
+                          "productId": 123,
+                          "isin": "CODICE_ISIN",
+                          "name": "Nome prodotto",
+                          "category": "Categoria asset class",
+                          "percentage": 20.5
+                        },
+                        // altri prodotti...
+                      ],
+                      "generationLogic": "Spiegazione dettagliata della logica di costruzione",
+                      "averageRisk": 3.2,
+                      "averageDuration": 4.5,
+                      "totalExpenseRatio": 1.2,
+                      "entryCost": 1.0,
+                      "exitCost": 0.5,
+                      "ongoingCost": 0.85,
+                      "transactionCost": 0.15
+                    }`
         },
         {
           role: 'user',
@@ -153,6 +191,11 @@ export async function generatePortfolio(
       throw new Error("No content in OpenAI response");
     }
     
+    // Stampa la risposta raw di OpenAI
+    console.log('\n==== RISPOSTA RAW OPENAI PER GENERAZIONE PORTFOLIO ====\n');
+    console.log(content);
+    console.log('\n================================================\n');
+    
     // Estrai il JSON dalla risposta
     try {
       const portfolioData = JSON.parse(content);
@@ -167,7 +210,13 @@ export async function generatePortfolio(
         allocation: portfolioData.allocation || [],
         generationLogic: portfolioData.generationLogic || "Portafoglio generato automaticamente",
         averageRisk: portfolioData.averageRisk || 0,
-        averageDuration: portfolioData.averageDuration
+        averageDuration: portfolioData.averageDuration,
+        totalExpenseRatio: portfolioData.totalExpenseRatio || 0,
+        entryCost: portfolioData.entryCost || 0,
+        exitCost: portfolioData.exitCost || 0,
+        ongoingCost: portfolioData.ongoingCost || 0,
+        transactionCost: portfolioData.transactionCost || 0,
+        assetAllocation: portfolioData.assetAllocation || []
       };
       
       // Verifica che le percentuali sommino a 100%
@@ -199,7 +248,8 @@ function createPortfolioPrompt(
   riskLevel: string,
   investmentHorizon: string,
   objectives: string[],
-  availableProducts: PortfolioProduct[]
+  availableProducts: PortfolioProduct[],
+  productInstructions: string = ''
 ): string {
   // Mappa i livelli di rischio e orizzonti temporali a descrizioni più dettagliate
   const riskLevelMap: Record<string, string> = {
@@ -279,7 +329,7 @@ Restituisci un oggetto JSON con i seguenti campi:
 - clientProfile: sintesi del profilo cliente a cui è adatto questo portafoglio
 - riskLevel: livello di rischio effettivo del portafoglio
 - investmentHorizon: orizzonte di investimento consigliato
-- allocation: array di oggetti con i campi isinId, isin, name, category e percentage
+- allocation: array di oggetti con i campi productId, isin, name, category e percentage
 - generationLogic: spiegazione dettagliata della logica di costruzione del portafoglio
 - averageRisk: rischio medio ponderato del portafoglio (1-7 scala)
 - averageDuration: duration media ponderata del portafoglio in anni (null se non disponibile)

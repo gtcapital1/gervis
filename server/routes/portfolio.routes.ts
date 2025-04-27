@@ -14,6 +14,7 @@ import { PDFDocument } from 'pdf-lib';
 import parsePDF from '../lib/pdf-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortfolioWithAI, getPortfolioMetrics } from '../ai/portfolio-controller';
+import { saveModelPortfolio } from '../services/portfolioService';
 
 // ES modules compatible __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -913,9 +914,25 @@ export function registerPortfolioRoutes(app: Express) {
   // Get all portfolio products for current user
   app.get('/api/portfolio/products', isAuthenticated, async (req, res) => {
     try {
+      // Debug di autenticazione
+      console.log('=== DEBUG AUTH PRODUCTS ===');
+      console.log('req.user:', req.user);
+      console.log('req.session:', req.session);
+      console.log('req.headers:', req.headers);
+      console.log('req.cookies:', req.cookies);
+      console.log('isAuthenticated function exists:', typeof req.isAuthenticated === 'function');
+      if (typeof req.isAuthenticated === 'function') {
+        console.log('isAuthenticated result:', req.isAuthenticated());
+      }
+      console.log('=== END DEBUG AUTH ===');
+
+      // Verifica diretta che l'utente sia autenticato tramite req.user
       if (!req.user || !req.user.id) {
+        console.log('DEBUG: Authentication failed - No valid user object');
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
+
+      console.log('DEBUG /api/portfolio/products - User ID:', req.user.id);
 
       // First we get products added to this user's portfolio
       const userProductRows = await db.select({
@@ -924,25 +941,46 @@ export function registerPortfolioRoutes(app: Express) {
       .from(userProducts)
       .where(eq(userProducts.userId, req.user.id));
       
-      const userProductIds = userProductRows.map(row => row.productId);
+      console.log('DEBUG /api/portfolio/products - User product associations found:', userProductRows.length);
+      console.log('DEBUG /api/portfolio/products - Product IDs:', JSON.stringify(userProductRows.map(row => row.productId)));
       
       // Specifichiamo il tipo di products come array di PortfolioProduct
       let products: any[] = [];
       
-      if (userProductIds.length > 0) {
-        // Use a safe SQL query to get products by IDs
-        const userProductIdsStr = userProductIds.join(',');
-        products = await db.execute(sql`
-          SELECT * FROM portfolio_products 
-          WHERE id IN (${sql.raw(userProductIdsStr)})
-        `);
+      if (userProductRows.length > 0) {
+        console.log('DEBUG /api/portfolio/products - Querying products');
+        
+        // Usa solo Drizzle in modo sicuro
+        const productIds = userProductRows.map(row => row.productId).filter(Boolean);
+        
+        console.log('DEBUG /api/portfolio/products - Filtered product IDs:', productIds);
+        
+        if (productIds.length > 0) {
+          // Uso una query OR con condizioni multiple invece di inArray
+          // che può avere problemi con alcuni input
+          const conditions = productIds.map(id => 
+            eq(portfolioProducts.id, id as number)
+          );
+          
+          products = await db
+            .select()
+            .from(portfolioProducts)
+            .where(or(...conditions));
+          
+          console.log('DEBUG /api/portfolio/products - Products found:', products.length);
+        }
+      } else {
+        console.log('DEBUG /api/portfolio/products - No product IDs found for this user');
       }
+      
+      console.log('DEBUG /api/portfolio/products - Returning products total:', products.length);
       
       res.json({
         success: true,
         products
       });
     } catch (error) {
+      console.error('DEBUG /api/portfolio/products - General error:', error);
       safeLog('Error retrieving portfolio products', error, 'error');
       handleErrorResponse(res, error, 'Error retrieving portfolio products');
     }
@@ -1049,7 +1087,21 @@ export function registerPortfolioRoutes(app: Express) {
   // Get all model portfolios with their allocations
   app.get('/api/portfolio/models', isAuthenticated, async (req, res) => {
     try {
+      // Debug di autenticazione
+      console.log('=== DEBUG AUTH MODELS ===');
+      console.log('req.user:', req.user);
+      console.log('req.session:', req.session);
+      console.log('req.headers:', req.headers);
+      console.log('req.cookies:', req.cookies);
+      console.log('isAuthenticated function exists:', typeof req.isAuthenticated === 'function');
+      if (typeof req.isAuthenticated === 'function') {
+        console.log('isAuthenticated result:', req.isAuthenticated());
+      }
+      console.log('=== END DEBUG AUTH ===');
+      
+      // Verifica diretta che l'utente sia autenticato tramite req.user
       if (!req.user || !req.user.id) {
+        console.log('DEBUG: Authentication failed - No valid user object');
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
@@ -1093,6 +1145,7 @@ export function registerPortfolioRoutes(app: Express) {
         portfolios: portfoliosWithAllocations
       });
     } catch (error) {
+      console.error('DEBUG /api/portfolio/models - General error:', error);
       safeLog('Error retrieving model portfolios', error, 'error');
       handleErrorResponse(res, error, 'Error retrieving model portfolios');
     }
@@ -1105,10 +1158,37 @@ export function registerPortfolioRoutes(app: Express) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      const { name, description, clientProfile, riskLevel, allocation } = req.body;
+      console.log("Received portfolio creation request:", JSON.stringify({
+        userId: req.user.id,
+        body: req.body
+      }, null, 2));
+
+      const { 
+        name, 
+        description, 
+        clientProfile, 
+        riskLevel, 
+        allocation,
+        constructionLogic,
+        entryCost,
+        exitCost,
+        ongoingCost,
+        transactionCost,
+        performanceFee,
+        recommendedPeriod,
+        targetReturn
+      } = req.body;
       
       // Validate required fields
       if (!name || !description || !clientProfile || !riskLevel || !allocation || !Array.isArray(allocation)) {
+        console.error("Missing required fields:", {
+          name: !!name,
+          description: !!description,
+          clientProfile: !!clientProfile,
+          riskLevel: !!riskLevel,
+          allocationArray: Array.isArray(allocation),
+          allocation: !!allocation
+        });
         return res.status(400).json({
           success: false,
           message: 'Name, description, clientProfile, riskLevel, and allocation are required'
@@ -1118,48 +1198,71 @@ export function registerPortfolioRoutes(app: Express) {
       // Validate allocation percentages sum to 100%
       const totalPercentage = allocation.reduce((sum, item) => sum + item.percentage, 0);
       if (Math.abs(totalPercentage - 100) > 0.01) {
+        console.error("Allocation percentages don't sum to 100:", totalPercentage);
         return res.status(400).json({
           success: false,
           message: 'Allocation percentages must sum to 100%'
         });
       }
       
-      // Start transaction to create portfolio and allocations
-      const result = await db.transaction(async (tx) => {
-        // Create portfolio
-        const [newPortfolio] = await tx.insert(modelPortfolios)
-          .values({
-            name,
-            description,
-            clientProfile,
-            riskLevel,
-            createdBy: req.user?.id
-          })
-          .returning();
-        
-        // Create allocations
-        const allocationsData = allocation.map(item => ({
-          portfolioId: newPortfolio.id,
-          productId: item.isinId,
-          percentage: item.percentage
-        }));
-        
-        const newAllocations = await tx.insert(portfolioAllocations)
-          .values(allocationsData)
-          .returning();
-        
-        return {
-          portfolio: newPortfolio,
-          allocations: newAllocations
-        };
+      // Check that all allocations have categories and isinId
+      const validAllocations = allocation.every(item => {
+        const valid = !!item.category && !!item.isinId;
+        if (!valid) {
+          console.error("Invalid allocation item:", item);
+        }
+        return valid;
       });
+      
+      if (!validAllocations) {
+        return res.status(400).json({
+          success: false,
+          message: 'All allocations must have a category and isinId'
+        });
+      }
+      
+      // Normalize numeric values
+      const parseNumeric = (value: any) => {
+        if (value === undefined || value === null) return undefined;
+        const num = parseFloat(value);
+        return isNaN(num) ? undefined : num;
+      };
+      
+      // Prepare portfolio data
+      const portfolioData = {
+        name,
+        description,
+        client_profile: clientProfile,
+        risk_level: riskLevel,
+        construction_logic: constructionLogic,
+        entry_cost: parseNumeric(entryCost),
+        exit_cost: parseNumeric(exitCost),
+        ongoing_cost: parseNumeric(ongoingCost),
+        transaction_cost: parseNumeric(transactionCost),
+        performance_fee: parseNumeric(performanceFee),
+        recommended_period: parseNumeric(recommendedPeriod),
+        target_return: parseNumeric(targetReturn),
+        allocations: allocation.map(item => ({
+          category: item.category,
+          percentage: parseNumeric(item.percentage) || 0,
+          productId: parseInt(item.isinId)
+        }))
+      };
+
+      console.log("Processed portfolio data:", JSON.stringify(portfolioData, null, 2));
+
+      // Use the enhanced portfolio service function
+      const result = await saveModelPortfolio(portfolioData, req.user.id);
+      
+      console.log("Portfolio save result:", result);
       
       res.json({
         success: true,
-        portfolio: result.portfolio,
-        allocations: result.allocations
+        portfolioId: result.id,
+        totalAnnualCost: result.totalAnnualCost
       });
     } catch (error) {
+      console.error("Portfolio save error:", error);
       safeLog('Error creating model portfolio', error, 'error');
       handleErrorResponse(res, error, 'Error creating model portfolio');
     }
@@ -2145,6 +2248,56 @@ Rispondi in formato JSON
 
   // Get metrics for an existing portfolio
   app.get('/api/portfolio/models/:id/metrics', isAuthenticated, getPortfolioMetrics);
+
+  // Route di test per verificare l'autenticazione
+  app.get('/api/portfolio/auth-test', (req, res) => {
+    console.log('AUTH TEST - Session:', req.session);
+    console.log('AUTH TEST - User:', req.user);
+    console.log('AUTH TEST - isAuthenticated:', typeof req.isAuthenticated === 'function' ? req.isAuthenticated() : 'Not a function');
+    
+    return res.json({
+      success: true,
+      authenticated: !!req.user,
+      user: req.user ? {
+        id: req.user.id,
+        email: req.user.email,
+        role: req.user.role
+      } : null,
+      sessionExists: !!req.session,
+      hasIsAuthenticatedFunction: typeof req.isAuthenticated === 'function'
+    });
+  });
+
+  // Endpoint di test per verifica autenticazione
+  app.get('/api/portfolio/auth-status', (req, res) => {
+    console.log('=== AUTH STATUS CHECK ===');
+    console.log('req.user:', req.user);
+    console.log('req.session:', req.session);
+    console.log('req.headers.cookie:', req.headers.cookie);
+    console.log('=== END AUTH STATUS ===');
+
+    try {
+      const isUserAuthenticated = !!req.user;
+      const userInfo = req.user ? {
+        id: req.user.id,
+        email: req.user.email, 
+        role: req.user.role,
+        name: req.user.name
+      } : null;
+
+      return res.json({
+        authenticated: isUserAuthenticated,
+        user: userInfo,
+        sessionExists: !!req.session,
+        sessionId: req.session?.id
+      });
+    } catch (error) {
+      console.error('Error in auth-status endpoint:', error);
+      return res.status(500).json({
+        error: 'Internal server error while checking authentication status'
+      });
+    }
+  });
 
   console.log('[Routes] Portfolio routes registered');
 } 

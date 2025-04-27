@@ -132,6 +132,7 @@ interface CreatePortfolioForm {
   investmentHorizon: string;
   objectives: string[];
   constraints: string;
+  notes: string;
 }
 
 interface PublicProduct {
@@ -156,9 +157,7 @@ interface PublicProduct {
 
 const RISK_LEVELS = [
   'conservative',
-  'moderate',
   'balanced',
-  'growth',
   'aggressive'
 ];
 
@@ -171,10 +170,7 @@ const INVESTMENT_HORIZONS = [
 const INVESTMENT_OBJECTIVES = [
   'income',
   'growth',
-  'preservation',
-  'liquidity',
-  'tax_efficiency',
-  'esg'
+  'capital_preservation',
 ];
 
 const ASSET_CATEGORIES = [
@@ -185,6 +181,7 @@ const ASSET_CATEGORIES = [
   "private_equity",
   "venture_capital",
   "cryptocurrencies",
+  "commodities",
   "other"
 ];
 
@@ -230,7 +227,8 @@ export default function ModelPortfoliosPage() {
     riskLevel: "balanced",
     investmentHorizon: "medium_term",
     objectives: ["growth"],
-    constraints: ""
+    constraints: "",
+    notes: ""
   });
 
   // Stato per il dettaglio prodotto
@@ -551,14 +549,13 @@ export default function ModelPortfoliosPage() {
     }
 
     // Create prompt for AI assistant
-    const prompt = `Please help me create a model portfolio with the following characteristics:
-- Name: ${formData.name}
-- Description: ${formData.description}
-- Client Profile: ${formData.clientProfile}
-- Risk Level: ${formData.riskLevel}
-- Investment Horizon: ${formData.investmentHorizon}
-- Investment Objectives: ${formData.objectives.join(', ')}
-${formData.constraints ? `- Additional Constraints/Requirements: ${formData.constraints}` : ''}
+    const prompt = `Per favore aiutami a creare un portafoglio modello con le seguenti caratteristiche:
+- Profilo Cliente: ${formData.clientProfile}
+- Livello di Rischio: ${formData.riskLevel}
+- Orizzonte di Investimento: ${formData.investmentHorizon}
+- Obiettivi di Investimento: ${formData.objectives.join(', ')}
+${formData.notes ? `- Note sul cliente: ${formData.notes}` : ''}
+${formData.constraints ? `- Vincoli: ${formData.constraints}` : ''}
 
 Please use products from our available ISINs and create a balanced allocation that matches these requirements. The portfolio should include detailed allocation percentages and rationale for each selection.`;
 
@@ -848,7 +845,7 @@ Please use products from our available ISINs and create a balanced allocation th
                     <div className="flex justify-between items-start">
                       <CardTitle className="text-lg">{portfolio.name}</CardTitle>
                       <Badge className={getRiskLevelColor(portfolio.riskLevel)}>
-                        {t(`risk_profile.${portfolio.riskLevel}`)}
+                        {t(`risk_profiles.${portfolio.riskLevel}`)}
                       </Badge>
                     </div>
                     <CardDescription className="line-clamp-2">
@@ -1343,118 +1340,115 @@ Please use products from our available ISINs and create a balanced allocation th
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
         <DialogContent className="max-w-xl">
           <DialogHeader>
-            <DialogTitle>{t('portfolio.create_portfolio')}</DialogTitle>
+            <DialogTitle>Crea Portafoglio Modello</DialogTitle>
             <DialogDescription>
-              {t('portfolio.create_portfolio_description')}
+              Seleziona i parametri per creare un nuovo portafoglio modello
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-2">
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="portfolioName">{t('portfolio.portfolio_name')} *</Label>
-              <Input 
-                id="portfolioName"
-                placeholder={t('portfolio.portfolio_name_placeholder')}
-                value={formData.name}
-                onChange={(e) => setFormData({...formData, name: e.target.value})}
-              />
+            <div className="space-y-2">
+              <Label htmlFor="riskLevel">Livello di rischio</Label>
+              <Select 
+                value={formData.riskLevel} 
+                onValueChange={(val) => setFormData({...formData, riskLevel: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {RISK_LEVELS.map(risk => (
+                    <SelectItem key={risk} value={risk}>
+                      {t(`risk_profiles.${risk}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="portfolioDescription">{t('portfolio.portfolio_description')} *</Label>
-              <Textarea 
-                id="portfolioDescription"
-                placeholder={t('portfolio.portfolio_description_placeholder')}
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
-              />
+            <div className="space-y-2">
+              <Label htmlFor="investmentHorizon">Orizzonte di investimento</Label>
+              <Select 
+                value={formData.investmentHorizon} 
+                onValueChange={(val) => setFormData({...formData, investmentHorizon: val})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {INVESTMENT_HORIZONS.map(horizon => (
+                    <SelectItem key={horizon} value={horizon}>
+                      {t(`investment_horizon.${horizon}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="clientProfile">{t('portfolio.client_profile')} *</Label>
-              <Textarea 
-                id="clientProfile"
-                placeholder={t('portfolio.client_profile_placeholder')}
-                value={formData.clientProfile}
-                onChange={(e) => setFormData({...formData, clientProfile: e.target.value})}
-                rows={3}
-              />
-            </div>
-            
-            <div className="grid grid-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="riskLevel">{t('portfolio.risk_level')}</Label>
-                <Select 
-                  value={formData.riskLevel} 
-                  onValueChange={(val) => setFormData({...formData, riskLevel: val})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {RISK_LEVELS.map(risk => (
-                      <SelectItem key={risk} value={risk}>
-                        {t(`risk_profile.${risk}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="investmentHorizon">{t('portfolio.investment_horizon')}</Label>
-                <Select 
-                  value={formData.investmentHorizon} 
-                  onValueChange={(val) => setFormData({...formData, investmentHorizon: val})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INVESTMENT_HORIZONS.map(horizon => (
-                      <SelectItem key={horizon} value={horizon}>
-                        {t(`investment_horizon.${horizon}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-2">
-              <Label>{t('portfolio.investment_objectives')}</Label>
-              <div className="flex flex-wrap gap-2">
-                {INVESTMENT_OBJECTIVES.map(objective => (
-                  <Badge 
-                    key={objective}
-                    variant={formData.objectives.includes(objective) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => {
-                      if (formData.objectives.includes(objective)) {
-                        setFormData({
-                          ...formData, 
-                          objectives: formData.objectives.filter(o => o !== objective)
-                        });
+            <div className="space-y-2">
+              <Label>Obiettivi di investimento</Label>
+              <div className="flex flex-col gap-2 mt-1.5">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="preservation"
+                    checked={formData.objectives.includes('preservation')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFormData({...formData, objectives: [...formData.objectives.filter(o => o !== 'preservation'), 'preservation']});
                       } else {
-                        setFormData({
-                          ...formData,
-                          objectives: [...formData.objectives, objective]
-                        });
+                        setFormData({...formData, objectives: formData.objectives.filter(o => o !== 'preservation')});
                       }
                     }}
-                  >
-                    {t(`investment_objectives.${objective}`)}
-                  </Badge>
-                ))}
+                  />
+                  <Label htmlFor="preservation" className="font-normal cursor-pointer">Preservazione del Capitale</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="income"
+                    checked={formData.objectives.includes('income')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFormData({...formData, objectives: [...formData.objectives.filter(o => o !== 'income'), 'income']});
+                      } else {
+                        setFormData({...formData, objectives: formData.objectives.filter(o => o !== 'income')});
+                      }
+                    }}
+                  />
+                  <Label htmlFor="income" className="font-normal cursor-pointer">Generazione di Reddito</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="growth"
+                    checked={formData.objectives.includes('growth')}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setFormData({...formData, objectives: [...formData.objectives.filter(o => o !== 'growth'), 'growth']});
+                      } else {
+                        setFormData({...formData, objectives: formData.objectives.filter(o => o !== 'growth')});
+                      }
+                    }}
+                  />
+                  <Label htmlFor="growth" className="font-normal cursor-pointer">Crescita Patrimoniale</Label>
+                </div>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Note su Cliente</Label>
+              <Textarea 
+                id="notes"
+                placeholder="Esempio: Cliente interessato in investimenti high-tech"
+                value={formData.notes}
+                onChange={(e) => setFormData({...formData, notes: e.target.value})}
+                rows={2}
+              />
+            </div>
             
-            <div className="grid grid-cols-1 gap-2">
-              <Label htmlFor="constraints">{t('portfolio.constraints')}</Label>
+            <div className="space-y-2">
+              <Label htmlFor="constraints">Vincoli</Label>
               <Textarea 
                 id="constraints"
-                placeholder={t('portfolio.constraints_placeholder')}
+                placeholder="Esempio: Solo esposizione in EUR"
                 value={formData.constraints}
                 onChange={(e) => setFormData({...formData, constraints: e.target.value})}
                 rows={2}
@@ -1462,22 +1456,27 @@ Please use products from our available ISINs and create a balanced allocation th
             </div>
           </div>
           
-          <DialogFooter className="flex justify-between">
-            <div className="flex items-center">
-              <Info className="h-4 w-4 text-muted-foreground mr-2" />
-              <span className="text-xs text-muted-foreground">
-                {t('portfolio.ai_assistant_info')}
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
-                {t('common.cancel')}
-              </Button>
-              <Button onClick={handleCreatePortfolio} className="gap-2">
-                <Bot className="h-4 w-4" />
-                {t('portfolio.create_with_ai')}
-              </Button>
-            </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+              Annulla
+            </Button>
+            <Button onClick={() => {
+              // Imposta dei valori predefiniti per i campi rimossi
+              const updatedFormData = {
+                ...formData,
+                name: "Portafoglio Modello",
+                description: `Portafoglio ${t(`risk_profiles.${formData.riskLevel}`)} con orizzonte ${t(`investment_horizon.${formData.investmentHorizon}`)}`,
+                clientProfile: `Cliente interessato a ${formData.objectives.map(obj => t(`investment_objectives.${obj}`)).join(', ')}`
+              };
+              
+              // Aggiorna lo stato
+              setFormData(updatedFormData);
+              
+              // Chiamare la funzione handleCreatePortfolio
+              handleCreatePortfolio();
+            }}>
+              Crea
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1496,7 +1495,7 @@ Please use products from our available ISINs and create a balanced allocation th
             <div className="space-y-6 py-4">
               <div className="flex flex-wrap gap-2">
                 <Badge className={getRiskLevelColor(selectedPortfolio.riskLevel)}>
-                  {t(`risk_profile.${selectedPortfolio.riskLevel}`)}
+                  {t(`risk_profiles.${selectedPortfolio.riskLevel}`)}
                 </Badge>
                 <Badge variant="outline">
                   {t('portfolio.created')}: {new Date(selectedPortfolio.createdAt).toLocaleDateString()}

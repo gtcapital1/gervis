@@ -1033,15 +1033,170 @@ export async function handlePortfolioGeneration(args: {
     // Log success
     console.log(`[DEBUG handlePortfolioGeneration] Generated portfolio: ${result.success ? 'success' : 'failed'}`);
     
-    // Add helpful message on how to interact with the portfolio
-    const suggestedResponse = `
-Ho generato un portafoglio di investimento in base alle tue specifiche. 
-Puoi visualizzarlo nell'interfaccia dedicata, salvarlo tra i tuoi modelli, 
+    // Aggiungi i risultati principali nei log
+    console.log(`[PLANNING] RISULTATO generazione portafoglio:`, { 
+      success: result.success, 
+      hasPortfolio: !!result.portfolio,
+      hasMetrics: !!result.portfolioMetrics,
+      portfolioName: result.portfolio?.name
+    });
+    
+    // Aggiungi calcoli dettagliati nel log principale
+    if (result.success && result.portfolio && result.portfolioMetrics) {
+      const portfolio = result.portfolio;
+      const metrics = result.portfolioMetrics;
+      const holdingPeriod = metrics.averageInvestmentHorizon || 5;
+      
+      console.log('\n[PLANNING] ==== DETTAGLIO CALCOLI PORTFOLIO ====');
+      console.log('\n[PLANNING] ----- VALORI GENERATI -----');
+      console.log(`[PLANNING] - Nome: ${portfolio.name}`);
+      console.log(`[PLANNING] - Rischio medio: ${portfolio.averageRisk.toFixed(1)}/7`);
+      console.log(`[PLANNING] - Orizzonte temporale: ${portfolio.averageDuration ? portfolio.averageDuration.toFixed(1) + ' anni' : 'N/A'}`);
+      console.log(`[PLANNING] - TER: ${portfolio.totalExpenseRatio.toFixed(2)}%`);
+      
+      console.log('\n[PLANNING] ----- DATI PRODOTTI E PESI USATI NEI CALCOLI -----');
+      
+      // Mostra i dati di ogni prodotto
+      if (portfolio.allocation && portfolio.allocation.length > 0) {
+        portfolio.allocation.forEach((item, idx) => {
+          console.log(`[PLANNING] Prodotto ${idx+1}: ${item.name} (${item.category})`);
+          console.log(`[PLANNING]   - ISIN: ${item.isin || 'N/A'}`);
+          console.log(`[PLANNING]   - Peso: ${item.percentage.toFixed(1)}%`);
+          
+          // Cerca dati dettagliati se disponibili
+          if (metrics.productDetails && metrics.productDetails[idx]) {
+            const details = metrics.productDetails[idx];
+            console.log(`[PLANNING]   - Rischio: ${details.risk || 'N/A'}`);
+            console.log(`[PLANNING]   - Orizzonte: ${details.horizon || 'N/A'} anni`);
+            console.log(`[PLANNING]   - Costi: Entrata=${details.entryCost || '0'}%, Uscita=${details.exitCost || '0'}%, Ongoing=${details.ongoingCost || '0'}%, Transazioni=${details.transactionCost || '0'}%`);
+          }
+        });
+      }
+      
+      console.log('\n[PLANNING] ----- VALORI CALCOLATI SUI PRODOTTI REALI -----');
+      console.log(`[PLANNING] - Rischio medio: ${metrics.averageRisk.toFixed(1)}/7 (calcolato come Σ[peso_i * rischio_i])`);
+      
+      // Mostra i dettagli del calcolo del rischio
+      console.log('[PLANNING]   Dettaglio calcolo rischio:');
+      if (metrics.riskCalculation) {
+        metrics.riskCalculation.forEach((calc, idx) => {
+          console.log(`[PLANNING]     Prodotto ${idx+1}: ${calc.weight.toFixed(2)} * ${calc.risk.toFixed(1)} = ${(calc.weight * calc.risk).toFixed(2)}`);
+        });
+        console.log(`[PLANNING]     Totale: ${metrics.averageRisk.toFixed(1)}`);
+      } else {
+        console.log('[PLANNING]     Dettagli non disponibili');
+      }
+      
+      console.log(`[PLANNING] - Orizzonte temporale: ${metrics.averageInvestmentHorizon ? 
+          metrics.averageInvestmentHorizon.toFixed(1) + ' anni' : 'N/A'} (calcolato come Σ[peso_i * orizzonte_i])`);
+      
+      // Mostra i dettagli del calcolo dell'orizzonte temporale
+      console.log('[PLANNING]   Dettaglio calcolo orizzonte temporale:');
+      if (metrics.horizonCalculation) {
+        metrics.horizonCalculation.forEach((calc, idx) => {
+          console.log(`[PLANNING]     Prodotto ${idx+1}: ${calc.weight.toFixed(2)} * ${calc.horizon.toFixed(1)} = ${(calc.weight * calc.horizon).toFixed(2)}`);
+        });
+        console.log(`[PLANNING]     Totale: ${metrics.averageInvestmentHorizon ? metrics.averageInvestmentHorizon.toFixed(1) : 'N/A'}`);
+      } else {
+        console.log('[PLANNING]     Dettagli non disponibili');
+      }
+      
+      console.log('\n[PLANNING] ----- CALCOLO DETTAGLIATO DEL TER -----');
+      console.log(`[PLANNING] - Formula TER: (entryCost + exitCost) / holdingPeriod + ongoingCost + transactionCost`);
+      
+      // Mostra i dettagli per tipo di costo usando i productDetails
+      console.log('[PLANNING]   Dettaglio costi per prodotto:');
+      if (metrics.productDetails && metrics.productDetails.length > 0) {
+        metrics.productDetails.forEach((product, idx) => {
+          console.log(`[PLANNING]     Prodotto ${idx+1} (${product.percentage.toFixed(2)}%): Entrata=${(product.entryCost * 100).toFixed(2)}%, Uscita=${(product.exitCost * 100).toFixed(2)}%, Ongoing=${(product.ongoingCost * 100).toFixed(2)}%, Transazioni=${(product.transactionCost * 100).toFixed(2)}%`);
+        });
+      } else if (metrics.costCalculation) {
+        // Fallback a costCalculation se productDetails non è disponibile
+        metrics.costCalculation.forEach((calc, idx) => {
+          console.log(`[PLANNING]     Prodotto ${idx+1} (${calc.weight.toFixed(2)}): Entrata=${calc.entry.toFixed(2)}%, Uscita=${calc.exit.toFixed(2)}%, Ongoing=${calc.ongoing.toFixed(2)}%, Transazioni=${calc.transaction.toFixed(2)}%`);
+        });
+      } else {
+        console.log('[PLANNING]     Dettagli non disponibili - i costi mostrati sono stime generate da OpenAI');
+      }
+      
+      // Verifica se i valori sono già in percentuale o devono essere moltiplicati
+      // Se il valore più alto dei costi è < 1, assumiamo che siano in formato decimale (es. 0.0045 = 0.45%)
+      const maxCost = Math.max(
+        metrics.entryCost || 0, 
+        metrics.exitCost || 0, 
+        metrics.ongoingCost || 0, 
+        metrics.transactionCost || 0
+      );
+      const needMultiplication = maxCost < 0.01; // Se true, moltiplica per 100
+      
+      // Mostra i costi totali calcolati
+      console.log(`[PLANNING] - entryCost: ${needMultiplication ? (metrics.entryCost * 100).toFixed(2) : metrics.entryCost.toFixed(2)}%`);
+      console.log(`[PLANNING] - exitCost: ${needMultiplication ? (metrics.exitCost * 100).toFixed(2) : metrics.exitCost.toFixed(2)}%`);
+      console.log(`[PLANNING] - ongoingCost: ${needMultiplication ? (metrics.ongoingCost * 100).toFixed(2) : metrics.ongoingCost.toFixed(2)}%`);
+      console.log(`[PLANNING] - transactionCost: ${needMultiplication ? (metrics.transactionCost * 100).toFixed(2) : metrics.transactionCost.toFixed(2)}%`);
+      console.log(`[PLANNING] - holdingPeriod: ${holdingPeriod.toFixed(1)} anni`);
+      
+      // Calcolo del TER con gli stessi valori utilizzati sopra
+      const entryCostDisplay = needMultiplication ? (metrics.entryCost * 100).toFixed(2) : metrics.entryCost.toFixed(2);
+      const exitCostDisplay = needMultiplication ? (metrics.exitCost * 100).toFixed(2) : metrics.exitCost.toFixed(2);
+      const ongoingCostDisplay = needMultiplication ? (metrics.ongoingCost * 100).toFixed(2) : metrics.ongoingCost.toFixed(2);
+      const transactionCostDisplay = needMultiplication ? (metrics.transactionCost * 100).toFixed(2) : metrics.transactionCost.toFixed(2);
+      const totalExpenseRatioDisplay = needMultiplication ? (metrics.totalExpenseRatio * 100).toFixed(2) : metrics.totalExpenseRatio.toFixed(2);
+      
+      console.log(`[PLANNING] - Calcolo: (${entryCostDisplay}% + ${exitCostDisplay}%) / ${holdingPeriod.toFixed(1)} + ${ongoingCostDisplay}% + ${transactionCostDisplay}%`);
+      console.log(`[PLANNING] - totalExpenseRatio: ${totalExpenseRatioDisplay}%`);
+      
+      console.log('\n[PLANNING] ----- ORIGINE DEI DATI -----');
+      console.log(`[PLANNING] - Prodotti trovati nel DB: ${metrics.productDetails ? metrics.productDetails.length : 0}/${portfolio.allocation.length}`);
+      console.log(`[PLANNING] - Avvertenza: ${metrics.productDetails && metrics.productDetails.length > 0 ? 
+        'I dati mostrati provengono dal database' : 
+        'I dati mostrati sono stime generate da OpenAI e potrebbero non riflettere valori reali'}`);
+      
+      console.log('\n[PLANNING] ----- DISTRIBUZIONE ASSET CLASS -----');
+      console.log(`[PLANNING] - Distribuzione: ${
+          Object.entries(metrics.assetClassDistribution)
+              .map(([category, percentage]) => `${category}: ${percentage.toFixed(1)}%`)
+              .join(', ')}`);
+      
+      console.log('\n[PLANNING] ----- ALLOCAZIONE DETTAGLIATA -----');
+      console.log(`[PLANNING] - Numero strumenti: ${portfolio.allocation.length}`);
+      portfolio.allocation.forEach((item, index) => {
+        console.log(`[PLANNING]   ${index+1}. ${item.name} (${item.category}): ${item.percentage.toFixed(1)}%`);
+      });
+    }
+    
+    // Se abbiamo generato un portfolio, mostra il dialog
+    if (result.success && result.portfolio) {
+      const suggestedResponse = `
+Ho generato un portafoglio di investimento in base alle tue specifiche.
+
+**Logica di costruzione:**
+${result.portfolio?.generationLogic || "Non disponibile"}
+
+**Metriche principali:**
+- Rischio medio: ${result.portfolio?.averageRisk.toFixed(1) || "N/A"}/7 ${result.portfolio?.averageRisk === 7 ? "(valore di default)" : ""}
+- Orizzonte temporale: ${result.portfolio?.averageDuration?.toFixed(1) || "N/A"} anni ${result.portfolio?.averageDuration === 10 ? "(valore di default)" : ""}
+- TER (Total Expense Ratio): ${result.portfolio?.totalExpenseRatio?.toFixed(2) || "N/A"}%
+- Distribuzione asset: ${
+  result.portfolio?.assetAllocation 
+    ? result.portfolio.assetAllocation.map(a => `${a.category}: ${a.percentage.toFixed(1)}%`).join(', ')
+    : "Non disponibile"
+}
+
+Puoi visualizzare il portafoglio completo nell'interfaccia dedicata, salvarlo tra i tuoi modelli, 
 o chiedermi modifiche specifiche per adattarlo ulteriormente.
 
 Puoi continuare a interagire con il portafoglio direttamente in questa chat.
 `;
 
+      return {
+        success: result.success,
+        portfolio: result.portfolio,
+        portfolioMetrics: result.portfolioMetrics,
+        suggestedResponse: suggestedResponse
+      };
+    }
+    
     return {
       success: result.success,
       portfolio: result.portfolio,

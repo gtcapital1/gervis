@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Bot, Sparkles, Calendar, Mail, FileText, Users, BarChart4, Brain, Send, User, Plus, History, X, Trash2, AlertTriangle, Loader2, Copy, Check } from 'lucide-react';
+import { Bot, Sparkles, Calendar, Mail, FileText, Users, BarChart4, Brain, Send, User, Plus, History, X, Trash2, AlertTriangle, Loader2, Copy, Check, ChartPieIcon, CheckCircle, Save } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -24,11 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { MessagesSquare } from 'lucide-react';
 import { useLocation } from 'wouter';
 import api from '@/lib/api';
-import ChatMeetingDialog from '@/components/chat/ChatMeetingDialog';
-import ChatEmailDialog from '@/components/chat/ChatEmailDialog';
-import ChatPortfolioDialog from '@/components/chat/ChatPortfolioDialog';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { PortfolioAllocation, PortfolioMetrics } from '@/components/chat/ChatPortfolioDialog';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 
 // Tipo per i messaggi della chat
 interface Message {
@@ -79,6 +75,16 @@ const normalizeMarkdownText = (text: string) => {
   // Pre-processing aggressivo del testo
   let processed = text.trim();
 
+  // Identifica se il testo contiene tabelle markdown
+  const containsTables = /\|(.+)\|/.test(text);
+  
+  // Se ci sono tabelle, esegui solo le operazioni sicure che non interferiscono con il formato tabella
+  if (containsTables) {
+    // Applica solo trasformazioni minime per preservare il formato delle tabelle
+    return processed;
+  }
+  
+  // Altrimenti, applica tutte le trasformazioni standard
   // 1. Rimuovi le linee vuote in eccesso (più di 2 consecutive)
   processed = processed.replace(/\n{3,}/g, '\n\n');
   
@@ -140,6 +146,39 @@ interface GeneratedPortfolio {
   generationLogic: string;
 }
 
+// Interface for portfolio allocation
+interface PortfolioAllocation {
+  productId: number;
+  category: string;
+  name: string;
+  percentage: number;
+}
+
+// Interface for portfolio metrics
+interface PortfolioMetrics {
+  averageRisk: number;
+  averageInvestmentHorizon: number | null;
+  assetClassDistribution: {
+    [key: string]: number;
+  };
+  totalExpenseRatio: number;
+  entryCost: number;
+  exitCost: number;
+  ongoingCost: number;
+  transactionCost: number;
+  productDetails?: Array<{
+    name: string;
+    category: string;
+    percentage: number;
+    risk: number | null;
+    horizon: number | null;
+    entryCost: number;
+    exitCost: number;
+    ongoingCost: number;
+    transactionCost: number;
+  }>;
+}
+
 export default function AgentPage() {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -170,6 +209,9 @@ export default function AgentPage() {
   const [showPortfolioDialog, setShowPortfolioDialog] = useState(false);
   const [portfolioData, setPortfolioData] = useState<GeneratedPortfolio | null>(null);
   const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
+
+  // Aggiungi uno stato per tenere traccia dei messaggi con portfolio già salvato
+  const [savedPortfolioMessages, setSavedPortfolioMessages] = useState<number[]>([]);
 
   // Definizione delle capacità dell'assistente
   const capabilities = [
@@ -369,14 +411,34 @@ export default function AgentPage() {
         
         // Handle portfolio data if present
         if (response.data && response.data.functionResults && response.data.functionResults.length > 0) {
+          console.log("Analisi functionResults per trovare portfolio data...");
+          
           const portfolioResult = response.data.functionResults.find(
-            (result: any) => result && result.portfolio
+            (result: any) => result && (result.portfolio || result.success && result.suggestedResponse)
           );
           
-          if (portfolioResult && portfolioResult.portfolio && portfolioResult.portfolioMetrics) {
-            setPortfolioData(portfolioResult.portfolio);
-            setPortfolioMetrics(portfolioResult.portfolioMetrics);
-            setShowPortfolioDialog(true);
+          if (portfolioResult) {
+            console.log("Trovato risultato portfolio:", portfolioResult);
+            
+            // Verifica se abbiamo un portfolio diretto
+            if (portfolioResult.portfolio) {
+              console.log("Trovato portfolio diretto:", portfolioResult.portfolio);
+              setPortfolioData(portfolioResult.portfolio);
+            }
+            
+            // Verifica se abbiamo metriche
+            if (portfolioResult.portfolioMetrics) {
+              console.log("Trovate metriche:", portfolioResult.portfolioMetrics);
+              setPortfolioMetrics(portfolioResult.portfolioMetrics);
+            }
+            
+            // Mostra il dialog solo se abbiamo dati utili
+            if (portfolioResult.portfolio || (portfolioResult.success && portfolioResult.suggestedResponse)) {
+              setShowPortfolioDialog(true);
+            }
+          } else {
+            // Se non troviamo un oggetto con portfolio, cerchiamo nei messaggi
+            console.log("Portfolio non trovato nei functionResults");
           }
         }
         } else {
@@ -612,293 +674,300 @@ export default function AgentPage() {
   
   // Renderizza un messaggio
   const renderMessage = (message: Message, index: number) => {
-    const isUser = message.role === 'user';
+    // Verifica se è stata usata la funzione di generazione portfolio
+    let isPortfolioGenerated = false;
+    let portfolioToSave = null;
     
-    // Verifica se i risultati delle funzioni contengono meeting
-    let meetings = null;
-    let meetingsCardTitle = "Appuntamenti";
-    let meetingsCardDescription = null;
-    // Manteniamo solo il messaggio originale fornito da OpenAI
-    let originalContent = message.content;
-    
-    if (!isUser && message.functionResults) {
+    // Verifica se nei functionResults c'è il risultato della generazione portfolio
+    if (message.functionResults && typeof message.functionResults === 'string') {
       try {
-        const functionResults = JSON.parse(message.functionResults);
-        if (functionResults && functionResults.length > 0) {
-          const functionResult = functionResults[0];
-          
-          // Controlla se è un risultato da getMeetingsByDateRange
-          if (functionResult.meetings && Array.isArray(functionResult.meetings)) {
-            // Estrai i meeting
-            meetings = functionResult.meetings;
+        // Se contiene la stringa "handlePortfolioGeneration", è stata usata la funzione di generazione
+        isPortfolioGenerated = message.functionResults.includes('handlePortfolioGeneration') || 
+                              message.functionResults.includes('generatePortfolio');
             
-            // Prepara il messaggio con l'orizzonte temporale
-            let timeframe = "";
-            
-            // Se il risultato viene da getMeetingsByDateRange, aggiungi la descrizione del periodo
-            if (functionResult.dateRangeFormatted) {
-              meetingsCardDescription = functionResult.dateRangeFormatted;
-              timeframe = functionResult.dateRangeFormatted.toLowerCase();
-            } else if (functionResult.period) {
-              // Potrebbe contenere informazioni sul periodo in un altro formato
-              timeframe = `dal ${functionResult.period.start} al ${functionResult.period.end}`;
-              meetingsCardDescription = timeframe;
-            } else if (functionResult.clientName) {
-              // Se il risultato viene da getMeetingsByClientName, personalizza il titolo
-              meetingsCardTitle = `Appuntamenti con ${functionResult.clientName}`;
-              timeframe = `con ${functionResult.clientName}`;
+        // Estrai direttamente i dati del portfolio dai functionResults
+        if (isPortfolioGenerated) {
+          const results = JSON.parse(message.functionResults);
+          if (Array.isArray(results)) {
+            // Trova il risultato della funzione di generazione portfolio
+            const portfolioResult = results.find(r => r && (r.portfolio || r.success));
+            if (portfolioResult && portfolioResult.portfolio) {
+              // Salva il portfolio per il pulsante salva
+              portfolioToSave = portfolioResult.portfolio;
             }
-            
-            // Manteniamo solo il messaggio originale fornito da OpenAI
           }
         }
       } catch (e) {
-        console.error("Errore nel parsing dei risultati delle funzioni:", e);
+        console.error('Errore nel parsing dei functionResults:', e);
       }
     }
     
     return (
       <motion.div
         key={index}
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.3 }}
-        className={`flex mb-6 ${isUser ? 'justify-end' : 'justify-start'}`}
+        className={`flex gap-4 px-6 py-5 mb-1 ${
+          message.role === 'user' 
+            ? 'bg-white dark:bg-gray-950/50 border-l-4 border-blue-500 dark:border-blue-600' 
+            : 'bg-white dark:bg-gray-950 border-l-4 border-indigo-500 dark:border-indigo-600'
+        }`}
       >
-        <div className={`flex ${isUser ? 'flex-row-reverse' : 'flex-row'} max-w-[90%]`}>
-          <Avatar className={`h-8 w-8 ${isUser ? 'ml-3' : 'mr-3'} flex-shrink-0`}>
-            <AvatarFallback className={isUser ? 'bg-indigo-600 text-white' : 'bg-blue-600 text-white'}>
-              {isUser ? <User size={16} /> : <Bot size={16} />}
-            </AvatarFallback>
-          </Avatar>
-          
-            <div className={`
-              py-3 px-4 rounded-2xl relative
-              ${isUser 
-                ? 'bg-gradient-to-br from-indigo-500 to-blue-600 text-white' 
-                : 'bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm border border-gray-200 dark:border-gray-700'}
-          `}>
-            {!isUser && (
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={() => copyMessageContent(message.content, index)}
-                className={`absolute top-1 right-1 h-6 w-6 p-1 opacity-50 hover:opacity-100 hover:bg-blue-100/50 dark:hover:bg-blue-900/50 z-10 ${isUser ? 'text-white' : 'text-gray-500'}`}
-                title="Copia messaggio"
-              >
-                {copiedMessageIndex === index ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-              </Button>
+        <div className="flex-shrink-0 pt-1">
+          {message.role === 'user' ? (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-sm">
+              <User className="h-4.5 w-4.5" />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-sm">
+              <Bot className="h-4.5 w-4.5" />
+            </div>
+          )}
+        </div>
+        
+        <div className="flex-1 min-w-0 space-y-1.5">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-base">
+              {message.role === 'user' ? 'Tu' : 'Gervis AI'}
+            </span>
+            {message.model && (
+              <div className="flex flex-col">
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+                  {message.model === 'gpt-4.1' ? 'GPT-4.1' : 'GPT-4.1 Mini'}
+                </span>
+                <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-1">
+                  {message.model === 'gpt-4.1' ? 'Più potente e preciso' : 'Veloce ed efficiente'}
+                </span>
+              </div>
+            )}
+            {message.createdAt && (
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {formatTimestamp(message.createdAt)}
+              </span>
             )}
             
-            <div className="text-sm whitespace-pre-wrap break-words">
-              {isUser ? (
-                message.content
-              ) : (
-                <div className="markdown-content">
-                  {/* Prima mostriamo il messaggio, poi la card dei meeting */}
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      // Personalizza i paragrafi per avere meno spazio
-                      p: ({children}) => {
-                        // Se il paragrafo è vuoto, non renderizzare nulla
-                        if (children === undefined || 
-                            (Array.isArray(children) && children.length === 0) ||
-                            children === '\n') {
-                          return null;
-                        }
-                        
-                        return <p style={{marginTop: '0.8em', marginBottom: '0.8em'}}>{children}</p>;
-                      },
-                      // Personalizza i titoli per ridurre lo spazio
-                      h1: ({children}) => <h1 style={{marginBottom: '0.8em'}}>{children}</h1>,
-                      h2: ({children}) => <h2 style={{marginBottom: '0.8em'}}>{children}</h2>,
-                      h3: ({children}) => <h3 style={{marginBottom: '0.8em'}}>{children}</h3>,
-                      // Gestisci i line break in modo più compatto
-                      br: () => <span style={{display: 'block', height: '1.2em'}} />,
-                      // Personalizza gli elenchi per garantire indentazione coerente
-                      ul: ({children}) => <ul style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ul>,
-                      ol: ({children}) => <ol style={{marginTop: '1em', marginBottom: '1em', paddingLeft: '1.5rem'}}>{children}</ol>,
-                      // Gestisci i link per aprirli in una nuova finestra
-                      a: ({node, href, children}) => {
-                        // Verifica se il link è interno (inizia con /)
-                        const isInternalLink = href && href.startsWith('/');
-                        return (
-                          <a 
-                            href={href} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            style={{
-                              color: '#2563eb', // blue-600
-                              textDecoration: 'underline',
-                              fontWeight: isInternalLink ? 'bold' : 'normal'
-                            }}
-                          >
-                            {children}
-                          </a>
-                        );
-                      },
-                      li: ({children, ...props}) => {
-                        // La complessità del controllo per gli elementi annidati è stata rimossa
-                        // perché non è necessaria per lo stile visivo
-                        return (
-                          <li style={{
-                            marginTop: '0.5em', 
-                            marginBottom: '0.5em', 
-                            display: 'list-item',
-                            lineHeight: '2.2'
-                          }}>
-                            {children}
-                          </li>
-                        );
-                      }
-                    }}
+            <div className="ml-auto">
+              <Tooltip>
+                <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => copyMessageContent(message.content, index)}
                   >
-                    {normalizeMarkdownText(originalContent)}
-                  </ReactMarkdown>
+                    {copiedMessageIndex === index ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {copiedMessageIndex === index ? 'Copiato!' : 'Copia messaggio'}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
+            
+          <div className="prose prose-sm dark:prose-invert max-w-none overflow-x-auto break-words leading-relaxed">
+            <div className="markdown-content rounded-md text-gray-700 dark:text-gray-200">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {normalizeMarkdownText(message.content)}
+              </ReactMarkdown>
+            </div>
                   
-                  {/* Renderizza la card dei meeting se presente */}
-                  {meetings && meetings.length > 0 ? (
-                    <div className="mt-3">
-                      <MeetingCard 
-                        meetings={meetings} 
-                        title={meetingsCardTitle}
-                        description={meetingsCardDescription}
-                        onEditMeeting={(meeting) => {
-                          if (meeting.id) {
-                            setMeetingData({
-                              id: meeting.id,
-                              clientId: meeting.clientId || 0,
-                              subject: meeting.title,
-                              dateTime: meeting.dateTime,
-                              duration: meeting.duration,
-                              location: meeting.location || "zoom",
-                              notes: meeting.notes || "",
-                              isEdit: true
-                            });
-                            setShowMeetingDialog(true);
-                          }
-                        }}
-                        onPrepareMeeting={(meeting) => {
-                          // Avvia una nuova conversazione
-                          startNewConversation();
-                          setShowChat(true); // Assicuriamoci che la chat sia visibile
+            {/* Pulsante per salvare il portfolio direttamente nella chat */}
+            {isPortfolioGenerated && (
+              <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 shadow-sm">
+                <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-2 flex items-center">
+                  <ChartPieIcon className="h-4 w-4 mr-1.5" />
+                  Portafoglio generato
+                </h3>
+                
+                {savedPortfolioMessages.includes(index) ? (
+                  <div className="flex items-center text-emerald-600 dark:text-emerald-400 mb-1">
+                    <CheckCircle className="h-4 w-4 mr-2 text-emerald-500" />
+                    <p className="text-sm">Questo portafoglio è stato salvato con successo.</p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+                      Puoi salvare questo portafoglio nei tuoi modelli per utilizzarlo in futuro.
+                    </p>
+                    <Button 
+                      onClick={() => {
+                        // Recupera i dati di portfolio direttamente qui
+                        try {
+                          console.log("Accedendo direttamente ai dati del portfolio...");
                           
-                          // Costruisci un prompt dettagliato per la preparazione dell'appuntamento
-                          const clientName = meeting.clientName || 
-                            (meeting.client ? `${meeting.client.firstName} ${meeting.client.lastName}` : 
-                            (meeting.clientId ? `Cliente ${meeting.clientId}` : 'Cliente'));
-                          
-                          const meetingDate = parseISO(meeting.dateTime);
-                          const formattedDate = format(meetingDate, "EEEE d MMMM yyyy", { locale: it });
-                          const formattedTime = format(meetingDate, "HH:mm", { locale: it });
-                          const location = getLocationName(meeting.location || 'office');
-                          
-                          // Costruisci un prompt completo
-                          const prompt = `Preparami per il meeting con ${clientName} di ${formattedDate} alle ${formattedTime}.
-
-L'incontro avrà una durata di ${formatDuration(meeting.duration)} e si terrà presso ${location}.
-${meeting.notes ? `\nNote sull'appuntamento: ${meeting.notes}` : ''}
-
-Per favore aiutami con:
-1. Un riepilogo del profilo del cliente e dei suoi obiettivi finanziari
-2. Argomenti principali da affrontare durante l'incontro
-3. Possibili prodotti o servizi da proporre in base al profilo del cliente
-
-Grazie!`;
-                          
-                          // Utilizziamo un timeout più lungo per assicurare che l'interfaccia si aggiorni completamente
-                          setTimeout(() => {
-                            // Impostiamo l'input e forziamo l'invio del messaggio
-                            setInput(prompt);
+                          if (message.functionResults) {
+                            const results = JSON.parse(message.functionResults);
+                            console.log("Results:", results);
                             
-                            // Utilizziamo un secondo timeout più lungo per assicurarci che l'input sia stato aggiornato
-                            setTimeout(() => {
-                              // Invia il messaggio direttamente senza utilizzare lo stato
-                              const userMessage: Message = {
-                                content: prompt,
-                                role: 'user',
-                                createdAt: new Date().toISOString()
-                              };
+                            // Accedi DIRETTAMENTE al percorso corretto
+                            if (Array.isArray(results) && results.length > 0 && 
+                                results[0].name === "generatePortfolio" && 
+                                results[0].result && 
+                                results[0].result.portfolio) {
                               
-                              setMessages(prev => [...prev, userMessage]);
-                              setInput('');
-                              setIsLoading(true);
-                              
-                              // Prepara i dati per la richiesta
-                              const requestData = {
-                                message: prompt,
-                                model: currentModel
-                              };
-                              
-                              // Invia la richiesta all'API
-                              apiRequest('/api/agent/chat', {
-                                method: 'POST',
-                                body: JSON.stringify(requestData)
-                              }).then(response => {
-                                if (response.success) {
-                                  // Aggiorna l'ID della conversazione se è una nuova
-                                  if (!currentConversationId && response.conversationId) {
-                                    setCurrentConversationId(response.conversationId);
-                                  }
-                                  
-                                  // Aggiungi la risposta dell'assistente
-                                  const assistantMessage: Message = {
-                                    content: response.response || "Non ho ricevuto una risposta dal server",
-                          role: 'assistant',
-                                    createdAt: new Date().toISOString(),
-                                    model: response.model || currentModel,
-                                    functionResults: response.functionResults ? JSON.stringify(response.functionResults) : undefined
-                                  };
-                                  
-                                  setMessages(prev => [...prev, assistantMessage]);
-                                  
-                                  // Gestisci il dialog per la creazione di meeting se presente
-                                  if (response.showMeetingDialog && response.meetingDialogData) {
-                                    setMeetingData(response.meetingDialogData);
-                                    setShowMeetingDialog(true);
-                                  }
-                        
-                        // Aggiorna la lista delle conversazioni
-                        fetchConversations();
-                                } else {
-                                  toast({
-                                    title: "Errore",
-                                    description: response.message || "Si è verificato un errore nella comunicazione con l'agente",
-                                    variant: "destructive",
-                                  });
-                                }
-                              }).catch(error => {
-                                console.error("Errore nell'invio del messaggio:", error);
-                                toast({
-                                  title: "Errore",
-                                  description: "Si è verificato un errore nell'invio del messaggio",
-                                  variant: "destructive",
-                                });
-                              }).finally(() => {
-                                setIsLoading(false);
+                              console.log("Portfolio trovato:", results[0].result.portfolio);
+                              directSavePortfolio(results[0].result.portfolio, index);
+                              return;
+                            } else {
+                              console.log("Struttura dati:", { 
+                                isArray: Array.isArray(results),
+                                length: Array.isArray(results) ? results.length : 'N/A',
+                                firstElement: results[0],
+                                hasResult: results[0] && results[0].result,
+                                hasPortfolio: results[0] && results[0].result && results[0].result.portfolio
                               });
-                            }, 300);
-                          }, 300);
-                        }}
-                      />
-                        </div>
-                  ) : null}
-                      </div>
-              )}
-                      </div>
-                      
-            <div className="flex justify-end items-center mt-1">
-              {message.createdAt && (
-                <div className="text-xs opacity-70 text-right">
-                  {formatTimestamp(message.createdAt)}
-                        </div>
-              )}
-                      </div>
-                      </div>
-                      </div>
+                            }
+                          }
+                          
+                          // Fallback solo se davvero non troviamo i dati
+                          toast({
+                            title: "Errore",
+                            description: "Impossibile trovare i dati del portfolio",
+                            variant: "destructive",
+                          });
+                        } catch (e) {
+                          console.error("Errore nel recupero dei dati del portfolio", e);
+                          toast({
+                            title: "Errore",
+                            description: "Si è verificato un errore nel recupero dei dati del portfolio",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all transform hover:translate-y-[-1px] hover:shadow"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvataggio...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Salva portafoglio
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </motion.div>
     );
+  };
+                          
+  // Funzione di utilità per generare assetAllocation dall'allocation
+  const generateAssetAllocation = (allocation: any[]) => {
+    const categoryMap: {[key: string]: number} = {};
+                            
+    // Somma le percentuali per categoria
+    allocation.forEach((item: any) => {
+      if (item.category) {
+        if (!categoryMap[item.category]) {
+          categoryMap[item.category] = 0;
+        }
+        categoryMap[item.category] += item.percentage;
+      }
+    });
+    
+    // Converti in array di oggetti {category, percentage}
+    return Object.entries(categoryMap).map(([category, percentage]) => ({
+      category,
+      percentage
+    }));
+  };
+
+  const directSavePortfolio = async (portfolioData: any, messageIndex?: number) => {
+    try {
+      setIsLoading(true);
+      
+      console.log("Salvando portfolio:", portfolioData);
+      
+      // Verifica che ci siano dati validi
+      if (!portfolioData || !portfolioData.allocation || !Array.isArray(portfolioData.allocation)) {
+        throw new Error('Dati del portafoglio mancanti o non validi');
+      }
+      
+      // Genera assetAllocation raggruppando per categoria se è vuoto
+      const assetAllocation = portfolioData.assetAllocation && portfolioData.assetAllocation.length > 0 
+        ? portfolioData.assetAllocation 
+        : generateAssetAllocation(portfolioData.allocation);
+      
+      // Prepara i dati per l'API nel formato corretto
+      const portfolioToSave = {
+        name: portfolioData.name || "Portfolio Bilanciato",
+        description: portfolioData.description || "Portfolio generato automaticamente",
+        clientProfile: portfolioData.clientProfile || "",
+        riskLevel: portfolioData.riskLevel || "Medio",
+        constructionLogic: portfolioData.generationLogic || "",
+        
+        // Salva tutte le metriche con nomi allineati al server
+        averageRisk: portfolioData.averageRisk,
+        averageTimeHorizon: portfolioData.averageDuration, // averageDuration nel frontend -> averageTimeHorizon nel server
+        totalExpenseRatio: portfolioData.totalExpenseRatio, // totalExpenseRatio viene usato come totalAnnualCost nel server
+        entryCost: portfolioData.entryCost,
+        exitCost: portfolioData.exitCost,
+        ongoingCost: portfolioData.ongoingCost,
+        transactionCost: portfolioData.transactionCost,
+        performanceFee: portfolioData.performanceFee || 0, // Usa il valore esistente o 0 come fallback
+        assetAllocation: assetAllocation,
+        
+        // Usa i productId direttamente (rinominato in allocations per il controller)
+        allocations: portfolioData.allocation
+          .filter((item: any) => item && item.productId && item.percentage)
+          .map((item: any) => ({
+            productId: item.productId,
+            isin: item.isin,
+            name: item.name, 
+            category: item.category,
+            percentage: typeof item.percentage === 'string' ? 
+              parseFloat(item.percentage) : 
+              item.percentage
+          }))
+      };
+      
+      console.log("Invio dati al server:", portfolioToSave);
+
+      // Invia i dati all'endpoint
+      const response = await apiRequest('/api/model-portfolios', {
+                                method: 'POST',
+        body: JSON.stringify(portfolioToSave)
+      });
+      
+                                if (response.success) {
+        // Se abbiamo un indice del messaggio, aggiungiamolo alla lista dei messaggi salvati
+        if (messageIndex !== undefined) {
+          setSavedPortfolioMessages(prev => [...prev, messageIndex]);
+        }
+        
+                                  toast({
+          title: "Successo",
+          description: "Il portafoglio è stato salvato con successo"
+                                  });
+        return true;
+      } else {
+        throw new Error(response.message || 'Errore durante il salvataggio del portafoglio');
+                                }
+    } catch (error) {
+      console.error("Errore nel salvataggio del portafoglio:", error);
+                                toast({
+                                  title: "Errore",
+        description: "Impossibile salvare il portafoglio: " + (error instanceof Error ? error.message : "Errore sconosciuto"),
+                                  variant: "destructive",
+                                });
+      return false;
+    } finally {
+                                setIsLoading(false);
+    }
   };
             
   // Renderizza schermata delle capacità
@@ -1264,9 +1333,6 @@ Grazie!`;
                   <div className="flex items-center">
                     <Bot className="h-3.5 w-3.5 mr-1.5" />
                     Standard (gpt-4.1-mini)
-                </div>
-                  <div className="text-xs opacity-70 mt-0.5">
-                    Veloce e efficiente
                                 </div>
                 </button>
                 <button
@@ -1280,9 +1346,6 @@ Grazie!`;
                   <div className="flex items-center">
                     <Sparkles className="h-3.5 w-3.5 mr-1.5" />
                     Avanzato (gpt-4.1)
-                                </div>
-                  <div className="text-xs opacity-70 mt-0.5">
-                    Più potente e preciso
                               </div>
                 </button>
                                 </div>
@@ -1348,7 +1411,7 @@ Grazie!`;
                           ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800' 
                           : 'hover:bg-gray-100 dark:hover:bg-gray-900 border-transparent'
                       } border`}
-                      onClick={() => loadConversation(conversation)}
+                      onClick={() => loadConversation(conversation.id)}
                     >
                       <div className="font-medium text-sm truncate pr-8">{conversation.title}</div>
                       <div className="text-xs text-muted-foreground">
@@ -1477,19 +1540,39 @@ Grazie!`;
         
         // Update conversations list
         fetchConversations();
+      
+      // Handle portfolio data if present
+      if (response.data && response.data.functionResults && response.data.functionResults.length > 0) {
+        console.log("Analisi functionResults per trovare portfolio data...");
         
-        // Handle portfolio data if present
-        if (response.data && response.data.functionResults && response.data.functionResults.length > 0) {
-          const portfolioResult = response.data.functionResults.find(
-            (result: any) => result && result.portfolio
-          );
+        const portfolioResult = response.data.functionResults.find(
+          (result: any) => result && (result.portfolio || result.success && result.suggestedResponse)
+        );
+        
+        if (portfolioResult) {
+          console.log("Trovato risultato portfolio:", portfolioResult);
           
-          if (portfolioResult && portfolioResult.portfolio && portfolioResult.portfolioMetrics) {
+          // Verifica se abbiamo un portfolio diretto
+          if (portfolioResult.portfolio) {
+            console.log("Trovato portfolio diretto:", portfolioResult.portfolio);
             setPortfolioData(portfolioResult.portfolio);
+          }
+          
+          // Verifica se abbiamo metriche
+          if (portfolioResult.portfolioMetrics) {
+            console.log("Trovate metriche:", portfolioResult.portfolioMetrics);
             setPortfolioMetrics(portfolioResult.portfolioMetrics);
+          }
+          
+          // Mostra il dialog solo se abbiamo dati utili
+          if (portfolioResult.portfolio || (portfolioResult.success && portfolioResult.suggestedResponse)) {
             setShowPortfolioDialog(true);
           }
+        } else {
+          // Se non troviamo un oggetto con portfolio, cerchiamo nei messaggi
+          console.log("Portfolio non trovato nei functionResults");
         }
+      }
       } else {
         toast({
           title: "Errore",
@@ -1509,40 +1592,8 @@ Grazie!`;
     }
   };
 
-  // Handle portfolio saved to models
-  const handlePortfolioSaved = async () => {
-    if (!portfolioData) return;
-    
-    try {
-      // Prepare data for API
-      const payload = {
-        name: portfolioData.name,
-        description: portfolioData.description,
-        clientProfile: portfolioData.clientProfile,
-        riskLevel: portfolioData.riskLevel,
-        allocation: portfolioData.allocation
-      };
-      
-      // Save to model portfolios
-      await api.post('/portfolio/models', payload);
-      
-      // Close dialog and show success message
-      setShowPortfolioDialog(false);
-      toast({
-        title: t('portfolio.portfolio_saved'),
-        description: t('portfolio.portfolio_saved_success')
-      });
-    } catch (error) {
-      console.error('Error saving portfolio:', error);
-      toast({
-        title: t('portfolio.portfolio_saved_error'),
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: "destructive"
-      });
-    }
-  };
-
   return (
+  <TooltipProvider>
     <div className="relative flex flex-col h-screen bg-gradient-to-b from-gray-50 to-gray-100 dark:from-gray-900 dark:to-black overflow-hidden">
       {/* Header */}
       <div className="px-4 py-3 border-b bg-white/50 dark:bg-black/50 backdrop-blur-sm z-10 flex justify-between items-center">
@@ -1553,7 +1604,8 @@ Grazie!`;
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-semibold">Gervis AI Assistant</h1>
+            <h1 className="text-lg font-medium">Gervis AI Assistant</h1>
+            <p className="text-xs text-muted-foreground">Potente consulente finanziario AI</p>
           </div>
         </div>
         
@@ -1706,17 +1758,7 @@ Grazie!`;
           onSubmit={handleSendEmail}
         />
       )}
-      
-      {/* Portfolio Dialog */}
-      {showPortfolioDialog && portfolioData && portfolioMetrics && (
-        <ChatPortfolioDialog
-          isOpen={showPortfolioDialog}
-          onClose={() => setShowPortfolioDialog(false)}
-          portfolio={portfolioData}
-          portfolioMetrics={portfolioMetrics}
-          onSaveToModels={handlePortfolioSaved}
-        />
-      )}
     </div>
+  </TooltipProvider>
   );
 } 

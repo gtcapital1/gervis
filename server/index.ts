@@ -34,6 +34,9 @@ declare module "express-session" {
 
 // La dichiarazione di Request.user è già definita in auth.ts
 
+// Importazione dei router - importo dai percorsi corretti in routes
+import { registerPortfolioRoutes } from './routes/portfolio.routes';
+import portfolioApiRouter from './api/portfolio';
 
 const app = express();
 // Aumenta il limite per il payload JSON a 100MB per supportare upload di file più grandi
@@ -132,6 +135,9 @@ app.use((req, res, next) => {
 
   next();
 });
+
+// Configurazione delle rotte API - registro solo quelle che esistono realmente
+app.use('/api/portfolio-api', portfolioApiRouter);
 
 (async () => {
   // Esegui automaticamente il fix dei vincoli CASCADE DELETE all'avvio dell'applicazione

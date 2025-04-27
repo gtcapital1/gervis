@@ -47,6 +47,9 @@ export const handleChat = async (req: Request, res: Response) => {
     let meetingDialogData = null;
     let showEmailDialog = false;
     let emailDialogData = null;
+    let showPortfolioDialog = false;
+    let portfolioData = null;
+    let portfolioMetrics = null;
     
     const { message: userMessage, conversationId, model: requestedModel } = req.body; // Aggiungi il parametro model
 
@@ -122,7 +125,11 @@ export const handleChat = async (req: Request, res: Response) => {
     const systemMessage: OpenAIMessage = {
         role: 'system',
         content: `
-      Tu sei Gervis, un assistente AI esperto progettato per supportare consulenti finanziari in modo professionale, conciso ed efficace. Le tue competenze coprono:
+      Tu sei Gervis, un assistente AI esperto progettato per supportare consulenti finanziari in modo professionale, conciso ed efficace. 
+      
+      ATTENZIONE: Quando l'utente chiede di generare un portafoglio, devi SEMPRE chiamare la funzione generatePortfolio e NON fornire un portafoglio di esempio come testo.
+      
+      Le tue competenze coprono:
       
       1. **Insight sui clienti e comunicazione personalizzata**  
          - Analizza i profili dei clienti  
@@ -132,20 +139,14 @@ export const handleChat = async (req: Request, res: Response) => {
          - Pianifica, prepara e sintetizza riunioni con i clienti  
          - Suggerisci follow-up puntuali e rilevanti
       
-      3. **Idee di investimento basate su news recenti**  
-         - Interpreta notizie di mercato  
-         - Genera suggerimenti coerenti con il profilo del cliente
+      3. **Costruzione portafogli di investimento**  
+         - Crei portafogli di investimento su misura  
+         - Genera portafogli coerenti con il profilo del cliente
       
       4. **Assistenza normativa e operativa**  
          - Fornisci template, sintesi normative, risposte su strumenti della piattaforma  
       
-      5. **Generazione e analisi di portafogli**
-         - Quando generi un portafoglio di investimento, riepiloga SEMPRE le metriche calcolate:
-           - Rischio medio ponderato (scala 1-7)
-           - Orizzonte temporale medio (in anni)
-           - Distribuzione percentuale per asset class (equity, bonds, cash, ecc.)
-         - Presenta le allocazioni in formato tabellare ben organizzato
-         - Spiega la logica della costruzione del portafoglio
+    
       
       Parli sempre in italiano.  
       Adotta uno stile professionale, chiaro, sintetico, ispirato alle best practice del settore della consulenza finanziaria e wealth management.  
@@ -161,8 +162,16 @@ export const handleChat = async (req: Request, res: Response) => {
       In questi casi, chiama la funzione composeEmailData con i dettagli dell'email. Non suggerire di inviare email se l'utente non ha usato la parola "INVIA" esplicitamente.
       
       IMPORTANTE PER PORTAFOGLI:
+      **Generazione e analisi di portafogli**
+         - Quando generi un portafoglio di investimento, riepiloga SEMPRE le metriche calcolate:
+           - Rischio medio ponderato (scala 1-7)
+           - Orizzonte temporale medio (in anni)
+           - Distribuzione percentuale per asset class (equity, bonds, cash, ecc.)
+         - Presenta le allocazioni in formato tabellare ben organizzato
+         - Spiega in dettaglio la logica della costruzione del portafoglio
+         - Dai sempre il dettaglio degli asset del portafoglio con i rispettivi pesi
+
       Quando generi un portafoglio di investimento, informa l'utente che può:
-      - Visualizzare i dettagli completi del portafoglio nell'interfaccia dedicata
       - Aggiungere il portafoglio ai modelli salvati tramite il pulsante dedicato
       - Chiedere modifiche specifiche al portafoglio per adattarlo ulteriormente
       Sottolinea che l'utente può continuare a interagire con il portafoglio nella chat.
@@ -206,61 +215,27 @@ export const handleChat = async (req: Request, res: Response) => {
         content: msg.content
       }));
     
-    // Combine all messages
-    const apiMessages: OpenAIMessage[] = [systemMessage, ...historyOpenAIMessages];
+    // Inizializza array di messaggi con messaggio di sistema e storico della conversazione
+    let messages: OpenAIMessage[] = [systemMessage, ...historyOpenAIMessages];
 
-    // --- DEBUG LOG --- 
-    console.log('Sending messages to OpenAI:', JSON.stringify(apiMessages, null, 2));
+    console.log('------------- INIZIO CICLO PLANNING DINAMICO -------------');
     console.log(`Using model: ${modelToUse}`);
-    // --- END DEBUG LOG ---
-
-    // Call OpenAI API with properly typed messages
-    console.log('Chiamata OpenAI in corso...');
     
-    // Rimuoviamo l'analisi delle keyword e lasciamo che OpenAI scelga automaticamente
-    // il tool giusto da chiamare in base al contesto del messaggio
-    const forcedToolChoice = "auto";
+    // Variabili per il planning dinamico
+    let finalResponse = '';
+    let step = 0;
+    const maxSteps = 4;
+    let allFunctionResults: any[] = [];
     
-    // Analizziamo il messaggio per vedere se riguarda la visualizzazione di appuntamenti
-    const showMeetingsPattern = /(mostra|visualizza|vedi|che|quali|quanti|dammi|hai|ho|lista|elenco)\s+(meeting|appuntamenti|incontri)/i;
-    const timeframePattern = /(oggi|questa\s+settimana|domani|prossima\s+settimana|questo\s+mese)/i;
-    const clientNamePattern = /(con|per|di|cliente)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i;
-    
-    // Pattern per rilevare richieste di email con la parola INVIA in maiuscolo
-    // Deve essere esplicito per evitare falsi positivi
-    const emailPattern = /INVIA\s+(una|un\'|un|la)?\s*(email|mail|messaggio|comunicazione)/i;
-    const hasEmailKeyword = userMessage.toUpperCase().includes("INVIA");
-    
-    let toolChoice: any = "auto";
-    
-    // Se l'utente sta chiedendo appuntamenti in un periodo, forziamo getMeetingsByDateRange
-    if (showMeetingsPattern.test(userMessage) && timeframePattern.test(userMessage)) {
-      console.log('[DEBUG] Forcing getMeetingsByDateRange for timeframe-based meeting query');
-      toolChoice = {
-        type: "function",
-        function: { name: "getMeetingsByDateRange" }
-      };
-    }
-    // Se l'utente sta chiedendo appuntamenti con un cliente, forziamo getMeetingsByClientName
-    else if (showMeetingsPattern.test(userMessage) && clientNamePattern.test(userMessage)) {
-      console.log('[DEBUG] Forcing getMeetingsByClientName for client-based meeting query');
-      toolChoice = {
-        type: "function",
-        function: { name: "getMeetingsByClientName" }
-      };
-    }
-    // Se l'utente ha usato "INVIA" nel messaggio e contiene email/mail/messaggio, forziamo composeEmailData
-    else if (hasEmailKeyword && emailPattern.test(userMessage)) {
-      console.log('[DEBUG] Forcing composeEmailData for email request');
-      toolChoice = {
-        type: "function",
-        function: { name: "composeEmailData" }
-      };
-    }
-    
+    // Esegui il loop di planning (massimo 4 step)
+    while (step < maxSteps) {
+      step++;
+      console.log(`[PLANNING] Step ${step} di ${maxSteps}`);
+      
+      // Chiamata a OpenAI con i messaggi correnti (senza forzare tool specifici)
     const completion = await openai.chat.completions.create({
-      model: modelToUse, // Usa il modello selezionato
-      messages: apiMessages,
+        model: modelToUse,
+        messages: messages,
       tools: [
         {
           type: "function",
@@ -283,42 +258,42 @@ export const handleChat = async (req: Request, res: Response) => {
             }
           }
         },
-        {
-          type: "function",
-          function: {
-            name: "generatePortfolio",
-            description: "Genera un portafoglio di investimento ottimizzato in base al profilo del cliente, al livello di rischio e all'orizzonte temporale. Utilizza l'AI per creare un'allocazione ottimale utilizzando solo i prodotti disponibili per l'utente. Chiamare questa funzione quando l'utente richiede di generare un portafoglio di investimento.",
-            parameters: {
-              type: "object",
-              properties: {
-                portfolioDescription: {
-                  type: "string",
-                  description: "Descrizione del portafoglio da generare, specificando l'obiettivo e le caratteristiche principali"
-                },
-                clientProfile: {
-                  type: "string",
-                  description: "Descrizione del profilo del cliente per cui è destinato il portafoglio"
-                },
-                riskLevel: {
-                  type: "string",
-                  description: "Livello di rischio desiderato per il portafoglio (conservative, moderate, balanced, growth, aggressive)",
-                  enum: ["conservative", "moderate", "balanced", "growth", "aggressive"]
-                },
-                investmentHorizon: {
-                  type: "string",
-                  description: "Orizzonte temporale degli investimenti (short_term, medium_term, long_term)",
-                  enum: ["short_term", "medium_term", "long_term"]
-                },
-                objectives: {
-                  type: "array",
-                  description: "Obiettivi di investimento",
-                  items: {
+          {
+            type: "function",
+            function: {
+              name: "generatePortfolio",
+              description: "Genera un portafoglio di investimento ottimizzato in base al profilo del cliente, al livello di rischio e all'orizzonte temporale. Utilizza l'AI per creare un'allocazione ottimale utilizzando solo i prodotti disponibili per l'utente. Chiamare questa funzione quando l'utente richiede di generare un portafoglio di investimento.",
+              parameters: {
+                type: "object",
+                properties: {
+                  portfolioDescription: {
                     type: "string",
-                    enum: ["growth", "income", "preservation", "tax_efficiency", "liquidity", "sustainability"]
+                    description: "Descrizione del portafoglio da generare, specificando l'obiettivo e le caratteristiche principali"
+                  },
+                  clientProfile: {
+                    type: "string",
+                    description: "Descrizione del profilo del cliente per cui è destinato il portafoglio"
+                  },
+                  riskLevel: {
+                    type: "string",
+                    description: "Livello di rischio desiderato per il portafoglio (conservative, moderate, balanced, growth, aggressive)",
+                    enum: ["conservative", "moderate", "balanced", "growth", "aggressive"]
+                  },
+                  investmentHorizon: {
+                    type: "string",
+                    description: "Orizzonte temporale degli investimenti (short_term, medium_term, long_term)",
+                    enum: ["short_term", "medium_term", "long_term"]
+                  },
+                  objectives: {
+                    type: "array",
+                    description: "Obiettivi di investimento",
+                    items: {
+                      type: "string",
+                      enum: ["growth", "income", "preservation", "tax_efficiency", "liquidity", "sustainability"]
+                    }
                   }
-                }
-              },
-              required: ["portfolioDescription", "clientProfile"]
+                },
+                required: ["portfolioDescription", "clientProfile"]
             }
           }
         },
@@ -499,443 +474,228 @@ export const handleChat = async (req: Request, res: Response) => {
           }
         }
       ],
-      // Utilizziamo la scelta del tool che abbiamo determinato
-      tool_choice: toolChoice,
-      // Add other parameters like temperature, max_tokens if needed
+        tool_choice: "auto" // Lasciamo all'AI la libertà di scegliere quale tool usare
     });
     
-    console.log('Risposta OpenAI ricevuta:', { 
+      console.log(`[PLANNING] Risposta OpenAI (Step ${step}):`, { 
       content: completion.choices[0]?.message?.content?.substring(0, 100) + '...',
       hasFunctionCalls: !!completion.choices[0]?.message?.tool_calls?.length
     });
 
-    // DEBUG: Stampo il formato esatto della risposta per debug
-    if (completion.choices[0]?.message?.content) {
-      console.log('------------- DEBUG FORMATO RISPOSTA OPENAI -------------');
-      console.log('RISPOSTA ORIGINALE:');
-      console.log(completion.choices[0].message.content);
-      console.log('RAPPRESENTAZIONE JSON CON ESCAPE PER VISUALIZZARE NEW LINE:');
-      console.log(JSON.stringify(completion.choices[0].message.content));
-      console.log('------------------------------------------------------');
-    }
-
-    // Check if there's a tool call in the response
-    let aiResponse = completion.choices[0]?.message?.content || '';
-    let functionCalls = null;
-    let toolCallId = null;
-
-    if (completion.choices[0]?.message?.tool_calls && completion.choices[0].message.tool_calls.length > 0) {
-      // We have a tool call
-      const toolCall = completion.choices[0].message.tool_calls[0];
-      console.log('Tool call ricevuto:', { 
-        name: toolCall.function.name, 
-        args: toolCall.function.arguments.substring(0, 100) + '...' 
-      });
-      
-      // Imposta functionCalls per qualsiasi tipo di tool, non solo getClientContext
-      functionCalls = [
-        {
-          name: toolCall.function.name,
-          arguments: JSON.parse(toolCall.function.arguments)
-        }
-      ];
-      
-      toolCallId = toolCall.id;
-      
-      // If there's no content, add a placeholder
-      if (!aiResponse) {
-        aiResponse = 'Elaborazione della richiesta in corso...';
+      const choice = completion.choices[0];
+      if (!choice || !choice.message) {
+        console.error(`[PLANNING] Nessuna risposta valida ricevuta nel step ${step}`);
+        break;
       }
-    }
-
-    // Handle function calls if present
-    let functionResults = null;
-    if (functionCalls) {
-      const functionName = functionCalls[0].name;
-      const args = functionCalls[0].arguments;
-      let result = null;
       
-      try {
-        console.log(`[DEBUG] Iniziando esecuzione funzione ${functionName}`);
+      // Aggiungi il messaggio dell'AI alla lista dei messaggi
+      messages.push(choice.message);
+      
+      // Se non ci sono tool calls, probabilmente abbiamo la risposta finale
+      if (!choice.message.tool_calls || choice.message.tool_calls.length === 0) {
+        console.log(`[PLANNING] Risposta finale ricevuta al step ${step}`);
+        finalResponse = choice.message.content || '';
+        break;
+      }
+      
+      // Processo tutte le tool calls richieste dall'AI
+      for (const toolCall of choice.message.tool_calls) {
+        const functionName = toolCall.function.name;
+        let functionArgs;
         
-        // Esegui la funzione in base al nome
+        try {
+          functionArgs = JSON.parse(toolCall.function.arguments);
+        } catch (error) {
+          console.error(`[PLANNING] Errore parsing arguments per ${functionName}:`, error);
+          functionArgs = {};
+        }
+        
+        console.log(`[PLANNING] Esecuzione tool: ${functionName}`, functionArgs);
+        
+        let functionResult;
+        try {
+          // Esegui la funzione richiesta
         switch (functionName) {
           case "getClientContext":
-            console.log(`[DEBUG] Chiamando getClientContext con: ${args.clientName}`);
-            result = await getClientContext(args.clientName, args.query, userId);
-            console.log('[DEBUG] Risultato getClientContext:', result);
+              functionResult = await getClientContext(functionArgs.clientName, functionArgs.query, userId);
             console.log('Recupero contesto cliente completato:', { 
-              success: result.success,
-              client: result.success && result.clientInfo && result.clientInfo.personalInformation && result.clientInfo.personalInformation.data ? 
-                `${result.clientInfo.personalInformation.data.firstName.value} ${result.clientInfo.personalInformation.data.lastName.value}` : 
+                success: functionResult.success,
+                client: functionResult.success && functionResult.clientInfo?.personalInformation?.data ? 
+                  `${functionResult.clientInfo.personalInformation.data.firstName.value} ${functionResult.clientInfo.personalInformation.data.lastName.value}` : 
                 'Cliente trovato ma dati incompleti'
             });
             break;
           
-          case "getSiteDocumentation":
-            console.log(`[DEBUG] Chiamando getSiteDocumentation`);
-            result = await getSiteDocumentation();
-            console.log('[DEBUG] Risultato getSiteDocumentation:', {
-              success: result.success,
-              docLength: result.success && result.documentation ? result.documentation.length : 0
-            });
+            case "generatePortfolio":
+              console.log(`[PLANNING] INIZIO GENERAZIONE PORTAFOGLIO con parametri:`, functionArgs);
+              functionResult = await handlePortfolioGeneration({
+                portfolioDescription: functionArgs.portfolioDescription,
+                clientProfile: functionArgs.clientProfile,
+                riskLevel: functionArgs.riskLevel,
+                investmentHorizon: functionArgs.investmentHorizon,
+                objectives: functionArgs.objectives
+              }, userId);
+              
+              console.log(`[PLANNING] RISULTATO generazione portafoglio:`, { 
+                success: functionResult.success, 
+                hasPortfolio: !!functionResult.portfolio,
+                hasMetrics: !!functionResult.portfolioMetrics,
+                portfolioName: functionResult.portfolio?.name
+              });
+              
+              // Se abbiamo generato un portfolio, mostra il dialog
+              if (functionResult.success && functionResult.portfolio) {
+                showPortfolioDialog = true;
+                portfolioData = functionResult.portfolio;
+                portfolioMetrics = functionResult.portfolioMetrics;
+                console.log(`[PLANNING] Impostato showPortfolioDialog=true con dati:`, {
+                  name: portfolioData.name,
+                  hasAllocation: !!portfolioData.allocation,
+                  allocationCount: portfolioData.allocation?.length,
+                  hasMetrics: !!portfolioMetrics
+                });
+              }
+              break;
+            
+            case "getSiteDocumentation":
+              functionResult = await getSiteDocumentation();
             break;
           
           case "getFinancialNews":
-            console.log(`[DEBUG] Chiamando getFinancialNews con maxResults: ${args.maxResults || 'default'}`);
-            result = await getFinancialNews(args.maxResults);
-            console.log('[DEBUG] Risultato getFinancialNews:', {
-              success: result.success,
-              count: result.success ? result.count : 0,
-              totalAvailable: result.success ? result.totalAvailable : 0
-            });
-            break;
-          
-          case "generatePortfolio":
-            console.log(`[DEBUG] Chiamando generatePortfolio`);
-            result = await handlePortfolioGeneration({
-              portfolioDescription: args.portfolioDescription,
-              clientProfile: args.clientProfile,
-              riskLevel: args.riskLevel,
-              investmentHorizon: args.investmentHorizon,
-              objectives: args.objectives
-            }, userId);
-            console.log('[DEBUG] Risultato generatePortfolio:', {
-              success: result.success,
-              portfolioName: result.success && result.portfolio ? result.portfolio.name : 'Nessun portafoglio generato'
-            });
-            
-            // Se è disponibile una risposta suggerita, la impostiamo come risposta AI
-            if (result.success && result.suggestedResponse) {
-              aiResponse = result.suggestedResponse;
-              console.log('[DEBUG] Utilizzata risposta suggerita da handlePortfolioGeneration');
-            }
+              functionResult = await getFinancialNews(functionArgs.maxResults);
             break;
           
           case "getMeetingsByDateRange":
-            console.log(`[DEBUG] Chiamando getMeetingsByDateRange con date: ${JSON.stringify(args.dateRange)}`);
-            result = await getMeetingsByDateRange(args.dateRange, userId);
-            console.log('[DEBUG] Risultato getMeetingsByDateRange:', result);
-            console.log('Ricerca appuntamenti per data completata:', { 
-              success: result.success,
-              count: result.success ? result.count : 0
-            });
+              functionResult = await getMeetingsByDateRange(functionArgs.dateRange, userId);
             break;
           
           case "getMeetingsByClientName":
-            console.log(`[DEBUG] Chiamando getMeetingsByClientName con: ${args.clientName}`);
-            result = await getMeetingsByClientName(args.clientName, userId);
-            console.log('[DEBUG] Risultato getMeetingsByClientName:', result);
-            console.log('Ricerca appuntamenti per cliente completata:', { 
-              success: result.success,
-              count: result.success ? result.count : 0
-            });
-            
-            // Verifica se nel messaggio originale c'è una richiesta di modifica meeting
-            // Esempio: "modifica meeting con [clientName]" o "sposta appuntamento con [clientName]"
-            if (result.success && result.meetings && result.meetings.length > 0 && 
-                (userMessage.includes("modif") || 
-                 userMessage.includes("sposta") || 
-                 userMessage.includes("cambia") || 
-                 userMessage.includes("aggiorna"))) {
-              
-              console.log('[DEBUG] Rilevata richiesta di modifica meeting dopo getMeetingsByClientName');
-              
-              // Prendi il primo meeting trovato (assumiamo che sia quello da modificare)
-              const meetingToEdit = result.meetings[0];
-              
-              // Estrai potenziali nuove informazioni dal messaggio dell'utente
-              const editParams: any = {
-                meetingId: meetingToEdit.id
-              };
-              
-              // 1. Cerca una nuova data nel formato "il XX aprile" o "il XX/YY"
-              const dateRegex1 = /il\s+(\d{1,2})\s+(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre)/i;
-              const dateRegex2 = /il\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?/i;
-              
-              let dateMatch = userMessage.match(dateRegex1);
-              if (dateMatch) {
-                const day = parseInt(dateMatch[1]);
-                const monthNames = ["gennaio", "febbraio", "marzo", "aprile", "maggio", "giugno", "luglio", "agosto", "settembre", "ottobre", "novembre", "dicembre"];
-                const month = monthNames.findIndex(m => m.toLowerCase() === dateMatch[2].toLowerCase()) + 1;
-                
-                // Assumiamo l'anno corrente se non specificato
-                const year = new Date().getFullYear();
-                if (day > 0 && day <= 31 && month > 0) {
-                  editParams.newDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
-                  console.log(`[DEBUG] Estratta nuova data dal testo: ${editParams.newDate}`);
-                }
-              } else {
-                dateMatch = userMessage.match(dateRegex2);
-                if (dateMatch) {
-                  const day = parseInt(dateMatch[1]);
-                  const month = parseInt(dateMatch[2]);
-                  const year = dateMatch[3] ? parseInt(dateMatch[3]) : new Date().getFullYear();
-                  
-                  if (day > 0 && day <= 31 && month > 0 && month <= 12) {
-                    editParams.newDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${year}`;
-                    console.log(`[DEBUG] Estratta nuova data dal testo: ${editParams.newDate}`);
-                  }
-                }
-              }
-              
-              // 2. Cerca una nuova ora nel formato "alle XX:YY" o "alle XX"
-              const timeRegex = /alle\s+(\d{1,2})[:\.]?(\d{0,2})/i;
-              const timeMatch = userMessage.match(timeRegex);
-              
-              if (timeMatch) {
-                const hours = parseInt(timeMatch[1]);
-                const minutes = timeMatch[2] ? parseInt(timeMatch[2]) : 0;
-                
-                if (hours >= 0 && hours < 24) {
-                  editParams.newTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-                  console.log(`[DEBUG] Estratta nuova ora dal testo: ${editParams.newTime}`);
-                }
-              }
-              
-              // Chiamata a prepareEditMeeting con i parametri estratti
-              console.log('[DEBUG] Chiamata a prepareEditMeeting con parametri estratti:', editParams);
-              const editResult = await prepareEditMeeting(editParams, userId);
-              
-              console.log('[DEBUG] Risultato prepareEditMeeting auto dopo getMeetingsByClientName:', editResult);
-              
-              if (editResult.success) {
-                // Imposta il flag per mostrare il dialog di modifica meeting
-                showMeetingDialog = true;
-                meetingDialogData = editResult.meetingData;
-                // Aggiunge il flag per indicare che è una modifica
-                if (meetingDialogData) {
-                  meetingDialogData.isEdit = true;
-                }
-                console.log('[DEBUG] Impostato flag showMeetingDialog a true dopo auto-prepareEditMeeting');
-              }
-            }
+              functionResult = await getMeetingsByClientName(functionArgs.clientName, userId);
             break;
           
           case "prepareMeetingData":
-            console.log('[DEBUG] Chiamando prepareMeetingData');
-            result = await prepareMeetingData({
-              clientId: args.clientId,
-              clientName: args.clientName,
-              subject: args.subject,
-              dateTime: args.dateTime,
-              duration: args.duration,
-              location: args.location,
-              notes: args.notes
+              functionResult = await prepareMeetingData({
+                clientId: functionArgs.clientId,
+                clientName: functionArgs.clientName,
+                subject: functionArgs.subject,
+                dateTime: functionArgs.dateTime,
+                duration: functionArgs.duration,
+                location: functionArgs.location,
+                notes: functionArgs.notes
             }, userId);
-            console.log('[DEBUG] Risultato prepareMeetingData:', result);
             
             // Se il risultato è positivo, imposta il flag per mostrare il dialog
-            if (result.success && result.meetingData) {
+              if (functionResult.success && functionResult.meetingData) {
               showMeetingDialog = true;
-              meetingDialogData = result.meetingData;
-              
-              // Se è presente una risposta suggerita, la impostiamo come risposta AI
-              if (result.suggestedResponse) {
-                aiResponse = result.suggestedResponse;
-                console.log('[DEBUG] Utilizzo della risposta suggerita dalla funzione');
+                meetingDialogData = functionResult.meetingData;
               }
-              
-              console.log('[DEBUG] Impostato flag showMeetingDialog a true con dati:', meetingDialogData);
-            }
-            
-            console.log('Preparazione dati appuntamento completata:', { 
-              success: result.success,
-              client: result.success && result.meetingData ? result.meetingData.clientName : 'Nessun cliente trovato'
-            });
             break;
           
           case "prepareEditMeeting":
-            console.log('[DEBUG] Chiamando prepareEditMeeting');
-            result = await prepareEditMeeting(args, userId);
-            console.log('[DEBUG] Risultato prepareEditMeeting:', result);
+              functionResult = await prepareEditMeeting(functionArgs, userId);
             
-            if (result.success) {
+              if (functionResult.success && functionResult.meetingData) {
               // Imposta il flag per mostrare il dialog di modifica meeting
               showMeetingDialog = true;
-              meetingDialogData = result.meetingData;
-              // Aggiunge il flag per indicare che è una modifica
+                meetingDialogData = functionResult.meetingData;
+                if (meetingDialogData) {
               meetingDialogData.isEdit = true;
-              console.log('[DEBUG] Impostato flag showMeetingDialog a true con dati per modifica:', meetingDialogData);
+                }
             }
             break;
 
           case "composeEmailData":
-            console.log('[DEBUG] Chiamando composeEmailData');
-            result = await composeEmailData({
-              clientId: args.clientId,
-              clientName: args.clientName,
-              subject: args.subject,
-              emailType: args.emailType,
-              content: args.content
+              functionResult = await composeEmailData({
+                clientId: functionArgs.clientId,
+                clientName: functionArgs.clientName,
+                subject: functionArgs.subject,
+                emailType: functionArgs.emailType,
+                content: functionArgs.content
             }, userId);
-            console.log('[DEBUG] Risultato composeEmailData:', result);
             
             // Se il risultato è positivo, imposta il flag per mostrare il dialog
-            if (result.success && result.emailData) {
+              if (functionResult.success && functionResult.emailData) {
               showEmailDialog = true;
-              emailDialogData = result.emailData;
-              
-              // Se è presente una risposta suggerita, la impostiamo come risposta AI
-              if (result.suggestedResponse) {
-                aiResponse = result.suggestedResponse;
-                console.log('[DEBUG] Utilizzo della risposta suggerita dalla funzione');
+                emailDialogData = functionResult.emailData;
               }
+              break;
               
-              console.log('[DEBUG] Impostato flag showEmailDialog a true con dati:', emailDialogData);
-            } else if (result.errorCode === 'SMTP_CONFIG_MISSING') {
-              // Caso speciale: configurazione SMTP mancante
-              aiResponse = `Per poter inviare email, è necessario configurare le impostazioni SMTP nel tab Impostazioni. Vai su Impostazioni → Email e compila i dati del tuo server SMTP.`;
-              console.log('[DEBUG] Rilevata configurazione SMTP mancante, mostrato messaggio informativo');
-            }
-            
-            console.log('Preparazione dati email completata:', { 
-              success: result.success,
-              client: result.success && result.emailData ? result.emailData.clientName : 'Nessun cliente trovato'
-            });
-            break;
-        }
-        
-        console.log('[DEBUG] Funzione eseguita con successo, salvo il risultato');
-        
-        // Salva il risultato
-        functionResults = [result];
+            default:
+              functionResult = {
+                success: false,
+                error: `Funzione non implementata: ${functionName}`
+              };
+          }
+          
+          // Aggiungi questo risultato all'array totale dei risultati
+          allFunctionResults.push({
+            name: functionName,
+            result: functionResult
+          });
+          
       } catch (error) {
-        console.error(`[DEBUG] Errore durante l'esecuzione della funzione ${functionName}:`, error);
-        result = {
+          const errorMessage = error instanceof Error ? error.message : 'Errore sconosciuto';
+          console.error(`[PLANNING] Errore nell'esecuzione di ${functionName}:`, errorMessage);
+          functionResult = {
           success: false,
-          error: `Si è verificato un errore durante l'esecuzione della funzione ${functionName}: ${error.message || 'Errore sconosciuto'}`
-        };
-        functionResults = [result];
-      }
-      
-      // Se abbiamo un tool call ID, invio il risultato a OpenAI per generare una risposta
-      if (toolCallId) {
-        console.log('[DEBUG] Costruisco toolMessages per OpenAI');
-        
-        // Verifica se è disponibile una risposta suggerita dalla funzione prepareMeetingData
-        if (functionName === "prepareMeetingData" && result?.success && result?.suggestedResponse) {
-          console.log('[DEBUG] Utilizzata risposta suggerita da prepareMeetingData');
-          aiResponse = result.suggestedResponse;
-        } else {
-          // Per TUTTE le altre funzioni, inclusa generateInvestmentIdeas
-          // Prepara un messaggio specifico per la funzione
-          let systemInstruction = "";
-          
-          if (functionName === "generateInvestmentIdeas") {
-            systemInstruction = `
-Presenta le idee di investimento in modo molto concreto e orientato all'azione:
-
-1. Nel riepilogo della notizia, includi SEMPRE il link alla fonte originale.
-
-2. Fornisci UNA sola idea di investimento per ogni notizia, molto specifica e pratica:
-   - Indica esattamente cosa fare (es. "Acquistare azioni di [azienda]" o "Aumentare l'esposizione al settore X")
-   - Spiega il razionale concreto basato sulla notizia
-   - Specifica perché questo è il momento giusto per questa azione
-
-3. Per ogni cliente suggerito:
-   - Fornisci motivazioni DETTAGLIATE e SPECIFICHE al profilo individuale del cliente
-   - Spiega come l'idea si allinea ai suoi obiettivi e restrizioni personali
-   - Adatta il linguaggio al livello di sofisticazione finanziaria del cliente
-   - Non includere MAI punteggi numerici o percentuali
-
-Il tono deve essere quello di un consulente finanziario esperto che parla a un collega professionista.
-`;
-          }
-          
-          // Aggiungi l'istruzione al tool message se necessario
-          const toolMessages = [
-            ...apiMessages,
-            completion.choices[0].message,
-            {
-              role: "tool" as const,
-              tool_call_id: toolCallId,
-              content: JSON.stringify(result || {})
-            }
-          ];
-          
-          // Se abbiamo un'istruzione specifica per questa funzione, aggiungiamo un messaggio di sistema
-          if (systemInstruction) {
-            toolMessages.push({
-              role: "system" as const,
-              content: systemInstruction
-            });
-          }
-          
-          console.log('[DEBUG] Richiamo OpenAI per followUpCompletion');
-          
-          // Ottieni una risposta di follow-up da OpenAI con i risultati della funzione
-          try {
-            const followUpCompletion = await openai.chat.completions.create({
-              model: modelToUse, // Usa lo stesso modello per coerenza
-              messages: toolMessages,
-            });
-            
-            console.log('[DEBUG] Ricevuta risposta da OpenAI followUpCompletion');
-            
-            // Aggiorna la risposta dell'AI con il messaggio di follow-up
-            if (followUpCompletion.choices[0]?.message?.content) {
-              const followUpResponse = followUpCompletion.choices[0].message.content;
-              console.log('[DEBUG] Contenuto risposta OpenAI:', followUpResponse.substring(0, 100));
-              
-              // Salva la risposta di follow-up nel database
-              console.log('[DEBUG] Salvo la risposta nel database');
-              try {
-                await db.insert(messagesTable).values({
-                  conversationId: currentConversationId,
-                  content: followUpResponse,
-                  role: 'assistant',
-                  createdAt: new Date(),
-                  functionResults: JSON.stringify(functionResults)
-                });
-                console.log('[DEBUG] Risposta salvata con successo nel database');
-              } catch (dbError) {
-                console.error('[DEBUG] Errore durante il salvataggio nel database:', dbError);
-                throw dbError;
-              }
-              
-              // Aggiorna la risposta per includere entrambi i messaggi
-              aiResponse = followUpResponse;
-              console.log('[DEBUG] aiResponse aggiornato con la risposta di follow-up');
-            } else {
-              console.log('[DEBUG] Nessun contenuto nella risposta di follow-up');
-            }
-          } catch (openaiError) {
-            console.error('[DEBUG] Errore durante la chiamata OpenAI per follow-up:', openaiError);
-            throw openaiError;
-          }
+            error: `Errore nell'esecuzione della funzione: ${errorMessage}`
+          };
         }
-      } else {
-        console.log('[DEBUG] Non c\'è un toolCallId, quindi non richiamo OpenAI per il follow-up');
+        
+        // Aggiungi il risultato come messaggio di risposta alla tool call
+        messages.push({
+          role: 'tool',
+          tool_call_id: toolCall.id,
+          content: JSON.stringify(functionResult || {})
+        });
       }
     }
-
-    console.log('[DEBUG] Preparazione risposta finale per il client:', { 
-      success: true, 
-      responseLength: aiResponse.length,
-      conversationId: currentConversationId,
-      hasFunctionCalls: !!functionCalls,
-      hasFunctionResults: !!functionResults
+    
+    console.log('------------- FINE CICLO PLANNING DINAMICO -------------');
+    console.log(`Completati ${step} step di planning. Risposta finita: ${!!finalResponse}`);
+    
+    // Se non abbiamo ricevuto una risposta finale esplicita, usa l'ultimo messaggio ricevuto
+    if (!finalResponse && messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant' && lastMessage.content) {
+        finalResponse = lastMessage.content;
+      } else {
+        finalResponse = "Mi dispiace, non sono riuscito a elaborare una risposta completa.";
+      }
+    }
+    
+    // Salva la risposta dell'assistente nel database
+                await db.insert(messagesTable).values({
+                  conversationId: currentConversationId,
+      content: finalResponse,
+                  role: 'assistant',
+                  createdAt: new Date(),
+      functionResults: JSON.stringify(allFunctionResults.length > 0 ? allFunctionResults : null)
     });
-
-    // Costruisci la risposta
+    
+    // Costruisci la risposta per il client
     const response = {
       success: true,
-      response: aiResponse,
+      response: finalResponse,
       conversationId: currentConversationId,
       model: modelToUse,
       showMeetingDialog,
       meetingDialogData,
       showEmailDialog,
       emailDialogData,
-      functionResults // Aggiungi i risultati delle funzioni alla risposta
+      showPortfolioDialog,
+      portfolioData,
+      portfolioMetrics,
+      functionResults: allFunctionResults.length > 0 ? allFunctionResults : null
     };
 
     console.log('Invio risposta al client:', {
-      length: aiResponse.length,
+      length: finalResponse.length,
       showMeetingDialog,
+      showPortfolioDialog,
       hasMeetingData: !!meetingDialogData,
-      hasFunctionResults: !!functionResults
+      hasPortfolioData: !!portfolioData,
+      hasFunctionResults: allFunctionResults.length > 0
     });
 
     // Return response with conversationId and function info

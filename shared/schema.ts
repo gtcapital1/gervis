@@ -502,6 +502,24 @@ export const modelPortfolios = pgTable("model_portfolios", {
   description: text("description").notNull(),
   clientProfile: text("client_profile").notNull(),
   riskLevel: text("risk_level").notNull(),
+  
+  // Logica di costruzione
+  constructionLogic: text("construction_logic"),
+  
+  // Costi calcolati ponderati
+  entryCost: numeric("entry_cost", { precision: 10, scale: 5 }).default("0").notNull(),
+  exitCost: numeric("exit_cost", { precision: 10, scale: 5 }).default("0").notNull(),
+  ongoingCost: numeric("ongoing_cost", { precision: 10, scale: 5 }).default("0").notNull(),
+  transactionCost: numeric("transaction_cost", { precision: 10, scale: 5 }).default("0").notNull(),
+  performanceFee: numeric("performance_fee", { precision: 10, scale: 5 }).default("0").notNull(),
+  totalAnnualCost: numeric("total_annual_cost", { precision: 10, scale: 5 }).default("0").notNull(),
+  
+  // Metriche calcolate
+  averageRisk: numeric("average_risk", { precision: 10, scale: 5 }),
+  averageTimeHorizon: numeric("average_time_horizon", { precision: 10, scale: 5 }),
+  assetClassDistribution: jsonb("asset_class_distribution"), // JSON con la distribuzione per asset class
+  
+  // Campi esistenti
   createdAt: timestamp("created_at").defaultNow(),
   createdBy: integer("created_by").references(() => users.id),
 });
@@ -511,7 +529,7 @@ export const portfolioAllocations = pgTable("portfolio_allocations", {
   id: serial("id").primaryKey(),
   portfolioId: integer("portfolio_id").references(() => modelPortfolios.id, { onDelete: "cascade" }),
   productId: integer("product_id").references(() => portfolioProducts.id, { onDelete: "cascade" }),
-  percentage: numeric("percentage").notNull(),
+  percentage: numeric("percentage", { precision: 10, scale: 5 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -520,6 +538,7 @@ export const userProducts = pgTable("user_products", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id, { onDelete: "cascade" }),
   productId: integer("product_id").references(() => portfolioProducts.id, { onDelete: "cascade" }),
+  isFavorite: boolean("is_favorite").default(false),
   addedAt: timestamp("added_at").defaultNow(),
 });
 
@@ -551,3 +570,5 @@ export const productsPublicDatabase = pgTable('products_public_database', {
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),
 });
+
+export type InsertUserProduct = typeof userProducts.$inferInsert;

@@ -22,7 +22,6 @@ import {
   verifiedDocuments,
   productsPublicDatabase,
   portfolioProducts,
-  userProducts
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
@@ -68,6 +67,7 @@ import { registerOnboardingRoutes } from './routes/onboarding.routes';
 import { registerMeetingRoutes } from './routes/meeting.routes';
 import { registerAgentRoutes } from './routes/agent.routes';
 import { registerPortfolioRoutes } from './routes/portfolio.routes';
+import { savePortfolio, getUserPortfolios, getPortfolio, removePortfolio } from './controllers/modelPortfolioController';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -518,15 +518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             inArray(portfolioProducts.isin, productsToImport.map((p: any) => p.isin)),
             eq(portfolioProducts.createdBy, userId)
           ));
-        
-        const userProductsData = insertedProducts.map((p: { id: number }) => ({
-          userId: userId,
-          productId: p.id
-        }));
-        
-        if (userProductsData.length > 0) {
-          await db.insert(userProducts).values(userProductsData);
-        }
+      
       }
       
       return res.status(200).json({
@@ -544,6 +536,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     }
   });
+  
+  // Rotte per i portafogli modello
+  app.post('/api/model-portfolios', isAuthenticated, savePortfolio);
+  app.get('/api/model-portfolios', isAuthenticated, getUserPortfolios);
+  app.get('/api/model-portfolios/:id', isAuthenticated, getPortfolio);
+  app.delete('/api/model-portfolios/:id', isAuthenticated, removePortfolio);
   
   // Create and return the server
   const server = createServer(app);
