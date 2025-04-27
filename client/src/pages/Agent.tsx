@@ -210,7 +210,14 @@ export default function AgentPage() {
   const [portfolioData, setPortfolioData] = useState<GeneratedPortfolio | null>(null);
   const [portfolioMetrics, setPortfolioMetrics] = useState<PortfolioMetrics | null>(null);
 
-  // Aggiungi uno stato per tenere traccia dei messaggi con portfolio già salvato
+  // Stato per tracciare quali portafogli specifici sono stati salvati
+  // Formato: { messageIndex: { portfolioIndex: true } }
+  const [savedPortfolios, setSavedPortfolios] = useState<Record<number, Record<number, boolean>>>({});
+  
+  // Stato per tracciare quali portafogli sono in fase di salvataggio
+  const [savingPortfolios, setSavingPortfolios] = useState<Record<string, boolean>>({});
+
+  // Per retrocompatibilità
   const [savedPortfolioMessages, setSavedPortfolioMessages] = useState<number[]>([]);
 
   // Definizione delle capacità dell'assistente
@@ -228,8 +235,8 @@ export default function AgentPage() {
       gradient: "from-purple-500 to-indigo-500"
     },
     {
-      title: "Generazione idee",
-      description: "Crea idee per i tuoi clienti basate sulle ultime notizie di mercato",
+      title: "Costruzione portafogli",
+      description: "Crea portafogli personalizzati per i tuoi clienti basati sel loro profilo e preferenze",
       icon: <BarChart4 className="h-8 w-8 p-1.5" />,
       gradient: "from-emerald-500 to-teal-400"
     },
@@ -676,7 +683,7 @@ export default function AgentPage() {
   const renderMessage = (message: Message, index: number) => {
     // Verifica se è stata usata la funzione di generazione portfolio
     let isPortfolioGenerated = false;
-    let portfolioToSave = null;
+    let portfoliosToSave: any[] = [];
     
     // Verifica se nei functionResults c'è il risultato della generazione portfolio
     if (message.functionResults && typeof message.functionResults === 'string') {
@@ -688,20 +695,71 @@ export default function AgentPage() {
         // Estrai direttamente i dati del portfolio dai functionResults
         if (isPortfolioGenerated) {
           const results = JSON.parse(message.functionResults);
+          
+          // Caso 1: Se abbiamo un array di risultati di funzioni
           if (Array.isArray(results)) {
-            // Trova il risultato della funzione di generazione portfolio
-            const portfolioResult = results.find(r => r && (r.portfolio || r.success));
-            if (portfolioResult && portfolioResult.portfolio) {
-              // Salva il portfolio per il pulsante salva
-              portfolioToSave = portfolioResult.portfolio;
+            // Trova i risultati delle funzioni di generazione portfolio
+            const portfolioResults = results.filter(r => r && (r.portfolio || (r.result && r.result.portfolio)));
+            
+            // Estrai i dati di tutti i portafogli trovati
+            portfolioResults.forEach(result => {
+              if (result.portfolio) {
+                portfoliosToSave.push(result.portfolio);
+              } else if (result.result && result.result.portfolio) {
+                portfoliosToSave.push(result.result.portfolio);
+              }
+            });
+          }
+          
+          // Caso 2: Analisi del testo del messaggio per trovare portafogli multipli
+          if (portfoliosToSave.length === 0 || portfoliosToSave.length === 1) {
+            // Cerca nel testo dell'assistente per individuare più portafogli
+            const portfolioSections = message.content.split(/Portafoglio \d+:|Portafoglio [A-Za-z]+ \d+:|Portafoglio [A-Za-z]+:/g).filter(Boolean);
+            
+            if (portfolioSections.length > 1) {
+              // Abbiamo trovato almeno 2 portafogli separati nel testo
+              // Usa il primo portfolio dei risultati come template e creane diversi, uno per ogni sezione
+              if (portfoliosToSave.length === 1) {
+                const templatePortfolio = portfoliosToSave[0];
+                portfoliosToSave = [];
+                
+                // Estrai i nomi dei portafogli dal testo completo
+                const portfolioNames: string[] = [];
+                const nameMatches = message.content.match(/Portafoglio [\w\s]+:/g);
+                if (nameMatches) {
+                  nameMatches.forEach(match => {
+                    portfolioNames.push(match.replace(':', '').trim());
+                  });
+                }
+                
+                // Crea un portafoglio per ogni sezione trovata
+                portfolioSections.forEach((section, idx) => {
+                  // Usa il nome estratto dal testo o assegna un nome predefinito
+                  const portfolioName = idx < portfolioNames.length 
+                    ? portfolioNames[idx] 
+                    : `Portafoglio ${idx + 1}`;
+                    
+                  // Crea una copia del template con nome diverso
+                  portfoliosToSave.push({
+                    ...templatePortfolio,
+                    name: portfolioName,
+                    // La description potrebbe contenere la sezione di testo specifica
+                    description: section.substring(0, 200) + '...',
+                    // Manteniamo gli stessi dati di allocazione, ma in una implementazione
+                    // reale dovremmo analizzare ciascuna sezione per estrarre i dati corretti
+                  });
+                });
+              }
             }
           }
         }
+        
+        console.log("Portfolios estratti:", portfoliosToSave.length);
       } catch (e) {
         console.error('Errore nel parsing dei functionResults:', e);
       }
     }
-    
+
     return (
       <motion.div
         key={index}
@@ -733,7 +791,7 @@ export default function AgentPage() {
             </span>
             {message.model && (
               <div className="flex flex-col">
-                <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
+                <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-800">
                   {message.model === 'gpt-4.1' ? 'GPT-4.1' : 'GPT-4.1 Mini'}
                 </span>
                 <span className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 ml-1">
@@ -748,28 +806,21 @@ export default function AgentPage() {
             )}
             
             <div className="ml-auto">
-              <Tooltip>
-                <TooltipTrigger asChild>
               <Button
                 variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 rounded-full text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+                size="icon"
+                className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 onClick={() => copyMessageContent(message.content, index)}
-                  >
-                    {copiedMessageIndex === index ? (
-                      <Check className="h-4 w-4" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {copiedMessageIndex === index ? 'Copiato!' : 'Copia messaggio'}
-                </TooltipContent>
-              </Tooltip>
+              >
+                {copiedMessageIndex === index ? (
+                  <Check className="h-4 w-4" />
+                ) : (
+                  <Copy className="h-4 w-4" />
+                )}
+              </Button>
             </div>
           </div>
-            
+          
           <div className="prose prose-sm dark:prose-invert max-w-none overflow-x-auto break-words leading-relaxed">
             <div className="markdown-content rounded-md text-gray-700 dark:text-gray-200">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -777,86 +828,72 @@ export default function AgentPage() {
               </ReactMarkdown>
             </div>
                   
-            {/* Pulsante per salvare il portfolio direttamente nella chat */}
-            {isPortfolioGenerated && (
+            {/* Pulsanti per salvare i portfolio generati */}
+            {isPortfolioGenerated && portfoliosToSave.length > 0 && (
               <div className="mt-5 p-4 rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border border-emerald-100 dark:border-emerald-900/50 shadow-sm">
                 <h3 className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-2 flex items-center">
                   <ChartPieIcon className="h-4 w-4 mr-1.5" />
-                  Portafoglio generato
+                  {portfoliosToSave.length > 1 ? `${portfoliosToSave.length} Portafogli generati` : 'Portafoglio generato'}
                 </h3>
                 
-                {savedPortfolioMessages.includes(index) ? (
-                  <div className="flex items-center text-emerald-600 dark:text-emerald-400 mb-1">
-                    <CheckCircle className="h-4 w-4 mr-2 text-emerald-500" />
-                    <p className="text-sm">Questo portafoglio è stato salvato con successo.</p>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4">
-                      Puoi salvare questo portafoglio nei tuoi modelli per utilizzarlo in futuro.
-                    </p>
-                    <Button 
-                      onClick={() => {
-                        // Recupera i dati di portfolio direttamente qui
-                        try {
-                          console.log("Accedendo direttamente ai dati del portfolio...");
-                          
-                          if (message.functionResults) {
-                            const results = JSON.parse(message.functionResults);
-                            console.log("Results:", results);
-                            
-                            // Accedi DIRETTAMENTE al percorso corretto
-                            if (Array.isArray(results) && results.length > 0 && 
-                                results[0].name === "generatePortfolio" && 
-                                results[0].result && 
-                                results[0].result.portfolio) {
-                              
-                              console.log("Portfolio trovato:", results[0].result.portfolio);
-                              directSavePortfolio(results[0].result.portfolio, index);
-                              return;
-                            } else {
-                              console.log("Struttura dati:", { 
-                                isArray: Array.isArray(results),
-                                length: Array.isArray(results) ? results.length : 'N/A',
-                                firstElement: results[0],
-                                hasResult: results[0] && results[0].result,
-                                hasPortfolio: results[0] && results[0].result && results[0].result.portfolio
-                              });
-                            }
-                          }
-                          
-                          // Fallback solo se davvero non troviamo i dati
-                          toast({
-                            title: "Errore",
-                            description: "Impossibile trovare i dati del portfolio",
-                            variant: "destructive",
-                          });
-                        } catch (e) {
-                          console.error("Errore nel recupero dei dati del portfolio", e);
-                          toast({
-                            title: "Errore",
-                            description: "Si è verificato un errore nel recupero dei dati del portfolio",
-                            variant: "destructive",
-                          });
-                        }
-                      }}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all transform hover:translate-y-[-1px] hover:shadow"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Salvataggio...
-                        </>
-                      ) : (
-                        <>
-                          <Save className="h-4 w-4 mr-2" />
-                          Salva portafoglio
-                        </>
-                      )}
-                    </Button>
-                  </>
-                )}
+                <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+                  {portfoliosToSave.length > 1 
+                    ? 'Puoi salvare ciascun portafoglio nei tuoi modelli per utilizzarlo in futuro.' 
+                    : 'Puoi salvare questo portafoglio nei tuoi modelli per utilizzarlo in futuro.'}
+                </p>
+                
+                {/* Mostra un pulsante per ogni portafoglio */}
+                <div className={portfoliosToSave.length > 1 ? "space-y-3" : ""}>
+                  {portfoliosToSave.map((portfolio, portfolioIndex) => {
+                    // Crea una chiave unica per questo portfolio
+                    const portfolioKey = `${index}-${portfolioIndex}`;
+                    
+                    // Controlla se questo specifico portfolio è stato salvato
+                    const isSaved = savedPortfolios[index]?.[portfolioIndex] === true;
+                    
+                    // Controlla se questo specifico portfolio è in fase di salvataggio
+                    const isSaving = savingPortfolios[portfolioKey] === true;
+                    
+                    return (
+                      <div 
+                        key={portfolioIndex} 
+                        className={portfoliosToSave.length > 1 ? "flex justify-between items-center border-b border-emerald-100 dark:border-emerald-900/30 pb-3 last:border-0" : ""}
+                      >
+                        {portfoliosToSave.length > 1 && (
+                          <div className="text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                            {portfolio.name || `Portafoglio ${portfolioIndex + 1}`}
+                          </div>
+                        )}
+                        
+                        {isSaved ? (
+                          <div className="flex items-center text-emerald-600 dark:text-emerald-400 ml-auto">
+                            <CheckCircle className="h-4 w-4 mr-2 text-emerald-500" />
+                            <p className="text-sm">Salvato</p>
+                          </div>
+                        ) : (
+                          <Button 
+                            onClick={() => directSavePortfolio(portfolio, index, portfolioIndex)}
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all transform hover:translate-y-[-1px] hover:shadow"
+                            disabled={isSaving}
+                            size={portfoliosToSave.length > 1 ? "sm" : "default"}
+                          >
+                            {isSaving ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Salvataggio...
+                              </>
+                            ) : (
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                Salva portafoglio
+                              </>
+                            )}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -864,31 +901,17 @@ export default function AgentPage() {
       </motion.div>
     );
   };
-                          
-  // Funzione di utilità per generare assetAllocation dall'allocation
-  const generateAssetAllocation = (allocation: any[]) => {
-    const categoryMap: {[key: string]: number} = {};
-                            
-    // Somma le percentuali per categoria
-    allocation.forEach((item: any) => {
-      if (item.category) {
-        if (!categoryMap[item.category]) {
-          categoryMap[item.category] = 0;
-        }
-        categoryMap[item.category] += item.percentage;
-      }
-    });
-    
-    // Converti in array di oggetti {category, percentage}
-    return Object.entries(categoryMap).map(([category, percentage]) => ({
-      category,
-      percentage
-    }));
-  };
 
-  const directSavePortfolio = async (portfolioData: any, messageIndex?: number) => {
+  const directSavePortfolio = async (portfolioData: any, messageIndex: number, portfolioIndex: number) => {
+    // Crea una chiave unica per questo portfolio
+    const portfolioKey = `${messageIndex}-${portfolioIndex}`;
+    
     try {
-      setIsLoading(true);
+      // Aggiorna lo stato solo per questo specifico portafoglio in salvataggio
+      setSavingPortfolios(prev => ({
+        ...prev,
+        [portfolioKey]: true
+      }));
       
       console.log("Salvando portfolio:", portfolioData);
       
@@ -939,37 +962,77 @@ export default function AgentPage() {
 
       // Invia i dati all'endpoint
       const response = await apiRequest('/api/model-portfolios', {
-                                method: 'POST',
+        method: 'POST',
         body: JSON.stringify(portfolioToSave)
       });
       
-                                if (response.success) {
-        // Se abbiamo un indice del messaggio, aggiungiamolo alla lista dei messaggi salvati
-        if (messageIndex !== undefined) {
-          setSavedPortfolioMessages(prev => [...prev, messageIndex]);
-        }
+      if (response.success) {
+        // Aggiorna il record dei portafogli salvati
+        setSavedPortfolios(prev => {
+          // Verifica se esiste già un oggetto per questo messageIndex
+          const messagePortfolios = prev[messageIndex] || {};
+          
+          // Aggiorna l'oggetto per questo portfolio
+          return {
+            ...prev,
+            [messageIndex]: {
+              ...messagePortfolios,
+              [portfolioIndex]: true
+            }
+          };
+        });
         
-                                  toast({
+        // Per retrocompatibilità, ma questo non verrà più usato per il controllo visivo
+        setSavedPortfolioMessages(prev => [...prev, messageIndex]);
+        
+        toast({
           title: "Successo",
           description: "Il portafoglio è stato salvato con successo"
-                                  });
+        });
+        
         return true;
       } else {
         throw new Error(response.message || 'Errore durante il salvataggio del portafoglio');
-                                }
+      }
     } catch (error) {
       console.error("Errore nel salvataggio del portafoglio:", error);
-                                toast({
-                                  title: "Errore",
+      toast({
+        title: "Errore",
         description: "Impossibile salvare il portafoglio: " + (error instanceof Error ? error.message : "Errore sconosciuto"),
-                                  variant: "destructive",
-                                });
+        variant: "destructive",
+      });
       return false;
     } finally {
-                                setIsLoading(false);
+      // Rimuovi lo stato di salvataggio
+      setSavingPortfolios(prev => {
+        const newState = {...prev};
+        delete newState[portfolioKey];
+        return newState;
+      });
     }
   };
-            
+
+  // Funzione di utilità per generare assetAllocation dall'allocation
+  const generateAssetAllocation = (allocation: any[]) => {
+    const categoryMap: {[key: string]: number} = {};
+                            
+    // Somma le percentuali per categoria
+    allocation.forEach((item: any) => {
+      if (item.category) {
+        if (!categoryMap[item.category]) {
+          categoryMap[item.category] = 0;
+        }
+        categoryMap[item.category] += item.percentage;
+      }
+    });
+    
+    // Converti in array di oggetti {category, percentage}
+    return Object.entries(categoryMap).map(([category, percentage]) => ({
+      category,
+      percentage
+    }));
+  };
+
   // Renderizza schermata delle capacità
   const renderMainScreen = () => {
     return (

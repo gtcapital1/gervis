@@ -22,6 +22,7 @@ import {
   verifiedDocuments,
   productsPublicDatabase,
   portfolioProducts,
+  userProducts,
 } from "@shared/schema";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "./auth";
 import { sendCustomEmail, sendOnboardingEmail, sendMeetingInviteEmail, sendMeetingUpdateEmail, sendVerificationPin, testSMTPConnection } from "./email";
@@ -518,7 +519,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
             inArray(portfolioProducts.isin, productsToImport.map((p: any) => p.isin)),
             eq(portfolioProducts.createdBy, userId)
           ));
-      
+          
+        // Inserisci anche nella tabella user_products per collegare i prodotti all'utente
+        console.log(`Inserimento di ${insertedProducts.length} prodotti nella tabella user_products per l'utente ${userId}`);
+        for (const product of insertedProducts) {
+          await db.insert(userProducts).values({
+            userId,
+            productId: product.id
+          });
+        }
       }
       
       return res.status(200).json({

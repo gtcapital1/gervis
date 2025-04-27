@@ -1127,8 +1127,10 @@ export function registerPortfolioRoutes(app: Express) {
           )
           .where(eq(portfolioAllocations.portfolioId, portfolio.id));
           
+          // Mappo il campo constructionLogic -> construction_logic per compatibilità con il frontend
           return {
             ...portfolio,
+            construction_logic: portfolio.constructionLogic,
             allocation: allocations.map(alloc => ({
               isinId: alloc.productId,
               isin: alloc.isin,
@@ -1312,6 +1314,7 @@ export function registerPortfolioRoutes(app: Express) {
       
       const portfolioWithAllocations = {
         ...portfolio,
+        construction_logic: portfolio.constructionLogic,
         allocation: allocations.map(alloc => ({
           isinId: alloc.productId,
           isin: alloc.isin,

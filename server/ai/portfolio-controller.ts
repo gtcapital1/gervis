@@ -8,7 +8,7 @@
 import { Request, Response } from 'express';
 import { db } from '../db';
 import { generatePortfolio } from './portfolio-generator';
-import { portfolioProducts, userProducts, modelPortfolios, portfolioAllocations } from '../../shared/schema';
+import { portfolioProducts, modelPortfolios, portfolioAllocations } from '../../shared/schema';
 import { eq, inArray } from 'drizzle-orm';
 import { sql } from 'drizzle-orm';
 
@@ -606,6 +606,8 @@ export async function generatePortfolioTool(params: {
     
     USA ESCLUSIVAMENTE questi prodotti per l'allocazione:
     ${productContext}
+
+    Se non ci sono prodotti disponibili, dillo all'user esplicitamente e suggeriscigli di importare nuovi prodotti dal tab Prodotti Base in Portafogli Modello.
     
     Ogni elemento dell'allocazione DEVE includere:
     1. 'productId' - l'ID numerico esatto del prodotto dalla lista fornita

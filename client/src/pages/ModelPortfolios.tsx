@@ -26,7 +26,10 @@ import {
   LayoutGrid,
   List,
   Bug,
-  Database
+  Database,
+  User,
+  Coins,
+  AlertTriangle
 } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCurrency, formatPercent } from "@/lib/utils";
@@ -84,46 +87,15 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 
+// Import new components
+import PortfolioCard from "@/components/PortfolioCard";
+import ProductCard from "@/components/ProductCard";
+import SimpleAllocationPieChart from "@/components/SimpleAllocationPieChart";
+
 // Interfaces
-interface ISINProduct {
-  id: number;
-  isin: string;
-  name: string;
-  category: string;
-  description?: string;
-  entry_cost: number;
-  exit_cost: number;
-  ongoing_cost: number;
-  transaction_cost?: number;
-  performance_fee?: number;
-  benchmark?: string | null;
-  dividend_policy?: string | null;
-  currency?: string | null;
-  sri_risk?: number | null;
-  recommended_holding_period?: string | null;
-  target_market?: string | null;
-  kid_file_path?: string;
-  createdAt: string;
-}
+import { AllocationItem, ModelPortfolio, ISINProduct } from "@/types/portfolio";
 
-interface ModelPortfolio {
-  id: number;
-  name: string;
-  description: string;
-  clientProfile: string;
-  riskLevel: string;
-  createdAt: string;
-  allocation: AllocationItem[];
-}
-
-interface AllocationItem {
-  isinId: number;
-  isin: string;
-  name: string;
-  category: string;
-  percentage: number;
-}
-
+// Interfaces locali aggiuntive
 interface CreatePortfolioForm {
   name: string;
   description: string;
@@ -536,6 +508,37 @@ export default function ModelPortfoliosPage() {
     }
   };
 
+  // Handle deleting a portfolio
+  const handleDeletePortfolio = async (portfolioId: number) => {
+    try {
+      const response = await apiRequest(`/api/portfolio/models/${portfolioId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.success) {
+        toast({
+          title: t('portfolio.portfolio_deleted'),
+          description: t('portfolio.portfolio_deleted_success')
+        });
+        
+        // Invalidate queries to refresh data
+        queryClient.invalidateQueries({ queryKey: ['/api/portfolio/models'] });
+      } else {
+        toast({
+          title: t('common.error'),
+          description: response.message || t('portfolio.portfolio_deletion_error'),
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: t('portfolio.portfolio_deletion_error'),
+        variant: "destructive"
+      });
+    }
+  };
+
   // Handle creating a portfolio using AI assistant
   const handleCreatePortfolio = () => {
     // Validate form
@@ -573,7 +576,8 @@ Please use products from our available ISINs and create a balanced allocation th
       riskLevel: "balanced",
       investmentHorizon: "medium_term",
       objectives: ["growth"],
-      constraints: ""
+      constraints: "",
+      notes: ""
     });
     
     // Navigate to the AI Assistant page
@@ -582,7 +586,20 @@ Please use products from our available ISINs and create a balanced allocation th
 
   // Handle viewing portfolio details
   const handleViewPortfolio = (portfolio: ModelPortfolio) => {
-    setSelectedPortfolio(portfolio);
+    console.log("DEBUG - Original portfolio:", portfolio);
+    console.log("DEBUG - construction_logic:", portfolio.construction_logic);
+    console.log("DEBUG - has construction_logic:", !!portfolio.construction_logic);
+    
+    // Qui preserviamo i dati originali, sia l'asset_class_distribution (aggregata) che l'allocation (dettagliata)
+    // Nel dialog mostreremo l'allocation dettagliata se presente, altrimenti l'asset_class_distribution
+    setSelectedPortfolio({
+      ...portfolio,
+      // Preserviamo sia l'allocazione dettagliata che quella aggregata
+      allocation: portfolio.allocation || [],
+      asset_class_distribution: portfolio.asset_class_distribution,
+      // Assicuriamoci che il campo construction_logic venga preservato esplicitamente
+      construction_logic: portfolio.construction_logic || ""
+    });
   };
 
   // Add a function to handle viewing product details
@@ -593,6 +610,20 @@ Please use products from our available ISINs and create a balanced allocation th
 
   // UI helpers
   const getRiskLevelColor = (riskLevel: string) => {
+    // Handle numeric or range risk levels
+    if (riskLevel === "3" || riskLevel === "2-3") {
+      return 'bg-green-200 text-green-800';
+    } else if (riskLevel === "4" || riskLevel === "3-5") {
+      return 'bg-yellow-200 text-yellow-800';
+    } else if (riskLevel === "5" || riskLevel === "5-6") {
+      return 'bg-orange-200 text-orange-800';
+    } else if (riskLevel === "6-7" || riskLevel === "6" || riskLevel === "7") {
+      return 'bg-red-200 text-red-800';
+    } else if (riskLevel === "1-2" || riskLevel === "1" || riskLevel === "2") {
+      return 'bg-blue-200 text-blue-800';
+    }
+    
+    // Fall back to named risk levels
     switch(riskLevel) {
       case 'conservative': return 'bg-blue-200 text-blue-800';
       case 'moderate': return 'bg-green-200 text-green-800';
@@ -604,7 +635,10 @@ Please use products from our available ISINs and create a balanced allocation th
   };
 
   const getCategoryColor = (category: string) => {
-    return CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.other;
+    console.log("DEBUG - Getting color for category:", category);
+    const color = CATEGORY_COLORS[category as keyof typeof CATEGORY_COLORS] || CATEGORY_COLORS.other;
+    console.log("DEBUG - Selected color:", color);
+    return color;
   };
 
   // Handle downloading a KID file
@@ -769,13 +803,17 @@ Please use products from our available ISINs and create a balanced allocation th
 
   // Fetch products function
   const fetchProducts = async () => {
-    setIsLoading(true);
     try {
-      const result = await apiRequest({
-        url: '/api/portfolio/products',
+      const result = await apiRequest('/api/portfolio/products', {
         method: 'GET',
       });
-      setProducts(result.products || []);
+      
+      if (result && result.products) {
+        // We can't update state here as setProducts isn't defined
+        // This function appears to be unused or incorrectly implemented
+        console.log("Products fetched:", result.products.length);
+        return result.products;
+      }
     } catch (error) {
       console.error("Error fetching products:", error);
       toast({
@@ -783,10 +821,94 @@ Please use products from our available ISINs and create a balanced allocation th
         description: "Failed to load products.",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      return [];
     }
   };
+
+  // Function to ensure allocation data is correctly formatted
+  const parseAllocationData = (allocation: any): AllocationItem[] => {
+    console.log("DEBUG - Parsing allocation data:", JSON.stringify(allocation));
+    
+    // Se non c'è allocazione, ritorna array vuoto
+    if (!allocation) {
+      console.log("DEBUG - Allocation is null or undefined");
+      return [];
+    }
+    
+    try {
+      // Se è una stringa JSON, convertila in oggetto
+      let parsedAllocation = allocation;
+      if (typeof allocation === 'string') {
+        console.log("DEBUG - Allocation is a string, parsing JSON");
+        parsedAllocation = JSON.parse(allocation);
+      }
+      
+      // Se non è un array, ma un oggetto come {"bonds": 18, "equity": 60}, convertilo in array
+      if (!Array.isArray(parsedAllocation) && typeof parsedAllocation === 'object') {
+        console.log("DEBUG - Converting object to array format");
+        parsedAllocation = Object.entries(parsedAllocation).map(([category, percentage]) => ({
+          category,
+          percentage: Number(percentage)
+        }));
+      }
+      
+      // Se è un array ma non ha la struttura corretta, convertilo
+      if (Array.isArray(parsedAllocation) && parsedAllocation.length > 0 && !('category' in parsedAllocation[0])) {
+        console.log("DEBUG - Array has incorrect format, attempting conversion");
+        return [];
+      }
+      
+      // Ora dovrebbe essere un array di oggetti con category e percentage
+      if (Array.isArray(parsedAllocation)) {
+        console.log("DEBUG - Returning array of allocation items:", JSON.stringify(parsedAllocation));
+        // Assicurati che la percentuale sia un numero
+        return parsedAllocation.map(item => ({
+          category: item.category,
+          percentage: Number(item.percentage)
+        }));
+      }
+      
+      console.log("DEBUG - Unknown format, returning empty array");
+      return [];
+    } catch (error) {
+      console.error("DEBUG - Error parsing allocation data:", error);
+      return [];
+    }
+  };
+
+  // Funzione per ispezionare la struttura dei dati di allocazione
+  function debugInspectAllocation(source: string, data: any) {
+    console.log(`DEBUG - [${source}] Inspecting allocation data:`, typeof data);
+    
+    if (!data) {
+      console.log(`DEBUG - [${source}] Data is null or undefined`);
+      return;
+    }
+    
+    if (typeof data === 'string') {
+      console.log(`DEBUG - [${source}] Data is a string, length:`, data.length);
+      console.log(`DEBUG - [${source}] First 100 chars:`, data.substring(0, 100));
+      try {
+        const parsed = JSON.parse(data);
+        console.log(`DEBUG - [${source}] Successfully parsed as JSON, type:`, Array.isArray(parsed) ? 'array' : typeof parsed);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          console.log(`DEBUG - [${source}] Array properties of first item:`, Object.keys(parsed[0]).join(', '));
+        } else if (typeof parsed === 'object') {
+          console.log(`DEBUG - [${source}] Object keys:`, Object.keys(parsed).join(', '));
+        }
+      } catch (e) {
+        console.log(`DEBUG - [${source}] Not valid JSON:`, e);
+      }
+    } else if (Array.isArray(data)) {
+      console.log(`DEBUG - [${source}] Data is an array with ${data.length} items`);
+      if (data.length > 0) {
+        console.log(`DEBUG - [${source}] First item:`, JSON.stringify(data[0]));
+        console.log(`DEBUG - [${source}] Properties of first item:`, Object.keys(data[0]).join(', '));
+      }
+    } else if (typeof data === 'object') {
+      console.log(`DEBUG - [${source}] Data is an object with keys:`, Object.keys(data).join(', '));
+    }
+  }
 
   return (
     <div className="container max-w-7xl mx-auto p-4">
@@ -839,62 +961,61 @@ Please use products from our available ISINs and create a balanced allocation th
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredPortfolios.map((portfolio) => (
-                <Card key={portfolio.id} className="overflow-hidden">
-                  <CardHeader className="pb-2">
-                    <div className="flex justify-between items-start">
-                      <CardTitle className="text-lg">{portfolio.name}</CardTitle>
-                      <Badge className={getRiskLevelColor(portfolio.riskLevel)}>
-                        {t(`risk_profiles.${portfolio.riskLevel}`)}
-                      </Badge>
-                    </div>
-                    <CardDescription className="line-clamp-2">
-                      {portfolio.description}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pb-2">
-                    <div className="h-40">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RechartsPieChart>
-                          <Pie
-                            data={portfolio.allocation}
-                            dataKey="percentage"
-                            nameKey="category"
-                            cx="50%"
-                            cy="50%"
-                            outerRadius={60}
-                            label={(entry) => `${entry.category}: ${entry.percentage}%`}
-                          >
-                            {portfolio.allocation.map((item, index) => (
-                              <Cell 
-                                key={`cell-${index}`}
-                                fill={getCategoryColor(item.category)}
-                              />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip />
-                        </RechartsPieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="mt-2">
-                      <p className="text-sm text-muted-foreground">
-                        {t('portfolio.client_profile')}: <span className="font-medium text-foreground">{portfolio.clientProfile}</span>
-                      </p>
-                    </div>
-                  </CardContent>
-                  <CardFooter className="pt-0">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="w-full"
-                      onClick={() => handleViewPortfolio(portfolio)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      {t('portfolio.view_details')}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+              {filteredPortfolios.map((portfolio) => {
+                // Verifichiamo il formato dei dati di asset_class_distribution
+                console.log(`DEBUG - Portfolio ${portfolio.id} - asset_class_distribution:`, portfolio.asset_class_distribution);
+                console.log(`DEBUG - Portfolio ${portfolio.id} - data type:`, typeof portfolio.asset_class_distribution);
+                
+                // Potrebbe essere che i dati siano in formato stringa JSON e devono essere analizzati
+                let assetClassDistribution = portfolio.asset_class_distribution;
+                
+                // Se è una stringa, proviamo a fare il parsing come JSON
+                if (typeof assetClassDistribution === 'string') {
+                  try {
+                    assetClassDistribution = JSON.parse(assetClassDistribution);
+                    console.log(`DEBUG - Portfolio ${portfolio.id} - Parsed JSON:`, assetClassDistribution);
+                  } catch (e) {
+                    console.error(`DEBUG - Portfolio ${portfolio.id} - Failed to parse JSON:`, e);
+                  }
+                }
+                
+                // Se non abbiamo dati aggregati, creiamoli dai dati di allocazione se possibile
+                if (!assetClassDistribution && portfolio.allocation && portfolio.allocation.length > 0) {
+                  console.log(`DEBUG - Portfolio ${portfolio.id} - Creating asset_class_distribution from allocation`);
+                  
+                  // Aggreghiamo per categoria
+                  const aggregated: Record<string, number> = {};
+                  
+                  // Se allocation è un array di oggetti con category e percentage
+                  if (Array.isArray(portfolio.allocation)) {
+                    portfolio.allocation.forEach(item => {
+                      if (item.category) {
+                        if (!aggregated[item.category]) {
+                          aggregated[item.category] = 0;
+                        }
+                        aggregated[item.category] += Number(item.percentage);
+                      }
+                    });
+                  }
+                  
+                  assetClassDistribution = aggregated;
+                  console.log(`DEBUG - Portfolio ${portfolio.id} - Created aggregation:`, assetClassDistribution);
+                }
+                
+                return (
+                  <PortfolioCard
+                    key={portfolio.id}
+                    portfolio={{
+                      ...portfolio,
+                      asset_class_distribution: assetClassDistribution
+                    }}
+                    onViewDetails={handleViewPortfolio}
+                    getCategoryColor={getCategoryColor}
+                    getRiskLevelColor={getRiskLevelColor}
+                    onDeletePortfolio={handleDeletePortfolio}
+                  />
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -942,77 +1063,14 @@ Please use products from our available ISINs and create a balanced allocation th
               {productsViewMode === "grid" ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {filteredProducts.map((product) => (
-                    <Card 
+                    <ProductCard 
                       key={product.id}
-                      className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                      onClick={() => handleViewProduct(product)}
-                    >
-                      <CardHeader className="pb-2 space-y-1">
-                        <div className="flex justify-between items-start">
-                          <CardTitle className="text-base font-medium">{product.name}</CardTitle>
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {t(`asset_categories.${product.category}`)}
-                          </Badge>
-                        </div>
-                        <div className="font-mono text-xs text-muted-foreground">
-                          {product.isin}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pb-4">
-                        <div className="text-sm line-clamp-2 text-muted-foreground mb-3">
-                          {product.description || t('portfolio.no_description')}
-                        </div>
-                        <div className="grid grid-cols-3 gap-2 text-xs">
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground">{t('portfolio.total_cost')}</span>
-                            <span className="font-medium text-primary">{formatPercent(calculateTotalCost(product), 2)}</span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground">{t('portfolio.risk_indicator')}</span>
-                            <span className="font-medium">
-                              {product.sri_risk ? `${product.sri_risk}/7` : "N/D"}
-                            </span>
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="text-muted-foreground">{t('portfolio.holding_period')}</span>
-                            <span className="font-medium truncate">{product.recommended_holding_period || "N/D"}</span>
-                          </div>
-                        </div>
-                      </CardContent>
-                      <CardFooter className="pt-0 border-t flex justify-between">
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="h-3 w-3" />
-                          <span>
-                            {new Date(product.createdAt).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div className="flex gap-1">
-                          {product.kid_file_path && (
-                            <Button 
-                              variant="ghost" 
-                              size="icon"
-                              title={t('portfolio.download_kid')}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDownloadKID(product.id);
-                              }}
-                            >
-                              <FileDown className="h-4 w-4 text-blue-600" />
-                            </Button>
-                          )}
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteProduct(product.id);
-                            }}
-                          >
-                            <Trash className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </CardFooter>
-                    </Card>
+                      product={product}
+                      onViewProduct={handleViewProduct}
+                      onDownloadKID={handleDownloadKID}
+                      onDeleteProduct={handleDeleteProduct}
+                      calculateTotalCost={calculateTotalCost}
+                    />
                   ))}
                 </div>
               ) : (
@@ -1485,21 +1543,34 @@ Please use products from our available ISINs and create a balanced allocation th
       {selectedPortfolio && (
         <Dialog open={!!selectedPortfolio} onOpenChange={(open) => !open && setSelectedPortfolio(null)}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            {/* Rimossi i log temporanei di debug */}
+            
             <DialogHeader>
               <DialogTitle>{selectedPortfolio.name}</DialogTitle>
+              <div className="flex justify-between items-center">
+                <Badge variant="outline" className="whitespace-nowrap">
+                  {t('portfolio.created')}: {new Date(selectedPortfolio.createdAt).toLocaleDateString()}
+                </Badge>
+              </div>
               <DialogDescription>
                 {selectedPortfolio.description}
               </DialogDescription>
+              {/* Logica di costruzione come semplice paragrafo */}
+              {selectedPortfolio.construction_logic && (
+                <div className="mt-2">
+                  <h3 className="text-lg font-medium mb-2">{t('portfolio.construction_logic') || 'Logica di costruzione'}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {selectedPortfolio.construction_logic}
+                  </p>
+                </div>
+              )}
             </DialogHeader>
             
             <div className="space-y-6 py-4">
+              {/* Rimosso il box blu per la logica di costruzione */}
+            
               <div className="flex flex-wrap gap-2">
-                <Badge className={getRiskLevelColor(selectedPortfolio.riskLevel)}>
-                  {t(`risk_profiles.${selectedPortfolio.riskLevel}`)}
-                </Badge>
-                <Badge variant="outline">
-                  {t('portfolio.created')}: {new Date(selectedPortfolio.createdAt).toLocaleDateString()}
-                </Badge>
+                {/* Rimosso il badge della data di creazione da qui */}
               </div>
               
               <div>
@@ -1507,36 +1578,11 @@ Please use products from our available ISINs and create a balanced allocation th
                 <p className="text-sm text-muted-foreground">{selectedPortfolio.clientProfile}</p>
               </div>
               
-              <div>
-                <h3 className="text-lg font-medium mb-4">{t('portfolio.allocation')}</h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RechartsPieChart>
-                        <Pie
-                          data={selectedPortfolio.allocation}
-                          dataKey="percentage"
-                          nameKey="category"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={80}
-                          label={(entry) => `${entry.category}: ${entry.percentage}%`}
-                        >
-                          {selectedPortfolio.allocation.map((item, index) => (
-                            <Cell 
-                              key={`cell-${index}`}
-                              fill={getCategoryColor(item.category)}
-                            />
-                          ))}
-                        </Pie>
-                        <Legend />
-                        <RechartsTooltip />
-                      </RechartsPieChart>
-                    </ResponsiveContainer>
-                  </div>
+              {/* Rimosso il blocco della logica di costruzione da qui */}
                   
                   <div>
+                <h3 className="text-lg font-medium mb-2">{t('portfolio.allocation')}</h3>
+                
                     <div className="rounded-md border">
                       <div className="relative overflow-x-auto">
                         <table className="w-full text-sm text-left">
@@ -1544,23 +1590,48 @@ Please use products from our available ISINs and create a balanced allocation th
                             <tr>
                               <th className="px-4 py-2">ISIN</th>
                               <th className="px-4 py-2">{t('portfolio.product_name')}</th>
+                          <th className="px-4 py-2">{t('portfolio.category')}</th>
                               <th className="px-4 py-2">{t('portfolio.percentage')}</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedPortfolio.allocation.map((item, index) => (
+                        {/* Prima proviamo a mostrare i dati dettagliati di allocazione */}
+                        {selectedPortfolio.allocation && selectedPortfolio.allocation.length > 0 ? (
+                          [...selectedPortfolio.allocation]
+                            .sort((a, b) => Number(b.percentage) - Number(a.percentage))
+                            .map((item, index) => (
                               <tr key={index} className="border-t">
-                                <td className="px-4 py-2 font-mono">{item.isin}</td>
-                                <td className="px-4 py-2">{item.name}</td>
+                                <td className="px-4 py-2 font-mono">{item.isin || '-'}</td>
+                                <td className="px-4 py-2">{item.name || item.category}</td>
+                                <td className="px-4 py-2">{t(`asset_categories.${item.category}`)}</td>
                                 <td className="px-4 py-2 font-medium">
                                   {formatPercent(item.percentage)}
                                 </td>
                               </tr>
-                            ))}
+                            ))
+                        ) : selectedPortfolio.asset_class_distribution ? (
+                          // Se non abbiamo allocation dettagliata, falliamo su asset_class_distribution
+                          Object.entries(selectedPortfolio.asset_class_distribution)
+                            .sort((a, b) => Number(b[1]) - Number(a[1]))
+                            .map(([category, percentage], index) => (
+                              <tr key={index} className="border-t">
+                                <td className="px-4 py-2 font-mono">-</td>
+                                <td className="px-4 py-2">{t(`asset_categories.${category}`)}</td>
+                                <td className="px-4 py-2">{t(`asset_categories.${category}`)}</td>
+                                <td className="px-4 py-2 font-medium">
+                                  {formatPercent(Number(percentage))}
+                                </td>
+                              </tr>
+                            ))
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="px-4 py-4 text-center text-muted-foreground">
+                              {t('portfolio.no_allocation')}
+                            </td>
+                          </tr>
+                        )}
                           </tbody>
                         </table>
-                      </div>
-                    </div>
                   </div>
                 </div>
               </div>

@@ -123,9 +123,15 @@ export async function getUserPortfolios(req: Request, res: Response) {
     const userId = req.user.id;
     const portfolios = await getUserModelPortfolios(userId);
 
+    // Mappiamo i campi per assicurarci che siano compatibili con il frontend
+    const mappedPortfolios = portfolios.map(portfolio => ({
+      ...portfolio,
+      construction_logic: portfolio.constructionLogic
+    }));
+
     return res.status(200).json({
       success: true,
-      data: portfolios
+      data: mappedPortfolios
     });
   } catch (error) {
     console.error('Errore nel recupero dei portafogli:', error);
@@ -167,9 +173,15 @@ export async function getPortfolio(req: Request, res: Response) {
       });
     }
 
+    // Mappiamo i campi per assicurarci che siano compatibili con il frontend
+    const mappedPortfolio = {
+      ...portfolio,
+      construction_logic: portfolio.constructionLogic
+    };
+
     return res.status(200).json({
       success: true,
-      data: portfolio
+      data: mappedPortfolio
     });
   } catch (error) {
     console.error('Errore nel recupero del portafoglio:', error);
