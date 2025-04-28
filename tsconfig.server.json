@@ -5,7 +5,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "noEmit": false,
-    "module": "ESNext",
+    "module": "NodeNext",
     "target": "ESNext",
     "moduleResolution": "NodeNext",
     "allowImportingTsExtensions": false,
