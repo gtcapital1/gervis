@@ -116,28 +116,33 @@ const InvestmentGoals = ({ mifid }: { mifid: MifidType | null }) => {
   const investmentLabels = {
     'retirement': { 
       label: t('investment_goals.retirement_interest'),
-      icon: <PiggyBank className="h-4 w-4 text-amber-500" />,
-      color: "bg-amber-50 border-amber-200"
+      icon: <PiggyBank className="h-5 w-5 text-amber-500" />,
+      bgColor: "bg-amber-50",
+      iconBg: "bg-amber-100"
     },
     'wealth_growth': { 
       label: t('investment_goals.wealth_growth_interest'),
-      icon: <LineChart className="h-4 w-4 text-emerald-500" />,
-      color: "bg-emerald-50 border-emerald-200"
+      icon: <LineChart className="h-5 w-5 text-emerald-500" />,
+      bgColor: "bg-emerald-50",
+      iconBg: "bg-emerald-100"
     },
     'income_generation': { 
       label: t('investment_goals.income_generation_interest'),
-      icon: <Banknote className="h-4 w-4 text-blue-500" />,
-      color: "bg-blue-50 border-blue-200"
+      icon: <Banknote className="h-5 w-5 text-blue-500" />,
+      bgColor: "bg-blue-50",
+      iconBg: "bg-blue-100"
     },
     'capital_preservation': { 
       label: t('investment_goals.capital_preservation_interest'),
-      icon: <Landmark className="h-4 w-4 text-indigo-500" />,
-      color: "bg-indigo-50 border-indigo-200"
+      icon: <Landmark className="h-5 w-5 text-indigo-500" />,
+      bgColor: "bg-indigo-50",
+      iconBg: "bg-indigo-100"
     },
     'estate_planning': { 
       label: t('investment_goals.estate_planning_interest'),
-      icon: <FileText className="h-4 w-4 text-purple-500" />,
-      color: "bg-purple-50 border-purple-200"
+      icon: <FileText className="h-5 w-5 text-purple-500" />,
+      bgColor: "bg-purple-50",
+      iconBg: "bg-purple-100"
     }
   };
 
@@ -156,12 +161,12 @@ const InvestmentGoals = ({ mifid }: { mifid: MifidType | null }) => {
           return (
             <div 
               key={objective} 
-              className={`rounded-lg p-3 border ${goalInfo.color} shadow-sm transition-all hover:shadow-md`}
+              className={`rounded-xl p-4 ${goalInfo.bgColor} shadow-sm transition-all hover:shadow-md hover:translate-y-[-2px] duration-300`}
             >
               <div className="flex items-center space-x-3">
-                <div className="flex-shrink-0">
+                <div className={`flex-shrink-0 rounded-full p-2 ${goalInfo.iconBg} flex items-center justify-center`}>
                   {goalInfo.icon}
-                </div>
+            </div>
                 <div>
                   <h4 className="font-medium text-gray-800">
                     {goalInfo.label}
@@ -330,38 +335,35 @@ export function ClientInfoTab({ client, mifid, assets }: ClientInfoTabProps) {
                 {/* Client Segment - Centered below */}
                 <div className="flex flex-col items-center pt-4 border-t mt-4">
                   <span className="text-sm text-gray-500 mb-2">{t('client.segment')}:</span>
-                  <div className="flex justify-center gap-3">
-                    {[
-                      {key: 'mass_market', label: 'Mass', range: '<100K'},
-                      {key: 'affluent', label: 'Affluent', range: '100K-500K'},
-                      {key: 'hnw', label: 'HNW', range: '500K-2M'},
-                      {key: 'vhnw', label: 'VHNW', range: '2M-10M'},
-                      {key: 'uhnw', label: 'UHNW', range: '>10M'}
-                    ].map((segment) => {
-                      const isClientSegment = client.clientSegment === segment.key;
-                      
-                      return (
-                        <div key={segment.key} className="flex flex-col items-center mx-2">
-                          <Badge 
-                            className="px-2 py-0.5 text-sm"
-                            style={{
-                              backgroundColor: isClientSegment ? 
-                                segment.key === "mass_market" ? "#93c5fd" : // Light blue
-                                segment.key === "affluent" ? "#60a5fa" : // Medium light blue
-                                segment.key === "hnw" ? "#3b82f6" : // Medium blue
-                                segment.key === "vhnw" ? "#2563eb" : // Medium dark blue
-                                segment.key === "uhnw" ? "#1e40af" : // Dark blue
-                                "#6b7280" : // Gray default
-                                "#e5e7eb", // Light gray for non-selected segments
-                              color: isClientSegment ? "#ffffff" : "#6b7280"
-                            }}
-                          >
-                            {segment.label}
-                          </Badge>
-                          <span className="text-xs text-gray-500 mt-1">€{segment.range}</span>
+                  <div className="space-y-1 w-full">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">
+                        {client.clientSegment ? 
+                          (client.clientSegment === "mass_market" ? "Mass Market" :
+                          client.clientSegment === "affluent" ? "Affluent" :
+                          client.clientSegment === "hnw" ? "High Net Worth" :
+                          client.clientSegment) : 
+                          t('client.not_specified')}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                      {[
+                        {key: 'mass_market', label: 'Mass'},
+                        {key: 'affluent', label: 'Affluent'},
+                        {key: 'hnw', label: 'HNW'}
+                      ].map((segment) => (
+                        <div 
+                          key={segment.key}
+                          className={`h-2.5 rounded-full ${segment.key === client.clientSegment ? 'bg-blue-800' : 'bg-gray-200'}`}
+                          title={segment.label}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex justify-between mt-1">
+                      <span className="text-xs text-gray-500 text-center flex-1">{'<100K'}</span>
+                      <span className="text-xs text-gray-500 text-center flex-1">{'100K-500K'}</span>
+                      <span className="text-xs text-gray-500 text-center flex-1">{'>500K'}</span>
                         </div>
-                      );
-                    })}
                   </div>
                 </div>
               </div>

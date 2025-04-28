@@ -547,7 +547,8 @@ export default function OnboardingForm() {
                             <SelectItem value="0-10,000€">0-10,000€</SelectItem>
                             <SelectItem value="10,000-30,000€">10,000-30,000€</SelectItem>
                             <SelectItem value="30,000-100,000€">30,000-100,000€</SelectItem>
-                            <SelectItem value="over-100000€">{'>'}100,000€</SelectItem>
+                            <SelectItem value="100,000-500,000€">100,000-500,000€</SelectItem>
+                            <SelectItem value="over-500,000€">{'>'}500,000€</SelectItem>
                           </SelectContent>
                         </Select>
                     <FormDescription>

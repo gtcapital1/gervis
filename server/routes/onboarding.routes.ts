@@ -90,8 +90,9 @@ async function saveOnboardingData(clientId: number, data: any) {
 
     // Determine client segment based on net worth
     let clientSegment = 'mass_market';
-    if (data.netWorth === "over-100000") clientSegment = 'hnw';
-    else if (data.netWorth === "30000-100000") clientSegment = 'affluent';
+    if (data.netWorth === "over-500,000€") clientSegment = 'hnw';
+    else if (data.netWorth === "100,000-500,000€") clientSegment = 'affluent';
+    // Il default rimane mass_market per i patrimoni più bassi
 
     // Update client with net worth as string and segment
     await db
