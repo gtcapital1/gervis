@@ -2,7 +2,7 @@
  * This script will add the signature column to the users table.
  */
 import { db } from '../db.js';
-import { sql } from 'drizzle-orm.js';
+import { sql } from 'drizzle-orm';
 
 async function addSignatureField() {
   try {

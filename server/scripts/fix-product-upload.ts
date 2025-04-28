@@ -1,7 +1,7 @@
-import fs from 'fs.js';
-import path from 'path.js';
-import { fileURLToPath } from 'url.js';
-import { dirname } from 'path.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 // ES modules compatible __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);

@@ -9,7 +9,7 @@ export const APPROVAL_STATUSES = ["pending", "approved", "rejected"] as const;
 export type ApprovalStatus = typeof APPROVAL_STATUSES[number];
 
 // Definizione dei segmenti di clienti
-export const CLIENT_SEGMENTS = ["mass_market", "affluent", "hnw"] as const;
+export const CLIENT_SEGMENTS = ["mass_market", "affluent", "hnw", "vhnw", "uhnw"] as const;
 export type ClientSegment = typeof CLIENT_SEGMENTS[number];
 
 export const users = pgTable("users", {

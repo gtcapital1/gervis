@@ -1,4 +1,4 @@
-import { sql } from 'drizzle-orm.js';
+import { sql } from 'drizzle-orm';
 import { db } from '../db.js';
 
 export async function addEmailSettingsColumns() {

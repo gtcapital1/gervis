@@ -1,4 +1,4 @@
-import { Express, Request, Response } from 'express.js';
+import { Express, Request, Response } from 'express';
 import { 
   getFinancialNews, 
 } from '../market-api.js';

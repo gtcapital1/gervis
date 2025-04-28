@@ -1,6 +1,6 @@
-import { Request, Response } from "express.js";
-import axios from "axios.js";
-import OpenAI from "openai.js";
+import { Request, Response } from "express";
+import axios from "axios";
+import OpenAI from "openai";
 import { storage } from "./storage.js";
 import { Client } from "../shared/schema.js";
 

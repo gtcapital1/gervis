@@ -1,11 +1,11 @@
-import fs from 'fs.js';
-import path from 'path.js';
-import { fileURLToPath } from 'url.js';
-import { dirname } from 'path.js';
-import dotenv from 'dotenv.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import dotenv from 'dotenv';
 import { db } from '../db.js';
 import { productsPublicDatabase } from '../../shared/schema.js';
-import { eq } from 'drizzle-orm.js';
+import { eq } from 'drizzle-orm';
 import { parseKidDocument } from '../routes/portfolio.routes.js';
 
 // ES modules compatible __dirname equivalent

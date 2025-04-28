@@ -2,7 +2,7 @@
  * This migration adds email verification fields to the users table.
  */
 import { db } from "../db.js";
-import { sql } from "drizzle-orm.js";
+import { sql } from "drizzle-orm";
 
 async function addEmailVerificationFields() {
   try {

@@ -4,7 +4,7 @@
  * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
-import { sql } from "drizzle-orm.js";
+import { sql } from "drizzle-orm";
 import { db } from "../db.js";
 
 /**

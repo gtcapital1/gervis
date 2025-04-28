@@ -5,7 +5,7 @@
  */
 
 import { db } from "../db.js";
-import { sql } from "drizzle-orm/sql.js";
+import { sql } from "drizzle-orm";
 
 export async function autorunCreateClientLogs(silent = false) {
   if (!silent) {

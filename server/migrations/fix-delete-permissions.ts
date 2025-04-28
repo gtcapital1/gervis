@@ -3,7 +3,7 @@
  * per garantire che l'utente corrente possa eseguire DELETE sulle tabelle.
  */
 import { db } from "../db.js";
-import { sql } from "drizzle-orm.js";
+import { sql } from "drizzle-orm";
 
 async function fixDeletePermissions() {
   try {

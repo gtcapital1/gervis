@@ -1,5 +1,5 @@
-import type { Express, Request, Response } from "express.js";
-import { z } from "zod.js";
+import type { Express, Request, Response } from "express";
+import { z } from "zod";
 import { comparePasswords, hashPassword } from "../auth.js";
 import { storage } from "../storage.js";
 import { safeLog, isAuthenticated, rateLimit, handleErrorResponse } from "../routes.js";

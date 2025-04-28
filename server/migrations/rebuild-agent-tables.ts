@@ -3,7 +3,7 @@
  */
 
 import { db } from '../db.js';
-import { sql } from 'drizzle-orm.js';
+import { sql } from 'drizzle-orm';
 import { autorunCreateAgentTables } from './autorun-create-agent-tables.js';
 
 async function rebuildAgentTables() {

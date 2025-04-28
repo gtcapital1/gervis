@@ -5,8 +5,8 @@
  * Senza questi vincoli, l'eliminazione di un cliente fallisce a causa di vincoli di integrità referenziale.
  */
 
-import postgres from 'postgres.js';
-import dotenv from 'dotenv.js';
+import postgres from 'postgres';
+import dotenv from 'dotenv';
 
 // Carica le variabili d'ambiente
 dotenv.config();

@@ -1,5 +1,5 @@
-import type { Express, Request, Response } from "express.js";
-import { z } from "zod.js";
+import type { Express, Request, Response } from "express";
+import { z } from "zod";
 import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "../auth.js";
 import { sendVerificationPin } from "../email.js";
 import { storage } from "../storage.js";

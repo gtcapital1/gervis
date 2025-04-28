@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express.js";
+import type { Express, Request, Response } from "express";
 import { storage } from "../storage.js";
 import { safeLog, isAuthenticated } from "../routes.js";
 

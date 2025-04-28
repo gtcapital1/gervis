@@ -3,9 +3,9 @@
  */
 
 import { db } from "../db.js";
-import { SQL } from "drizzle-orm.js";
-import { sql } from "drizzle-orm/sql.js";
-import * as url from 'url.js';
+import { SQL } from "drizzle-orm";
+import { sql } from "drizzle-orm";
+import * as url from 'url';
 
 export async function createClientLogsTable() {
   

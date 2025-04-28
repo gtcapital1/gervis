@@ -4,8 +4,8 @@
  * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
-import { drizzle } from "drizzle-orm/postgres-js.js";
-import postgres from "postgres.js";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 // Nota: non importiamo dotenv perché è già caricato nel file index.ts principale
 

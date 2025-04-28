@@ -1,11 +1,11 @@
-import type { Express, Request, Response } from "express.js";
-import { z } from "zod.js";
+import type { Express, Request, Response } from "express";
+import { z } from "zod";
 import { storage } from "../storage.js";
 import { safeLog, handleErrorResponse, isAuthenticated, rateLimit, typedCatch, validateFile } from "../routes.js";
 import { insertClientSchema } from "@shared/schema";
 import { sendCustomEmail, sendOnboardingEmail } from "../email.js";
-import fs from 'fs.js';
-import path from 'path.js';
+import fs from 'fs';
+import path from 'path';
 
 export function registerClientRoutes(app: Express) {
   // Get all clients for the current advisor

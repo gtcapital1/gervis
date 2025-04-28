@@ -1,4 +1,4 @@
-import { Router } from 'express.js';
+import { Router } from 'express';
 // Rimuovo l'importazione problematica
 // import { isAuthenticated } from '../auth.js';
 import { db } from '../db.js';

@@ -1,8 +1,8 @@
-import type { Express, Request, Response } from "express.js";
+import type { Express, Request, Response } from "express";
 import { safeLog, handleErrorResponse, isAuthenticated, validateFile, typedCatch } from "../routes.js";
 import { db } from "../db.js";
-import fs from 'fs.js';
-import path from 'path.js';
+import fs from 'fs';
+import path from 'path';
 
 export function registerDocumentRoutes(app: Express) {
   // Endpoint sicuro per servire i file dalla directory privata

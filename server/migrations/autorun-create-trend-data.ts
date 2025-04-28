@@ -1,6 +1,6 @@
 import { db } from '../db.js';
-import { sql } from 'drizzle-orm.js';
-import { fileURLToPath } from 'url.js';
+import { sql } from 'drizzle-orm';
+import { fileURLToPath } from 'url';
 
 /**
  * Esegue la migrazione per creare la tabella trend_data

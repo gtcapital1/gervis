@@ -4,9 +4,9 @@
  */
 
 import { db } from "../db.js";
-import { sql } from "drizzle-orm.js";
+import { sql } from "drizzle-orm";
 import { clients } from "@shared/schema";
-import { eq } from "drizzle-orm/expressions.js";
+import { eq } from "drizzle-orm/expressions";
 
 export async function autorunAddActivatedAt(silent = false) {
   if (!silent) 

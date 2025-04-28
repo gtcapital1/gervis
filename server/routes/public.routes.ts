@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express.js";
+import type { Express, Request, Response } from "express";
 import { contactFormSchema, safeLog, handleErrorResponse } from "../routes.js";
 import { sendCustomEmail } from "../email.js";
 

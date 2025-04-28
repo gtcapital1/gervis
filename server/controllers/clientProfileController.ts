@@ -1,4 +1,4 @@
-import { Request, Response } from 'express.js';
+import { Request, Response } from 'express';
 import { getCompleteClientProfile, findClientByName } from '../services/clientProfileService.js';
 
 // Cache semplice per i profili cliente (in produzione usare Redis o altra soluzione)

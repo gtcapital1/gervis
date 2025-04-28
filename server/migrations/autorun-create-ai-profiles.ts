@@ -5,7 +5,7 @@
  */
 
 import { db } from "../db.js";
-import { sql } from "drizzle-orm.js";
+import { sql } from "drizzle-orm";
 
 export async function autorunCreateAiProfiles(silent = false): Promise<void> {
   try {

@@ -1,6 +1,6 @@
 import { db } from '../db.js';
 import { clients, aiProfiles, assets, mifid, recommendations, clientLogs } from '../../shared/schema.js';
-import { eq, desc, and, or, like, ilike, sql } from 'drizzle-orm.js';
+import { eq, desc, and, or, like, ilike, sql } from 'drizzle-orm';
 
 /**
  * Servizio per fornire un profilo cliente completo e unificato

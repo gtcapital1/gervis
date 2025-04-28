@@ -1,4 +1,4 @@
-import fs from 'fs.js';
+import fs from 'fs';
 import { Buffer } from 'buffer.js';
 
 // Define the PDFData interface locally

@@ -2,7 +2,7 @@ import { db } from '../db.js';
 import { meetings } from '@shared/schema';
 import { drizzle } from 'drizzle-orm/node-postgres.js';
 import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core.js';
-import { sql } from 'drizzle-orm.js';
+import { sql } from 'drizzle-orm';
 
 /**
  * Funzione per creare la tabella meetings nel database

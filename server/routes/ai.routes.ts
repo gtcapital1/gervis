@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express.js";
+import type { Express, Request, Response } from "express";
 import { safeLog, handleErrorResponse, isAuthenticated } from "../routes.js";
 import { getClientProfile, updateClientProfile, getAllClientProfiles } from "../ai/profile-controller.js";
 import { getAdvisorSuggestions } from "../ai/advisor-suggestions-controller.js";

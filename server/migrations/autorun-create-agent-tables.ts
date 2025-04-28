@@ -3,7 +3,7 @@
  */
 
 import { db } from '../db.js';
-import { sql } from 'drizzle-orm.js';
+import { sql } from 'drizzle-orm';
 import { conversations, messages } from '@shared/schema';
 
 export async function autorunCreateAgentTables(silent: boolean = false) {

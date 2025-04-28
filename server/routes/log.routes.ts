@@ -1,8 +1,8 @@
-import type { Express, Request, Response } from "express.js";
+import type { Express, Request, Response } from "express";
 import { safeLog, handleErrorResponse, isAuthenticated, typedCatch } from "../routes.js";
 import { storage } from "../storage.js";
 import { clientLogs } from "@shared/schema";
-import { eq } from "drizzle-orm.js";
+import { eq } from "drizzle-orm";
 import { db } from "../db.js";
 
 export function registerLogRoutes(app: Express) {

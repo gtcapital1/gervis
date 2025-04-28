@@ -1,4 +1,4 @@
-import type { Express } from "express.js";
+import type { Express } from "express";
 import agentRouter from "../agent/routes.js";
 import { isAuthenticated } from "../routes.js";
 
