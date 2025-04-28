@@ -1,5 +1,5 @@
 import fs from 'fs';
-import { Buffer } from 'buffer.js';
+import { Buffer } from 'buffer';
 
 // Define the PDFData interface locally
 interface PDFData {
@@ -33,7 +33,7 @@ async function parsePDF(pdfBuffer: Buffer): Promise<{
   // and handle any initialization errors
   try {
     // We need to import with require since it's a CommonJS module
-    const pdfParseModule = await import('pdf-parse.js');
+    const pdfParseModule = await import('pdf-parse');
     const pdfParse = pdfParseModule.default;
     
     // Parse the PDF buffer
@@ -63,7 +63,7 @@ async function parseWithAlternativeMethod(pdfBuffer: Buffer): Promise<{
     // If pdf-parse fails, we'll try to get at least basic metadata
     // using pdf-lib which we already have
     
-    const { PDFDocument } = await import('pdf-lib.js');
+    const { PDFDocument } = await import('pdf-lib');
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     
     // Get basic metadata
