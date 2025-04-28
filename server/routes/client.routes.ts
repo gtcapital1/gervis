@@ -693,9 +693,7 @@ export function registerClientRoutes(app: Express) {
         
         // Determina la fascia del cliente in base al patrimonio netto
         let clientSegment = 'mass_market';
-        if (netWorth >= 1000000) clientSegment = 'uhnw';
-        else if (netWorth >= 500000) clientSegment = 'vhnw';
-        else if (netWorth >= 250000) clientSegment = 'hnw';
+        if (netWorth >= 500000) clientSegment = 'hnw';
         else if (netWorth >= 100000) clientSegment = 'affluent';
         
         // Aggiorna il cliente con il nuovo patrimonio netto e la fascia
