@@ -9,6 +9,9 @@ import { User as SelectUser } from "@shared/schema";
 import { sendVerificationPin } from "./email";
 import nodemailer from "nodemailer";
 import { isEmailWhitelisted } from "./whitelist";
+import { db } from "@shared/db";
+import { productsPublicDatabase, portfolioProducts, userProducts } from "@shared/schema";
+import { and, eq } from "drizzle-orm";
 
 declare global {
   namespace Express {
@@ -412,148 +415,76 @@ export function setupAuth(app: Express) {
             description: "ISIN: IE00B4ND3602"
           });
           
-          await storage.createAsset({
-            clientId: mockClient1.id,
-            category: "equity",
-            value: 100000,
-            description: "ISIN: IE00B4L5Y983"
-          });
-          
-          // Cliente 2 (Mario Rossi) non ha asset
-          
-          // Crea un log per ciascun cliente
-          const now = new Date();
-          
-          // Log per Francesca Bianchi (client_id 20)
-          await storage.createClientLog({
-            clientId: mockClient1.id,
-            type: "call",
-            title: "Azioni USA",
-            content: "Ciente si è dimostrata interessata a idea di riallocazione verso azionario USA post crollo dovuto ai dazi.",
-            logDate: now,
-            createdBy: user.id
-          });
-          
-          await storage.createClientLog({
-            clientId: mockClient1.id,
-            type: "call",
-            title: "Oro per hedge",
-            content: "Cliente ha valutato con attenzione acquisto di oro come hedge",
-            logDate: now,
-            createdBy: user.id
-          });
-          
-          // Aggiungi dati MIFID per il primo cliente
-          console.log("[Register] Tentativo di aggiungere dati MIFID per cliente 1:", mockClient1.id);
+          // Aggiungi prodotti predefiniti dalla banca dati pubblica
           try {
-            // Verifica prima se esiste già un record MIFID per questo cliente
-            const existingMifid1 = await storage.getMifidByClient(mockClient1.id);
-            console.log("[Register] MIFID esistente per cliente 1:", existingMifid1 ? "Sì" : "No");
-
-            const mifidData1 = {
-              clientId: mockClient1.id, // Aggiungiamo esplicitamente clientId
-            address: "Via Roma, 123",
-            phone: "123456789",
-            birthDate: "1990-01-01",
-            employmentStatus: "employed",
-            educationLevel: "master",
-              annualIncome: "over-120,000€",
-              monthlyExpenses: "2,500-5,000€",
-              debts: "0-5,000€",
-              netWorth: "over-100,000€",
-            investmentHorizon: "medium_term",
-            investmentExperience: "expert",
-            pastInvestmentExperience: ["stocks", "bonds", "etf", "funds"],
-            financialEducation: ["university"],
-            riskProfile: "balanced",
-            portfolioDropReaction: "hold",
-              investmentObjective: "wealth_growth, capital_preservation",
-              etfObjectiveQuestion: "correct" // Questo campo è richiesto nella definizione del tipo
-            };
-            console.log("[Register] Dati MIFID da inserire per cliente 1:", JSON.stringify(mifidData1, null, 2));
+            console.log("[Register] Aggiunta di prodotti predefiniti dalla banca dati pubblica per il nuovo utente");
             
-            // Log della struttura della tabella MIFID
-            console.log("[Register] Struttura tabella MIFID richiesta:", {
-              id: "generato automaticamente",
-              clientId: "number, richiesto",
-              address: "text, richiesto",
-              phone: "text, richiesto",
-              birthDate: "text, richiesto",
-              employmentStatus: "text, richiesto",
-              educationLevel: "text, richiesto",
-              annualIncome: "text, richiesto",
-              monthlyExpenses: "text, richiesto",
-              debts: "text, richiesto",
-              netWorth: "text, richiesto",
-              investmentObjective: "text, richiesto",
-              investmentHorizon: "text, richiesto",
-              investmentExperience: "text, richiesto",
-              pastInvestmentExperience: "jsonb, richiesto",
-              financialEducation: "jsonb, richiesto",
-              etfObjectiveQuestion: "text, richiesto",
-              riskProfile: "text, richiesto",
-              portfolioDropReaction: "text, richiesto"
-            });
+            // Seleziona tutti i prodotti dalla banca dati pubblica
+            const publicProducts = await db.select()
+              .from(productsPublicDatabase);
             
-            const result1 = await storage.updateMifid(mockClient1.id, mifidData1);
-            console.log("[Register] Risultato inserimento MIFID cliente 1:", result1);
-            
-            // Verifica che il record sia stato creato
-            const verifyMifid1 = await storage.getMifidByClient(mockClient1.id);
-            console.log("[Register] Verifica creazione MIFID cliente 1:", verifyMifid1 ? "Creato con successo" : "Fallito");
-          } catch (error: unknown) {
-            const mifidError1 = error as Error;
-            console.error("[Register] Errore nell'aggiunta dati MIFID per cliente 1:", mifidError1);
-            console.error("[Register] Messaggio errore:", mifidError1.message);
-            console.error("[Register] Stack:", mifidError1.stack);
+            if (publicProducts.length > 0) {
+              console.log(`[Register] Trovati ${publicProducts.length} prodotti da aggiungere all'utente ${user.id}`);
+              
+              for (const publicProduct of publicProducts) {
+                // Verifica se il prodotto è già nel database principale
+                const existingProducts = await db.select()
+                  .from(portfolioProducts)
+                  .where(eq(portfolioProducts.isin, publicProduct.isin));
+                
+                let portfolioProduct;
+                
+                if (existingProducts.length > 0) {
+                  // Usa il prodotto esistente
+                  portfolioProduct = existingProducts[0];
+                } else {
+                  // Crea una copia nel database principale
+                  const [newProduct] = await db.insert(portfolioProducts)
+                    .values({
+                      isin: publicProduct.isin,
+                      name: publicProduct.name,
+                      category: publicProduct.category,
+                      description: publicProduct.description,
+                      benchmark: publicProduct.benchmark,
+                      dividend_policy: publicProduct.dividend_policy,
+                      currency: publicProduct.currency,
+                      sri_risk: publicProduct.sri_risk,
+                      entry_cost: publicProduct.entry_cost,
+                      exit_cost: publicProduct.exit_cost,
+                      ongoing_cost: publicProduct.ongoing_cost,
+                      transaction_cost: publicProduct.transaction_cost,
+                      performance_fee: publicProduct.performance_fee,
+                      recommended_holding_period: publicProduct.recommended_holding_period,
+                      target_market: publicProduct.target_market,
+                      kid_file_path: publicProduct.kid_file_path,
+                      kid_processed: !!publicProduct.kid_processed,
+                      createdBy: user.id
+                    })
+                    .returning();
+                  
+                  portfolioProduct = newProduct;
+                }
+                
+                // Aggiungi il prodotto all'utente
+                await db.insert(userProducts)
+                  .values({
+                    userId: user.id,
+                    productId: portfolioProduct.id
+                  });
+                
+                console.log(`[Register] Aggiunto prodotto ${portfolioProduct.isin} (${portfolioProduct.name}) all'utente ${user.id}`);
+              }
+            } else {
+              console.log("[Register] Nessun prodotto trovato nella banca dati pubblica");
+            }
+          } catch (productError) {
+            console.error("[Register Error] Errore durante l'aggiunta di prodotti predefiniti:", productError);
+            // Non bloccare la registrazione se l'aggiunta di prodotti fallisce
           }
           
-          // Aggiungi dati MIFID per il secondo cliente
-          console.log("[Register] Tentativo di aggiungere dati MIFID per cliente 2:", mockClient2.id);
-          try {
-            // Verifica prima se esiste già un record MIFID per questo cliente
-            const existingMifid2 = await storage.getMifidByClient(mockClient2.id);
-            console.log("[Register] MIFID esistente per cliente 2:", existingMifid2 ? "Sì" : "No");
-            
-            const mifidData2 = {
-              clientId: mockClient2.id, // Aggiungiamo esplicitamente clientId
-            address: "Via Milano, 123",
-            phone: "987654321",
-            birthDate: "1965-01-01",
-              employmentStatus: "business_owner",
-            educationLevel: "high_school",
-              annualIncome: "30,000-50,000€",
-              monthlyExpenses: "1,000-2,500€",
-              debts: "0-5,000€",
-              netWorth: "over-100,000€",
-            investmentHorizon: "long_term",
-              investmentExperience: "intermediate",
-              pastInvestmentExperience: ["derivatives"],
-              financialEducation: ["university"],
-              riskProfile: "aggressive",
-              portfolioDropReaction: "hold",
-              investmentObjective: "wealth_growth, capital_preservation",
-              etfObjectiveQuestion: "wrong" // Questo campo è richiesto nella definizione del tipo
-            };
-            console.log("[Register] Dati MIFID da inserire per cliente 2:", JSON.stringify(mifidData2, null, 2));
-            const result2 = await storage.updateMifid(mockClient2.id, mifidData2);
-            console.log("[Register] Risultato inserimento MIFID cliente 2:", result2);
-            
-            // Verifica che il record sia stato creato
-            const verifyMifid2 = await storage.getMifidByClient(mockClient2.id);
-            console.log("[Register] Verifica creazione MIFID cliente 2:", verifyMifid2 ? "Creato con successo" : "Fallito");
-          } catch (error: unknown) {
-            const mifidError2 = error as Error;
-            console.error("[Register] Errore nell'aggiunta dati MIFID per cliente 2:", mifidError2);
-            console.error("[Register] Messaggio errore:", mifidError2.message);
-            console.error("[Register] Stack:", mifidError2.stack);
-          }
-          
-          // Rimossi i profili AI per entrambi i clienti
-          
-        } catch (mockClientError) {
-          // Non bloccare la registrazione se c'è un errore nella creazione dei clienti mock
-          console.error("[Register Error] Errore durante la creazione dei clienti mock:", mockClientError);
+        } catch (clientError) {
+          console.error("[Register Error] Errore durante la creazione dei clienti mock:", clientError);
+          // Non bloccare la registrazione se la creazione dei clienti fallisce
         }
         
         // Send verification PIN email

@@ -1105,8 +1105,10 @@ export function registerPortfolioRoutes(app: Express) {
         return res.status(401).json({ success: false, message: 'Unauthorized' });
       }
 
-      // Get all portfolios
-      const portfolios = await db.select().from(modelPortfolios);
+      // Get portfolios created by the current user
+      const portfolios = await db.select()
+        .from(modelPortfolios)
+        .where(eq(modelPortfolios.createdBy, req.user.id));
       
       // Get allocations for each portfolio
       const portfoliosWithAllocations = await Promise.all(
@@ -1282,15 +1284,18 @@ export function registerPortfolioRoutes(app: Express) {
         return res.status(400).json({ success: false, message: 'Invalid portfolio ID' });
       }
       
-      // Get portfolio
+      // Get portfolio created by current user
       const portfolios = await db.select()
         .from(modelPortfolios)
-        .where(eq(modelPortfolios.id, portfolioId));
+        .where(and(
+          eq(modelPortfolios.id, portfolioId),
+          eq(modelPortfolios.createdBy, req.user.id)
+        ));
       
       if (portfolios.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Portfolio not found'
+          message: 'Portfolio not found or you do not have permission to access it'
         });
       }
       
@@ -1346,21 +1351,27 @@ export function registerPortfolioRoutes(app: Express) {
         return res.status(400).json({ success: false, message: 'Invalid portfolio ID' });
       }
       
-      // Check if portfolio exists
+      // Check if portfolio exists and belongs to the current user
       const existingPortfolio = await db.select()
         .from(modelPortfolios)
-        .where(eq(modelPortfolios.id, portfolioId));
+        .where(and(
+          eq(modelPortfolios.id, portfolioId),
+          eq(modelPortfolios.createdBy, req.user.id)
+        ));
       
       if (existingPortfolio.length === 0) {
         return res.status(404).json({
           success: false,
-          message: 'Portfolio not found'
+          message: 'Portfolio not found or you do not have permission to delete it'
         });
       }
       
       // Delete portfolio (allocations will be deleted due to cascade)
       await db.delete(modelPortfolios)
-        .where(eq(modelPortfolios.id, portfolioId));
+        .where(and(
+          eq(modelPortfolios.id, portfolioId),
+          eq(modelPortfolios.createdBy, req.user.id)
+        ));
       
       res.json({
         success: true,
