@@ -1,6 +1,6 @@
-import { Router, Request, Response } from 'express';
-import { isAuthenticated } from '../routes';
-import { z } from 'zod';
+import { Router, Request, Response } from 'express.js';
+import { isAuthenticated } from '../routes.js';
+import { z } from 'zod.js';
 import {
   getMeetingsByAdvisor,
   getMeetingsByClient,
@@ -11,13 +11,13 @@ import {
   deleteMeeting,
   createMeetingSchema,
   updateMeetingSchema
-} from '../controllers/meetings-controller';
-import { sendMeetingInviteEmail, sendMeetingUpdateEmail } from '../email';
-import { db } from '../db';
+} from '../controllers/meetings-controller.js';
+import { sendMeetingInviteEmail, sendMeetingUpdateEmail } from '../email.js';
+import { db } from '../db.js';
 import { clients, users, meetings } from '@shared/schema';
-import { eq } from 'drizzle-orm';
-import * as ical from 'ical-generator';
-import { ICalAttendeeRole } from 'ical-generator';
+import { eq } from 'drizzle-orm.js';
+import * as ical from 'ical-generator.js';
+import { ICalAttendeeRole } from 'ical-generator.js';
 
 const router = Router();
 

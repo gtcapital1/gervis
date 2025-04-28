@@ -1,9 +1,9 @@
-import express from 'express';
+import express from 'express.js';
 import { 
   getClientProfileById, 
   searchClientByName,
   invalidateClientCache 
-} from '../controllers/clientProfileController';
+} from '../controllers/clientProfileController.js';
 
 const router = express.Router();
 

@@ -1,6 +1,6 @@
-import type { Express } from "express";
-import agentRouter from "../agent/routes";
-import { isAuthenticated } from "../routes";
+import type { Express } from "express.js";
+import agentRouter from "../agent/routes.js";
+import { isAuthenticated } from "../routes.js";
 
 export function registerAgentRoutes(app: Express) {
   console.log('[Routes] Registrazione router agente AI');

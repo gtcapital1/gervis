@@ -4,8 +4,8 @@
  * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 
 export async function autorunCreateAiProfiles(silent = false): Promise<void> {
   try {

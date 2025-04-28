@@ -1,4 +1,4 @@
-import { sql } from '../db';
+import { sql } from '../db.js';
 
 export async function up() {
   // Controlla se le tabelle esistono già

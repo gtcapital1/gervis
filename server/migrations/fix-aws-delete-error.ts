@@ -1,31 +1,53 @@
 /**
- * Script di migrazione automatica che viene eseguito all'avvio dell'applicazione
- * per garantire che i vincoli CASCADE DELETE siano configurati correttamente.
- * Questo script viene eseguito all'avvio in modalità silenziosa.
+ * Fix per errori di eliminazione dei clienti su AWS.
+ * Questo script identifica e risolve problemi comuni che possono impedire 
+ * l'eliminazione dei clienti nell'ambiente AWS.
  */
 
-import { drizzle } from "drizzle-orm/postgres-js.js";
-import postgres from "postgres.js";
+import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
+import postgres from "postgres";
+import * as dotenv from "dotenv";
 
-// Nota: non importiamo dotenv perché è già caricato nel file index.ts principale
+dotenv.config();
 
-export async function autorunCascadeFix(silent = false) {
-  if (!silent) {
-    
-  }
+async function fixAwsDeleteError() {
+  
   
   if (!process.env.DATABASE_URL) {
-    if (!silent) {
-      
-    }
+    
     return;
   }
   
   // Connessione al database
+  
   const migrationClient = postgres(process.env.DATABASE_URL);
   
   try {
-    // Verifica se i vincoli CASCADE sono configurati correttamente
+    
+    
+    // 1. Verifica e assegna permessi DELETE nelle tabelle principali
+    const tables = ["clients", "assets", "recommendations"];
+    
+    for (const table of tables) {
+      try {
+        
+        
+        // Per neondb e altri servizi gestiti, l'utente potrebbe essere neondb_owner
+        await migrationClient.unsafe(`
+          GRANT DELETE ON ${table} TO neondb_owner;
+          GRANT DELETE ON ${table} TO CURRENT_USER;
+        `);
+        
+        
+      } catch (error) {
+        
+      }
+    }
+    
+    // 2. Verifica se i vincoli CASCADE sono configurati correttamente
+    
+    
     const assetConstraint = await migrationClient`
       SELECT confdeltype FROM pg_constraint c
       JOIN pg_namespace n ON n.oid = c.connamespace
@@ -44,19 +66,15 @@ export async function autorunCascadeFix(silent = false) {
     const assetDeleteRule = assetConstraint[0]?.confdeltype;
     const recommendationsDeleteRule = recommendationsConstraint[0]?.confdeltype;
     
-    if (!silent) {
-      
-      
-    }
+    
+    
     
     const needsAssetFix = !assetDeleteRule || assetDeleteRule !== 'c';
     const needsRecommendationFix = !recommendationsDeleteRule || recommendationsDeleteRule !== 'c';
     
     // Se necessario, ricrea i vincoli con CASCADE
     if (needsAssetFix) {
-      if (!silent) {
-        
-      }
+      
       
       try {
         // Prima elimina il vincolo esistente
@@ -73,20 +91,14 @@ export async function autorunCascadeFix(silent = false) {
           ON DELETE CASCADE;
         `);
         
-        if (!silent) {
-          
-        }
+        
       } catch (error) {
-        if (!silent) {
-          
-        }
+        
       }
     }
     
     if (needsRecommendationFix) {
-      if (!silent) {
-        
-      }
+      
       
       try {
         // Prima elimina il vincolo esistente
@@ -103,49 +115,50 @@ export async function autorunCascadeFix(silent = false) {
           ON DELETE CASCADE;
         `);
         
-        if (!silent) {
-          
-        }
+        
       } catch (error) {
-        if (!silent) {
-          
-        }
-      }
-    }
-    
-    // Verifica permessi DELETE sulle tabelle
-    try {
-      if (!silent) {
-        
-      }
-      
-      await migrationClient.unsafe(`
-        GRANT DELETE ON clients, assets, recommendations TO CURRENT_USER;
-      `);
-      
-      if (!silent) {
-        
-      }
-    } catch (error) {
-      if (!silent) {
         
       }
     }
     
-    if (!silent) {
-      
-    }
-    return true;
+    // 3. Verifica finale dei vincoli
+    const finalAssetConstraint = await migrationClient`
+      SELECT confdeltype FROM pg_constraint c
+      JOIN pg_namespace n ON n.oid = c.connamespace
+      WHERE conname = 'assets_client_id_fkey'
+      AND n.nspname = 'public'
+    `;
+    
+    const finalRecommendationsConstraint = await migrationClient`
+      SELECT confdeltype FROM pg_constraint c
+      JOIN pg_namespace n ON n.oid = c.connamespace
+      WHERE conname = 'recommendations_client_id_fkey'
+      AND n.nspname = 'public'
+    `;
+    
+    
+      Stato finale dei vincoli:
+      - assets_client_id_fkey: ${finalAssetConstraint[0]?.confdeltype === 'c' ? 'CASCADE configurato' : 'NON configurato correttamente'}
+      - recommendations_client_id_fkey: ${finalRecommendationsConstraint[0]?.confdeltype === 'c' ? 'CASCADE configurato' : 'NON configurato correttamente'}
+    `);
+    
+    
   } catch (error) {
-    if (!silent) {
-      
-    }
-    return false;
+    
   } finally {
     // Chiudi la connessione al DB
     await migrationClient.end();
-    if (!silent) {
-      
-    }
+    
   }
 }
+
+// Esecuzione della funzione principale
+fixAwsDeleteError()
+  .then(() => {
+    
+    process.exit(0);
+  })
+  .catch(error => {
+    
+    process.exit(1);
+  });

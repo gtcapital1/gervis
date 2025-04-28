@@ -1,7 +1,7 @@
-import { db } from './db';
-import * as schema from '../shared/schema';
-import * as storage from './storage';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { db } from './db.js';
+import * as schema from '../shared/schema.js';
+import * as storage from './storage.js';
+import { eq, and, gte, lte, sql } from 'drizzle-orm.js';
 
 /**
  * Servizio per gestire il salvataggio periodico dei dati di trend
@@ -1186,7 +1186,7 @@ export const trendService = new TrendService();
 
 // Esegui la generazione dei trend se il file viene eseguito direttamente
 // Verifica se il file è eseguito direttamente in ambiente ESM
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'url.js';
 
 const isMainModule = () => {
   try {

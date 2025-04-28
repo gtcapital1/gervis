@@ -1,6 +1,6 @@
-import nodemailer from 'nodemailer';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import { storage } from './storage';
+import nodemailer from 'nodemailer.js';
+import SMTPTransport from 'nodemailer/lib/smtp-transport.js';
+import { storage } from './storage.js';
 
 // Funzione per creare una firma professionale
 function createSignature(userData: {

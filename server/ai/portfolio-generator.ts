@@ -5,10 +5,10 @@
  * Utilizza OpenAI per creare portafogli ottimizzati in base al profilo del cliente e ai suoi obiettivi.
  */
 
-import OpenAI from 'openai';
-import { db } from '../db';
-import { portfolioProducts, userProducts } from '../../shared/schema';
-import { eq } from 'drizzle-orm';
+import OpenAI from 'openai.js';
+import { db } from '../db.js';
+import { portfolioProducts, userProducts } from '../../shared/schema.js';
+import { eq } from 'drizzle-orm.js';
 
 // Controlla se esiste una chiave API OpenAI
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;

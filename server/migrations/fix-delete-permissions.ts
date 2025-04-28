@@ -2,8 +2,8 @@
  * Questo script corregge i permessi di eliminazione nel database
  * per garantire che l'utente corrente possa eseguire DELETE sulle tabelle.
  */
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 
 async function fixDeletePermissions() {
   try {

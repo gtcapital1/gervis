@@ -1,5 +1,5 @@
-import { db } from '../db';
-import fs from 'fs';
+import { db } from '../db.js';
+import fs from 'fs.js';
 
 // Nome di questa migrazione
 const MIGRATION_NAME = 'remove-available-to-everyone';

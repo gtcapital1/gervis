@@ -4,8 +4,8 @@
  * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm/sql";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm/sql.js";
 
 export async function autorunCreateClientLogs(silent = false) {
   if (!silent) {

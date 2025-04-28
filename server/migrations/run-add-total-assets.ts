@@ -3,7 +3,7 @@
  * alla tabella clients e aggiorna i valori per tutti i client esistenti.
  */
 
-import { autorunAddTotalAssets } from './autorun-add-total-assets';
+import { autorunAddTotalAssets } from './autorun-add-total-assets.js';
 
 async function runAddTotalAssetsMigration() {
   

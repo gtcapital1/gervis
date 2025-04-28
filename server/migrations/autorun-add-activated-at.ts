@@ -3,10 +3,10 @@
  * alla tabella clients per tracciare quando un cliente è diventato attivo.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 import { clients } from "@shared/schema";
-import { eq } from "drizzle-orm/expressions";
+import { eq } from "drizzle-orm/expressions.js";
 
 export async function autorunAddActivatedAt(silent = false) {
   if (!silent) 

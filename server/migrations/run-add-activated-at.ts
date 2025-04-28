@@ -3,7 +3,7 @@
  * alla tabella clients per tracciare quando un cliente è diventato attivo.
  */
 
-import { autorunAddActivatedAt } from './autorun-add-activated-at';
+import { autorunAddActivatedAt } from './autorun-add-activated-at.js';
 
 async function runAddActivatedAtMigration() {
   

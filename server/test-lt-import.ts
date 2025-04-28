@@ -1,4 +1,4 @@
-import { eq, and, gt, lt } from 'drizzle-orm';
+import { eq, and, gt, lt } from 'drizzle-orm.js';
 
 // This is just to test that the lt import is working
 function testLtImport() {

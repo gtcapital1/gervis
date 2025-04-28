@@ -1,7 +1,7 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { meetings, Meeting, InsertMeeting } from '@shared/schema';
-import { eq, and, gte, lte } from 'drizzle-orm';
-import { z } from 'zod';
+import { eq, and, gte, lte } from 'drizzle-orm.js';
+import { z } from 'zod.js';
 
 // Validation schema for creating a new meeting
 export const createMeetingSchema = z.object({

@@ -1,8 +1,8 @@
-import postgres from 'postgres';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import dotenv from 'dotenv';
-import pg from 'pg';
+import postgres from 'postgres.js';
+import { readFileSync } from 'fs.js';
+import { join } from 'path.js';
+import dotenv from 'dotenv.js';
+import pg from 'pg.js';
 
 // Carica variabili d'ambiente
 dotenv.config();

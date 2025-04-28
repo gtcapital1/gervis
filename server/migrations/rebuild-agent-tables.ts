@@ -2,9 +2,9 @@
  * Script per eliminare e ricreare le tabelle dell'agente
  */
 
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
-import { autorunCreateAgentTables } from './autorun-create-agent-tables';
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm.js';
+import { autorunCreateAgentTables } from './autorun-create-agent-tables.js';
 
 async function rebuildAgentTables() {
   try {

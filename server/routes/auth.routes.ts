@@ -1,8 +1,8 @@
-import type { Express, Request, Response } from "express";
-import { z } from "zod";
-import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "../auth";
-import { sendVerificationPin } from "../email";
-import { storage } from "../storage";
+import type { Express, Request, Response } from "express.js";
+import { z } from "zod.js";
+import { setupAuth, comparePasswords, hashPassword, generateVerificationToken, getTokenExpiryTimestamp } from "../auth.js";
+import { sendVerificationPin } from "../email.js";
+import { storage } from "../storage.js";
 
 export function registerAuthRoutes(app: Express) {
   // Configurazione dell'autenticazione

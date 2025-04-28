@@ -1,13 +1,13 @@
-import express, { type Express } from "express";
-import fs from "fs";
-import path, { dirname } from "path";
-import { fileURLToPath } from "url";
-import { createServer as createViteServer, createLogger } from "vite";
+import express, { type Express } from "express.js";
+import fs from "fs.js";
+import path, { dirname } from "path.js";
+import { fileURLToPath } from "url.js";
+import { createServer as createViteServer, createLogger } from "vite.js";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-import { type Server } from "http";
-import viteConfig from "../vite.config";
-import { nanoid } from "nanoid";
+import { type Server } from "http.js";
+import viteConfig from "../vite.config.js";
+import { nanoid } from "nanoid.js";
 
 const viteLogger = createLogger();
 

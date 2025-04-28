@@ -3,8 +3,8 @@
  * di memorizzare le informazioni societarie addizionali dell'azienda.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 
 async function addCompanyInfoField() {
   

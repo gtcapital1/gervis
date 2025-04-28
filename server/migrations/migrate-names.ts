@@ -1,6 +1,6 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { clients } from '@shared/schema';
-import { eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm.js';
 
 /**
  * This script will migrate the existing client data to populate the firstName and lastName fields

@@ -4,8 +4,8 @@
  * Questo script viene eseguito all'avvio in modalità silenziosa.
  */
 
-import { sql } from "drizzle-orm";
-import { db } from "../db";
+import { sql } from "drizzle-orm.js";
+import { db } from "../db.js";
 
 /**
  * Funzione per verificare e aggiungere la colonna duration alla tabella meetings

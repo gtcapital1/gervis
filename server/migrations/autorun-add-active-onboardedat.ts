@@ -1,5 +1,5 @@
-import postgres from "postgres";
-import dotenv from 'dotenv';
+import postgres from "postgres.js";
+import dotenv from 'dotenv.js';
 
 // Load environment variables
 dotenv.config();

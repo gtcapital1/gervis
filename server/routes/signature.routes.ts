@@ -1,14 +1,14 @@
-import type { Express, Request, Response } from "express";
-import { safeLog, handleErrorResponse, isAuthenticated, typedCatch } from "../routes";
-import { db } from "../db";
-import { storage } from "../storage";
+import type { Express, Request, Response } from "express.js";
+import { safeLog, handleErrorResponse, isAuthenticated, typedCatch } from "../routes.js";
+import { db } from "../db.js";
+import { storage } from "../storage.js";
 import { signatureSessions, verifiedDocuments } from "@shared/schema";
-import { eq } from "drizzle-orm";
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
-import PDFMerger from 'pdf-merger-js';
-import { UploadedFile } from 'express-fileupload';
+import { eq } from "drizzle-orm.js";
+import crypto from 'crypto.js';
+import fs from 'fs.js';
+import path from 'path.js';
+import PDFMerger from 'pdf-merger-js.js';
+import { UploadedFile } from 'express-fileupload.js';
 
 export function registerSignatureRoutes(app: Express) {
   // Generate a signature session with secure token for mobile verification
@@ -588,7 +588,7 @@ export function registerSignatureRoutes(app: Express) {
               let PDFKit;
               try {
                 // Prova a usare il PDFDocument già importato
-                PDFKit = await import('pdfkit').then(module => module.default);
+                PDFKit = await import('pdfkit.js').then(module => module.default);
               } catch (importError) {
                 console.error('[SERVER DEBUG] Errore importazione pdfkit dinamica:', importError);
                 // Fallback: crea una copia semplice del file senza manipolazione

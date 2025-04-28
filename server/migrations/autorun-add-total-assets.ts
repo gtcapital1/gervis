@@ -3,10 +3,10 @@
  * alla tabella clients e aggiorna i valori per tutti i clienti esistenti.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 import { clients, assets } from "@shared/schema";
-import { eq } from "drizzle-orm/expressions";
+import { eq } from "drizzle-orm/expressions.js";
 
 export async function autorunAddTotalAssets(silent = false) {
   if (!silent) 

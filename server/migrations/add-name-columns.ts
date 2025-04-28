@@ -1,5 +1,5 @@
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm.js';
 
 /**
  * This script will add the firstName and lastName columns to the clients table

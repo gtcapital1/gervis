@@ -1,8 +1,8 @@
-import { drizzle } from "drizzle-orm/postgres-js";
-import postgres from "postgres";
-import * as schema from "./schema";
-import dotenv from "dotenv";
-import path from "path";
+import { drizzle } from "drizzle-orm/postgres-js.js";
+import postgres from "postgres.js";
+import * as schema from "./schema.js";
+import dotenv from "dotenv.js";
+import path from "path.js";
 
 // Carica le variabili d'ambiente dal file .env
 dotenv.config({ path: path.resolve(process.cwd(), ".env") });

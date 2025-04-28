@@ -2,8 +2,8 @@
  * Migrazione automatica per creare le tabelle per l'agente conversazionale
  */
 
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm.js';
 import { conversations, messages } from '@shared/schema';
 
 export async function autorunCreateAgentTables(silent: boolean = false) {

@@ -1,8 +1,8 @@
 /**
  * This migration adds verification PIN fields to the users table.
  */
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm.js';
 
 async function addVerificationPinFields() {
   try {

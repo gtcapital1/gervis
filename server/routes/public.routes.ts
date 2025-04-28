@@ -1,6 +1,6 @@
-import type { Express, Request, Response } from "express";
-import { contactFormSchema, safeLog, handleErrorResponse } from "../routes";
-import { sendCustomEmail } from "../email";
+import type { Express, Request, Response } from "express.js";
+import { contactFormSchema, safeLog, handleErrorResponse } from "../routes.js";
+import { sendCustomEmail } from "../email.js";
 
 export function registerPublicRoutes(app: Express) {
   // Handle landing page contact form submission

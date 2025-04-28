@@ -3,8 +3,8 @@
  * Allinea la struttura del database con il nuovo formato raccomandazioni di Sigmund
  */
 
-import { db } from '../db';
-import { sql } from 'drizzle-orm';
+import { db } from '../db.js';
+import { sql } from 'drizzle-orm.js';
 
 export async function updateAiProfilesStructure() {
   

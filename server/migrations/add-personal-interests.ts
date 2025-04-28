@@ -2,9 +2,9 @@
  * Questo script aggiunge i campi per gli interessi personali e la valutazione degli
  * obiettivi di investimento alla tabella clients.
  */
-import postgres from "postgres";
-import { log } from "../vite";
-import * as dotenv from "dotenv";
+import postgres from "postgres.js";
+import { log } from "../vite.js";
+import * as dotenv from "dotenv.js";
 
 // Carica le variabili d'ambiente
 dotenv.config();

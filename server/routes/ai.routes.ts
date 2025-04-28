@@ -1,8 +1,8 @@
-import type { Express, Request, Response } from "express";
-import { safeLog, handleErrorResponse, isAuthenticated } from "../routes";
-import { getClientProfile, updateClientProfile, getAllClientProfiles } from "../ai/profile-controller";
-import { getAdvisorSuggestions } from "../ai/advisor-suggestions-controller";
-import { generateInvestmentIdeas, getPromptForDebug } from "../investment-ideas-controller";
+import type { Express, Request, Response } from "express.js";
+import { safeLog, handleErrorResponse, isAuthenticated } from "../routes.js";
+import { getClientProfile, updateClientProfile, getAllClientProfiles } from "../ai/profile-controller.js";
+import { getAdvisorSuggestions } from "../ai/advisor-suggestions-controller.js";
+import { generateInvestmentIdeas, getPromptForDebug } from "../investment-ideas-controller.js";
 
 export function registerAiRoutes(app: Express) {
   // Rotte per il profilo cliente AI

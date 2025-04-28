@@ -1,6 +1,6 @@
-import type { Express, Request, Response } from "express";
-import { storage } from "../storage";
-import { safeLog, isAuthenticated } from "../routes";
+import type { Express, Request, Response } from "express.js";
+import { storage } from "../storage.js";
+import { safeLog, isAuthenticated } from "../routes.js";
 
 export function registerAdminRoutes(app: Express) {
   // Middleware per verificare se l'utente è admin

@@ -1,8 +1,8 @@
-import { Express, Request, Response } from 'express';
+import { Express, Request, Response } from 'express.js';
 import { 
   getFinancialNews, 
-} from '../market-api';
-import { rateLimit, isAuthenticated, safeLog, handleErrorResponse } from '../routes';
+} from '../market-api.js';
+import { rateLimit, isAuthenticated, safeLog, handleErrorResponse } from '../routes.js';
 
 /**
  * Registra le rotte relative ai dati di mercato

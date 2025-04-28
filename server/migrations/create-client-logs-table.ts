@@ -2,10 +2,10 @@
  * Questo script crea la tabella client_logs nel database per memorizzare le interazioni con i clienti.
  */
 
-import { db } from "../db";
-import { SQL } from "drizzle-orm";
-import { sql } from "drizzle-orm/sql";
-import * as url from 'url';
+import { db } from "../db.js";
+import { SQL } from "drizzle-orm.js";
+import { sql } from "drizzle-orm/sql.js";
+import * as url from 'url.js';
 
 export async function createClientLogsTable() {
   

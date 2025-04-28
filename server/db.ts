@@ -1,5 +1,5 @@
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres.js";
+import { drizzle } from "drizzle-orm/postgres-js.js";
 import * as schema from "@shared/schema";
 
 // Debug di connessione al database

@@ -2,8 +2,8 @@
  * API per notizie finanziarie utilizzando News API
  */
 
-import { Request, Response } from 'express';
-import fetch from 'node-fetch';
+import { Request, Response } from 'express.js';
+import fetch from 'node-fetch.js';
 
 // Sistema per eseguire richieste HTTP
 async function fetchWithTimeout(url: string, options: any = {}, timeout = 15000) {

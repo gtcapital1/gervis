@@ -1,8 +1,8 @@
-import { Router } from 'express';
+import { Router } from 'express.js';
 // Rimuovo l'importazione problematica
-// import { isAuthenticated } from '../auth';
-import { db } from '../db';
-import { modelPortfolios, portfolioAllocations } from '../../shared/schema';
+// import { isAuthenticated } from '../auth.js';
+import { db } from '../db.js';
+import { modelPortfolios, portfolioAllocations } from '../../shared/schema.js';
 
 const router = Router();
 

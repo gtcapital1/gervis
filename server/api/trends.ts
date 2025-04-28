@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import { trendService } from '../trends-service';
+import { Router } from 'express.js';
+import { trendService } from '../trends-service.js';
 
 // Definizione del middleware di autenticazione
 function isAuthenticated(req: any, res: any, next: Function) {

@@ -1,8 +1,8 @@
-import { Request, Response } from "express";
-import axios from "axios";
-import OpenAI from "openai";
-import { storage } from "./storage";
-import { Client } from "../shared/schema";
+import { Request, Response } from "express.js";
+import axios from "axios.js";
+import OpenAI from "openai.js";
+import { storage } from "./storage.js";
+import { Client } from "../shared/schema.js";
 
 // Inizializza OpenAI con la chiave API
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });

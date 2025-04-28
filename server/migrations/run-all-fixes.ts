@@ -4,7 +4,7 @@
  * per garantire il corretto funzionamento del database.
  */
 
-import fixCascadeConstraints from './fix-cascade-delete';
+import fixCascadeConstraints from './fix-cascade-delete.js';
 
 async function runAllFixes() {
   

@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm';
-import { db } from '../db';
+import { sql } from 'drizzle-orm.js';
+import { db } from '../db.js';
 
 export async function up() {
   // Check if columns already exist, if not add them

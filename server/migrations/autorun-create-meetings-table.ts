@@ -1,8 +1,8 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { meetings } from '@shared/schema';
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core';
-import { sql } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/node-postgres.js';
+import { pgTable, serial, text, integer, boolean, timestamp } from 'drizzle-orm/pg-core.js';
+import { sql } from 'drizzle-orm.js';
 
 /**
  * Funzione per creare la tabella meetings nel database
@@ -67,7 +67,7 @@ export async function autorunCreateMeetingsTable(silent = false): Promise<void> 
       }
       
       // Importazione dinamica di pg
-      const pg = await import('pg');
+      const pg = await import('pg.js');
       
       const pgClient = new pg.default.Pool({
         connectionString: dbUrl

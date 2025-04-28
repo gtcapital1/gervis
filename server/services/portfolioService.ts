@@ -1,6 +1,6 @@
-import { db } from '../db';
-import { eq, desc, and } from 'drizzle-orm';
-import { modelPortfolios, portfolioAllocations } from '../../shared/schema';
+import { db } from '../db.js';
+import { eq, desc, and } from 'drizzle-orm.js';
+import { modelPortfolios, portfolioAllocations } from '../../shared/schema.js';
 
 // Interfacce per i dati
 interface Instrument {

@@ -3,8 +3,8 @@
  * di memorizzare l'URL o il data URI del logo aziendale.
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+import { db } from "../db.js";
+import { sql } from "drizzle-orm.js";
 
 async function addCompanyLogoField() {
   
