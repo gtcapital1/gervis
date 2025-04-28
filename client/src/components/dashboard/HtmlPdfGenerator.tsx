@@ -42,10 +42,41 @@ export function HtmlPdfGenerator({
   // Ref per tracciare se il PDF è già stato salvato
   const pdfSavedRef = useRef(false);
   
-  // Inizializza l'email predefinita e genera l'anteprima HTML
+  // Debug function to log all financial data
+  const logFinancialData = () => {
+    console.group('Financial Data Debug Report');
+    
+    // Log client and mifid objects
+    console.log('Client object:', client);
+    console.log('Mifid object:', client?.mifid);
+    
+    // Financial fields we're interested in
+    const financialFields = ['annualIncome', 'monthlyExpenses', 'debts', 'netWorth'];
+    
+    console.group('Financial Fields');
+    financialFields.forEach(field => {
+      const directValue = client?.[field];
+      const mifidValue = client?.mifid?.[field];
+      const processedValue = getClientProperty(field, 0);
+      
+      console.log(`Field: ${field}`);
+      console.log(`  - Direct value: ${directValue} (type: ${typeof directValue})`);
+      console.log(`  - Mifid value: ${mifidValue} (type: ${typeof mifidValue})`);
+      console.log(`  - Processed value: ${processedValue} (type: ${typeof processedValue})`);
+      console.log(`  - Formatted: ${formatCurrency(processedValue)}`);
+    });
+    console.groupEnd();
+    
+    console.groupEnd();
+  };
+
+  // Generate HTML when component mounts
   useEffect(() => {
     if (client) {
-      setEmailBody(`Gentile ${client.firstName || client.name},\n\nÈ un vero piacere darle il benvenuto e iniziare questa collaborazione. Il mio obiettivo è offrirle un servizio di consulenza altamente personalizzato, progettato per aiutarla a gestire i suoi asset in modo strategico ed efficiente, con un approccio attento ai costi e in piena conformità con le normative vigenti.\n\nAttraverso analisi approfondite e strumenti avanzati, lavoreremo insieme per:\n\n1. Ottimizzare la composizione del suo portafoglio in base ai suoi obiettivi e al suo profilo di rischio.\n2. Identificare soluzioni su misura per una gestione patrimoniale più efficace e sostenibile nel tempo.\n3. Garantire una consulenza trasparente in linea con le migliori pratiche del settore.\n4. Fornire aggiornamenti e adeguamenti regolari in base ai cambiamenti del mercato e all'evoluzione delle sue esigenze.\n\nCome discusso, per completare il processo di onboarding, la invito a verificare e restituire i documenti allegati firmati. Questo passaggio è necessario per formalizzare la nostra collaborazione e procedere con le attività pianificate.\n\nRimango a disposizione per qualsiasi chiarimento o necessità. Grazie per la sua fiducia, sono fiducioso che questo sarà l'inizio di un percorso prezioso.\n\nCordiali saluti,`);
+      console.log('Client data received for PDF generation:', client);
+      logFinancialData();
+      
+      // Generate HTML
       generateHtmlPreview();
       
       // Reset del flag quando cambia il cliente
@@ -55,15 +86,31 @@ export function HtmlPdfGenerator({
 
   // Formatta numeri come valuta
   const formatCurrency = (value: number | null | undefined): string => {
-    if (value === null || value === undefined) return 'N/A';
+    // Log the raw value for debugging
+    console.log(`formatCurrency called with value: ${value}, type: ${typeof value}`);
+    
+    // Return 0 formatted if value is null, undefined, or NaN
+    if (value === null || value === undefined || isNaN(Number(value))) {
+      console.log(`formatCurrency: value is invalid, returning default 0 €`);
+      return '0 €';
+    }
     
     try {
-      return new Intl.NumberFormat('it-IT', {
+      // Format the number with proper thousands separators in Italian format
+      const formatted = new Intl.NumberFormat('it-IT', {
         style: 'currency',
-        currency: 'EUR'
-      }).format(value);
+        currency: 'EUR',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }).format(Number(value));
+      console.log(`formatCurrency: successfully formatted ${value} to ${formatted}`);
+      return formatted;
     } catch (e) {
-      return value.toString();
+      // Fallback formatting if Intl.NumberFormat fails
+      console.error(`formatCurrency: Error using Intl.NumberFormat:`, e);
+      const fallback = `${Number(value).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")} €`;
+      console.log(`formatCurrency: using fallback formatting: ${fallback}`);
+      return fallback;
     }
   };
 
@@ -81,18 +128,39 @@ export function HtmlPdfGenerator({
 
   // Funzione di utility per accedere in sicurezza alle proprietà del client
   const getClientProperty = (prop: string, fallback: any = 'N/A') => {
+    // Per i campi che sappiamo essere numerici, usiamo 0 come fallback di default
+    const isNumericField = ['annualIncome', 'monthlyExpenses', 'debts', 'netWorth'].includes(prop);
+    const defaultFallback = isNumericField ? 0 : 'N/A';
+    const actualFallback = fallback !== 'N/A' ? fallback : defaultFallback;
+    
+    let value;
+    
     // Prima controlla se la proprietà esiste direttamente sul client
-    if (client[prop as keyof typeof client] !== undefined && client[prop as keyof typeof client] !== null) {
-      return client[prop as keyof typeof client];
+    if (client && prop in client && client[prop as keyof typeof client] !== undefined && client[prop as keyof typeof client] !== null) {
+      value = client[prop as keyof typeof client];
+      console.log(`getClientProperty: Found property ${prop} directly on client:`, value);
     }
-    
     // Poi controlla se esiste un oggetto mifid e la proprietà è lì
-    if (client.mifid && typeof client.mifid === 'object' && client.mifid[prop as keyof typeof client.mifid] !== undefined) {
-      return client.mifid[prop as keyof typeof client.mifid];
+    else if (client && client.mifid && typeof client.mifid === 'object' && prop in client.mifid && client.mifid[prop as keyof typeof client.mifid] !== undefined && client.mifid[prop as keyof typeof client.mifid] !== null) {
+      value = client.mifid[prop as keyof typeof client.mifid];
+      console.log(`getClientProperty: Found property ${prop} in client.mifid:`, value);
+    } 
+    // Altrimenti usa il fallback
+    else {
+      value = actualFallback;
+      console.log(`getClientProperty: Property ${prop} not found, using fallback:`, value);
     }
     
-    // Infine, restituisci il fallback
-    return fallback;
+    // Converti i valori numerici manualmente
+    if (isNumericField && value !== 'N/A') {
+      const valueStr = String(value).replace(/[^\d.-]/g, '');
+      console.log(`getClientProperty: Converting numeric field ${prop} from "${value}" to string "${valueStr}"`);
+      const parsed = parseFloat(valueStr);
+      console.log(`getClientProperty: Parsed ${valueStr} to number ${parsed}, isNaN? ${isNaN(parsed)}`);
+      return isNaN(parsed) ? 0 : parsed;
+    }
+    
+    return value;
   };
 
   // Helpers per traduzioni
@@ -238,14 +306,16 @@ export function HtmlPdfGenerator({
   
   // Funzione per tradurre la reazione alla flessione del portafoglio
   const translatePortfolioDropReaction = (reaction: string | null | undefined): string => {
-    if (reaction === null || reaction === undefined || reaction === '') return 'Non specificato';
+    if (reaction === null || reaction === undefined || reaction === '') return 'N/A';
     
     const translations: Record<string, string> = {
-      sell_all: "Venderei tutti gli investimenti",
-      sell_some: "Venderei parte degli investimenti",
-      hold: "Manterrei gli investimenti attuali",
-      buy_more: "Acquisterei di più approfittando dei prezzi bassi",
-      panic: "Entrerei in panico e chiederei consiglio"
+      sell: 'Venderei tutto per limitare le perdite',
+      hold: 'Manterrei le posizioni nella speranza di un recupero',
+      buy: 'Acquisterei di più approfittando dei prezzi bassi',
+      sell_all: 'Venderei tutto per limitare le perdite',
+      sell_some: 'Venderei alcune posizioni per ridurre il rischio',
+      do_nothing: 'Non farei nulla e aspetterei che il mercato si riprenda',
+      buy_more: 'Acquisterei di più approfittando dei prezzi bassi'
     };
     
     return translations[reaction] || reaction;
@@ -454,7 +524,7 @@ export function HtmlPdfGenerator({
     setIsGenerating(true);
     
     try {
-      // Genera l'HTML che replica esattamente il modulo di onboarding con le 7 sezioni
+      // Genera l'HTML che replica esattamente il modulo di onboarding
       let htmlContent = `
         <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 100%; margin: 0 auto; color: #333; line-height: 1.5; box-sizing: border-box; padding: 0; font-size: 14px;">
           <!-- Header -->
@@ -471,280 +541,167 @@ export function HtmlPdfGenerator({
             <p style="font-weight: 500; color: #333; margin-bottom: 0; padding: 0;">Le informazioni raccolte saranno trattate con la massima riservatezza e utilizzate esclusivamente per offrirLe una consulenza adeguata.</p>
           </div>
           
-          <!-- Sezione 1: Dati Anagrafici e Informazioni Personali -->
+          <!-- Sezione 1: Informazioni Personali -->
           <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">1. Dati Anagrafici e Informazioni Personali</h2>
+            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">1. Informazioni Personali</h2>
             <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni di base su di te e i tuoi recapiti</p>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; box-sizing: border-box;">
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Data di nascita</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Inserisci la tua data di nascita completa</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatDate(getClientProperty('birthDate'))}</div>
-              </div>
-              
-              <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Indirizzo di residenza</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Inserisci il tuo indirizzo di residenza completo</p>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Indirizzo</p>
                 <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${getClientProperty('address', 'N/A')}</div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Stato civile</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Seleziona il tuo stato civile attuale</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateMaritalStatus(getClientProperty('maritalStatus'))}</div>
-              </div>
-              
-              <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Recapito telefonico</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Un numero di telefono dove poterti contattare</p>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Telefono</p>
                 <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${getClientProperty('phone', 'N/A')}</div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Professione</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">La tua attuale professione o stato occupazionale</p>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Data di nascita</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatDate(getClientProperty('birthDate'))}</div>
+              </div>
+              
+              <div style="box-sizing: border-box;">
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Stato civile</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateMaritalStatus(getClientProperty('maritalStatus'))}</div>
+              </div>
+              
+              <div style="box-sizing: border-box;">
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Stato occupazionale</p>
                 <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateEmploymentStatus(getClientProperty('employmentStatus'))}</div>
               </div>
               
               <div style="box-sizing: border-box;">
                 <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Livello di istruzione</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il tuo più alto livello di istruzione conseguito</p>
                 <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateEducationLevel(getClientProperty('educationLevel'))}</div>
               </div>
             </div>
           </div>
           
-          <!-- Sezione 2: Situazione Finanziaria Attuale -->
+          <!-- Sezione 2: Situazione Finanziaria -->
           <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">2. Situazione Finanziaria Attuale</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni sulla tua situazione economica e patrimoniale attuale</p>
+            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">2. Situazione Finanziaria</h2>
+            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni sulla tua situazione economica e patrimoniale</p>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; box-sizing: border-box;">
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Reddito annuo netto</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il tuo reddito netto annuale totale</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('annualIncome'))}</div>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Reddito annuale</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('annualIncome', 0))}</div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Spese mensili</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Le tue spese fisse mensili totali</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('monthlyExpenses'))}</div>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Spese mensili</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('monthlyExpenses', 0))}</div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Debiti e obblighi finanziari</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il totale dei tuoi debiti e obblighi finanziari</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('debts'))}</div>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Debiti</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('debts', 0))}</div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Persone a carico</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il numero di persone economicamente dipendenti da te</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${getClientProperty('dependents', 'N/A')}</div>
+                <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Patrimonio netto</p>
+                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${formatCurrency(getClientProperty('netWorth', 0))}</div>
               </div>
             </div>
-            
-            <div style="margin-top: 20px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; padding: 0; line-height: 1.2;">I tuoi asset principali</p>
-              
-              <!-- Tabella degli asset e patrimonio netto -->
-              <div style="margin-top: 12px; box-sizing: border-box;">
-                <div style="overflow-x: auto; margin-bottom: 12px;">
-                  <table style="width: 100%; border-collapse: collapse; margin-bottom: 0;">
-                    <thead>
-                      <tr style="background-color: #f5f8fa; border-bottom: 1px solid #e1e7eb;">
-                        <th style="padding: 10px; font-size: 13px; text-align: left; font-weight: 600; color: #334155;">Categoria</th>
-                        <th style="padding: 10px; font-size: 13px; text-align: right; font-weight: 600; color: #334155;">Valore</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      ${assets.filter(asset => asset.value > 0).map(asset => `
-                        <tr style="border-bottom: 1px solid #e1e7eb;">
-                          <td style="padding: 10px; font-size: 13px; color: #475569;">${translateAssetCategories([asset.category])}</td>
-                          <td style="padding: 10px; font-size: 13px; color: #475569; text-align: right;">${formatCurrency(asset.value)}</td>
-                        </tr>
-                      `).join('')}
-                    </tbody>
-                  </table>
                 </div>
 
-                <div style="margin-top: 16px; background-color: #f0f7ff; padding: 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid #003366;">
-                  <p style="font-weight: 700; color: #333; margin: 0; font-size: 15px; padding: 0;">Patrimonio Netto Totale</p>
-                  <p style="font-weight: 700; color: #003366; margin: 0; font-size: 16px; padding: 0;">${formatCurrency(assets.reduce((sum, asset) => sum + asset.value, 0) - (getClientProperty('debts') || 0))}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Sezione 3: Obiettivi d'Investimento -->
+          <!-- Sezione 3: Profilo di Investimento -->
           <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">3. Obiettivi d'Investimento</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni sui tuoi obiettivi finanziari e priorità</p>
+            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">3. Profilo di Investimento</h2>
+            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni sulle tue preferenze di investimento</p>
             
             <div style="margin-bottom: 16px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Orizzonte temporale</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il periodo di tempo durante il quale prevedi di mantenere i tuoi investimenti</p>
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Orizzonte temporale</p>
               <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateInvestmentHorizon(getClientProperty('investmentHorizon'))}</div>
             </div>
             
-            <div style="box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 8px; font-size: 14px; padding: 0; line-height: 1.2;">Priorità degli obiettivi d'investimento</p>
-              <div style="display: grid; grid-template-columns: 1fr; gap: 8px; box-sizing: border-box;">
-                <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">Pianificazione della pensione</span>
-                    <span style="color: #003366; font-weight: 500;">${translateInterestLevel(getClientProperty('retirementInterest')) || 'N/A'}</span>
-                  </div>
-                  <p style="color: #666; margin: 0 0 8px 0; font-size: 12px; padding: 0; line-height: 1.2;">Preparazione finanziaria per il pensionamento</p>
-                  <div style="height: 4px; background-color: #e0e0e0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${(6 - (getClientProperty('retirementInterest') || 0)) * 20}%; height: 100%; background-color: #003366;"></div>
-                  </div>
-                </div>
-                <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">Crescita del capitale</span>
-                    <span style="color: #003366; font-weight: 500;">${translateInterestLevel(getClientProperty('wealthGrowthInterest')) || 'N/A'}</span>
-                  </div>
-                  <p style="color: #666; margin: 0 0 8px 0; font-size: 12px; padding: 0; line-height: 1.2;">Aumento del valore del patrimonio nel tempo</p>
-                  <div style="height: 4px; background-color: #e0e0e0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${(6 - (getClientProperty('wealthGrowthInterest') || 0)) * 20}%; height: 100%; background-color: #003366;"></div>
-                  </div>
-                </div>
-                <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">Generazione di reddito</span>
-                    <span style="color: #003366; font-weight: 500;">${translateInterestLevel(getClientProperty('incomeGenerationInterest')) || 'N/A'}</span>
-                  </div>
-                  <p style="color: #666; margin: 0 0 8px 0; font-size: 12px; padding: 0; line-height: 1.2;">Creazione di flussi di reddito regolari</p>
-                  <div style="height: 4px; background-color: #e0e0e0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${(6 - (getClientProperty('incomeGenerationInterest') || 0)) * 20}%; height: 100%; background-color: #003366;"></div>
-                  </div>
-                </div>
-                <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">Protezione del capitale</span>
-                    <span style="color: #003366; font-weight: 500;">${translateInterestLevel(getClientProperty('capitalPreservationInterest')) || 'N/A'}</span>
-                  </div>
-                  <p style="color: #666; margin: 0 0 8px 0; font-size: 12px; padding: 0; line-height: 1.2;">Tutela del valore del capitale investito</p>
-                  <div style="height: 4px; background-color: #e0e0e0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${(6 - (getClientProperty('capitalPreservationInterest') || 0)) * 20}%; height: 100%; background-color: #003366;"></div>
-                  </div>
-                </div>
-                <div style="background-color: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 14px; box-sizing: border-box;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                    <span style="font-weight: 600;">Pianificazione ereditaria</span>
-                    <span style="color: #003366; font-weight: 500;">${translateInterestLevel(getClientProperty('estatePlanningInterest')) || 'N/A'}</span>
-                  </div>
-                  <p style="color: #666; margin: 0 0 8px 0; font-size: 12px; padding: 0; line-height: 1.2;">Gestione e trasferimento del patrimonio alle generazioni future</p>
-                  <div style="height: 4px; background-color: #e0e0e0; border-radius: 2px; overflow: hidden;">
-                    <div style="width: ${(6 - (getClientProperty('estatePlanningInterest') || 0)) * 20}%; height: 100%; background-color: #003366;"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <div style="margin-bottom: 16px; box-sizing: border-box;">
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Profilo di rischio</p>
+              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateRiskProfile(getClientProperty('riskProfile'))}</div>
           </div>
-          
-          <!-- Sezione 4: Conoscenza ed Esperienza con Strumenti Finanziari -->
-          <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">4. Conoscenza ed Esperienza con Strumenti Finanziari</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Valutazione della tua competenza ed esperienza in ambito finanziario</p>
             
             <div style="margin-bottom: 16px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Livello di conoscenza dei mercati finanziari</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Quanto ti senti preparato sul funzionamento dei mercati finanziari</p>
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Esperienza di investimento</p>
               <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateInvestmentExperience(getClientProperty('investmentExperience'))}</div>
             </div>
             
             <div style="margin-bottom: 16px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Esperienze pregresse</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Seleziona gli strumenti finanziari in cui hai già investito in passato</p>
-              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">
-                ${Array.isArray(getClientProperty('pastInvestmentExperience')) ? 
-                  getClientProperty('pastInvestmentExperience', []).map((exp: string) => 
-                  `<span style="display: inline-block; padding: 4px 0; margin-right: 12px; font-size: 14px;">${translatePastInvestmentExperience(exp)}</span>`
-                ).join(' ') : 'Nessuna esperienza'}
-              </div>
-            </div>
-            
-            <div style="box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Formazione ricevuta</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Seleziona i tipi di formazione finanziaria che hai ricevuto</p>
-              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">
-                ${Array.isArray(getClientProperty('financialEducation')) ? 
-                  getClientProperty('financialEducation', []).map((edu: string) => 
-                  `<span style="display: inline-block; padding: 4px 0; margin-right: 12px; font-size: 14px;">${translateFinancialEducation(edu)}</span>`
-                ).join(' ') : 'Nessuna formazione specifica'}
-              </div>
-            </div>
-          </div>
-          
-          <!-- Sezione 5: Tolleranza al Rischio -->
-          <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">5. Tolleranza al Rischio</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Valutazione della tua propensione al rischio negli investimenti</p>
-            
-            <div style="margin-bottom: 16px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Profilo di rischio personale</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Il tuo livello di propensione al rischio negli investimenti</p>
-              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateRiskProfile(getClientProperty('riskProfile'))}</div>
-            </div>
-            
-            <div style="margin-bottom: 16px; box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Reazione a una flessione del portafoglio</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Come reagirebbe in caso di perdite significative del portafoglio?</p>
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Reazione a un calo del portafoglio</p>
               <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translatePortfolioDropReaction(getClientProperty('portfolioDropReaction'))}</div>
             </div>
             
             <div style="box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Disponibilità a tollerare la volatilità</p>
-              <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Quanto sei disposto a sopportare oscillazioni di breve termine per raggiungere obiettivi a lungo termine?</p>
-              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateVolatilityTolerance(getClientProperty('volatilityTolerance'))}</div>
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Obiettivi di investimento</p>
+              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">
+                ${(() => {
+                  const objectives = getClientProperty('investmentObjective');
+                  console.log('Investment objectives from getClientProperty:', objectives, 'type:', typeof objectives);
+                  
+                  // Handle both string and array types
+                  if (!objectives) {
+                    return 'Nessun obiettivo specificato';
+                  }
+                  
+                  // Convert to array if string
+                  const objectivesArray = Array.isArray(objectives) 
+                    ? objectives 
+                    : typeof objectives === 'string' 
+                      ? objectives.split(', ') 
+                      : [];
+                  
+                  console.log('Processed objectives array:', objectivesArray);
+                  
+                  if (objectivesArray.length === 0) {
+                    return 'Nessun obiettivo specificato';
+                  }
+                  
+                  return objectivesArray.map(objective => 
+                    `<div style="margin-bottom: 4px;">
+                      <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #003366; border-radius: 3px; margin-right: 8px; position: relative; top: 3px;">
+                        <span style="display: block; width: 10px; height: 10px; background-color: #003366; margin: 1px; border-radius: 1px;"></span>
+                      </span>
+                      ${translateInvestmentObjective(objective)}
+                    </div>`
+                  ).join('');
+                })()}
+              </div>
             </div>
           </div>
           
-          <!-- Sezione 6: Esperienza e Comportamento d'Investimento -->
+          <!-- Sezione 4: Esperienza e Conoscenza Finanziaria -->
           <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">6. Esperienza e Comportamento d'Investimento</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Informazioni sulle tue abitudini di investimento e monitoraggio</p>
+            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">4. Esperienza e Conoscenza Finanziaria</h2>
+            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Valutazione della tua competenza ed esperienza in ambito finanziario</p>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; box-sizing: border-box;">
-              <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Anni di esperienza negli investimenti</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Da quanto tempo investi nei mercati finanziari</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateYearsOfExperience(getClientProperty('yearsOfExperience'))}</div>
+            <div style="margin-bottom: 16px; box-sizing: border-box;">
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Esperienze di investimento pregresse</p>
+              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">
+                ${Array.isArray(getClientProperty('pastInvestmentExperience')) ? 
+                  getClientProperty('pastInvestmentExperience', []).map((exp: string) => 
+                  `<div style="margin-bottom: 4px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #003366; border-radius: 3px; margin-right: 8px; position: relative; top: 3px;">
+                      <span style="display: block; width: 10px; height: 10px; background-color: #003366; margin: 1px; border-radius: 1px;"></span>
+                    </span>
+                    ${translatePastInvestmentExperience(exp)}
+                  </div>`
+                ).join('') : 'Nessuna esperienza pregressa'}
+              </div>
               </div>
               
               <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Frequenza degli investimenti</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Con quale frequenza effettui nuovi investimenti</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateInvestmentFrequency(getClientProperty('investmentFrequency'))}</div>
-              </div>
-              
-              <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Utilizzo di consulenza finanziaria</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Ti affidi a consulenti per le decisioni d'investimento o operi in autonomia?</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateAdvisorUsage(getClientProperty('advisorUsage'))}</div>
-              </div>
-              
-              <div style="box-sizing: border-box;">
-                <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Tempo dedicato al monitoraggio degli investimenti</p>
-                <p style="color: #666; margin: 0 0 4px 0; font-size: 12px; padding: 0; line-height: 1.2;">Con quale frequenza monitori i tuoi investimenti</p>
-                <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">${translateMonitoringTime(getClientProperty('monitoringTime'))}</div>
-              </div>
-            </div>
-          </div>
-          
-          <!-- Sezione 7: Domande Specifiche -->
-          <div style="background-color: white; padding: 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); box-sizing: border-box; break-inside: avoid; page-break-inside: avoid;">
-            <h2 style="color: #111; font-size: 18px; margin: 0 0 8px 0; font-weight: 600; padding: 0; line-height: 1.2;">7. Domande Specifiche</h2>
-            <p style="color: #666; margin-top: 0; margin-bottom: 16px; font-size: 14px; padding: 0;">Se hai domande specifiche o considerazioni particolari che vorresti condividere, scrivile qui</p>
-            
-            <div style="box-sizing: border-box;">
-              <p style="font-weight: 700; color: #333; margin-bottom: 4px; font-size: 14px; padding: 0; line-height: 1.2;">Domande e considerazioni</p>
-              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box; min-height: 40px;">
-                ${getClientProperty('specificQuestions') || 'Nessuna domanda o considerazione specificata'}
+              <p style="font-weight: 700; color: #333; margin: 0 0 4px 0; font-size: 14px; padding: 0; line-height: 1.2;">Formazione finanziaria</p>
+              <div style="padding: 4px 0; font-size: 14px; box-sizing: border-box;">
+                ${Array.isArray(getClientProperty('financialEducation')) ? 
+                  getClientProperty('financialEducation', []).map((edu: string) => 
+                  `<div style="margin-bottom: 4px;">
+                    <span style="display: inline-block; width: 16px; height: 16px; border: 2px solid #003366; border-radius: 3px; margin-right: 8px; position: relative; top: 3px;">
+                      <span style="display: block; width: 10px; height: 10px; background-color: #003366; margin: 1px; border-radius: 1px;"></span>
+                    </span>
+                    ${translateFinancialEducation(edu)}
+                  </div>`
+                ).join('') : 'Nessuna formazione specifica'}
               </div>
             </div>
           </div>

@@ -381,7 +381,7 @@ export function setupAuth(app: Express) {
             active: true,
             onboardedAt: new Date(),
             activatedAt: new Date(),
-            clientSegment: "vhnw"
+            clientSegment: "hnw"
           });
           
           // Cliente 2: Segmento "mass_market"
@@ -407,39 +407,19 @@ export function setupAuth(app: Express) {
           // Crea asset per il primo cliente (Francesca Bianchi)
           await storage.createAsset({
             clientId: mockClient1.id,
-            category: "real_estate",
-            value: 500000,
-            description: ""
+            category: "equity",
+            value: 50000,
+            description: "ISIN: IE00B4ND3602"
           });
           
           await storage.createAsset({
             clientId: mockClient1.id,
             category: "equity",
             value: 100000,
-            description: ""
+            description: "ISIN: IE00B4L5Y983"
           });
           
-          await storage.createAsset({
-            clientId: mockClient1.id,
-            category: "bonds",
-            value: 200000,
-            description: ""
-          });
-          
-          // Crea asset per il secondo cliente (Mario Rossi)
-          await storage.createAsset({
-            clientId: mockClient2.id,
-            category: "real_estate",
-            value: 50000,
-            description: ""
-          });
-          
-          await storage.createAsset({
-            clientId: mockClient2.id,
-            category: "bonds",
-            value: 20000,
-            description: ""
-          });
+          // Cliente 2 (Mario Rossi) non ha asset
           
           // Crea un log per ciascun cliente
           const now = new Date();
@@ -464,178 +444,112 @@ export function setupAuth(app: Express) {
           });
           
           // Aggiungi dati MIFID per il primo cliente
-          await storage.updateMifid(mockClient1.id, {
-            address: "Via Roma, 123",
-            phone: "123456789",
-            birthDate: "1990-01-01",
-            employmentStatus: "employed",
-            educationLevel: "master",
-            annualIncome: '>120,000€',
-            investmentHorizon: "medium_term",
-            retirementInterest: 4,
-            wealthGrowthInterest: 3,
-            incomeGenerationInterest: 1,
-            capitalPreservationInterest: 2,
-            estatePlanningInterest: 5,
-            investmentExperience: "expert",
-            pastInvestmentExperience: ["stocks", "bonds", "etf", "funds"],
-            financialEducation: ["university"],
-            riskProfile: "balanced",
-            portfolioDropReaction: "hold",
-            volatilityTolerance: "medium",
-            yearsOfExperience: "5_to_10",
-            investmentFrequency: "quarterly",
-            advisorUsage: "mostly_advisor",
-            monitoringTime: "quarterly",
-            etfObjectiveQuestion: "correct"
-          });
+          console.log("[Register] Tentativo di aggiungere dati MIFID per cliente 1:", mockClient1.id);
+          try {
+            // Verifica prima se esiste già un record MIFID per questo cliente
+            const existingMifid1 = await storage.getMifidByClient(mockClient1.id);
+            console.log("[Register] MIFID esistente per cliente 1:", existingMifid1 ? "Sì" : "No");
+
+            const mifidData1 = {
+              clientId: mockClient1.id, // Aggiungiamo esplicitamente clientId
+              address: "Via Roma, 123",
+              phone: "123456789",
+              birthDate: "1990-01-01",
+              employmentStatus: "employed",
+              educationLevel: "master",
+              annualIncome: "over-120,000€",
+              monthlyExpenses: "2,500-5,000€",
+              debts: "0-5,000€",
+              netWorth: "over-100,000€",
+              investmentHorizon: "medium_term",
+              investmentExperience: "expert",
+              pastInvestmentExperience: ["stocks", "bonds", "etf", "funds"],
+              financialEducation: ["university"],
+              riskProfile: "balanced",
+              portfolioDropReaction: "hold",
+              investmentObjective: "wealth_growth, capital_preservation",
+              etfObjectiveQuestion: "correct" // Questo campo è richiesto nella definizione del tipo
+            };
+            console.log("[Register] Dati MIFID da inserire per cliente 1:", JSON.stringify(mifidData1, null, 2));
+            
+            // Log della struttura della tabella MIFID
+            console.log("[Register] Struttura tabella MIFID richiesta:", {
+              id: "generato automaticamente",
+              clientId: "number, richiesto",
+              address: "text, richiesto",
+              phone: "text, richiesto",
+              birthDate: "text, richiesto",
+              employmentStatus: "text, richiesto",
+              educationLevel: "text, richiesto",
+              annualIncome: "text, richiesto",
+              monthlyExpenses: "text, richiesto",
+              debts: "text, richiesto",
+              netWorth: "text, richiesto",
+              investmentObjective: "text, richiesto",
+              investmentHorizon: "text, richiesto",
+              investmentExperience: "text, richiesto",
+              pastInvestmentExperience: "jsonb, richiesto",
+              financialEducation: "jsonb, richiesto",
+              etfObjectiveQuestion: "text, richiesto",
+              riskProfile: "text, richiesto",
+              portfolioDropReaction: "text, richiesto"
+            });
+            
+            const result1 = await storage.updateMifid(mockClient1.id, mifidData1);
+            console.log("[Register] Risultato inserimento MIFID cliente 1:", result1);
+            
+            // Verifica che il record sia stato creato
+            const verifyMifid1 = await storage.getMifidByClient(mockClient1.id);
+            console.log("[Register] Verifica creazione MIFID cliente 1:", verifyMifid1 ? "Creato con successo" : "Fallito");
+          } catch (error: unknown) {
+            const mifidError1 = error as Error;
+            console.error("[Register] Errore nell'aggiunta dati MIFID per cliente 1:", mifidError1);
+            console.error("[Register] Messaggio errore:", mifidError1.message);
+            console.error("[Register] Stack:", mifidError1.stack);
+          }
           
           // Aggiungi dati MIFID per il secondo cliente
-          await storage.updateMifid(mockClient2.id, {
-            address: "Via Milano, 123",
-            phone: "987654321",
-            birthDate: "1965-01-01",
-            employmentStatus: "employed",
-            educationLevel: "high_school",
-            annualIncome: "30000-50000€",
-            monthlyExpenses: "1000-2500€",
-            debts: "0-5000€",
-            investmentHorizon: "long_term",
-            retirementInterest: 1,
-            wealthGrowthInterest: 4,
-            incomeGenerationInterest: 3,
-            capitalPreservationInterest: 2,
-            estatePlanningInterest: 5,
-            investmentExperience: "none",
-            pastInvestmentExperience: ["bonds"],
-            financialEducation: ["none"],
-            riskProfile: "conservative",
-            portfolioDropReaction: "sell_all",
-            volatilityTolerance: "low",
-            yearsOfExperience: "more_than_10",
-            investmentFrequency: "occasional",
-            advisorUsage: "balanced",
-            monitoringTime: "rarely",
-            etfObjectiveQuestion: "dontknow"
-          });
+          console.log("[Register] Tentativo di aggiungere dati MIFID per cliente 2:", mockClient2.id);
+          try {
+            // Verifica prima se esiste già un record MIFID per questo cliente
+            const existingMifid2 = await storage.getMifidByClient(mockClient2.id);
+            console.log("[Register] MIFID esistente per cliente 2:", existingMifid2 ? "Sì" : "No");
+            
+            const mifidData2 = {
+              clientId: mockClient2.id, // Aggiungiamo esplicitamente clientId
+              address: "Via Milano, 123",
+              phone: "987654321",
+              birthDate: "1965-01-01",
+              employmentStatus: "business_owner",
+              educationLevel: "high_school",
+              annualIncome: "30,000-50,000€",
+              monthlyExpenses: "1,000-2,500€",
+              debts: "0-5,000€",
+              netWorth: "over-100,000€",
+              investmentHorizon: "long_term",
+              investmentExperience: "intermediate",
+              pastInvestmentExperience: ["derivatives"],
+              financialEducation: ["university"],
+              riskProfile: "aggressive",
+              portfolioDropReaction: "hold",
+              investmentObjective: "wealth_growth, capital_preservation",
+              etfObjectiveQuestion: "wrong" // Questo campo è richiesto nella definizione del tipo
+            };
+            console.log("[Register] Dati MIFID da inserire per cliente 2:", JSON.stringify(mifidData2, null, 2));
+            const result2 = await storage.updateMifid(mockClient2.id, mifidData2);
+            console.log("[Register] Risultato inserimento MIFID cliente 2:", result2);
+            
+            // Verifica che il record sia stato creato
+            const verifyMifid2 = await storage.getMifidByClient(mockClient2.id);
+            console.log("[Register] Verifica creazione MIFID cliente 2:", verifyMifid2 ? "Creato con successo" : "Fallito");
+          } catch (error: unknown) {
+            const mifidError2 = error as Error;
+            console.error("[Register] Errore nell'aggiunta dati MIFID per cliente 2:", mifidError2);
+            console.error("[Register] Messaggio errore:", mifidError2.message);
+            console.error("[Register] Stack:", mifidError2.stack);
+          }
           
-          // Crea profili AI per ciascun cliente
-          
-          // Profilo AI per Francesca Bianchi
-          await storage.createAiProfile({
-            clientId: mockClient1.id,
-            profileData: {
-              clientId: mockClient1.id,
-              clientName: "Francesca Bianchi",
-              lastUpdated: new Date().toISOString(),
-              profiloCliente: {
-                descrizione: "Francesca Bianchi, nata nel 1990, è una professionista con un profilo di rischio bilanciato, un reddito annuo di €150.000 e una solida formazione accademica (master). Con un'esperienza di investimento avanzata (5-10 anni) prevalentemente in azioni, obbligazioni, ETF e fondi, Francesca investe e monitora il portafoglio su base trimestrale, affidandosi principalmente al consulente per le decisioni strategiche. Il suo obiettivo principale è la generazione di reddito, seguito dalla preservazione del capitale e dalla crescita patrimoniale, mentre mostra scarso interesse per la pianificazione patrimoniale e la pensione. Ha una tolleranza media alla volatilità e tende a mantenere la posizione in caso di cali di mercato. Attualmente possiede asset immobiliari di rilievo (€500.000), obbligazioni (€200.000) e azioni (€100.000), senza liquidità disponibile né esposizione a strumenti alternativi. Recentemente ha espresso interesse per l'oro come strumento di copertura e per una riallocazione verso l'azionario USA dopo le recenti correzioni di mercato."
-              },
-              opportunitaBusiness: [
-                {
-                  email: {
-                    corpo: "Gentile Francesca,\n\nin seguito al nostro recente confronto, desidero proporti una concreta opportunità di investimento nell'azionario USA, approfittando dei prezzi corretti dopo il crollo dovuto ai dazi.\n\nConsiderando la tua esperienza e la tua propensione a cogliere occasioni di mercato, questa potrebbe essere una soluzione ideale per rafforzare il portafoglio nel medio termine e generare nuovo valore.\n\nTi propongo di fissare un incontro nei prossimi giorni per valutare insieme i migliori strumenti e definire la strategia più adatta alle tue esigenze.\n\nResto a disposizione per concordare data e orario.",
-                    oggetto: "Opportunità immediata: Investire nell'azionario USA dopo la correzione"
-                  },
-                  azioni: [
-                    "Proporre una selezione di ETF e fondi azionari USA con focus su settori resilienti e a potenziale di rimbalzo.",
-                    "Preparare un'analisi personalizzata sull'impatto dei dazi e sulle prospettive di mercato USA.",
-                    "Organizzare un incontro per discutere la strategia di ingresso e la gestione del rischio."
-                  ],
-                  titolo: "Investimento in Azionario USA Post-Correzione",
-                  priorita: 1,
-                  descrizione: "Francesca ha manifestato interesse concreto per una riallocazione verso l'azionario USA a seguito del recente crollo dovuto ai dazi. Data la sua esperienza e la propensione a cogliere opportunità di mercato, questa è un'occasione tangibile per proporre un investimento mirato su ETF o fondi azionari USA, sfruttando i prezzi corretti e il potenziale di recupero nel medio termine."
-                },
-                {
-                  email: {
-                    corpo: "Cara Francesca,\n\nho notato con interesse la tua valutazione sull'acquisto di oro come hedge. Considerando la tua attenzione alla preservazione del capitale e la tolleranza alla volatilità, inserire una quota di oro fisico o tramite ETF potrebbe rafforzare la stabilità del tuo portafoglio.\n\nVorrei mostrarti alcune soluzioni personalizzate e simulare insieme i benefici di questa scelta per il tuo profilo.\n\nTi propongo di fissare una breve call per approfondire e valutare i prossimi passi.\n\nA presto!",
-                    oggetto: "Proteggi il tuo portafoglio: Soluzioni in oro per una maggiore stabilità"
-                  },
-                  azioni: [
-                    "Presentare le opzioni disponibili tra oro fisico e ETF oro, evidenziando costi e benefici.",
-                    "Simulare l'impatto di una quota di oro sul portafoglio attuale in termini di rischio/rendimento.",
-                    "Proporre un piano di acquisto graduale per testare la strategia senza impatti eccessivi sulla liquidità."
-                  ],
-                  titolo: "Introduzione di Oro Fisico o ETF Oro come Hedge",
-                  priorita: 2,
-                  descrizione: "Francesca ha valutato l'acquisto di oro come strumento di copertura (hedge), coerente con la sua tolleranza al rischio e la ricerca di preservazione del capitale. L'introduzione di una quota di oro fisico o tramite ETF può migliorare la diversificazione del portafoglio e offrire protezione in scenari di volatilità o inflazione."
-                },
-                {
-                  email: {
-                    corpo: "Gentile Francesca,\n\nho analizzato il tuo portafoglio e, considerando il tuo forte interesse per la generazione di reddito, vorrei proporti alcune soluzioni di fondi income che potrebbero incrementare il flusso cedolare in modo efficiente e diversificato.\n\nTi invio una selezione di prodotti adatti al tuo profilo e sarei lieto di confrontarli insieme alle attuali obbligazioni in portafoglio.\n\nFammi sapere quando preferisci fissare un incontro per approfondire.\n\nCordiali saluti",
-                    oggetto: "Nuove soluzioni per aumentare il reddito periodico dal tuo portafoglio"
-                  },
-                  azioni: [
-                    "Identificare fondi income o multi-asset con distribuzione regolare adatti al profilo balanced.",
-                    "Preparare un confronto tra i fondi selezionati e le attuali obbligazioni in portafoglio.",
-                    "Proporre un piano di riallocazione graduale per massimizzare il reddito senza aumentare il rischio complessivo."
-                  ],
-                  titolo: "Ottimizzazione della Generazione di Reddito tramite Fondi Income",
-                  priorita: 3,
-                  descrizione: "Dato il massimo interesse di Francesca per la generazione di reddito e la sua esperienza con fondi e obbligazioni, è opportuno proporre soluzioni di fondi income o multi-asset che distribuiscono cedole periodiche, ottimizzando il flusso di reddito e la diversificazione."
-                }
-              ]
-            },
-            createdBy: user.id
-          });
-          
-          // Profilo AI per Mario Rossi
-          await storage.createAiProfile({
-            clientId: mockClient2.id,
-            profileData: {
-              clientId: mockClient2.id,
-              clientName: "Mario Rossi",
-              lastUpdated: new Date().toISOString(),
-              profiloCliente: {
-                descrizione: "Mario Rossi è un investitore di profilo conservativo, con un reddito stabile di €50.000 annui, nessun debito e una significativa esposizione immobiliare (€400.000) e obbligazionaria (€35.000), ma senza investimenti in azioni o strumenti alternativi. Ha un orizzonte temporale di lungo termine, ma una bassa tolleranza alla volatilità e tende a vendere tutto in caso di calo del portafoglio, mostrando una scarsa propensione al rischio e una preferenza per la preservazione del capitale e la pianificazione pensionistica. La sua esperienza di investimento è limitata ai bond, con conoscenze finanziarie di base e un approccio decisionale prudente e poco attivo, affidandosi in modo equilibrato al consulente e monitorando raramente i propri investimenti."
-              },
-              opportunitaBusiness: [
-                {
-                  email: {
-                    corpo: "Gentile Mario,\n\nho analizzato con attenzione il tuo profilo e le tue priorità, in particolare la tua attenzione alla sicurezza e alla pianificazione pensionistica.\n\nVorrei proporti un piano di previdenza integrativa a capitale garantito, pensato per offrirti stabilità, protezione del capitale e vantaggi fiscali, in linea con la tua avversione al rischio e il tuo obiettivo di lungo termine.\n\nCredo che questa soluzione possa rappresentare un passo concreto verso una pensione serena e sicura. Ti propongo di fissare un incontro nei prossimi giorni per valutare insieme una simulazione personalizzata e rispondere a ogni tua domanda.\n\nResto a disposizione per concordare una data e un orario a te comodi.\n\nA presto!",
-                    oggetto: "Mario, scopri la soluzione pensionistica sicura e su misura per te"
-                  },
-                  azioni: [
-                    "Presentare una simulazione personalizzata di un fondo pensione a capitale garantito con proiezioni di rendita futura.",
-                    "Organizzare un incontro per illustrare i vantaggi fiscali e la sicurezza dello strumento rispetto ad altre soluzioni.",
-                    "Assistere Mario nella compilazione della documentazione necessaria per l'adesione al piano."
-                  ],
-                  titolo: "Piano di Previdenza Integrativa a Capitale Garantito",
-                  priorita: 1,
-                  descrizione: "Data la priorità massima attribuita alla pensione e la bassa tolleranza al rischio, Mario Rossi potrebbe beneficiare di un piano pensionistico integrativo a capitale garantito, che offre stabilità, protezione del capitale e vantaggi fiscali. Questo strumento risponde perfettamente alle sue esigenze di lungo termine e alla sua avversione alla volatilità."
-                },
-                {
-                  email: {
-                    corpo: "Caro Mario,\n\nho notato che il tuo portafoglio è già orientato verso le obbligazioni, coerentemente con il tuo profilo conservativo e la tua esigenza di protezione del capitale.\n\nVorrei proporti una soluzione di portafoglio obbligazionario ancora più diversificata e protetta, che ti consenta di ottenere maggiore stabilità e rendimento, riducendo ulteriormente i rischi.\n\nSe sei d'accordo, possiamo fissare una breve chiamata per valutare insieme questa proposta e capire come ottimizzare i tuoi investimenti attuali.\n\nAttendo un tuo riscontro per organizzare l'incontro.\n\nUn caro saluto!",
-                    oggetto: "Mario, migliora la sicurezza e la resa dei tuoi investimenti obbligazionari"
-                  },
-                  azioni: [
-                    "Preparare una proposta di portafoglio obbligazionario diversificato, includendo titoli di Stato e corporate a basso rischio.",
-                    "Spiegare i vantaggi della diversificazione obbligazionaria rispetto al portafoglio attuale.",
-                    "Supportare Mario nell'eventuale trasferimento o reinvestimento dei bond già in portafoglio."
-                  ],
-                  titolo: "Portafoglio Obbligazionario Diversificato e Protetto",
-                  priorita: 2,
-                  descrizione: "Mario ha già esperienza con i bond e predilige la preservazione del capitale. Una proposta di portafoglio obbligazionario diversificato, con focus su titoli investment grade e strumenti a basso rischio, può offrire maggiore stabilità e rendimento rispetto alla sola esposizione attuale, riducendo ulteriormente la volatilità."
-                },
-                {
-                  email: {
-                    corpo: "Gentile Mario,\n\nho notato che il tuo patrimonio è già ben posizionato sull'immobiliare, ma solo in forma diretta.\n\nVorrei presentarti alcune soluzioni di investimento immobiliare a basso rischio, come fondi conservativi, che ti permetterebbero di diversificare ulteriormente e aumentare la liquidità, mantenendo la sicurezza che desideri.\n\nSe vuoi approfondire questa opportunità, possiamo fissare un incontro per valutare insieme le opzioni più adatte a te.\n\nResto a disposizione per qualsiasi domanda.\n\nCordiali saluti!",
-                    oggetto: "Mario, diversifica il tuo patrimonio immobiliare in modo sicuro"
-                  },
-                  azioni: [
-                    "Presentare una selezione di fondi immobiliari a basso rischio e con focus su immobili residenziali o pubblici.",
-                    "Illustrare i vantaggi della diversificazione immobiliare indiretta rispetto alla proprietà diretta.",
-                    "Proporre un piano di investimento graduale per testare questa soluzione senza esporre Mario a rischi eccessivi."
-                  ],
-                  titolo: "Soluzioni di Investimento Immobiliare a Basso Rischio",
-                  priorita: 3,
-                  descrizione: "Considerando la forte esposizione immobiliare diretta, Mario potrebbe valutare strumenti di investimento immobiliare a basso rischio (come fondi immobiliari conservativi), che offrono diversificazione e liquidità senza aumentare la volatilità complessiva del portafoglio."
-                }
-              ]
-            },
-            createdBy: user.id
-          });
+          // Rimossi i profili AI per entrambi i clienti
           
         } catch (mockClientError) {
           // Non bloccare la registrazione se c'è un errore nella creazione dei clienti mock

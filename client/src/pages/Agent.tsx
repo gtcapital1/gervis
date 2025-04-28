@@ -262,6 +262,9 @@ export default function AgentPage() {
   // Check for portfolio creation prompt
   useEffect(() => {
     const portfolioPrompt = localStorage.getItem('portfolioCreationPrompt');
+    const autoSend = localStorage.getItem('autoSendPrompt') === 'true';
+    const showUserMessage = localStorage.getItem('showUserMessage') === 'true';
+    
     if (portfolioPrompt) {
       // Set up the UI for showing chat
       setShowChat(true);
@@ -269,11 +272,26 @@ export default function AgentPage() {
       // Set the prompt to input and clear it from localStorage
       setInput(portfolioPrompt);
       localStorage.removeItem('portfolioCreationPrompt');
+      localStorage.removeItem('autoSendPrompt');
+      localStorage.removeItem('showUserMessage');
       
-      // Auto-send the message after a short delay to ensure UI is ready
+      // Se showUserMessage è true, aggiungi il messaggio utente alla chat
+      if (showUserMessage) {
+        const userMessage: Message = {
+          content: portfolioPrompt,
+          role: 'user',
+          createdAt: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, userMessage]);
+      }
+      
+      // Auto-send the message immediately if autoSend flag is true
+      if (autoSend) {
+        // Use a shorter delay to make it più veloce but still ensure UI is ready
       setTimeout(() => {
-        sendMessage();
-      }, 500);
+          handleDirectMessageSend(portfolioPrompt);
+        }, 300);
+      }
     }
   }, []);
   
@@ -759,7 +777,7 @@ export default function AgentPage() {
         console.error('Errore nel parsing dei functionResults:', e);
       }
     }
-
+    
     return (
       <motion.div
         key={index}
@@ -808,19 +826,19 @@ export default function AgentPage() {
             <div className="ml-auto">
               <Button
                 variant="ghost"
-                size="icon"
+                    size="icon"
                 className="h-8 w-8 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300"
                 onClick={() => copyMessageContent(message.content, index)}
-              >
-                {copiedMessageIndex === index ? (
-                  <Check className="h-4 w-4" />
-                ) : (
-                  <Copy className="h-4 w-4" />
-                )}
-              </Button>
+                  >
+                    {copiedMessageIndex === index ? (
+                      <Check className="h-4 w-4" />
+                    ) : (
+                      <Copy className="h-4 w-4" />
+                    )}
+                  </Button>
             </div>
           </div>
-          
+            
           <div className="prose prose-sm dark:prose-invert max-w-none overflow-x-auto break-words leading-relaxed">
             <div className="markdown-content rounded-md text-gray-700 dark:text-gray-200">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
@@ -836,7 +854,7 @@ export default function AgentPage() {
                   {portfoliosToSave.length > 1 ? `${portfoliosToSave.length} Portafogli generati` : 'Portafoglio generato'}
                 </h3>
                 
-                <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4">
+                    <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4">
                   {portfoliosToSave.length > 1 
                     ? 'Puoi salvare ciascun portafoglio nei tuoi modelli per utilizzarlo in futuro.' 
                     : 'Puoi salvare questo portafoglio nei tuoi modelli per utilizzarlo in futuro.'}
@@ -873,23 +891,23 @@ export default function AgentPage() {
                         ) : (
                           <Button 
                             onClick={() => directSavePortfolio(portfolio, index, portfolioIndex)}
-                            className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all transform hover:translate-y-[-1px] hover:shadow"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-medium shadow-sm transition-all transform hover:translate-y-[-1px] hover:shadow"
                             disabled={isSaving}
                             size={portfoliosToSave.length > 1 ? "sm" : "default"}
-                          >
+                    >
                             {isSaving ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                Salvataggio...
-                              </>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                Salva portafoglio
-                              </>
-                            )}
-                          </Button>
-                        )}
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Salvataggio...
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-4 w-4 mr-2" />
+                          Salva portafoglio
+                        </>
+                      )}
+                    </Button>
+                )}
                       </div>
                     );
                   })}
@@ -901,7 +919,7 @@ export default function AgentPage() {
       </motion.div>
     );
   };
-
+                          
   const directSavePortfolio = async (portfolioData: any, messageIndex: number, portfolioIndex: number) => {
     // Crea una chiave unica per questo portfolio
     const portfolioKey = `${messageIndex}-${portfolioIndex}`;
@@ -962,11 +980,11 @@ export default function AgentPage() {
 
       // Invia i dati all'endpoint
       const response = await apiRequest('/api/model-portfolios', {
-        method: 'POST',
+                                method: 'POST',
         body: JSON.stringify(portfolioToSave)
       });
       
-      if (response.success) {
+                                if (response.success) {
         // Aggiorna il record dei portafogli salvati
         setSavedPortfolios(prev => {
           // Verifica se esiste già un oggetto per questo messageIndex
@@ -983,24 +1001,24 @@ export default function AgentPage() {
         });
         
         // Per retrocompatibilità, ma questo non verrà più usato per il controllo visivo
-        setSavedPortfolioMessages(prev => [...prev, messageIndex]);
+          setSavedPortfolioMessages(prev => [...prev, messageIndex]);
         
-        toast({
+                                  toast({
           title: "Successo",
           description: "Il portafoglio è stato salvato con successo"
-        });
+                                  });
         
         return true;
       } else {
         throw new Error(response.message || 'Errore durante il salvataggio del portafoglio');
-      }
+                                }
     } catch (error) {
       console.error("Errore nel salvataggio del portafoglio:", error);
-      toast({
-        title: "Errore",
+                                toast({
+                                  title: "Errore",
         description: "Impossibile salvare il portafoglio: " + (error instanceof Error ? error.message : "Errore sconosciuto"),
-        variant: "destructive",
-      });
+                                  variant: "destructive",
+                                });
       return false;
     } finally {
       // Rimuovi lo stato di salvataggio
@@ -1021,7 +1039,7 @@ export default function AgentPage() {
       if (item.category) {
         if (!categoryMap[item.category]) {
           categoryMap[item.category] = 0;
-        }
+    }
         categoryMap[item.category] += item.percentage;
       }
     });
@@ -1032,7 +1050,7 @@ export default function AgentPage() {
       percentage
     }));
   };
-
+            
   // Renderizza schermata delle capacità
   const renderMainScreen = () => {
     return (
@@ -1211,7 +1229,7 @@ export default function AgentPage() {
                             size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
                             onClick={() => {
-                              const message = "News dai mercati?";
+                              const message = "Genera portafoglio modello per cliente Aggressivo";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
                               const userMessage: Message = {
@@ -1227,14 +1245,14 @@ export default function AgentPage() {
                             }}
                           >
                             <BarChart4 className="h-3 w-3 mr-1.5 flex-shrink-0 text-emerald-500" />
-                            <span className="whitespace-normal">News dai mercati?</span>
+                            <span className="whitespace-normal">Genera portafoglio modello per cliente Aggressivo</span>
                           </Button>
                           <Button
                             variant="outline"
                             size="sm"
                             className="w-full justify-start text-xs text-left px-2.5 py-1.5 h-auto min-h-[40px] border-gray-200 dark:border-gray-700 bg-gray-50/70 dark:bg-gray-800/70 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:border-blue-300 dark:hover:border-blue-800 shadow-sm hover:shadow-md transition-all rounded-md overflow-hidden"
                                     onClick={() => {
-                              const message = "Genera qualche idea basata su news";
+                              const message = "Genera portafoglio modello per Francesca Bianchi";
                               setInput(message);
                               // Send message directly with the value instead of relying on state update
                               const userMessage: Message = {
@@ -1250,7 +1268,7 @@ export default function AgentPage() {
                             }}
                           >
                             <BarChart4 className="h-3 w-3 mr-1.5 flex-shrink-0 text-emerald-500" />
-                            <span className="whitespace-normal">Genera qualche idea basata su news</span>
+                            <span className="whitespace-normal">Genera portafoglio modello per Francesca Bianchi</span>
                           </Button>
                         </>
                       )}
@@ -1540,6 +1558,23 @@ export default function AgentPage() {
       setIsLoading(true);
     // Clear input after sending the message
     setInput('');
+    
+    // Verifica se abbiamo già aggiunto il messaggio utente
+    const messageAlreadyAdded = messages.some(
+      m => m.role === 'user' && m.content === message && 
+      // Verifica che sia stato aggiunto recentemente (nell'ultimo secondo)
+      m.createdAt && (new Date().getTime() - new Date(m.createdAt).getTime() < 1000)
+    );
+      
+    // Aggiungi il messaggio dell'utente solo se non è già stato aggiunto
+    if (!messageAlreadyAdded) {
+      const userMessage: Message = {
+        content: message,
+        role: 'user',
+        createdAt: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, userMessage]);
+    }
     
     try {
       // Prepare request data

@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { RefreshCcw, Brain, Sparkles, Mail, ArrowRight, LucideCheckCircle, User } from 'lucide-react';
+import { RefreshCcw, Brain, Sparkles, Mail, ArrowRight, LucideCheckCircle, User, BarChart3 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useToast } from "@/hooks/use-toast";
@@ -63,6 +63,81 @@ interface ProfileResponse {
   message?: string;
 }
 
+// Nuove interfacce basate sulla struttura aggiornata dell'API
+interface InsightsCliente {
+  profiloSintetico: string;
+  puntiForza: string[];
+  puntiDebolezza: string[];
+  analisiAllocazione: string;
+}
+
+interface PortafoglioModello {
+  portfolioConsigliato: string;
+  motivazione: string;
+  modificheSuggerite: string[];
+  beneficiAttesi: string;
+}
+
+interface OpportunitaRelazione {
+  titolo: string;
+  descrizione: string;
+  emailSuggerita: string;
+  priorita: number;
+}
+
+interface DatiInvestimento {
+  orizzonte: string;
+  profiloRischio: string;
+  obiettiviInvestimento: string[];
+  esperienzaInvestimento: string;
+}
+
+interface AssetAllocazione {
+  allocazione: { categoria: string; valore: number }[];
+  valoreComplessivo: number;
+}
+
+// Nuova interfaccia per i dati di profilo arricchito
+interface AiClientProfileData {
+  clientId: number;
+  clientName: string;
+  clientInfo: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  insightsCliente: InsightsCliente;
+  portafoglioModello: PortafoglioModello;
+  strategieRelazione: OpportunitaRelazione[];
+  datiInvestimento?: DatiInvestimento;
+  assetAttuali?: AssetAllocazione;
+  lastUpdated?: string;
+}
+
+// Aggiornamento dell'interfaccia per la risposta dell'API
+interface AiProfileResponse {
+  success: boolean;
+  data?: AiClientProfileData;
+  cached?: boolean;
+  lastGenerated?: string;
+  upToDate?: boolean;
+  message?: string;
+}
+
+// Interfaccia per la risposta del portfolio personalizzato
+interface CustomPortfolioResponse {
+  success: boolean;
+  data?: {
+    nome: string;
+    descrizione: string;
+    allocazione: Array<{categoria: string; percentuale: number}>;
+    rendimentoAtteso: string;
+    rischioAssociato: string;
+    strategieRibilanciamento: string[];
+  };
+  message?: string;
+}
+
 // Funzione per ottenere il colore del badge in base alla priorità
 function getPriorityBadgeColor(priority: number) {
   switch(priority) {
@@ -95,6 +170,15 @@ function getPriorityText(priority: number) {
   }
 }
 
+// Componente per visualizzare il messaggio quando non ci sono dati
+const NoDataMessage = () => (
+  <div className="text-center py-6 bg-gray-50 rounded-lg">
+    <p className="text-gray-700">
+      Nessun dato disponibile per questo cliente. Clicca sul pulsante "Genera Profilo AI" per creare approfondimenti personalizzati.
+    </p>
+  </div>
+);
+
 export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const { t } = useTranslation();
   // Debug: controlliamo i valori delle traduzioni
@@ -114,6 +198,13 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [refreshConfirmed, setRefreshConfirmed] = useState(false);
   const { toast } = useToast();
+  const [isPortfolioDialogOpen, setIsPortfolioDialogOpen] = useState(false);
+  const [customRequirements, setCustomRequirements] = useState<string[]>([]);
+  const [newRequirement, setNewRequirement] = useState("");
+  const [selectedPortfolio, setSelectedPortfolio] = useState<string>("");
+  const [availablePortfolios, setAvailablePortfolios] = useState<{id: number; name: string}[]>([]);
+  const [isGeneratingPortfolio, setIsGeneratingPortfolio] = useState(false);
+  const [customPortfolio, setCustomPortfolio] = useState<CustomPortfolioResponse["data"] | null>(null);
 
   // Funzione per gestire l'invio dell'email
   const handleSendEmail = (email: { oggetto: string; corpo: string }) => {
@@ -124,7 +215,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
   };
 
   // Query per recuperare o generare il profilo AI
-  const profileQuery = useQuery<ProfileResponse>({
+  const profileQuery = useQuery<AiProfileResponse>({
     queryKey: ['/api/ai/client-profile', clientId, refreshTrigger],
     queryFn: async () => {
       // Se è una richiesta di aggiornamento forzato, non eseguiamo il controllo
@@ -389,6 +480,124 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
     return <p>{String(content)}</p>;
   };
 
+  // Fetch available model portfolios
+  useEffect(() => {
+    const fetchPortfolios = async () => {
+      try {
+        const response = await fetch('/api/portfolios/models');
+        if (response.ok) {
+          const data = await response.json();
+          setAvailablePortfolios(data.data || []);
+        }
+      } catch (error) {
+        console.error("Error fetching model portfolios:", error);
+      }
+    };
+    
+    fetchPortfolios();
+  }, []);
+
+  // Handle adding custom requirements
+  const handleAddRequirement = () => {
+    if (newRequirement.trim()) {
+      setCustomRequirements([...customRequirements, newRequirement.trim()]);
+      setNewRequirement("");
+    }
+  };
+
+  // Handle removing custom requirement
+  const handleRemoveRequirement = (index: number) => {
+    setCustomRequirements(customRequirements.filter((_, i) => i !== index));
+  };
+
+  // Generate custom portfolio
+  const handleGeneratePortfolio = async () => {
+    if (!selectedPortfolio) {
+      toast({
+        title: "Errore",
+        description: "Seleziona un portafoglio modello di base",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGeneratingPortfolio(true);
+    
+    try {
+      const response = await fetch(`/api/ai/custom-portfolio/${clientId}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          modelPortfolioId: selectedPortfolio,
+          customRequirements
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (response.ok && result.success && result.data) {
+        setCustomPortfolio(result.data);
+        setIsPortfolioDialogOpen(false);
+        toast({
+          title: "Portafoglio personalizzato generato",
+          description: "Il portafoglio personalizzato è stato creato con successo"
+        });
+      } else {
+        toast({
+          title: "Errore",
+          description: result.message || "Si è verificato un errore durante la generazione del portafoglio",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Errore",
+        description: "Si è verificato un errore durante la generazione del portafoglio",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingPortfolio(false);
+    }
+  };
+
+  // Aggiorno la funzione per assicurare l'invio automatico del prompt all'AI e mostrare il messaggio utente
+  const handleCreateCustomPortfolio = () => {
+    if (!data?.data || !data.data.portafoglioModello || !data.data.portafoglioModello.portfolioConsigliato) {
+      toast({
+        title: "Errore",
+        description: "Informazioni sul portafoglio modello non disponibili",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Cliente e portafoglio consigliato
+    const clientName = data.data.clientInfo ? `${data.data.clientInfo.firstName} ${data.data.clientInfo.lastName}` : `Cliente ${clientId}`;
+    const portfolioName = data.data.portafoglioModello.portfolioConsigliato;
+    
+    // Creo il prompt per l'AI
+    const prompt = `Per favore costruisci un nuovo portafoglio personalizzato per il cliente ${clientName} partendo dal portafoglio modello "${portfolioName}" e implementando le seguenti modifiche suggerite:
+${data.data.portafoglioModello.modificheSuggerite.map(modifica => `- ${modifica}`).join('\n')}
+
+Il portafoglio dovrebbe mantenere gli stessi obiettivi ma essere personalizzato secondo le modifiche indicate sopra.`;
+
+    // Salvo il prompt e i flag nel localStorage
+    localStorage.setItem('portfolioCreationPrompt', prompt);
+    localStorage.setItem('autoSendPrompt', 'true');
+    localStorage.setItem('showUserMessage', 'true');
+    
+    // Mostro un toast per informare l'utente
+    toast({
+      title: "Preparazione portafoglio",
+      description: "Ti sto reindirizzando alla chat AI per creare il portafoglio personalizzato"
+    });
+    
+    // Navigo alla pagina dell'Agent AI
+    window.location.href = '/agent';
+  };
+
   // Se sta caricando, mostra uno skeleton con messaggio di elaborazione
   if (isLoading) {
     return (
@@ -504,7 +713,7 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
         
         <CardContent className="pt-6">
           {/* Profilo Cliente */}
-          {data.data.profiloCliente && (
+          {data.data.insightsCliente && (
             <div className="space-y-4">
               <div>
                 <h3 className="text-lg font-semibold mb-4 text-gray-800 flex items-center">
@@ -512,21 +721,171 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                   Profilo Cliente
                 </h3>
                 <div className="text-sm text-gray-700 bg-white p-4 rounded-lg shadow-sm border-l-2 border-blue-400">
-                  {formatContent(data.data.profiloCliente.descrizione)}
+                  {formatContent(data.data.insightsCliente.profiloSintetico)}
                 </div>
+                
+                {/* Punti di forza - renamed to Considerazioni */}
+                {data.data.insightsCliente.puntiForza && data.data.insightsCliente.puntiForza.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-md font-medium text-gray-700 mb-2">Considerazioni</h4>
+                    <ul className="space-y-2">
+                      {data.data.insightsCliente.puntiForza.map((punto, idx) => (
+                        <li key={idx} className="flex items-start text-sm text-gray-700">
+                          <LucideCheckCircle className="h-4 w-4 mr-2 text-green-600 mt-0.5 flex-shrink-0" />
+                          <span>{punto}</span>
+                        </li>
+                      ))}
+                    </ul>
+                </div>
+                )}
+                
+                {/* Punti di debolezza - renamed to Aree di attenzione */}
+                {data.data.insightsCliente.puntiDebolezza && data.data.insightsCliente.puntiDebolezza.length > 0 && (
+                  <div className="mt-4">
+                    <h4 className="text-md font-medium text-gray-700 mb-2">Aree di attenzione</h4>
+                    <ul className="space-y-2">
+                      {data.data.insightsCliente.puntiDebolezza.map((punto, idx) => (
+                        <li key={idx} className="flex items-start text-sm text-gray-700">
+                          <ArrowRight className="h-4 w-4 mr-2 text-amber-600 mt-0.5 flex-shrink-0" />
+                          <span>{punto}</span>
+                        </li>
+                      ))}
+                    </ul>
+                </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* Opportunità di Business */}
-          {data.data.opportunitaBusiness && data.data.opportunitaBusiness.length > 0 && (
+          {/* Portafoglio Modello */}
+          {data.data.portafoglioModello && (
+            <div className="mt-8 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                  <Brain className="h-5 w-5 mr-2 text-purple-600" />
+                  Portafoglio Consigliato
+                  <span className="ml-2 text-xs font-normal text-gray-500">(selezionato tra i portafogli modello disponibili)</span>
+                </h3>
+              </div>
+              <Card className="overflow-hidden border shadow-sm bg-white">
+                <CardHeader className="pb-2 border-b bg-white">
+                  <CardTitle className="text-base text-gray-800">{data.data.portafoglioModello.portfolioConsigliato}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-gray-700 mb-4">
+                    {data.data.portafoglioModello.motivazione}
+                  </p>
+                  
+                  {data.data.portafoglioModello.modificheSuggerite && data.data.portafoglioModello.modificheSuggerite.length > 0 && (
+                    <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Modifiche suggerite:</h4>
+                      <ul className="space-y-2">
+                        {data.data.portafoglioModello.modificheSuggerite.map((modifica, idx) => (
+                          <li key={idx} className="flex items-start text-sm text-gray-700">
+                            <LucideCheckCircle className="h-4 w-4 mr-2 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <span>{modifica}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  
+                  {data.data.portafoglioModello.beneficiAttesi && (
+                    <div className="bg-blue-50 p-3 rounded-lg mb-4">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Benefici attesi:</h4>
+                      <p className="text-sm text-gray-700">{data.data.portafoglioModello.beneficiAttesi}</p>
+                    </div>
+                  )}
+                  
+                  {/* Sposto il pulsante qui, dopo i benefici attesi */}
+                  <div className="flex justify-end mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex items-center text-sm border-blue-200 text-blue-600 hover:bg-blue-50"
+                      onClick={handleCreateCustomPortfolio}
+                    >
+                      <BarChart3 className="h-4 w-4 mr-1" />
+                      Crea Portafoglio Personalizzato
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Portafoglio Personalizzato */}
+          {customPortfolio && (
+            <div className="mt-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+                <BarChart3 className="h-5 w-5 mr-2 text-blue-600" />
+                Portafoglio Personalizzato
+              </h3>
+              <Card className="overflow-hidden border shadow-sm bg-white">
+                <CardHeader className="pb-2 border-b bg-white">
+                  <CardTitle className="text-base text-gray-800">{customPortfolio.nome}</CardTitle>
+                </CardHeader>
+                <CardContent className="pt-4">
+                  <p className="text-sm text-gray-700 mb-4">
+                    {customPortfolio.descrizione}
+                  </p>
+                  
+                  {customPortfolio.allocazione && customPortfolio.allocazione.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Allocazione:</h4>
+                      <div className="bg-gray-50 p-3 rounded-lg">
+                        <div className="space-y-2">
+                          {customPortfolio.allocazione.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-sm">
+                              <span className="text-gray-700">{item.categoria}</span>
+                              <span className="font-medium text-gray-900">{item.percentuale}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="grid grid-cols-2 gap-4 mt-4 mb-4">
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Rendimento atteso:</h4>
+                      <p className="text-sm text-gray-700">{customPortfolio.rendimentoAtteso}</p>
+                    </div>
+                    
+                    <div className="bg-amber-50 p-3 rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Rischio associato:</h4>
+                      <p className="text-sm text-gray-700">{customPortfolio.rischioAssociato}</p>
+                    </div>
+                  </div>
+                  
+                  {customPortfolio.strategieRibilanciamento && customPortfolio.strategieRibilanciamento.length > 0 && (
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <h4 className="text-sm font-semibold mb-2 text-gray-800">Strategie di ribilanciamento:</h4>
+                      <ul className="space-y-2">
+                        {customPortfolio.strategieRibilanciamento.map((strategia, idx) => (
+                          <li key={idx} className="flex items-start text-sm text-gray-700">
+                            <LucideCheckCircle className="h-4 w-4 mr-2 text-blue-600 mt-0.5 flex-shrink-0" />
+                            <span>{strategia}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Opportunità di Business (Strategie Relazione) */}
+          {data.data.strategieRelazione && data.data.strategieRelazione.length > 0 && (
             <div className="mt-8 space-y-4">
               <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                 <Sparkles className="h-5 w-5 mr-2 text-yellow-500" />
                 Opportunità di Business
+                <span className="ml-2 text-xs font-normal text-gray-500">(azioni specifiche per questo cliente)</span>
               </h3>
               <div className="grid grid-cols-1 gap-4">
-                {data.data.opportunitaBusiness.map((opportunita, index) => (
+                {data.data.strategieRelazione.map((opportunita, index) => (
                   <Card key={index} className="overflow-hidden border shadow-sm hover:shadow-md transition-all bg-white">
                     <CardHeader className="pb-2 border-b bg-white">
                       <div className="flex items-center justify-between">
@@ -536,12 +895,15 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                             Priorità {getPriorityText(opportunita.priorita)}
                           </Badge>
                         </div>
-                        {opportunita.email && (
+                        {opportunita.emailSuggerita && (
                           <Button 
                             variant="ghost" 
                             size="sm"
                             className="text-gray-500 hover:text-blue-600 hover:bg-blue-50"
-                            onClick={() => handleSendEmail(opportunita.email!)}
+                            onClick={() => handleEmailButtonClick({ 
+                              oggetto: `Opportunità: ${opportunita.titolo}`, 
+                              corpo: opportunita.emailSuggerita 
+                            })}
                           >
                             <Mail className="h-4 w-4 mr-1" />
                             Invia Email
@@ -553,19 +915,6 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
                       <p className="text-sm text-gray-700 mb-4">
                         {opportunita.descrizione}
                       </p>
-                      {opportunita.azioni && opportunita.azioni.length > 0 && (
-                        <div className="bg-gray-50 p-3 rounded-lg">
-                          <h4 className="text-sm font-semibold mb-2 text-gray-800">Azioni Suggerite:</h4>
-                          <ul className="space-y-2">
-                            {opportunita.azioni.map((azione, idx) => (
-                              <li key={idx} className="flex items-start text-sm text-gray-700">
-                                <LucideCheckCircle className="h-4 w-4 mr-2 text-blue-600 mt-0.5 flex-shrink-0" />
-                                <span>{azione}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
                     </CardContent>
                   </Card>
                 ))}
@@ -574,13 +923,11 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
           )}
 
           {/* Messaggio se non ci sono dati */}
-          {(!data.data.profiloCliente && (!data.data.opportunitaBusiness || data.data.opportunitaBusiness.length === 0)) && (
-            <div className="text-center py-6 bg-gray-50 rounded-lg">
-              <p className="text-gray-700">
-                Nessun dato disponibile. Prova a rigenerare il profilo.
-              </p>
-            </div>
-          )}
+          {!isLoading && !isError && data?.success && data?.data && 
+            (!data.data.insightsCliente || !data.data.portafoglioModello || !data.data.strategieRelazione || data.data.strategieRelazione.length === 0) && (
+              <NoDataMessage />
+            )
+          }
 
           {/* Email Dialog - aggiornato alla nuova versione */}
           <EmailDialog
@@ -593,6 +940,88 @@ export function AiClientProfile({ clientId }: AiClientProfileProps) {
             onSubmit={sendEmail}
             useClientSelector={true}
           />
+
+          {/* Portfolio Dialog */}
+          <Dialog open={isPortfolioDialogOpen} onOpenChange={setIsPortfolioDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Crea portafoglio personalizzato</DialogTitle>
+                <DialogDescription>
+                  Seleziona un portafoglio modello e aggiungi requisiti specifici per creare un portafoglio su misura per questo cliente.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="modelPortfolio">Portafoglio modello di base</Label>
+                  <select 
+                    id="modelPortfolio"
+                    className="w-full rounded-md border border-gray-300 p-2"
+                    value={selectedPortfolio}
+                    onChange={(e) => setSelectedPortfolio(e.target.value)}
+                  >
+                    <option value="">Seleziona un portafoglio...</option>
+                    {availablePortfolios.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="customRequirements">Requisiti specifici (opzionale)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="customRequirements"
+                      placeholder="Aggiungi requisito specifico..."
+                      value={newRequirement}
+                      onChange={(e) => setNewRequirement(e.target.value)}
+                    />
+                    <Button 
+                      variant="outline" 
+                      onClick={handleAddRequirement}
+                      disabled={!newRequirement.trim()}
+                    >
+                      Aggiungi
+                    </Button>
+                  </div>
+                  
+                  {customRequirements.length > 0 && (
+                    <div className="mt-2 space-y-2">
+                      {customRequirements.map((req, idx) => (
+                        <div key={idx} className="flex items-center justify-between bg-gray-50 p-2 rounded-md">
+                          <span className="text-sm">{req}</span>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-red-500 hover:bg-red-50 h-6 w-6 p-0"
+                            onClick={() => handleRemoveRequirement(idx)}
+                          >
+                            &times;
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsPortfolioDialogOpen(false)}>Annulla</Button>
+                <Button 
+                  onClick={handleGeneratePortfolio} 
+                  disabled={!selectedPortfolio || isGeneratingPortfolio}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {isGeneratingPortfolio ? (
+                    <>
+                      <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                      Generazione in corso...
+                    </>
+                  ) : "Genera portafoglio"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     );

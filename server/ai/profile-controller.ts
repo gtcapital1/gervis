@@ -79,8 +79,12 @@ export async function getClientProfile(req: Request, res: Response) {
       const clientLogs = await storage.getClientLogs(clientId);
       const mifid = await storage.getMifidByClient(clientId);
       
+      // Recupera i portafogli modello disponibili
+      const modelPortfolios = await storage.getModelPortfolios();
+      console.log(`[AI Controller] Recuperati ${modelPortfolios.length} portafogli modello per il profilo AI`);
+      
       // Genera un nuovo profilo arricchito utilizzando l'AI
-      const profileData = await generateClientProfile(client, mifid || null, clientLogs);
+      const profileData = await generateClientProfile(client, mifid || null, modelPortfolios, clientLogs);
       
       // Salva o aggiorna il profilo generato
       if (existingProfile) {
@@ -143,8 +147,12 @@ export async function generateEnrichedProfile(clientId: number, advisorId: numbe
     // Get client logs
     const clientLogs = await storage.getClientLogs(clientId);
     
+    // Get model portfolios
+    const modelPortfolios = await storage.getModelPortfolios();
+    console.log(`[AI Controller] Recuperati ${modelPortfolios.length} portafogli modello per il profilo AI`);
+    
     // Generate profile
-    const profileData = await generateClientProfile(client, mifid || null, clientLogs);
+    const profileData = await generateClientProfile(client, mifid || null, modelPortfolios, clientLogs);
 
     // Save profile to storage
     await storage.createAiProfile({

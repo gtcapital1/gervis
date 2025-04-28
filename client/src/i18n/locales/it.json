@@ -291,7 +291,12 @@
   },
   "client": {
     "active_client": "Cliente Attivo",
+    "add_assets": "Aggiungi asset",
+    "add_assets_description": "inserisci ISIN per gli asset del client ",
     "activation_successful": "Cliente attivato con successo",
+    "existing_assets": "Asset esistenti",
+    "view_all_assets": "Lista asset",
+    "new_assets": "Nuovi asset",
     "deactivation_successful": "Cliente disattivato con successo",
     "client_activated": "Cliente attivo e rilevante a fini di statistiche dashbaord",
     "client_deactivated": "Cliente disattivato e non più rilevante per le statistiche dashboard",

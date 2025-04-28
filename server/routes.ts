@@ -69,6 +69,7 @@ import { registerMeetingRoutes } from './routes/meeting.routes';
 import { registerAgentRoutes } from './routes/agent.routes';
 import { registerPortfolioRoutes } from './routes/portfolio.routes';
 import { savePortfolio, getUserPortfolios, getPortfolio, removePortfolio } from './controllers/modelPortfolioController';
+import portfolioProductsRouter from './routes/portfolio-products';
 
 // Definire un alias temporaneo per evitare errori del linter
 type e = Error;
@@ -426,6 +427,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerMeetingRoutes(app);
   registerAgentRoutes(app);
   registerPortfolioRoutes(app);
+  app.use('/api/portfolio-products', portfolioProductsRouter);
   
   // Aggiungi la rotta per recuperare prodotti dal database pubblico
   app.get('/api/portfolio/public-products', isAuthenticated, async (req, res) => {

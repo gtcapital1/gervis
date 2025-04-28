@@ -10,7 +10,8 @@ import {
   completedTasks, type CompletedTask, type InsertCompletedTask,
   mifid, type Mifid,
   conversations, messages,
-  verifiedDocuments, advisorSuggestions
+  verifiedDocuments, advisorSuggestions,
+  modelPortfolios, portfolioAllocations, portfolioProducts, type ModelPortfolio
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql, desc, gte, lte, inArray, lt } from 'drizzle-orm';
@@ -106,6 +107,9 @@ export interface IStorage {
 
   // Asset methods
   deleteAssetsByClient(clientId: number): Promise<boolean>;
+
+  // Model Portfolio Methods
+  getModelPortfolios(): Promise<any[]>;
 }
 
 export class PostgresStorage implements IStorage {
@@ -1774,6 +1778,40 @@ export class PostgresStorage implements IStorage {
     } catch (error) {
       
       throw error;
+    }
+  }
+
+  // Model Portfolio Methods
+  async getModelPortfolios(): Promise<any[]> {
+    try {
+      // Fetch all model portfolios
+      const portfolios = await db.select().from(modelPortfolios);
+      
+      // For each portfolio, get its allocations
+      for (const portfolio of portfolios) {
+        // Get allocations for this portfolio
+        const allocations = await db.select()
+          .from(portfolioAllocations)
+          .where(eq(portfolioAllocations.portfolioId, portfolio.id))
+          .leftJoin(
+            portfolioProducts, 
+            eq(portfolioAllocations.productId, portfolioProducts.id)
+          );
+          
+        // Format allocations for this portfolio
+        portfolio.allocation = allocations.map(record => ({
+          isin: record.portfolio_products?.isin || '',
+          name: record.portfolio_products?.name || '',
+          category: record.portfolio_products?.category || '',
+          percentage: Number(record.portfolio_allocations.percentage) || 0
+        }));
+      }
+      
+      console.log(`[Storage] Fetched ${portfolios.length} model portfolios with allocations`);
+      return portfolios;
+    } catch (error) {
+      console.error('[Storage] Error fetching model portfolios:', error);
+      return [];
     }
   }
 }
