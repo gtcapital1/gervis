@@ -5,9 +5,9 @@
   "compilerOptions": {
     "outDir": "dist",
     "noEmit": false,
-    "module": "NodeNext",
-    "target": "ESNext",
-    "moduleResolution": "NodeNext",
+    "module": "CommonJS",
+    "target": "ES2020",
+    "moduleResolution": "Node",
     "allowImportingTsExtensions": false,
     "resolveJsonModule": true,
     "isolatedModules": true,
@@ -17,6 +17,9 @@
     "baseUrl": ".",
     "paths": {
       "@shared/*": ["./shared/*"]
-    }
+    },
+    "noImplicitAny": false,
+    "declaration": true,
+    "strict": false
   }
 } 

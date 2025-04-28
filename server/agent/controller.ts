@@ -1,15 +1,25 @@
 import { OpenAI } from 'openai';
 import { Request, Response } from 'express';
-import { db } from '../db'; // Import database instance
-import { conversations, messages as messagesTable, clients, users } from '../../shared/schema'; // Rename to avoid conflict
+import { db } from '../db.js'; // Import database instance
+import { conversations, messages as messagesTable, clients, users } from '../../shared/schema.js'; // Rename to avoid conflict
 import { eq, and, asc, desc, isNull, or, ilike } from 'drizzle-orm'; // Import query helpers
-import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, handlePortfolioGeneration } from './functions';
+import { getClientContext, getSiteDocumentation, getMeetingsByDateRange, getMeetingsByClientName, prepareMeetingData, prepareEditMeeting, getFinancialNews, handlePortfolioGeneration } from './functions.js';
 import { nanoid } from 'nanoid';
-import { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
-import { ChatCompletionMessageParam } from 'openai';
+import type { createEmptyConversation, getConversationDetails, updateConversationTitle } from './conversations-service';
+import type { ChatCompletion } from 'openai';
 import express from 'express';
-import { handleFlow } from './flow';
-import { findClientByName } from '../services/clientProfileService';
+import { handleFlow } from './flow.js';
+import { findClientByName } from '../services/clientProfileService.js';
+
+// Type definitions for OpenAI API compatibility
+type ChatCompletionRole = 'system' | 'user' | 'assistant' | 'tool' | 'function';
+
+interface ChatCompletionMessageParam {
+  role: ChatCompletionRole;
+  content: string | null;
+  tool_call_id?: string;
+  name?: string;
+}
 
 // Initialize OpenAI client
 // Ensure OPENAI_API_KEY is set in your environment variables
@@ -22,6 +32,22 @@ const AVAILABLE_MODELS = {
   STANDARD: 'gpt-4.1-mini',
   ADVANCED: 'gpt-4.1'
 };
+
+// Define User type for TypeScript compatibility
+interface User {
+  id: number;
+  username: string;
+  // Add other properties as needed
+}
+
+// Extend Express Request type to include user
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 // Type for OpenAI message
 type OpenAIMessage = {
@@ -209,8 +235,8 @@ export const handleChat = async (req: Request, res: Response) => {
     
     // Convert database messages to OpenAI format with proper types
     const historyOpenAIMessages: OpenAIMessage[] = historyMessages
-      .filter(msg => validRoles.includes(msg.role))
-      .map(msg => ({
+      .filter((msg: any) => validRoles.includes(msg.role))
+      .map((msg: any) => ({
         role: msg.role as 'user' | 'assistant',
         content: msg.content
       }));
@@ -232,32 +258,39 @@ export const handleChat = async (req: Request, res: Response) => {
       step++;
       console.log(`[PLANNING] Step ${step} di ${maxSteps}`);
       
+      // Convert our OpenAIMessage array to ChatCompletionMessageParam[] for OpenAI API
+      const apiMessages: ChatCompletionMessageParam[] = messages.map(msg => ({
+        role: msg.role,
+        content: msg.content,
+        tool_call_id: msg.tool_call_id
+      }));
+
       // Chiamata a OpenAI con i messaggi correnti (senza forzare tool specifici)
-    const completion = await openai.chat.completions.create({
+      const completion = await openai.chat.completions.create({
         model: modelToUse,
-        messages: messages,
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "getClientContext",
-            description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', 'Mi dai qualche idea per A?'",
-            parameters: {
-              type: "object",
-              properties: {
-                clientName: {
-                  type: "string",
-                  description: "Nome completo o parziale del cliente di cui recuperare le informazioni"
+        messages: apiMessages,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "getClientContext",
+              description: "Ottiene informazioni contestuali su un cliente. Chiamare questa funzione quando l'utente chiede informazioni su un cliente specifico. Utile per rispondere a domande come 'che profilo ha X?', 'parlami di Y', 'cosa sai di Z?', 'Mi dai qualche idea per A?'",
+              parameters: {
+                type: "object",
+                properties: {
+                  clientName: {
+                    type: "string",
+                    description: "Nome completo o parziale del cliente di cui recuperare le informazioni"
+                  },
+                  query: {
+                    type: "string",
+                    description: "La richiesta originale dell'utente per contestualizzare la risposta"
+                  }
                 },
-                query: {
-                  type: "string",
-                  description: "La richiesta originale dell'utente per contestualizzare la risposta"
-                }
-              },
-              required: ["clientName", "query"]
+                required: ["clientName", "query"]
+              }
             }
-          }
-        },
+          },
           {
             type: "function",
             function: {
@@ -294,193 +327,193 @@ export const handleChat = async (req: Request, res: Response) => {
                   }
                 },
                 required: ["portfolioDescription", "clientProfile"]
+              }
             }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "composeEmailData",
-            description: "Prepara una email in base al prompt dell'utente. Deve essere chiamata SOLO quando l'utente usa esplicitamente la parola 'INVIA' nel suo messaggio (ad esempio 'INVIA una email a Mario', 'INVIA mail di follow-up', ecc). Questa funzione mostra un dialog per consentire all'utente di rivedere e inviare la mail.",
-            parameters: {
-              type: "object",
-              properties: {
-                clientId: {
-                  type: "string",
-                  description: "ID del cliente o nome del cliente a cui inviare l'email"
-                },
-                clientName: {
-                  type: "string",
-                  description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
-                },
-                subject: {
-                  type: "string",
-                  description: "Oggetto dell'email"
-                },
-                emailType: {
-                  type: "string",
-                  description: "Tipo di email (follow-up, proposta, richiesta, ecc.)"
-                },
-                content: {
-                  type: "string",
-                  description: "Corpo dell'email, formattato in markdown"
-                }
-              },
-              required: ["clientName", "subject", "content"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "getSiteDocumentation",
-            description: "Recupera la documentazione completa sulle funzionalità della piattaforma Gervis. Utilizzare questa funzione quando l'utente chiede informazioni sul funzionamento della piattaforma, domande come 'come funziona Gervis?', 'quali funzionalità ha il sito?', 'cosa può fare questa piattaforma?', 'spiegami le funzioni di Gervis', 'help', ecc.",
-            parameters: {
-              type: "object",
-              properties: {},
-              required: []
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "getFinancialNews",
-            description: "Recupera le ultime notizie finanziarie. Utilizzare questa funzione SOLO quando l'utente chiede di visualizzare o leggere notizie finanziarie, senza alcuna necessità di analizzarle o collegarle ai clienti. Esempi: 'quali sono le ultime notizie finanziarie?', 'dimmi le novità del mercato'.",
-            parameters: {
-              type: "object",
-              properties: {
-                maxResults: {
-                  type: "number",
-                  description: "Numero massimo di notizie da recuperare (default: 5, max: 10)"
-                }
-              },
-              required: []
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "getMeetingsByDateRange",
-            description: "Recupera gli appuntamenti in un intervallo di date specifico. USARE QUESTA FUNZIONE quando l'utente chiede appuntamenti per un periodo di tempo, come 'mostrami gli appuntamenti di questa settimana', 'che incontri ho oggi', 'meeting del mese', ecc. Questa è la funzione principale per mostrare l'agenda all'utente.",
-            parameters: {
-              type: "object",
-              properties: {
-                dateRange: {
-                  type: "object",
-                  properties: {
-                    startDate: {
-                      type: "string",
-                      description: "Data di inizio nel formato YYYY-MM-DD"
-                    },
-                    endDate: {
-                      type: "string",
-                      description: "Data di fine nel formato YYYY-MM-DD"
-                    }
+          },
+          {
+            type: "function",
+            function: {
+              name: "composeEmailData",
+              description: "Prepara una email in base al prompt dell'utente. Deve essere chiamata SOLO quando l'utente usa esplicitamente la parola 'INVIA' nel suo messaggio (ad esempio 'INVIA una email a Mario', 'INVIA mail di follow-up', ecc). Questa funzione mostra un dialog per consentire all'utente di rivedere e inviare la mail.",
+              parameters: {
+                type: "object",
+                properties: {
+                  clientId: {
+                    type: "string",
+                    description: "ID del cliente o nome del cliente a cui inviare l'email"
                   },
-                  required: ["startDate", "endDate"]
-                }
-              },
-              required: ["dateRange"]
+                  clientName: {
+                    type: "string",
+                    description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
+                  },
+                  subject: {
+                    type: "string",
+                    description: "Oggetto dell'email"
+                  },
+                  emailType: {
+                    type: "string",
+                    description: "Tipo di email (follow-up, proposta, richiesta, ecc.)"
+                  },
+                  content: {
+                    type: "string",
+                    description: "Corpo dell'email, formattato in markdown"
+                  }
+                },
+                required: ["clientName", "subject", "content"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "getSiteDocumentation",
+              description: "Recupera la documentazione completa sulle funzionalità della piattaforma Gervis. Utilizzare questa funzione quando l'utente chiede informazioni sul funzionamento della piattaforma, domande come 'come funziona Gervis?', 'quali funzionalità ha il sito?', 'cosa può fare questa piattaforma?', 'spiegami le funzioni di Gervis', 'help', ecc.",
+              parameters: {
+                type: "object",
+                properties: {},
+                required: []
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "getFinancialNews",
+              description: "Recupera le ultime notizie finanziarie. Utilizzare questa funzione SOLO quando l'utente chiede di visualizzare o leggere notizie finanziarie, senza alcuna necessità di analizzarle o collegarle ai clienti. Esempi: 'quali sono le ultime notizie finanziarie?', 'dimmi le novità del mercato'.",
+              parameters: {
+                type: "object",
+                properties: {
+                  maxResults: {
+                    type: "number",
+                    description: "Numero massimo di notizie da recuperare (default: 5, max: 10)"
+                  }
+                },
+                required: []
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "getMeetingsByDateRange",
+              description: "Recupera gli appuntamenti in un intervallo di date specifico. USARE QUESTA FUNZIONE quando l'utente chiede appuntamenti per un periodo di tempo, come 'mostrami gli appuntamenti di questa settimana', 'che incontri ho oggi', 'meeting del mese', ecc. Questa è la funzione principale per mostrare l'agenda all'utente.",
+              parameters: {
+                type: "object",
+                properties: {
+                  dateRange: {
+                    type: "object",
+                    properties: {
+                      startDate: {
+                        type: "string",
+                        description: "Data di inizio nel formato YYYY-MM-DD"
+                      },
+                      endDate: {
+                        type: "string",
+                        description: "Data di fine nel formato YYYY-MM-DD"
+                      }
+                    },
+                    required: ["startDate", "endDate"]
+                  }
+                },
+                required: ["dateRange"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "getMeetingsByClientName",
+              description: "Cerca gli appuntamenti per un cliente specifico. Utilizzare questa funzione quando l'utente chiede di vedere gli appuntamenti per un certo cliente, ad esempio 'mostra gli appuntamenti con Mario Rossi' o 'appuntamenti per il cliente Bianchi'.",
+              parameters: {
+                type: "object",
+                properties: {
+                  clientName: {
+                    type: "string",
+                    description: "Nome del cliente di cui cercare gli appuntamenti"
+                  }
+                },
+                required: ["clientName"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "prepareMeetingData",
+              description: "Usare questa funzione quando l'utente chiede di creare, fissare o programmare un appuntamento con un cliente.",
+              parameters: {
+                type: "object",
+                properties: {
+                  clientId: {
+                    type: "string",
+                    description: "ID del cliente o nome del cliente con cui fissare l'appuntamento"
+                  },
+                  clientName: {
+                    type: "string",
+                    description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
+                  },
+                  subject: {
+                    type: "string",
+                    description: "Oggetto o titolo dell'appuntamento"
+                  },
+                  dateTime: {
+                    type: "string",
+                    description: "Data e ora dell'appuntamento in formato ISO (YYYY-MM-DDTHH:MM:SS) o descrizione testuale come 'domani alle 15'"
+                  },
+                  duration: {
+                    type: "string",
+                    description: "Durata dell'appuntamento in minuti (30, 60, 90, 120)"
+                  },
+                  location: {
+                    type: "string",
+                    description: "Luogo dell'appuntamento (zoom, ufficio, etc)"
+                  },
+                  notes: {
+                    type: "string",
+                    description: "Note aggiuntive sull'appuntamento"
+                  }
+                },
+                required: ["clientId"]
+              }
+            }
+          },
+          {
+            type: "function",
+            function: {
+              name: "prepareEditMeeting",
+              description: "Prepara i dati per modificare un appuntamento esistente",
+              parameters: {
+                type: "object",
+                properties: {
+                  meetingId: {
+                    type: "string",
+                    description: "ID numerico dell'appuntamento da modificare"
+                  },
+                  clientName: {
+                    type: "string",
+                    description: "Nome del cliente dell'appuntamento da modificare"
+                  },
+                  date: {
+                    type: "string",
+                    description: "Data dell'appuntamento nel formato DD/MM/YYYY"
+                  },
+                  time: {
+                    type: "string",
+                    description: "Ora dell'appuntamento nel formato HH:MM"
+                  }
+                },
+                required: [] // Almeno uno dei parametri deve essere fornito
+              }
             }
           }
-        },
-        {
-          type: "function",
-          function: {
-            name: "getMeetingsByClientName",
-            description: "Cerca gli appuntamenti per un cliente specifico. Utilizzare questa funzione quando l'utente chiede di vedere gli appuntamenti per un certo cliente, ad esempio 'mostra gli appuntamenti con Mario Rossi' o 'appuntamenti per il cliente Bianchi'.",
-            parameters: {
-              type: "object",
-              properties: {
-                clientName: {
-                  type: "string",
-                  description: "Nome del cliente di cui cercare gli appuntamenti"
-                }
-              },
-              required: ["clientName"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "prepareMeetingData",
-            description: "Usare questa funzione quando l'utente chiede di creare, fissare o programmare un appuntamento con un cliente.",
-            parameters: {
-              type: "object",
-              properties: {
-                clientId: {
-                  type: "string",
-                  description: "ID del cliente o nome del cliente con cui fissare l'appuntamento"
-                },
-                clientName: {
-                  type: "string",
-                  description: "Nome completo del cliente (usato solo se clientId è un nome anziché un ID)"
-                },
-                subject: {
-                  type: "string",
-                  description: "Oggetto o titolo dell'appuntamento"
-                },
-                dateTime: {
-                  type: "string",
-                  description: "Data e ora dell'appuntamento in formato ISO (YYYY-MM-DDTHH:MM:SS) o descrizione testuale come 'domani alle 15'"
-                },
-                duration: {
-                  type: "string",
-                  description: "Durata dell'appuntamento in minuti (30, 60, 90, 120)"
-                },
-                location: {
-                  type: "string",
-                  description: "Luogo dell'appuntamento (zoom, ufficio, etc)"
-                },
-                notes: {
-                  type: "string",
-                  description: "Note aggiuntive sull'appuntamento"
-                }
-              },
-              required: ["clientId"]
-            }
-          }
-        },
-        {
-          type: "function",
-          function: {
-            name: "prepareEditMeeting",
-            description: "Prepara i dati per modificare un appuntamento esistente",
-            parameters: {
-              type: "object",
-              properties: {
-                meetingId: {
-                  type: "string",
-                  description: "ID numerico dell'appuntamento da modificare"
-                },
-                clientName: {
-                  type: "string",
-                  description: "Nome del cliente dell'appuntamento da modificare"
-                },
-                date: {
-                  type: "string",
-                  description: "Data dell'appuntamento nel formato DD/MM/YYYY"
-                },
-                time: {
-                  type: "string",
-                  description: "Ora dell'appuntamento nel formato HH:MM"
-                }
-              },
-              required: [] // Almeno uno dei parametri deve essere fornito
-            }
-          }
-        }
-      ],
+        ],
         tool_choice: "auto" // Lasciamo all'AI la libertà di scegliere quale tool usare
-    });
-    
+      });
+      
       console.log(`[PLANNING] Risposta OpenAI (Step ${step}):`, { 
-      content: completion.choices[0]?.message?.content?.substring(0, 100) + '...',
-      hasFunctionCalls: !!completion.choices[0]?.message?.tool_calls?.length
-    });
+        content: completion.choices[0]?.message?.content?.substring(0, 100) + '...',
+        hasFunctionCalls: !!completion.choices[0]?.message?.tool_calls?.length
+      });
 
       const choice = completion.choices[0];
       if (!choice || !choice.message) {
@@ -488,8 +521,20 @@ export const handleChat = async (req: Request, res: Response) => {
         break;
       }
       
-      // Aggiungi il messaggio dell'AI alla lista dei messaggi
-      messages.push(choice.message);
+      // Fix the ChatCompletionMessage handling with appropriate types
+      if (choice && choice.message) {
+        // Extract the content or use empty string if null
+        const assistantMessageContent = choice.message.content || '';
+        
+        // Create our own message object with the correct type
+        const assistantMessage: OpenAIMessage = {
+          role: 'assistant',
+          content: assistantMessageContent
+        };
+        
+        // Push the correctly typed message
+        messages.push(assistantMessage);
+      }
       
       // Se non ci sono tool calls, probabilmente abbiamo la risposta finale
       if (!choice.message.tool_calls || choice.message.tool_calls.length === 0) {

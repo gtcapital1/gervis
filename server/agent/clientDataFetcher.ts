@@ -1,7 +1,7 @@
-import { db } from "../db";
-import { clients, assets, aiProfiles, mifid, recommendations, clientLogs, signedDocuments, verifiedDocuments, trendData } from "../../shared/schema";
+import { db } from "../db.js";
+import { clients, assets, aiProfiles, mifid, recommendations, clientLogs, signedDocuments, verifiedDocuments, trendData } from "../../shared/schema.js";
 import { and, eq, like, or, desc } from "drizzle-orm";
-import { findClientByName } from "../services/clientProfileService";
+import { findClientByName } from "../services/clientProfileService.js";
 
 /**
  * Comprehensive function to fetch all client-related data with field descriptions
@@ -183,7 +183,7 @@ export async function getCompleteClientData(firstName: string, lastName: string,
       // Detailed asset information
       assetDetails: {
         description: "Breakdown of the client's investment portfolio and assets",
-        data: clientAssets.map(asset => ({
+        data: clientAssets.map((asset: any) => ({
           id: {
             value: asset.id,
             description: "Unique identifier for this asset"
@@ -276,7 +276,7 @@ export async function getCompleteClientData(firstName: string, lastName: string,
       // Investment recommendations
       recommendations: {
         description: "Investment recommendations and advisory suggestions for the client",
-        data: clientRecommendations.map(rec => ({
+        data: clientRecommendations.map((rec: any) => ({
           id: {
             value: rec.id,
             description: "Unique identifier for this recommendation"
@@ -299,7 +299,7 @@ export async function getCompleteClientData(firstName: string, lastName: string,
       // Document history
       documents: {
         description: "Legal and financial documents signed by the client",
-        data: clientDocuments.map(doc => ({
+        data: clientDocuments.map((doc: any) => ({
           documentName: {
             value: doc.documentName,
             description: "Name of the document"
@@ -341,7 +341,7 @@ export async function getCompleteClientData(firstName: string, lastName: string,
       // Performance data
       performanceData: {
         description: "Historical performance data of client's portfolio",
-        data: performanceData.map(data => ({
+        data: performanceData.map((data: any) => ({
           date: {
             value: formatDate(data.date),
             description: "Date of the recorded performance snapshot"
@@ -364,7 +364,7 @@ export async function getCompleteClientData(firstName: string, lastName: string,
       // Recent activities and interactions
       recentActivities: {
         description: "Recent interactions and communications with the client",
-        data: recentLogs.map(log => ({
+        data: recentLogs.map((log: any) => ({
           type: {
             value: log.type,
             description: "Type of interaction (email, note, call, meeting, document signing)"
