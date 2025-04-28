@@ -10,7 +10,7 @@ import { sendVerificationPin } from "./email";
 import nodemailer from "nodemailer";
 import { isEmailWhitelisted } from "./whitelist";
 import { db } from "@shared/db";
-import { productsPublicDatabase, portfolioProducts, userProducts } from "@shared/schema";
+import { productsPublicDatabase, portfolioProducts, userProducts, modelPortfolios, portfolioAllocations, mifid, assets } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 
 declare global {
@@ -407,13 +407,114 @@ export function setupAuth(app: Express) {
           console.log("[Register] Clienti mock creati con successo:", 
             { client1Id: mockClient1.id, client2Id: mockClient2.id });
           
-          // Crea asset per il primo cliente (Francesca Bianchi)
-          await storage.createAsset({
-            clientId: mockClient1.id,
-            category: "equity",
-            value: 50000,
-            description: "ISIN: IE00B4ND3602"
-          });
+          // Creiamo dati MIFID mock per i clienti
+          try {
+            console.log("[Register] Creazione dati MIFID mock per i clienti");
+            
+            // MIFID per cliente 1 (high net worth)
+            const mifidData1 = {
+              clientId: mockClient1.id,
+              address: "Via Roma 123, Milano",
+              phone: "3902123456",
+              birthDate: "1975-05-15",
+              employmentStatus: "entrepreneur",
+              educationLevel: "master",
+              annualIncome: "150,000-300,000€",
+              monthlyExpenses: "5,000-10,000€",
+              debts: "50,000-100,000€",
+              netWorth: "500,000-1,000,000€",
+              riskProfile: "growth",
+              investmentHorizon: "5-10-anni",
+              investmentExperience: "advanced",
+              investmentObjective: "wealth_growth, retirement_planning",
+              portfolioDropReaction: "hold",
+              pastInvestmentExperience: ["stocks", "bonds", "funds", "etfs"],
+              financialEducation: ["university", "professional_training"],
+              etfObjectiveQuestion: "correct"
+            };
+            
+            // MIFID per cliente 2 (mass market)
+            const mifidData2 = {
+              clientId: mockClient2.id,
+              address: "Via Napoli 45, Roma",
+              phone: "3906876543",
+              birthDate: "1988-10-20",
+              employmentStatus: "employee",
+              educationLevel: "bachelor",
+              annualIncome: "30,000-70,000€",
+              monthlyExpenses: "1,000-2,000€",
+              debts: "10,000-30,000€",
+              netWorth: "50,000-100,000€",
+              riskProfile: "conservative",
+              investmentHorizon: "3-5-anni",
+              investmentExperience: "beginner",
+              investmentObjective: "capital_preservation, income_generation",
+              portfolioDropReaction: "partial_sell",
+              pastInvestmentExperience: ["deposits", "government_bonds"],
+              financialEducation: ["reading"],
+              etfObjectiveQuestion: "incorrect"
+            };
+            
+            // Inserisci i dati MIFID nel database - Una chiamata per ogni cliente
+            await db.insert(mifid).values(mifidData1);
+            await db.insert(mifid).values(mifidData2);
+            
+            console.log(`[Register] Dati MIFID creati per i clienti ${mockClient1.id} e ${mockClient2.id}`);
+            
+            // Creiamo alcuni asset per i clienti
+            const assets1 = [
+              {
+                clientId: mockClient1.id,
+                category: "real_estate",
+                value: 400000,
+                description: "Immobile residenziale a Milano"
+              },
+              {
+                clientId: mockClient1.id,
+                category: "cash",
+                value: 100000,
+                description: "Depositi bancari"
+              },
+              {
+                clientId: mockClient1.id,
+                category: "investments",
+                value: 300000,
+                description: "Portafoglio titoli diversificato"
+              }
+            ];
+            
+            // Inserisci gli asset uno per uno
+            for (const asset of assets1) {
+              await db.insert(assets).values(asset);
+            }
+            console.log(`[Register] Creati ${assets1.length} asset per il cliente ${mockClient1.id}`);
+            
+            const assets2 = [
+              {
+                clientId: mockClient2.id,
+                category: "cash",
+                value: 20000,
+                description: "Conto corrente e depositi"
+              },
+              {
+                clientId: mockClient2.id,
+                category: "investments",
+                value: 50000,
+                description: "Fondi comuni e titoli di stato"
+              }
+            ];
+            
+            // Inserisci gli asset uno per uno
+            for (const asset of assets2) {
+              await db.insert(assets).values(asset);
+            }
+            console.log(`[Register] Creati ${assets2.length} asset per il cliente ${mockClient2.id}`);
+            
+            console.log("[Register] Dati MIFID e asset creati per i clienti mock");
+          } catch (mifidError) {
+            console.error("[Register Error] Errore durante la creazione dei dati MIFID mock:", mifidError);
+            // Non bloccare la registrazione se la creazione dei dati MIFID fallisce
+          }
           
           // Aggiungi prodotti predefiniti dalla banca dati pubblica
           try {
@@ -426,56 +527,376 @@ export function setupAuth(app: Express) {
             if (publicProducts.length > 0) {
               console.log(`[Register] Trovati ${publicProducts.length} prodotti da aggiungere all'utente ${user.id}`);
               
-              for (const publicProduct of publicProducts) {
-                // Verifica se il prodotto è già nel database principale
-                const existingProducts = await db.select()
-                  .from(portfolioProducts)
-                  .where(eq(portfolioProducts.isin, publicProduct.isin));
-                
-                let portfolioProduct;
-                
-                if (existingProducts.length > 0) {
-                  // Usa il prodotto esistente
-                  portfolioProduct = existingProducts[0];
-                } else {
-                  // Crea una copia nel database principale
-                  const [newProduct] = await db.insert(portfolioProducts)
-                    .values({
-                      isin: publicProduct.isin,
-                      name: publicProduct.name,
-                      category: publicProduct.category,
-                      description: publicProduct.description,
-                      benchmark: publicProduct.benchmark,
-                      dividend_policy: publicProduct.dividend_policy,
-                      currency: publicProduct.currency,
-                      sri_risk: publicProduct.sri_risk,
-                      entry_cost: publicProduct.entry_cost,
-                      exit_cost: publicProduct.exit_cost,
-                      ongoing_cost: publicProduct.ongoing_cost,
-                      transaction_cost: publicProduct.transaction_cost,
-                      performance_fee: publicProduct.performance_fee,
-                      recommended_holding_period: publicProduct.recommended_holding_period,
-                      target_market: publicProduct.target_market,
-                      kid_file_path: publicProduct.kid_file_path,
-                      kid_processed: !!publicProduct.kid_processed,
-                      createdBy: user.id
-                    })
-                    .returning();
+              // Funzione per aggiungere prodotti all'utente
+              const addProductsToUser = async () => {
+                for (const publicProduct of publicProducts) {
+                  // Verifica se il prodotto è già nel database principale
+                  const existingProducts = await db.select()
+                    .from(portfolioProducts)
+                    .where(eq(portfolioProducts.isin, publicProduct.isin));
                   
-                  portfolioProduct = newProduct;
+                  let portfolioProduct;
+                  
+                  if (existingProducts.length > 0) {
+                    // Usa il prodotto esistente
+                    portfolioProduct = existingProducts[0];
+                  } else {
+                    // Crea una copia nel database principale
+                    const [newProduct] = await db.insert(portfolioProducts)
+                      .values({
+                        isin: publicProduct.isin,
+                        name: publicProduct.name,
+                        category: publicProduct.category,
+                        description: publicProduct.description,
+                        benchmark: publicProduct.benchmark,
+                        dividend_policy: publicProduct.dividend_policy,
+                        currency: publicProduct.currency,
+                        sri_risk: publicProduct.sri_risk,
+                        entry_cost: publicProduct.entry_cost,
+                        exit_cost: publicProduct.exit_cost,
+                        ongoing_cost: publicProduct.ongoing_cost,
+                        transaction_cost: publicProduct.transaction_cost,
+                        performance_fee: publicProduct.performance_fee,
+                        recommended_holding_period: publicProduct.recommended_holding_period,
+                        target_market: publicProduct.target_market,
+                        kid_file_path: publicProduct.kid_file_path,
+                        kid_processed: !!publicProduct.kid_processed,
+                        createdBy: user.id
+                      })
+                      .returning();
+                    
+                    portfolioProduct = newProduct;
+                  }
+                  
+                  // Aggiungi il prodotto all'utente
+                  await db.insert(userProducts)
+                    .values({
+                      userId: user.id,
+                      productId: portfolioProduct.id
+                    });
+                  
+                  console.log(`[Register] Aggiunto prodotto ${portfolioProduct.isin} (${portfolioProduct.name}) all'utente ${user.id}`);
                 }
-                
-                // Aggiungi il prodotto all'utente
-                await db.insert(userProducts)
-                  .values({
-                    userId: user.id,
-                    productId: portfolioProduct.id
-                  });
-                
-                console.log(`[Register] Aggiunto prodotto ${portfolioProduct.isin} (${portfolioProduct.name}) all'utente ${user.id}`);
-              }
+              };
+              
+              await addProductsToUser();
             } else {
               console.log("[Register] Nessun prodotto trovato nella banca dati pubblica");
+            }
+            
+            // Crea i portafogli modello predefiniti per l'utente
+            try {
+              console.log("[Register] Creazione portafogli modello predefiniti per il nuovo utente");
+              
+              // Funzione per creare i portfolio model predefiniti
+              const createDefaultPortfolios = async () => {
+                // Get all available products to map ISINs to IDs
+                const allProducts = await db.select()
+                  .from(portfolioProducts);
+                
+                console.log(`[Register] Trovati ${allProducts.length} prodotti nel database per la mappatura ISIN->ID`);
+                
+                // Create a mapping of ISIN to product ID
+                const isinToProductId: Record<string, number> = {};
+                allProducts.forEach(product => {
+                  if (product.isin) {
+                    isinToProductId[product.isin] = product.id;
+                    console.log(`[Register] Mappato ISIN ${product.isin} -> ID ${product.id}`);
+                  }
+                });
+                
+                console.log(`[Register] Creato mapping di ${Object.keys(isinToProductId).length} ISINs a IDs`);
+                
+                // Ensure all required products exist
+                const requiredProducts = [
+                  { isin: "IE00BJZPH432", name: "Ultrashort Bond ETF", category: "bonds" },
+                  { isin: "IE00B3FH7618", name: "Aggregate Bond ETF", category: "bonds" },
+                  { isin: "IE00B0M62X26", name: "Inflation-Linked Bond ETF", category: "bonds" },
+                  { isin: "IE00B2NPKV68", name: "Emerging Markets Bond ETF", category: "bonds" },
+                  { isin: "IE00B4L60045", name: "High Yield Bond ETF", category: "bonds" },
+                  { isin: "IE00B4NCWG09", name: "Physical Gold ETC", category: "commodities" },
+                  { isin: "IE00B4L5Y983", name: "Developed World Equity ETF", category: "equity" },
+                  { isin: "IE00BKM4GZ66", name: "Emerging Markets Equity ETF", category: "equity" },
+                  { isin: "IE00BSKRK281", name: "Global Real Estate ETF", category: "real_estate" },
+                  { isin: "IE00BGL86Z12", name: "Diversified Commodities ETF", category: "commodities" },
+                  { isin: "IE00BGBN6P67", name: "Blockchain Innovation ETF", category: "equity" }
+                ];
+                
+                console.log(`[Register] Verifica esistenza di ${requiredProducts.length} prodotti necessari`);
+                
+                // Create any missing products
+                for (const product of requiredProducts) {
+                  if (!isinToProductId[product.isin]) {
+                    console.log(`[Register] Creazione prodotto mancante: ${product.isin} (${product.name})`);
+                    try {
+                      const [newProduct] = await db.insert(portfolioProducts)
+                        .values({
+                          isin: product.isin,
+                          name: product.name,
+                          category: product.category,
+                          description: `${product.name} - Default product`,
+                          entry_cost: "0.1",
+                          exit_cost: "0.1",
+                          ongoing_cost: "0.2",
+                          transaction_cost: "0.1",
+                          createdBy: user.id
+                        })
+                        .returning();
+                      
+                      isinToProductId[product.isin] = newProduct.id;
+                      console.log(`[Register] Prodotto creato con successo: ${product.isin} -> ID ${newProduct.id}`);
+                    } catch (error) {
+                      console.error(`[Register Error] Impossibile creare prodotto ${product.isin}:`, error);
+                    }
+                  }
+                }
+                
+                // Portfolio 1: Portafoglio Conservativo Protezione Capitale & Liquidità
+                const portfolio1Data = {
+                  name: "Portafoglio Conservativo Protezione Capitale & Liquidità",
+                  description: "Portafoglio a basso rischio, focalizzato su protezione del capitale, liquidità e stabilità, con minima esposizione azionaria e diversificazione obbligazionaria.",
+                  clientProfile: "Cliente con bassa tolleranza al rischio, priorità assoluta su stabilità, liquidità e protezione del capitale. Ideale per chi ha un orizzonte temporale breve (1-3 anni) e non ricerca rendimenti elevati.",
+                  riskLevel: "1-2",
+                  constructionLogic: "La costruzione del portafoglio parte dalla massima priorità su protezione del capitale e liquidità. Il 70% è allocato su obbligazioni a basso rischio e breve duration: 40% su ultrashort bond (sri_risk 1, duration 3 anni) e 30% su aggregate bond globali coperti in EUR (sri_risk 2, duration 3 anni). Il 10% va su inflation-linked bond per protezione dall'inflazione (sri_risk 3, duration 3 anni). Un'esposizione marginale (8%) è concessa ai bond emergenti (sri_risk 3, duration 3 anni) e 5% a high yield bond (sri_risk 3, duration 3 anni) per migliorare leggermente il rendimento senza compromettere il profilo di rischio. Solo il 3% è destinato all'azionario globale sviluppato (sri_risk 4, duration 5 anni) per diversificazione e crescita potenziale, mantenendo l'esposizione azionaria molto contenuta. Il 4% è allocato sull'oro fisico (sri_risk 4, duration 5 anni) come ulteriore diversificatore e bene rifugio. Sono esclusi prodotti ad alto rischio (blockchain, emerging equity, commodity swap, real estate) e con duration superiore all'orizzonte consigliato. Tutti i prodotti selezionati hanno costi contenuti e duration compatibile con l'orizzonte breve. La ponderazione è stata effettuata per massimizzare la stabilità e la liquidità, minimizzando la volatilità e il rischio di perdita permanente.",
+                  entryCost: "0",
+                  exitCost: "0",
+                  ongoingCost: "0.103",
+                  transactionCost: "0",
+                  performanceFee: "0",
+                  totalAnnualCost: "0.103",
+                  averageRisk: "1.98",
+                  averageTimeHorizon: "3.23",
+                  assetClassDistribution: [
+                    {"category": "bonds", "percentage": 93},
+                    {"category": "commodities", "percentage": 4},
+                    {"category": "equity", "percentage": 3}
+                  ]
+                };
+                
+                // Salva il portafoglio 1
+                const [portfolio1] = await db.insert(modelPortfolios).values({
+                  name: portfolio1Data.name,
+                  description: portfolio1Data.description,
+                  clientProfile: portfolio1Data.clientProfile,
+                  riskLevel: portfolio1Data.riskLevel,
+                  constructionLogic: portfolio1Data.constructionLogic,
+                  entryCost: portfolio1Data.entryCost,
+                  exitCost: portfolio1Data.exitCost,
+                  ongoingCost: portfolio1Data.ongoingCost,
+                  transactionCost: portfolio1Data.transactionCost,
+                  performanceFee: portfolio1Data.performanceFee,
+                  totalAnnualCost: portfolio1Data.totalAnnualCost,
+                  averageRisk: portfolio1Data.averageRisk,
+                  averageTimeHorizon: portfolio1Data.averageTimeHorizon,
+                  assetClassDistribution: portfolio1Data.assetClassDistribution,
+                  createdBy: user.id
+                }).returning();
+                
+                // Allocazioni per il portafoglio 1 usando ISIN anziché ID
+                const portfolio1AllocationsWithIsin = [
+                  { isin: "IE00BJZPH432", percentage: "40" }, // Ultrashort bond
+                  { isin: "IE00B3FH7618", percentage: "30" }, // Aggregate bond
+                  { isin: "IE00B0M62X26", percentage: "10" }, // Inflation-linked
+                  { isin: "IE00B2NPKV68", percentage: "8" },  // Emerging bond
+                  { isin: "IE00B4L60045", percentage: "5" },  // High yield bond
+                  { isin: "IE00B4NCWG09", percentage: "4" },  // Gold
+                  { isin: "IE00B4L5Y983", percentage: "3" }   // Developed equity
+                ];
+                
+                console.log(`[Register] Tentativo di creare ${portfolio1AllocationsWithIsin.length} allocazioni per Portfolio 1`);
+                let allocazioniCreate1 = 0;
+                
+                // Inserisci le allocazioni del portafoglio 1
+                for (const allocation of portfolio1AllocationsWithIsin) {
+                  // Trova il product ID corrispondente all'ISIN
+                  const productId = isinToProductId[allocation.isin];
+                  if (productId) {
+                    try {
+                      await db.insert(portfolioAllocations).values({
+                        portfolioId: portfolio1.id,
+                        productId: productId,
+                        percentage: allocation.percentage
+                      });
+                      allocazioniCreate1++;
+                      console.log(`[Register] Creata allocazione per Portfolio 1: ISIN ${allocation.isin} -> ID ${productId}, ${allocation.percentage}%`);
+                    } catch (error) {
+                      console.error(`[Register Error] Errore creando allocazione per Portfolio 1, ISIN ${allocation.isin}:`, error);
+                    }
+                  } else {
+                    console.log(`[Register] ISIN ${allocation.isin} non trovato per Portfolio 1`);
+                  }
+                }
+                
+                console.log(`[Register] Create ${allocazioniCreate1}/${portfolio1AllocationsWithIsin.length} allocazioni per Portfolio 1`);
+                
+                // Portfolio 2: Portafoglio Bilanciato Crescita & Stabilità
+                const portfolio2Data = {
+                  name: "Portafoglio Bilanciato Crescita & Stabilità",
+                  description: "Portafoglio diversificato con mix di azioni, obbligazioni, real estate e materie prime, progettato per offrire una crescita moderata del capitale e una buona stabilità, adatto a investitori con tolleranza al rischio media e orizzonte temporale di medio termine (3-7 anni).",
+                  clientProfile: "Investitore con tolleranza al rischio media, obiettivo di crescita del capitale e preservazione del valore, orizzonte temporale 3-7 anni.",
+                  riskLevel: "4",
+                  constructionLogic: "La costruzione del portafoglio parte dall'obiettivo di bilanciare crescita e stabilità, con un rischio medio e un orizzonte temporale di 3-7 anni. Si è scelto di allocare circa il 35% in azioni (22% developed, 10% emerging, 3% blockchain per diversificazione tematica e crescita, ma con peso contenuto per il rischio elevato), 7% in real estate per diversificazione settoriale e flussi da dividendi, 46% in obbligazioni (mix tra aggregate globali, inflation linked, high yield, emergenti e ultrashort per diversificare rischio tasso/credito/valuta), 7% in oro come bene rifugio e 5% in materie prime per protezione dall'inflazione e decorrelazione. Le percentuali sono state calibrate per mantenere un rischio medio (ponderato), una duration media in linea con l'orizzonte temporale e un TER contenuto. Il peso delle obbligazioni investment grade e aggregate (21%) e ultrashort (6%) aiuta a contenere la volatilità. L'esposizione azionaria è globale e diversificata. L'allocazione in blockchain è limitata per evitare eccessi di rischio. Le materie prime e l'oro offrono protezione da shock inflattivi e geopolitici. Tutti i prodotti selezionati hanno costi contenuti e orizzonte di detenzione compatibile con il profilo richiesto.",
+                  entryCost: "0.1",
+                  exitCost: "0.05",
+                  ongoingCost: "0.265",
+                  transactionCost: "0.1",
+                  performanceFee: "0",
+                  totalAnnualCost: "0.263",
+                  averageRisk: "3.36",
+                  averageTimeHorizon: "4.2",
+                  assetClassDistribution: [
+                    {"category": "equity", "percentage": 35},
+                    {"category": "real_estate", "percentage": 7},
+                    {"category": "bonds", "percentage": 46},
+                    {"category": "commodities", "percentage": 12}
+                  ]
+                };
+                
+                // Salva il portafoglio 2
+                const [portfolio2] = await db.insert(modelPortfolios).values({
+                  name: portfolio2Data.name,
+                  description: portfolio2Data.description,
+                  clientProfile: portfolio2Data.clientProfile,
+                  riskLevel: portfolio2Data.riskLevel,
+                  constructionLogic: portfolio2Data.constructionLogic,
+                  entryCost: portfolio2Data.entryCost,
+                  exitCost: portfolio2Data.exitCost,
+                  ongoingCost: portfolio2Data.ongoingCost,
+                  transactionCost: portfolio2Data.transactionCost,
+                  performanceFee: portfolio2Data.performanceFee,
+                  totalAnnualCost: portfolio2Data.totalAnnualCost,
+                  averageRisk: portfolio2Data.averageRisk,
+                  averageTimeHorizon: portfolio2Data.averageTimeHorizon,
+                  assetClassDistribution: portfolio2Data.assetClassDistribution,
+                  createdBy: user.id
+                }).returning();
+                
+                // Allocazioni per il portafoglio 2 usando ISIN anziché ID
+                const portfolio2AllocationsWithIsin = [
+                  { isin: "IE00B4L5Y983", percentage: "22" }, // Developed equity
+                  { isin: "IE00BKM4GZ66", percentage: "10" }, // Emerging equity
+                  { isin: "IE00BSKRK281", percentage: "7" },  // Real estate
+                  { isin: "IE00B0M62X26", percentage: "12" }, // Inflation-linked
+                  { isin: "IE00B2NPKV68", percentage: "8" },  // Emerging bond
+                  { isin: "IE00B4L60045", percentage: "7" },  // High yield bond
+                  { isin: "IE00B3FH7618", percentage: "13" }, // Aggregate bond
+                  { isin: "IE00BJZPH432", percentage: "6" },  // Ultrashort bond
+                  { isin: "IE00B4NCWG09", percentage: "7" },  // Gold
+                  { isin: "IE00BGL86Z12", percentage: "5" },  // Commodities
+                  { isin: "IE00BGBN6P67", percentage: "3" }   // Blockchain
+                ];
+                
+                console.log(`[Register] Tentativo di creare ${portfolio2AllocationsWithIsin.length} allocazioni per Portfolio 2`);
+                let allocazioniCreate2 = 0;
+                
+                // Inserisci le allocazioni del portafoglio 2
+                for (const allocation of portfolio2AllocationsWithIsin) {
+                  const productId = isinToProductId[allocation.isin];
+                  if (productId) {
+                    try {
+                      await db.insert(portfolioAllocations).values({
+                        portfolioId: portfolio2.id,
+                        productId: productId,
+                        percentage: allocation.percentage
+                      });
+                      allocazioniCreate2++;
+                      console.log(`[Register] Creata allocazione per Portfolio 2: ISIN ${allocation.isin} -> ID ${productId}, ${allocation.percentage}%`);
+                    } catch (error) {
+                      console.error(`[Register Error] Errore creando allocazione per Portfolio 2, ISIN ${allocation.isin}:`, error);
+                    }
+                  } else {
+                    console.log(`[Register] ISIN ${allocation.isin} non trovato per Portfolio 2`);
+                  }
+                }
+                
+                console.log(`[Register] Create ${allocazioniCreate2}/${portfolio2AllocationsWithIsin.length} allocazioni per Portfolio 2`);
+                
+                // Portfolio 3: Portafoglio Crescita Globale Aggressivo
+                const portfolio3Data = {
+                  name: "Portafoglio Crescita Globale Aggressivo",
+                  description: "Portafoglio ad alto rischio e alta crescita, con forte esposizione azionaria globale, mercati emergenti, tecnologia blockchain e una diversificazione tattica in obbligazioni high yield, immobili, oro e materie prime. Ideale per investitori con elevata tolleranza al rischio e orizzonte temporale di lungo periodo.",
+                  clientProfile: "Investitore con elevata tolleranza al rischio, orizzonte temporale superiore a 7 anni e obiettivo di crescita significativa del capitale.",
+                  riskLevel: "6-7",
+                  constructionLogic: "La costruzione del portafoglio parte dall'obiettivo di massimizzare la crescita del capitale in un orizzonte temporale di lungo periodo, accettando elevata volatilità. La componente azionaria è dominante (60%), con una forte esposizione ai mercati sviluppati globali (MSCI World, 30%), ai mercati emergenti (20%) e al settore blockchain (10%) per cogliere trend di crescita strutturale e innovazione. L'esposizione immobiliare (8%) aggiunge diversificazione settoriale e potenziale rendimento da dividendi. La componente obbligazionaria (17%) è focalizzata su high yield e mercati emergenti (12%) per aumentare il rendimento atteso, con una piccola quota in inflation linked (5%) per protezione dall'inflazione. Le materie prime (8%) e l'oro (7%) offrono ulteriore diversificazione e copertura da shock di mercato e inflazione. La selezione dei prodotti privilegia ETF a basso costo e liquidità, con duration media coerente con l'orizzonte di lungo periodo. Il rischio medio ponderato è elevato, in linea con il profilo richiesto. La presenza di asset decorrelati (oro, commodities, real estate) riduce il rischio sistemico pur mantenendo un profilo aggressivo.",
+                  entryCost: "0.16",
+                  exitCost: "0.08",
+                  ongoingCost: "0.325",
+                  transactionCost: "0.15",
+                  performanceFee: "0",
+                  totalAnnualCost: "0.304",
+                  averageRisk: "5.1",
+                  averageTimeHorizon: "4.7",
+                  assetClassDistribution: [
+                    {"category": "equity", "percentage": 60},
+                    {"category": "real_estate", "percentage": 8},
+                    {"category": "bonds", "percentage": 17},
+                    {"category": "commodities", "percentage": 15}
+                  ]
+                };
+                
+                // Salva il portafoglio 3
+                const [portfolio3] = await db.insert(modelPortfolios).values({
+                  name: portfolio3Data.name,
+                  description: portfolio3Data.description,
+                  clientProfile: portfolio3Data.clientProfile,
+                  riskLevel: portfolio3Data.riskLevel,
+                  constructionLogic: portfolio3Data.constructionLogic,
+                  entryCost: portfolio3Data.entryCost,
+                  exitCost: portfolio3Data.exitCost,
+                  ongoingCost: portfolio3Data.ongoingCost,
+                  transactionCost: portfolio3Data.transactionCost,
+                  performanceFee: portfolio3Data.performanceFee,
+                  totalAnnualCost: portfolio3Data.totalAnnualCost,
+                  averageRisk: portfolio3Data.averageRisk,
+                  averageTimeHorizon: portfolio3Data.averageTimeHorizon,
+                  assetClassDistribution: portfolio3Data.assetClassDistribution,
+                  createdBy: user.id
+                }).returning();
+                
+                // Allocazioni per il portafoglio 3 usando ISIN anziché ID
+                const portfolio3AllocationsWithIsin = [
+                  { isin: "IE00B4L5Y983", percentage: "30" }, // Developed equity
+                  { isin: "IE00BKM4GZ66", percentage: "20" }, // Emerging equity
+                  { isin: "IE00BGBN6P67", percentage: "10" }, // Blockchain
+                  { isin: "IE00BSKRK281", percentage: "8" },  // Real estate
+                  { isin: "IE00B4L60045", percentage: "7" },  // High yield bond
+                  { isin: "IE00B2NPKV68", percentage: "5" },  // Emerging bond
+                  { isin: "IE00B0M62X26", percentage: "5" },  // Inflation-linked
+                  { isin: "IE00B4NCWG09", percentage: "7" },  // Gold
+                  { isin: "IE00BGL86Z12", percentage: "8" }   // Commodities
+                ];
+                
+                console.log(`[Register] Tentativo di creare ${portfolio3AllocationsWithIsin.length} allocazioni per Portfolio 3`);
+                let allocazioniCreate3 = 0;
+                
+                // Inserisci le allocazioni del portafoglio 3
+                for (const allocation of portfolio3AllocationsWithIsin) {
+                  const productId = isinToProductId[allocation.isin];
+                  if (productId) {
+                    try {
+                      await db.insert(portfolioAllocations).values({
+                        portfolioId: portfolio3.id,
+                        productId: productId,
+                        percentage: allocation.percentage
+                      });
+                      allocazioniCreate3++;
+                      console.log(`[Register] Creata allocazione per Portfolio 3: ISIN ${allocation.isin} -> ID ${productId}, ${allocation.percentage}%`);
+                    } catch (error) {
+                      console.error(`[Register Error] Errore creando allocazione per Portfolio 3, ISIN ${allocation.isin}:`, error);
+                    }
+                  } else {
+                    console.log(`[Register] ISIN ${allocation.isin} non trovato per Portfolio 3`);
+                  }
+                }
+                
+                console.log(`[Register] Create ${allocazioniCreate3}/${portfolio3AllocationsWithIsin.length} allocazioni per Portfolio 3`);
+                console.log(`[Register] Creazione portafogli modello completata con successo per l'utente ${user.id}`);
+              };
+              
+              await createDefaultPortfolios();
+            } catch (portfolioError) {
+              console.error("[Register Error] Errore durante la creazione dei portafogli modello predefiniti:", portfolioError);
+              // Non bloccare la registrazione se la creazione dei portafogli fallisce
             }
           } catch (productError) {
             console.error("[Register Error] Errore durante l'aggiunta di prodotti predefiniti:", productError);

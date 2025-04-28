@@ -1,6 +1,7 @@
 // Lista di email che sono automaticamente approvate senza necessità di approvazione admin
 export const whitelistedEmails: string[] = [
   "gianmarco.trapasso@gmail.com",
+  "trapassogianmarco@gmail.com",
   "rsansone.eo@gmail.com",
   "roberto.rescina@gmail.com",
   "gt@gervis.it"
