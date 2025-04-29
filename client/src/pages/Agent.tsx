@@ -283,8 +283,7 @@ export default function AgentPage() {
   // Check for portfolio creation prompt
   useEffect(() => {
     const portfolioPrompt = localStorage.getItem('portfolioCreationPrompt');
-    // Controlla entrambi i flag per retrocompatibilità
-    const autoSend = localStorage.getItem('autoSendPrompt') === 'true' || localStorage.getItem('autoSubmitPrompt') === 'true';
+    const autoSend = localStorage.getItem('autoSendPrompt') === 'true';
     const showUserMessage = localStorage.getItem('showUserMessage') === 'true';
     
     if (portfolioPrompt) {
@@ -295,7 +294,6 @@ export default function AgentPage() {
       setInput(portfolioPrompt);
       localStorage.removeItem('portfolioCreationPrompt');
       localStorage.removeItem('autoSendPrompt');
-      localStorage.removeItem('autoSubmitPrompt'); // Rimuovi anche il vecchio flag
       localStorage.removeItem('showUserMessage');
       
       // Se showUserMessage è true, aggiungi il messaggio utente alla chat
