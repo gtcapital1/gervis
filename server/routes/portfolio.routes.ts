@@ -118,8 +118,8 @@ const KID_STORAGE = {
     const filename = `${isin}_${timestamp}_${uniqueId}.pdf`;
     const filePath = path.join(userKidDir, filename);
     
-    // Percorso relativo per il database utente
-    const relativePath = `server/private/KIDs/${userId}/${filename}`;
+    // Percorso relativo per il database utente - MODIFICATO PER USARE PERCORSO ASSOLUTO
+    const relativePath = `/var/www/gervis/server/private/KIDs/${userId}/${filename}`;
     
     // Salva il file nella directory dell'utente
     if (Buffer.isBuffer(uploadedFile)) {
@@ -151,7 +151,7 @@ const KID_STORAGE = {
     const timestamp = Date.now();
     const filename = `temp_${timestamp}_${uniqueId}.pdf`;
     const filePath = path.join(userDir, filename);
-    const relativePath = `server/private/KID/${userId}/${filename}`;
+    const relativePath = `/var/www/gervis/server/private/KID/${userId}/${filename}`;
     
     return { filePath, relativePath };
   },
@@ -169,7 +169,7 @@ const KID_STORAGE = {
     const filePath = path.join(isinDir, `${isin}.pdf`);
     
     if (fs.existsSync(filePath)) {
-      return `server/private/KID_Database/${isin}/${isin}.pdf`;
+      return `/var/www/gervis/server/private/KID_Database/${isin}/${isin}.pdf`;
     }
     
     return null;
@@ -2006,11 +2006,35 @@ Rispondi in formato JSON
       // Verifica che le directory esistano
       KID_STORAGE.init();
       
+      // Verifichiamo se l'URL è una pagina di archivio KIID
+      if (kidUrl.includes('/archivio-kiid.html')) {
+        console.log('URL is an archive page, extracting latest KID URL');
+        const latestKidUrl = await extractLatestKidFromArchivePage(kidUrl);
+        
+        if (!latestKidUrl) {
+          throw new Error('Failed to extract latest KID URL from archive page');
+        }
+        
+        kidUrl = latestKidUrl;
+        console.log(`Updated KID URL to latest document: ${kidUrl}`);
+      }
+      
       // Scarica il PDF
       const response = await fetch(kidUrl);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      // Verifica che sia effettivamente un PDF
+      const contentType = response.headers.get('content-type');
+      console.log(`Content type: ${contentType}`);
+      if (!contentType || !contentType.includes('pdf')) {
+        console.log(`WARN: URL non è un PDF. Content-Type: ${contentType}`);
+        // Salva il contenuto per debug
+        const content = await response.text();
+        console.log(`Content preview: ${content.substring(0, 200)}...`);
+        throw new Error('Il file scaricato non è un PDF valido');
       }
       
       // Estrai il buffer dal file
