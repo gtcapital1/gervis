@@ -423,7 +423,7 @@ export function setupAuth(app: Express) {
               monthlyExpenses: "5,000-10,000€",
               debts: "50,000-100,000€",
               netWorth: "500,000-1,000,000€",
-              riskProfile: "growth",
+              riskProfile: "aggressive",
               investmentHorizon: "5-10-anni",
               investmentExperience: "advanced",
               investmentObjective: "wealth_growth, retirement_planning",

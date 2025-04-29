@@ -50,7 +50,6 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import PDFMerger from 'pdf-merger-js';
 import os from 'os'; // Aggiungi import per os
-import cookieParser from "cookie-parser";
 import session from "express-session";
 
 // Import routes modules

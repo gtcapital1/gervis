@@ -197,9 +197,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
   const determineClientSegment = (netWorth: number): string => {
     if (netWorth < 100000) return "mass_market";
     if (netWorth < 500000) return "affluent";
-    if (netWorth < 2000000) return "hnw";
-    if (netWorth < 10000000) return "vhnw";
-    return "uhnw";
+    return "hnw";
   };
 
   // Watch for changes in assets and debts to update net worth and client segment
@@ -927,9 +925,7 @@ export function ClientEditDialog({ client, assets, open, onOpenChange, clientId,
                             <SelectItem key={segment} value={segment}>
                               {segment === 'mass_market' ? 'Mass Market (< €100.000)' : 
                                segment === 'affluent' ? 'Affluent (€100.000 - €500.000)' : 
-                               segment === 'hnw' ? 'HNW (€500.000 - €2.000.000)' : 
-                               segment === 'vhnw' ? 'VHNW (€2.000.000 - €10.000.000)' : 
-                               segment === 'uhnw' ? 'UHNW (> €10.000.000)' : 
+                               segment === 'hnw' ? 'HNW (> €500.000)' : 
                                segment}
                             </SelectItem>
                           ))}

@@ -11,7 +11,8 @@ import {
   mifid, type Mifid,
   conversations, messages,
   verifiedDocuments, advisorSuggestions,
-  modelPortfolios, portfolioAllocations, portfolioProducts, type ModelPortfolio
+  modelPortfolios, portfolioAllocations, portfolioProducts, type ModelPortfolio,
+  userProducts
 } from "@shared/schema";
 import session from "express-session";
 import { eq, and, gt, sql, desc, gte, lte, inArray, lt } from 'drizzle-orm';
@@ -399,7 +400,7 @@ export class PostgresStorage implements IStorage {
         .returning({ id: completedTasks.id });
         
       console.log(`[Storage] Eliminati ${deletedTasks.length} task completati`);
-      
+
       // Rimuove i riferimenti nelle tabelle dove l'utente potrebbe essere createdBy
       // Imposta createdBy a NULL anziché eliminare i record
       await db.update(clientLogs)
@@ -413,6 +414,24 @@ export class PostgresStorage implements IStorage {
       await db.update(verifiedDocuments)
         .set({ createdBy: null })
         .where(eq(verifiedDocuments.createdBy, id));
+
+      // Eliminazione dei user_products dell'utente
+      const deletedUserProducts = await db.delete(userProducts)
+        .where(eq(userProducts.userId, id))
+        .returning({ id: userProducts.id });
+        
+      console.log(`[Storage] Eliminati ${deletedUserProducts.length} prodotti dell'utente`);
+
+      // Eliminazione dei model_portfolios creati dall'utente
+      const deletedPortfolios = await db.delete(modelPortfolios)
+        .where(eq(modelPortfolios.createdBy, id))
+        .returning({ id: modelPortfolios.id });
+        
+      console.log(`[Storage] Eliminati ${deletedPortfolios.length} portafogli modello`);
+      
+      await db.update(portfolioProducts)
+        .set({ createdBy: null })
+        .where(eq(portfolioProducts.createdBy, id));
       
       // Finalmente, elimina l'utente
       const result = await db.delete(users)
@@ -436,6 +455,11 @@ export class PostgresStorage implements IStorage {
         await db.execute(sql`UPDATE client_logs SET created_by = NULL WHERE created_by = ${id}`);
         await db.execute(sql`UPDATE ai_profiles SET created_by = NULL WHERE created_by = ${id}`);
         await db.execute(sql`UPDATE verified_documents SET created_by = NULL WHERE created_by = ${id}`);
+        await db.execute(sql`UPDATE portfolio_products SET created_by = NULL WHERE created_by = ${id}`);
+        
+        // Elimina i model_portfolios creati dall'utente
+        await db.execute(sql`DELETE FROM model_portfolios WHERE created_by = ${id}`);
+        console.log(`[Storage] Eliminati portafogli modello dell'utente ${id} con SQL diretto`);
         
         // Elimina prima i messaggi associati alle conversazioni dell'utente
         await db.execute(sql`

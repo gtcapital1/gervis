@@ -521,9 +521,7 @@ export default function Clients() {
     const segmentColors = {
       mass_market: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200", // Blu più chiaro
       affluent: "bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200",    // Blu chiaro
-      hnw: "bg-blue-300 text-blue-800 dark:bg-blue-700 dark:text-blue-200",         // Blu medio
-      vhnw: "bg-blue-500 text-white dark:bg-blue-600 dark:text-white",              // Blu scuro
-      uhnw: "bg-blue-700 text-white dark:bg-blue-500 dark:text-white"               // Blu più scuro
+      hnw: "bg-blue-300 text-blue-800 dark:bg-blue-700 dark:text-blue-200",         // Blu medio         // Blu più scuro
     };
     
     const color = segmentColors[segment as keyof typeof segmentColors] || "bg-gray-100 text-gray-800";
@@ -532,8 +530,6 @@ export default function Clients() {
       <Badge variant="outline" className={`${color} font-semibold`}>
         {segment === 'mass_market' ? 'Mass Market' : 
           segment === 'hnw' ? 'HNW' : 
-          segment === 'vhnw' ? 'VHNW' : 
-          segment === 'uhnw' ? 'UHNW' : 
           segment.charAt(0).toUpperCase() + segment.slice(1)}
       </Badge>
     );
