@@ -28,13 +28,13 @@ const openai = new OpenAI({
 // Utility per gestire la directory centralizzata dei KID
 const KID_STORAGE = {
   // Directory principale dove sono archiviati tutti i KID (database di riferimento gestito esternamente)
-  baseDir: path.resolve(__dirname, '../../../var/www/gervis/server/private/KIDs'),
+  baseDir: path.resolve(__dirname, '../../../server/private/KID_Database'),
   
   // Directory per i KID degli utenti individuali
-  userDir: path.resolve(__dirname, '../../../var/www/gervis/server/private/KIDs'),
+  userDir: path.resolve(__dirname, '../../../server/private/KIDs'),
   
   // Directory temporanea per le elaborazioni
-  tempDir: path.resolve(__dirname, '../../../var/www/gervis/server/private/KID'),
+  tempDir: path.resolve(__dirname, '../../../server/private/KID'),
   
   // Inizializza la directory se non esiste
   init() {
@@ -70,7 +70,7 @@ const KID_STORAGE = {
     const filePath = path.join(isinDir, filename);
     
     // Percorso relativo per il database
-    const relativePath = `var/www/gervis/server/private/KIDs/${isin}/${filename}`;
+    const relativePath = `server/private/KID_Database/${isin}/${filename}`;
     
     // Salva il file nel database centrale solo se non esiste già
     if (!fs.existsSync(filePath)) {
@@ -118,7 +118,7 @@ const KID_STORAGE = {
     const filePath = path.join(userKidDir, filename);
     
     // Percorso relativo per il database utente
-    const relativePath = `var/www/gervis/server/private/KIDs/${userId}/${filename}`;
+    const relativePath = `server/private/KIDs/${userId}/${filename}`;
     
     // Salva il file nella directory dell'utente
     if (Buffer.isBuffer(uploadedFile)) {
@@ -150,7 +150,7 @@ const KID_STORAGE = {
     const timestamp = Date.now();
     const filename = `temp_${timestamp}_${uniqueId}.pdf`;
     const filePath = path.join(userDir, filename);
-    const relativePath = `var/www/gervis/server/private/KID/${userId}/${filename}`;
+    const relativePath = `server/private/KID/${userId}/${filename}`;
     
     return { filePath, relativePath };
   },
@@ -168,7 +168,7 @@ const KID_STORAGE = {
     const filePath = path.join(isinDir, `${isin}.pdf`);
     
     if (fs.existsSync(filePath)) {
-      return `var/www/gervis/server/private/KIDs/${isin}/${isin}.pdf`;
+      return `server/private/KID_Database/${isin}/${isin}.pdf`;
     }
     
     return null;
