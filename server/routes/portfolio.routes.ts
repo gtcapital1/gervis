@@ -1384,7 +1384,12 @@ export function registerPortfolioRoutes(app: Express) {
     }
   });
 
-  // Get KID document for a product
+  // Funzione per ottenere il percorso assoluto a partire da un percorso relativo
+  function getAbsolutePath(relativePath: string): string {
+    return path.resolve('/var/www/gervis', relativePath);
+  }
+
+  // Modifica le funzioni che usano i percorsi per utilizzare la nuova funzione getAbsolutePath
   app.get('/api/portfolio/products/:id/kid', isAuthenticated, async (req, res) => {
     try {
       if (!req.user || !req.user.id) {
@@ -1412,80 +1417,77 @@ export function registerPortfolioRoutes(app: Express) {
       
       // Check if KID file exists
       if (!product.kid_file_path) {
-        // Verifichiamo se esiste nel database centrale
-        if (product.isin && KID_STORAGE.kidExistsInDatabase(product.isin)) {
-          // Se esiste nel database centrale, usiamo quello
-          const centralPath = KID_STORAGE.getKidPathFromDatabase(product.isin);
-          if (centralPath) {
-            // Aggiorniamo il prodotto nel DB con il percorso del file
-            await db.update(portfolioProducts)
-              .set({ kid_file_path: centralPath })
-              .where(eq(portfolioProducts.id, productId));
-            
-            // Costruisci il percorso assoluto usando centralPath
-            const filePath = path.resolve(__dirname, '../../../', centralPath);
-            
-            // Set content type
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename="${product.isin || 'product'}_kid.pdf"`);
-            
-            // Stream the file
-            const fileStream = fs.createReadStream(filePath);
-            fileStream.pipe(res);
-            return;
-          }
-        }
-        
         return res.status(404).json({
           success: false,
-          message: 'KID document not found for this product'
+          message: 'KID file not found for this product'
         });
       }
       
-      // Construct absolute file path using path.resolve with __dirname
-      const filePath = path.resolve(__dirname, '../../../', product.kid_file_path);
+      // Get central path and user path
+      const centralPath = product.kid_file_path;
       
-      // Check if file exists
-      if (!fs.existsSync(filePath)) {
-        // Proviamo a cercare nel database centrale come fallback
-        if (product.isin && KID_STORAGE.kidExistsInDatabase(product.isin)) {
-          const centralPath = KID_STORAGE.getKidPathFromDatabase(product.isin);
-          if (centralPath) {
-            // Aggiorniamo il prodotto nel DB con il percorso del file
-            await db.update(portfolioProducts)
-              .set({ kid_file_path: centralPath })
-              .where(eq(portfolioProducts.id, productId));
-            
-            // Costruisci il percorso assoluto usando centralPath
-            const centralFilePath = path.resolve(__dirname, '../../../', centralPath);
-            
-            // Set content type
-            res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `attachment; filename="${product.isin || 'product'}_kid.pdf"`);
-            
-            // Stream the file
-            const fileStream = fs.createReadStream(centralFilePath);
-            fileStream.pipe(res);
-            return;
-          }
-        }
+      // Try central path first
+      try {
+        const filePath = getAbsolutePath(centralPath);
         
-        return res.status(404).json({
-          success: false,
-          message: 'KID document file not found'
-        });
+        // Check if file exists
+        if (fs.existsSync(filePath)) {
+          return res.sendFile(filePath);
+        }
+      } catch (error) {
+        console.error('Error accessing central KID file:', error);
       }
       
-      // Set content type
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="${product.isin || 'product'}_kid.pdf"`);
+      // If we're here, the file doesn't exist in the central directory,
+      // so check user uploads
+      try {
+        const userProducts = await db.select()
+          .from(userProducts)
+          .where(and(
+            eq(userProducts.userId, req.user.id),
+            eq(userProducts.productId, productId)
+          ));
+        
+        if (userProducts.length > 0) {
+          const userProduct = userProducts[0];
+          
+          if (userProduct.kid_file_path) {
+            const filePath = getAbsolutePath(userProduct.kid_file_path);
+            
+            // Check if file exists
+            if (fs.existsSync(filePath)) {
+              return res.sendFile(filePath);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error accessing user KID file:', error);
+      }
       
-      // Stream the file
-      const fileStream = fs.createReadStream(filePath);
-      fileStream.pipe(res);
+      // Try to get it from the database central repository
+      const centralKidPath = KID_STORAGE.getKidPathFromDatabase(product.isin || '');
+      
+      if (centralKidPath) {
+        try {
+          const centralFilePath = getAbsolutePath(centralKidPath);
+          
+          // Check if file exists
+          if (fs.existsSync(centralFilePath)) {
+            return res.sendFile(centralFilePath);
+          }
+        } catch (error) {
+          console.error('Error accessing central database KID file:', error);
+        }
+      }
+      
+      // If we get here, the file doesn't exist anywhere
+      return res.status(404).json({
+        success: false,
+        message: 'KID file not found or cannot be accessed'
+      });
     } catch (error) {
-      safeLog('Error retrieving KID document', error, 'error');
-      handleErrorResponse(res, error, 'Error retrieving KID document');
+      safeLog('Error retrieving KID file', error, 'error');
+      handleErrorResponse(res, error, 'Error retrieving KID file');
     }
   });
 
@@ -1998,96 +2000,82 @@ Rispondi in formato JSON
 
   // Funzione di utilità per scaricare e processare il documento KID
   async function downloadAndProcessKid(kidUrl: string, isin: string, userId: number, res: any) {
-    console.log(`Attempting to download KID from URL: ${kidUrl}`);
-    
-    // Verifichiamo se l'URL è una pagina di archivio KIID
-    if (kidUrl.includes('/archivio-kiid.html')) {
-      console.log('URL is an archive page, extracting latest KID URL');
-      const latestKidUrl = await extractLatestKidFromArchivePage(kidUrl);
+    try {
+      console.log(`Downloading KID from URL: ${kidUrl}`);
       
-      if (!latestKidUrl) {
-        throw new Error('Failed to extract latest KID URL from archive page');
+      // Verifica che le directory esistano
+      KID_STORAGE.init();
+      
+      // Scarica il PDF
+      const response = await fetch(kidUrl);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
       
-      kidUrl = latestKidUrl;
-      console.log(`Updated KID URL to latest document: ${kidUrl}`);
-    }
-    
-    const fetchResponse = await fetch(kidUrl);
-    
-    if (!fetchResponse.ok) {
-      console.error(`Failed to download KID: HTTP status ${fetchResponse.status}`);
-      throw new Error(`Failed to download KID: HTTP status ${fetchResponse.status}`);
-    }
-    
-    // Check content type
-    const contentType = fetchResponse.headers.get('content-type');
-    console.log(`Content type of downloaded file: ${contentType}`);
-    
-    if (!contentType || !contentType.includes('application/pdf')) {
-      if (contentType) {
-        console.error(`Downloaded file is not a PDF. Content type: ${contentType}`);
-      } else {
-        console.error('Content type header is missing');
-      }
-      throw new Error('Downloaded file is not a PDF');
-    }
-    
-    // Get file as buffer
-    const pdfBuffer = Buffer.from(await fetchResponse.arrayBuffer());
-    console.log(`Downloaded PDF file, size: ${pdfBuffer.length} bytes`);
-    
-    // Salviamo SOLO nella directory dell'utente
-    const userRelativePath = KID_STORAGE.saveUserKid(isin, pdfBuffer, userId);
-    console.log(`KID saved to user directory: ${userRelativePath}`);
-    
-    // Utilizziamo direttamente il percorso utente per il processamento
-    const relativePath = userRelativePath;
-    
-    // Process the PDF
-    const parsedData = await parseKidDocument(path.resolve(__dirname, '../../../', relativePath));
-    
-    // Prepare product data
-    const productData = {
-      isin: isin,
-      name: parsedData.name || 'Auto-downloaded KID Product',
-      category: parsedData.category,
-      description: parsedData.description || 'Auto-downloaded from KID document',
-      benchmark: parsedData.benchmark,
-      dividend_policy: parsedData.dividend_policy,
-      currency: parsedData.currency,
-      sri_risk: parsedData.sri_risk ? parseInt(parsedData.sri_risk, 10) || null : null,
-      entry_cost: parsedData.entry_cost,
-      exit_cost: parsedData.exit_cost,
-      ongoing_cost: parsedData.ongoing_cost,
-      transaction_cost: parsedData.transaction_cost,
-      performance_fee: parsedData.performance_fee,
-      recommended_holding_period: parsedData.recommended_holding_period,
-      target_market: parsedData.target_market,
-      kid_file_path: relativePath,
-      kid_processed: true,
-      createdBy: userId
-    };
+      // Estrai il buffer dal file
+      const pdfBuffer = Buffer.from(await response.arrayBuffer());
+      console.log(`Downloaded PDF file, size: ${pdfBuffer.length} bytes`);
+      
+      // Salviamo SOLO nella directory dell'utente
+      const userRelativePath = KID_STORAGE.saveUserKid(isin, pdfBuffer, userId);
+      console.log(`KID saved to user directory: ${userRelativePath}`);
+      
+      // Utilizziamo direttamente il percorso utente per il processamento
+      const relativePath = userRelativePath;
+      
+      // Process the PDF
+      const parsedData = await parseKidDocument(getAbsolutePath(relativePath));
+      
+      // Prepare product data
+      const productData = {
+        isin: isin,
+        name: parsedData.name || 'Auto-downloaded KID Product',
+        category: parsedData.category,
+        description: parsedData.description || 'Auto-downloaded from KID document',
+        benchmark: parsedData.benchmark,
+        dividend_policy: parsedData.dividend_policy,
+        currency: parsedData.currency,
+        sri_risk: parsedData.sri_risk ? parseInt(parsedData.sri_risk, 10) || null : null,
+        entry_cost: parsedData.entry_cost,
+        exit_cost: parsedData.exit_cost,
+        ongoing_cost: parsedData.ongoing_cost,
+        transaction_cost: parsedData.transaction_cost,
+        performance_fee: parsedData.performance_fee,
+        recommended_holding_period: parsedData.recommended_holding_period,
+        target_market: parsedData.target_market,
+        kid_file_path: relativePath,
+        kid_processed: true,
+        createdBy: userId
+      };
 
-    // Create new product
-    const [newProduct] = await db.insert(portfolioProducts)
-      .values(productData)
-      .returning();
-    
-    // Aggiungi alla lista dell'utente
-    await db.insert(userProducts)
-      .values({
-        userId,
-        productId: newProduct.id
+      // Create new product
+      const [newProduct] = await db.insert(portfolioProducts)
+        .values(productData)
+        .returning();
+      
+      // Aggiungi alla lista dell'utente
+      await db.insert(userProducts)
+        .values({
+          userId,
+          productId: newProduct.id
+        });
+      
+      return res.json({
+        success: true,
+        message: 'Documento KID scaricato e processato con successo',
+        product: newProduct,
+        foundOnline: true,
+        source: kidUrl.includes('borsaitaliana.it') ? 'Borsa Italiana' : 'Ricerca online'
       });
-    
-    return res.json({
-      success: true,
-      message: 'Documento KID scaricato e processato con successo',
-      product: newProduct,
-      foundOnline: true,
-      source: kidUrl.includes('borsaitaliana.it') ? 'Borsa Italiana' : 'Ricerca online'
-    });
+    } catch (error) {
+      console.error('Error downloading KID:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Error downloading KID',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
   }
 
   // Aggiungiamo un'interfaccia più dettagliata per la risposta di OpenAI
