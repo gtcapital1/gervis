@@ -413,7 +413,7 @@ export function setupAuth(app: Express) {
             
             // MIFID per cliente 1 (high net worth)
             const mifidData1 = {
-              clientId: mockClient1.id,
+            clientId: mockClient1.id,
               address: "Via Roma 123, Milano",
               phone: "3902123456",
               birthDate: "1975-05-15",
@@ -461,56 +461,7 @@ export function setupAuth(app: Express) {
             
             console.log(`[Register] Dati MIFID creati per i clienti ${mockClient1.id} e ${mockClient2.id}`);
             
-            // Creiamo alcuni asset per i clienti
-            const assets1 = [
-              {
-                clientId: mockClient1.id,
-                category: "real_estate",
-                value: 400000,
-                description: "Immobile residenziale a Milano"
-              },
-              {
-                clientId: mockClient1.id,
-                category: "cash",
-                value: 100000,
-                description: "Depositi bancari"
-              },
-              {
-                clientId: mockClient1.id,
-                category: "investments",
-                value: 300000,
-                description: "Portafoglio titoli diversificato"
-              }
-            ];
-            
-            // Inserisci gli asset uno per uno
-            for (const asset of assets1) {
-              await db.insert(assets).values(asset);
-            }
-            console.log(`[Register] Creati ${assets1.length} asset per il cliente ${mockClient1.id}`);
-            
-            const assets2 = [
-              {
-                clientId: mockClient2.id,
-                category: "cash",
-                value: 20000,
-                description: "Conto corrente e depositi"
-              },
-              {
-                clientId: mockClient2.id,
-                category: "investments",
-                value: 50000,
-                description: "Fondi comuni e titoli di stato"
-              }
-            ];
-            
-            // Inserisci gli asset uno per uno
-            for (const asset of assets2) {
-              await db.insert(assets).values(asset);
-            }
-            console.log(`[Register] Creati ${assets2.length} asset per il cliente ${mockClient2.id}`);
-            
-            console.log("[Register] Dati MIFID e asset creati per i clienti mock");
+            console.log("[Register] Dati MIFID creati per i clienti mock");
           } catch (mifidError) {
             console.error("[Register Error] Errore durante la creazione dei dati MIFID mock:", mifidError);
             // Non bloccare la registrazione se la creazione dei dati MIFID fallisce
@@ -561,7 +512,7 @@ export function setupAuth(app: Express) {
                         target_market: publicProduct.target_market,
                         kid_file_path: publicProduct.kid_file_path,
                         kid_processed: !!publicProduct.kid_processed,
-                        createdBy: user.id
+            createdBy: user.id
                       })
                       .returning();
                     

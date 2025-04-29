@@ -400,7 +400,7 @@ export class PostgresStorage implements IStorage {
         .returning({ id: completedTasks.id });
         
       console.log(`[Storage] Eliminati ${deletedTasks.length} task completati`);
-
+      
       // Rimuove i riferimenti nelle tabelle dove l'utente potrebbe essere createdBy
       // Imposta createdBy a NULL anziché eliminare i record
       await db.update(clientLogs)
@@ -642,6 +642,8 @@ export class PostgresStorage implements IStorage {
         .where(eq(mifid.clientId, id))
         .returning({ id: mifid.id });
       
+      // Eliminiamo le signature sessions
+      await db.execute(sql`DELETE FROM signature_sessions WHERE client_id = ${id}`);
       
       // 2. Ora che tutte le dipendenze sono state rimosse, possiamo eliminare il cliente
       const result = await db.delete(clients)
@@ -681,6 +683,8 @@ export class PostgresStorage implements IStorage {
         await db.execute(sql`DELETE FROM recommendations WHERE client_id = ${id}`);
         await db.execute(sql`DELETE FROM ai_profiles WHERE client_id = ${id}`);
         await db.execute(sql`DELETE FROM client_logs WHERE client_id = ${id}`);
+        await db.execute(sql`DELETE FROM mifid WHERE client_id = ${id}`);
+        await db.execute(sql`DELETE FROM signature_sessions WHERE client_id = ${id}`);
         await db.execute(sql`DELETE FROM clients WHERE id = ${id}`);
         
         // Verifica se il cliente è stato effettivamente eliminato

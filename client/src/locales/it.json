@@ -2,6 +2,7 @@
   "client": {
     "add_assets": "Aggiungi Asset",
     "add_asset_row": "Aggiungi Riga",
+    "all_assets": "Tutti gli asset",
     "add_assets_description": "Inserisci i codici ISIN e il valore degli asset da aggiungere al cliente",
     "isin": "ISIN",
     "value": "Valore (€)",
