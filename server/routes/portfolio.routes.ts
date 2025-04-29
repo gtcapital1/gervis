@@ -29,13 +29,13 @@ const openai = new OpenAI({
 // Utility per gestire la directory centralizzata dei KID
 const KID_STORAGE = {
   // Directory principale dove sono archiviati tutti i KID (database di riferimento gestito esternamente)
-  baseDir: path.resolve(process.cwd(), 'server/private/KID_Database'),
+  baseDir: path.resolve('/var/www/gervis/server/private/KID_Database'),
   
   // Directory per i KID degli utenti individuali
-  userDir: path.resolve(process.cwd(), 'server/private/KIDs'),
+  userDir: path.resolve('/var/www/gervis/server/private/KIDs'),
   
   // Directory temporanea per le elaborazioni
-  tempDir: path.resolve(process.cwd(), 'server/private/KID'),
+  tempDir: path.resolve('/var/www/gervis/server/private/KID'),
   
   // Inizializza la directory se non esiste
   init() {
