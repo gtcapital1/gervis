@@ -15,6 +15,7 @@ import parsePDF from '../lib/pdf-parser';
 import { v4 as uuidv4 } from 'uuid';
 import { createPortfolioWithAI, getPortfolioMetrics } from '../ai/portfolio-controller';
 import { saveModelPortfolio } from '../services/portfolioService';
+import multer from 'multer';
 
 // ES modules compatible __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -28,13 +29,13 @@ const openai = new OpenAI({
 // Utility per gestire la directory centralizzata dei KID
 const KID_STORAGE = {
   // Directory principale dove sono archiviati tutti i KID (database di riferimento gestito esternamente)
-  baseDir: path.resolve(__dirname, '../../../server/private/KID_Database'),
+  baseDir: path.resolve(process.cwd(), 'server/private/KID_Database'),
   
   // Directory per i KID degli utenti individuali
-  userDir: path.resolve(__dirname, '../../../server/private/KIDs'),
+  userDir: path.resolve(process.cwd(), 'server/private/KIDs'),
   
   // Directory temporanea per le elaborazioni
-  tempDir: path.resolve(__dirname, '../../../server/private/KID'),
+  tempDir: path.resolve(process.cwd(), 'server/private/KID'),
   
   // Inizializza la directory se non esiste
   init() {

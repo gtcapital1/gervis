@@ -394,15 +394,47 @@ export async function generateClientProfile(
         );
       }
       
-      // Estrai il portafoglio consigliato
-      const portfolioConsigliato = parsedData.portafoglioModello?.portfolioConsigliato || '';
-      
-      // Verifica che il portafoglio consigliato esista nei portafogli disponibili
+      // Verifica che il portafoglio consigliato sia valido
       let portfolioValid = false;
+      let portfolioConsigliato = parsedData.portafoglioModello?.portfolioConsigliato || '';
+      
       if (modelPortfolios && Array.isArray(modelPortfolios) && modelPortfolios.length > 0 && portfolioConsigliato) {
-        portfolioValid = modelPortfolios.some(
-          (portfolio: any) => portfolio.name === portfolioConsigliato
-        );
+        // Prima verifica se l'ID è presente nel portafoglio consigliato
+        const idMatch = portfolioConsigliato.match(/\(ID:\s*(\d+)\)/i);
+        if (idMatch && idMatch[1]) {
+          const portfolioId = parseInt(idMatch[1], 10);
+          portfolioValid = modelPortfolios.some(
+            (portfolio: any) => portfolio.id === portfolioId
+          );
+          
+          if (portfolioValid) {
+            // Se abbiamo trovato un portafoglio con questo ID, assicuriamoci di usare il nome esatto
+            const matchedPortfolio = modelPortfolios.find((p: any) => p.id === portfolioId);
+            if (matchedPortfolio) {
+              parsedData.portafoglioModello.portfolioConsigliato = matchedPortfolio.name;
+            }
+          }
+        }
+        
+        // Se non abbiamo trovato per ID, proviamo con una corrispondenza flessibile sul nome
+        if (!portfolioValid) {
+          // Normalizza i nomi per una corrispondenza più flessibile
+          const normalizedPortfolioName = portfolioConsigliato.toLowerCase().trim();
+          
+          for (const portfolio of modelPortfolios) {
+            const normalizedModelName = portfolio.name.toLowerCase().trim();
+            
+            // Verifica sia corrispondenza esatta che parziale
+            if (normalizedModelName === normalizedPortfolioName || 
+                normalizedModelName.includes(normalizedPortfolioName) || 
+                normalizedPortfolioName.includes(normalizedModelName)) {
+              portfolioValid = true;
+              // Usa il nome esatto del portafoglio dal modello
+              parsedData.portafoglioModello.portfolioConsigliato = portfolio.name;
+              break;
+            }
+          }
+        }
         
         // Se il portafoglio consigliato non è valido, sostituiscilo con uno valido
         if (!portfolioValid && modelPortfolios.length > 0) {
@@ -410,12 +442,24 @@ export async function generateClientProfile(
           
           // Scegli il primo portafoglio disponibile come fallback
           const validPortfolio = modelPortfolios[0];
+          const originalPortfolioName = parsedData.portafoglioModello.portfolioConsigliato;
           parsedData.portafoglioModello.portfolioConsigliato = validPortfolio.name;
           
-          // Aggiorna anche la motivazione per spiegare la sostituzione
+          // Sostituisci completamente la motivazione per evitare riferimenti contraddittori
+          const originalMotivazione = parsedData.portafoglioModello.motivazione || '';
           parsedData.portafoglioModello.motivazione = 
-            `Il portafoglio ${validPortfolio.name} è stato selezionato in quanto compatibile con il profilo del cliente. ` + 
-            parsedData.portafoglioModello.motivazione;
+            `Il portafoglio ${validPortfolio.name} (ID: ${validPortfolio.id}) è stato selezionato in quanto compatibile con il profilo del cliente.`;
+          
+          // Se c'è una motivazione originale, rimuovi eventuali riferimenti al portafoglio non valido
+          if (originalMotivazione.length > 10) {
+            // Rimuovi riferimenti diretti al portafoglio non valido
+            let cleanedMotivazione = originalMotivazione
+              .replace(new RegExp(`${originalPortfolioName}\\s*\\(ID:\\s*\\d+\\)`, 'gi'), validPortfolio.name)
+              .replace(new RegExp(originalPortfolioName, 'gi'), validPortfolio.name);
+              
+            // Aggiungi la motivazione ripulita
+            parsedData.portafoglioModello.motivazione += " " + cleanedMotivazione;
+          }
         }
       }
       
@@ -476,7 +520,9 @@ export async function generateClientProfile(
     console.error('Error in generateClientProfile:', error);
     throw error;
   }
-}// Funzione per generare un prompt per la creazione di un portafoglio personalizzato
+}
+
+// Funzione per generare un prompt per la creazione di un portafoglio personalizzato
 export function createPortfolioCreationPrompt(
   client: Client,
   mifid: MifidType | null,
