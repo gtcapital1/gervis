@@ -1355,8 +1355,9 @@
     "esg": "ESG"
   },
   "investment_horizon": {
-    "short_term": "Breve termine (1-3 anni)",
-    "medium_term": "Medio termine (3-7 anni)",
-    "long_term": "Lungo termine (oltre 7 anni)"
+    "0-2-anni": "0-2 anni",
+    "2-5-anni": "2-5 anni",
+    "5-10-anni": "5-10 anni",
+    "over-10-anni": "Più di 10 anni"
   }
 } 

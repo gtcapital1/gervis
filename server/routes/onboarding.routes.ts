@@ -88,21 +88,36 @@ async function saveOnboardingData(clientId: number, data: any) {
     
     safeLog('Stato cliente aggiornato', { clientId, isOnboarded: true }, 'info');
 
-    // Determine client segment based on net worth
-    let clientSegment = 'mass_market';
-    if (data.netWorth === "over-500,000€") clientSegment = 'hnw';
-    else if (data.netWorth === "100,000-500,000€") clientSegment = 'affluent';
-    // Il default rimane mass_market per i patrimoni più bassi
+    // Determine client segment based on net worth - parsed to align with other parts of the app
+    let netWorthValue = 0;
+    if (data.netWorth === "over-500,000€") {
+      netWorthValue = 500001; // Just above 500,000
+    } else if (data.netWorth === "100,000-500,000€") {
+      netWorthValue = 300000; // Middle of the range
+    } else if (data.netWorth === "30,000-100,000€") {
+      netWorthValue = 65000; // Middle of the range
+    } else if (data.netWorth === "10,000-30,000€") {
+      netWorthValue = 20000; // Middle of the range
+    } else if (data.netWorth === "0-10,000€") {
+      netWorthValue = 5000; // Middle of the range
+    }
 
-    // Update client with net worth as string and segment
+    // Apply the same segmentation logic used elsewhere in the app
+    let clientSegment = 'mass_market';
+    if (netWorthValue >= 500000) clientSegment = 'hnw';
+    else if (netWorthValue >= 100000) clientSegment = 'affluent';
+    // mass_market for others
+
+    // Update client with net worth as numeric value and segment
     await db
       .update(clients)
       .set({ 
+        netWorth: netWorthValue,
         clientSegment: clientSegment as "mass_market" | "affluent" | "hnw" | "vhnw" | "uhnw"
       })
       .where(eq(clients.id, clientId));
 
-    safeLog('Segmento cliente aggiornato', { clientId, clientSegment }, 'info');
+    safeLog('Segmento cliente aggiornato', { clientId, clientSegment, netWorthValue }, 'info');
     
     return { success: true };
   } catch (error: unknown) {
