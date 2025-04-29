@@ -6,31 +6,31 @@ interface FeatureCardProps {
   title: string;
   description: string;
   learnMoreColor: string;
-  isComingSoon?: boolean;
   plusFeature?: boolean;
+  proFeature?: boolean;
 }
 
-function FeatureCard({ icon, title, description, learnMoreColor, isComingSoon, plusFeature }: FeatureCardProps) {
+function FeatureCard({ icon, title, description, learnMoreColor, plusFeature, proFeature }: FeatureCardProps) {
   const { t } = useTranslation();
   return (
-    <div className={`${isComingSoon ? 'bg-gray-800' : 'bg-black'} rounded-2xl shadow-lg p-8 card-hover border ${isComingSoon ? 'border-blue-800' : 'border-gray-800'} transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative`}>
-      {isComingSoon && (
-        <div className={`absolute top-4 right-4 ${plusFeature ? 'bg-sky-500' : 'bg-blue-600'} text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center`}>
-          {plusFeature ? 'Gervis+' : t('common.pro_version')}
+    <div className="bg-gray-900 rounded-2xl shadow-lg p-8 card-hover border border-gray-700 transition-all duration-300 hover:translate-y-[-5px] hover:shadow-xl relative overflow-hidden">
+      {plusFeature && (
+        <div className="absolute top-4 right-4 bg-sky-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
+          Gervis+
         </div>
       )}
-      <div className="w-14 h-14 rounded-full bg-secondary/20 flex items-center justify-center mb-6">
+      {proFeature && (
+        <div className="absolute top-4 right-4 bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center">
+          Gervis PRO
+        </div>
+      )}
+      <div className="w-16 h-16 rounded-full bg-secondary/30 flex items-center justify-center mb-6">
         {icon}
       </div>
       <h3 className="text-xl font-bold mb-3 text-white flex flex-wrap items-center">
         {title}
-        {isComingSoon && (
-          <span className="ml-2 text-white bg-blue-700 text-xs font-bold px-3 py-1 rounded-md mt-1">
-            {t('common.coming_soon')}
-          </span>
-        )}
       </h3>
-      <p className="text-gray-400">
+      <p className="text-gray-300">
         {description}
       </p>
     </div>
@@ -45,23 +45,21 @@ export default function Features() {
       icon: <Users className="h-7 w-7 text-secondary" />,
       title: t('features.smart_crm.title'),
       description: t('features.smart_crm.description'),
-      learnMoreColor: "text-secondary",
-      isComingSoon: false
+      learnMoreColor: "text-secondary"
     },
     {
-      icon: <UserCog className="h-7 w-7 text-purple-400" />,
+      icon: <UserCog className="h-7 w-7 text-sky-500" />,
       title: t('features.junior_assistant.title'),
       description: t('features.junior_assistant.description'),
-      learnMoreColor: "text-purple-400",
-      isComingSoon: true,
+      learnMoreColor: "text-sky-500",
       plusFeature: true
     },
     {
       icon: <LineChart className="h-7 w-7 text-green-400" />,
       title: t('features.portfolio_intelligence.title'),
-      description: t('features.portfolio_intelligence.description'),
+      description: "L'intelligenza artificiale ti assiste nella costruzione di portafogli d'investimento personalizzati per i tuoi clienti, ottimizzando l'allocazione in base al profilo di rischio e agli obiettivi finanziari.",
       learnMoreColor: "text-green-400",
-      isComingSoon: true
+      proFeature: true
     },
   ];
 
@@ -85,8 +83,8 @@ export default function Features() {
               title={feature.title}
               description={feature.description}
               learnMoreColor={feature.learnMoreColor}
-              isComingSoon={feature.isComingSoon}
               plusFeature={feature.plusFeature}
+              proFeature={feature.proFeature}
             />
           ))}
         </div>

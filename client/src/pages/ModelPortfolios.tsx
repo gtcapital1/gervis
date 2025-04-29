@@ -134,9 +134,10 @@ const RISK_LEVELS = [
 ];
 
 const INVESTMENT_HORIZONS = [
-  'short_term',
-  'medium_term',
-  'long_term'
+  '0-2-anni',
+  '2-5-anni',
+  '5-10-anni',
+  'over-10-anni'
 ];
 
 const INVESTMENT_OBJECTIVES = [
@@ -197,7 +198,7 @@ export default function ModelPortfoliosPage() {
     description: "",
     clientProfile: "",
     riskLevel: "balanced",
-    investmentHorizon: "medium_term",
+    investmentHorizon: "2-5-anni",
     objectives: ["growth"],
     constraints: "",
     notes: ""
@@ -298,8 +299,8 @@ export default function ModelPortfoliosPage() {
       
       // Il prodotto non esiste nel DB, cerchiamo online
       if (response.callOpenAI) {
-        // Cambiamo lo stato per indicare che stiamo cercando su Borsa Italiana
-        setAddProductStatus(t('portfolio.searching_borsa'));
+        // Cambiamo lo stato per indicare che stiamo cercando il KID
+        setAddProductStatus("Ricerco KID...");
         
         // Chiama l'endpoint per la ricerca su Borsa Italiana
         const onlineResponse = await apiRequest('/api/portfolio/search-kid-online', {
@@ -540,30 +541,23 @@ export default function ModelPortfoliosPage() {
   };
 
   // Handle creating a portfolio using AI assistant
-  const handleCreatePortfolio = () => {
-    // Validate form
-    if (!formData.name || !formData.description || !formData.clientProfile) {
-      toast({
-        title: t('portfolio.validation_error'),
-        description: t('portfolio.fill_required_fields'),
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const handleCreatePortfolio = (portfolioData = formData) => {
     // Create prompt for AI assistant
     const prompt = `Per favore aiutami a creare un portafoglio modello con le seguenti caratteristiche:
-- Profilo Cliente: ${formData.clientProfile}
-- Livello di Rischio: ${formData.riskLevel}
-- Orizzonte di Investimento: ${formData.investmentHorizon}
-- Obiettivi di Investimento: ${formData.objectives.join(', ')}
-${formData.notes ? `- Note sul cliente: ${formData.notes}` : ''}
-${formData.constraints ? `- Vincoli: ${formData.constraints}` : ''}
+- Profilo Cliente: ${portfolioData.clientProfile || `Cliente interessato a ${portfolioData.objectives.map(obj => t(`investment_objectives.${obj}`)).join(', ')}`}
+- Livello di Rischio: ${portfolioData.riskLevel}
+- Orizzonte di Investimento: ${portfolioData.investmentHorizon}
+- Obiettivi di Investimento: ${portfolioData.objectives.join(', ')}
+${portfolioData.notes ? `- Note sul cliente: ${portfolioData.notes}` : ''}
+${portfolioData.constraints ? `- Vincoli: ${portfolioData.constraints}` : ''}
 
-Please use products from our available ISINs and create a balanced allocation that matches these requirements. The portfolio should include detailed allocation percentages and rationale for each selection.`;
+Utilizza i prodotti disponibili nei nostri ISIN e crea un'allocazione bilanciata che soddisfi questi requisiti. Il portafoglio dovrebbe includere percentuali di allocazione dettagliate e una spiegazione per ogni selezione.`;
 
     // Save the prompt in local storage to be used in the AI Assistant page
     localStorage.setItem('portfolioCreationPrompt', prompt);
+    
+    // Aggiungiamo un flag per indicare che il prompt deve essere inviato automaticamente
+    localStorage.setItem('autoSendPrompt', 'true');
     
     // Close dialog
     setShowCreateDialog(false);
@@ -574,7 +568,7 @@ Please use products from our available ISINs and create a balanced allocation th
       description: "",
       clientProfile: "",
       riskLevel: "balanced",
-      investmentHorizon: "medium_term",
+      investmentHorizon: "2-5-anni",
       objectives: ["growth"],
       constraints: "",
       notes: ""
@@ -1232,15 +1226,6 @@ Please use products from our available ISINs and create a balanced allocation th
                       placeholder="es. IT0003132476"
                       autoFocus
                     />
-                    <Button 
-                      variant="outline" 
-                      size="icon"
-                      onClick={() => handleDebugKidSearch(isinInput)}
-                      disabled={isDebugLoading || !isinInput}
-                      title="Debug KID search"
-                    >
-                      {isDebugLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Bug className="h-4 w-4" />}
-                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1">
                     {t('portfolio.isin_description')}
@@ -1492,7 +1477,10 @@ Please use products from our available ISINs and create a balanced allocation th
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="notes">Note su Cliente</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notes">Note su Cliente</Label>
+                <span className="text-xs text-muted-foreground">Opzionale</span>
+              </div>
               <Textarea 
                 id="notes"
                 placeholder="Esempio: Cliente interessato in investimenti high-tech"
@@ -1503,7 +1491,10 @@ Please use products from our available ISINs and create a balanced allocation th
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="constraints">Vincoli</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="constraints">Vincoli</Label>
+                <span className="text-xs text-muted-foreground">Opzionale</span>
+              </div>
               <Textarea 
                 id="constraints"
                 placeholder="Esempio: Solo esposizione in EUR"
@@ -1519,7 +1510,7 @@ Please use products from our available ISINs and create a balanced allocation th
               Annulla
             </Button>
             <Button onClick={() => {
-              // Imposta dei valori predefiniti per i campi rimossi
+              // Prepara i dati per la creazione del portfolio
               const updatedFormData = {
                 ...formData,
                 name: "Portafoglio Modello",
@@ -1527,11 +1518,8 @@ Please use products from our available ISINs and create a balanced allocation th
                 clientProfile: `Cliente interessato a ${formData.objectives.map(obj => t(`investment_objectives.${obj}`)).join(', ')}`
               };
               
-              // Aggiorna lo stato
-              setFormData(updatedFormData);
-              
-              // Chiamare la funzione handleCreatePortfolio
-              handleCreatePortfolio();
+              // Chiamare la funzione handleCreatePortfolio passando i dati aggiornati
+              handleCreatePortfolio(updatedFormData);
             }}>
               Crea
             </Button>

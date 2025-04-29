@@ -220,6 +220,27 @@ export default function AgentPage() {
   // Per retrocompatibilità
   const [savedPortfolioMessages, setSavedPortfolioMessages] = useState<number[]>([]);
 
+  // Effetto per l'invio automatico del prompt di portfolio
+  useEffect(() => {
+    const autoSubmit = localStorage.getItem('autoSubmitPrompt');
+    const portfolioPrompt = localStorage.getItem('portfolioCreationPrompt');
+    
+    if (autoSubmit === 'true' && portfolioPrompt) {
+      // Impostiamo il prompt nel campo di input
+      setInput(portfolioPrompt);
+      
+      // Rimuoviamo i flag per evitare invii multipli
+      localStorage.removeItem('autoSubmitPrompt');
+      localStorage.removeItem('portfolioCreationPrompt');
+      
+      // Inviamo il messaggio con un leggero ritardo per assicurarci che l'UI sia pronta
+      setTimeout(() => {
+        // Inviamo il messaggio dopo aver impostato il valore nell'input
+        sendMessage();
+      }, 500);
+    }
+  }, []);
+
   // Definizione delle capacità dell'assistente
   const capabilities = [
     { 
@@ -262,7 +283,8 @@ export default function AgentPage() {
   // Check for portfolio creation prompt
   useEffect(() => {
     const portfolioPrompt = localStorage.getItem('portfolioCreationPrompt');
-    const autoSend = localStorage.getItem('autoSendPrompt') === 'true';
+    // Controlla entrambi i flag per retrocompatibilità
+    const autoSend = localStorage.getItem('autoSendPrompt') === 'true' || localStorage.getItem('autoSubmitPrompt') === 'true';
     const showUserMessage = localStorage.getItem('showUserMessage') === 'true';
     
     if (portfolioPrompt) {
@@ -273,6 +295,7 @@ export default function AgentPage() {
       setInput(portfolioPrompt);
       localStorage.removeItem('portfolioCreationPrompt');
       localStorage.removeItem('autoSendPrompt');
+      localStorage.removeItem('autoSubmitPrompt'); // Rimuovi anche il vecchio flag
       localStorage.removeItem('showUserMessage');
       
       // Se showUserMessage è true, aggiungi il messaggio utente alla chat

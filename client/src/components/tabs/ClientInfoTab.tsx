@@ -297,29 +297,63 @@ const AddAssetDialog = ({ clientId, onAssetsUpdated, existingAssets }: { clientI
       return;
     }
     
-    // Filter out empty rows and prepare for submission
-    const assetsToSubmit = assetRows
-      .filter(row => row.isin.trim() !== '')
-      .map(row => {
-        // Get the original asset object if it's an existing asset
-        const existingAsset = row.existing 
-          ? existingAssets.find(asset => 
-              asset.description?.startsWith('ISIN:') && 
-              asset.description.replace('ISIN:', '').trim() === row.isin.trim())
-          : null;
-          
-        return {
-          clientId,
-          id: existingAsset?.id,  // Keep existing ID if available
-          isin: row.isin.trim(),
-          value: Number(row.value),
-          category: existingAsset?.category || 'equity', // Default category
-          description: `ISIN: ${row.isin.trim()}`
-        };
-      });
-    
     try {
       setSaving(true);
+      
+      // Get ISINs for new assets
+      const isins = assetRows
+        .filter(row => row.isin.trim() !== '' && !row.existing)
+        .map(row => row.isin.trim());
+      
+      // Fetch product data for these ISINs before creating assets
+      let productMap: Record<string, any> = {};
+      
+      if (isins.length > 0) {
+        try {
+          const response = await api.get('/api/portfolio-products', {
+            params: { isins: isins.join(',') }
+          });
+          
+          if (response.data && Array.isArray(response.data)) {
+            productMap = response.data.reduce((acc: Record<string, any>, product: any) => {
+              if (product.isin) {
+                acc[product.isin.toUpperCase()] = product;
+              }
+              return acc;
+            }, {});
+            console.log('Product data for ISINs:', productMap);
+          }
+        } catch (error) {
+          console.error('Error fetching product data:', error);
+          // Continue with the default value if we can't fetch product data
+        }
+      }
+      
+      // Filter out empty rows and prepare for submission
+      const assetsToSubmit = assetRows
+        .filter(row => row.isin.trim() !== '')
+        .map(row => {
+          // Get the original asset object if it's an existing asset
+          const existingAsset = row.existing 
+            ? existingAssets.find(asset => 
+                asset.description?.startsWith('ISIN:') && 
+                asset.description.replace('ISIN:', '').trim() === row.isin.trim())
+            : null;
+          
+          // Check if we have product data for this ISIN
+          const isin = row.isin.trim().toUpperCase();
+          const product = productMap[isin];
+          
+          return {
+            clientId,
+            id: existingAsset?.id,  // Keep existing ID if available
+            isin: isin,
+            value: Number(row.value),
+            // Use category from: 1. existing asset, 2. product info, 3. default to 'other'
+            category: existingAsset?.category || (product ? product.category : 'other'),
+            description: `ISIN: ${isin}`
+          };
+        });
       
       // Update assets via mifid endpoint
       await api.patch(`/api/clients/${clientId}/mifid`, {

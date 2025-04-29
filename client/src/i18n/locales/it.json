@@ -876,20 +876,20 @@
     }
   },
   "features": {
-    "title": "Cosa offriamo",
-    "subtitle": "Strumenti completi per migliorare il tuo servizio di consulenza e offrire valore aggiunto ai tuoi clienti.",
-    "learn_more": "Scopri di Più",
+    "title": "Cosa Offriamo",
+    "subtitle": "Strumenti completi per migliorare il tuo servizio di consulenza e fornire valore aggiunto ai tuoi clienti.",
+    "learn_more": "Scopri di più",
     "smart_crm": {
       "title": "Smart CRM",
-      "description": "Semplifica l'onboarding dei clienti con moduli digitali e raccolta dati automatizzata. Organizza e gestisci facilmente i profili dei clienti, i documenti Mifid, e le comunicazioni in un'unica piattaforma centralizzata."
+      "description": "Semplifica l'onboarding dei clienti con moduli digitali e raccolta dati automatizzata. Organizza e gestisci facilmente profili cliente, documenti Mifid e comunicazioni in un'unica piattaforma centralizzata."
     },
     "junior_assistant": {
       "title": "Sigmund",
-      "description": "Gervis analizza il profilo cliente in base ai dati forniti e alle interazioni precedenti e fornisce al consulente una analisi costantemente aggiornata delle esigenze dei clienti, nonchè una lista consigliata di priorità da seguire ogni giorno."
+      "description": "Gervis analizza i profili dei clienti in base ai dati forniti e ai log, offrendo ai consulenti informazioni continuamente aggiornate sulle esigenze di investimento dei clienti, nonché un elenco di priorità da seguire ogni giorno."
     },
     "portfolio_intelligence": {
-      "title": "Spark",
-      "description": "Gervis fornisce idee di investimento giornaliere basate su news finanziarie aggiornate e profilo di investimento del cliente."
+      "title": "Eugene",
+      "description": "L'intelligenza artificiale ti assiste nella costruzione di portafogli d'investimento personalizzati per i tuoi clienti, ottimizzando l'allocazione in base al profilo di rischio e agli obiettivi finanziari."
     },
     "onboarding": {
       "title": "Onboarding Cliente Digitalizzato",

@@ -563,8 +563,8 @@
       "description": "Gervis analyzes client profiles based on provided data and logs, offering advisors continuously updated insights into client investment needs, as well as a list of priorities to follow every day."
     },
     "portfolio_intelligence": {
-      "title": "Spark",
-      "description": "Gervis provides daily investment ideas based on updated financial news and client investment profile."
+      "title": "Eugene",
+      "description": "Artificial intelligence assists you in building personalized investment portfolios for your clients, optimizing asset allocation based on their risk profile and financial goals."
     },
     "onboarding": {
       "title": "Digitized Client Onboarding",
